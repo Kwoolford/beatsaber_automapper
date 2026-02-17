@@ -10,6 +10,8 @@ import argparse
 import logging
 from pathlib import Path
 
+from beatsaber_automapper.data.download import download_maps
+
 logger = logging.getLogger(__name__)
 
 
@@ -19,13 +21,24 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=Path("data/raw"), help="Output directory")
     parser.add_argument("--count", type=int, default=500, help="Number of maps to download")
     parser.add_argument("--min-rating", type=float, default=0.8, help="Minimum upvote ratio")
+    parser.add_argument("--max-nps", type=float, default=20.0, help="Maximum notes-per-second")
+    parser.add_argument("--min-year", type=int, default=2020, help="Minimum upload year")
+    parser.add_argument("--rate-limit", type=float, default=0.5, help="Seconds between requests")
     args = parser.parse_args()
 
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s: %(message)s"
     )
-    logger.info("Download CLI not yet implemented (PR 2)")
-    logger.info("Would download %d maps to %s", args.count, args.output)
+
+    downloaded = download_maps(
+        output_dir=args.output,
+        count=args.count,
+        min_rating=args.min_rating,
+        max_nps=args.max_nps,
+        min_year=args.min_year,
+        rate_limit=args.rate_limit,
+    )
+    logger.info("Done. Downloaded %d maps.", len(downloaded))
 
 
 if __name__ == "__main__":
