@@ -18,7 +18,6 @@ type priority: NOTE > BOMB > WALL > ARC_START > ARC_END > CHAIN.
 from __future__ import annotations
 
 import logging
-import math
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -286,9 +285,7 @@ class BeatmapTokenizer:
                 MU_OFFSET + _quantize_mu(s.tail_mu),
                 MID_ANCHOR_OFFSET + s.mid_anchor_mode,
             ]
-            beat_events[s.tail_beat].append(
-                _TokenEvent(ARC_END, s.tail_x, s.tail_y, tail_tokens)
-            )
+            beat_events[s.tail_beat].append(_TokenEvent(ARC_END, s.tail_x, s.tail_y, tail_tokens))
 
         for bs in beatmap.burst_sliders:
             sc = max(_SLICE_MIN, min(_SLICE_MAX, bs.slice_count))
@@ -342,9 +339,9 @@ class BeatmapTokenizer:
 
         # Collect arc starts/ends for matching
         arc_starts: list[tuple[float, int, int, int, int, float]] = []  # beat, color, x, y, dir, mu
-        arc_ends: list[tuple[float, int, int, int, int, float, int]] = (
-            []
-        )  # beat, color, x, y, dir, mu, mid
+        arc_ends: list[
+            tuple[float, int, int, int, int, float, int]
+        ] = []  # beat, color, x, y, dir, mu, mid
 
         for beat in sorted(beat_tokens.keys()):
             tokens = beat_tokens[beat]
@@ -365,9 +362,7 @@ class BeatmapTokenizer:
                             x=tokens[pos + 2] - COL_OFFSET,
                             y=tokens[pos + 3] - ROW_OFFSET,
                             direction=tokens[pos + 4] - DIR_OFFSET,
-                            angle_offset=_dequantize_angle(
-                                tokens[pos + 5] - ANGLE_OFFSET_OFFSET
-                            ),
+                            angle_offset=_dequantize_angle(tokens[pos + 5] - ANGLE_OFFSET_OFFSET),
                         )
                     )
                     pos += 6
@@ -395,25 +390,29 @@ class BeatmapTokenizer:
                     )
                     pos += 7
                 elif event_type == ARC_START:
-                    arc_starts.append((
-                        beat,
-                        tokens[pos + 1] - COLOR_OFFSET,
-                        tokens[pos + 2] - COL_OFFSET,
-                        tokens[pos + 3] - ROW_OFFSET,
-                        tokens[pos + 4] - DIR_OFFSET,
-                        _dequantize_mu(tokens[pos + 5] - MU_OFFSET),
-                    ))
+                    arc_starts.append(
+                        (
+                            beat,
+                            tokens[pos + 1] - COLOR_OFFSET,
+                            tokens[pos + 2] - COL_OFFSET,
+                            tokens[pos + 3] - ROW_OFFSET,
+                            tokens[pos + 4] - DIR_OFFSET,
+                            _dequantize_mu(tokens[pos + 5] - MU_OFFSET),
+                        )
+                    )
                     pos += 6
                 elif event_type == ARC_END:
-                    arc_ends.append((
-                        beat,
-                        tokens[pos + 1] - COLOR_OFFSET,
-                        tokens[pos + 2] - COL_OFFSET,
-                        tokens[pos + 3] - ROW_OFFSET,
-                        tokens[pos + 4] - DIR_OFFSET,
-                        _dequantize_mu(tokens[pos + 5] - MU_OFFSET),
-                        tokens[pos + 6] - MID_ANCHOR_OFFSET,
-                    ))
+                    arc_ends.append(
+                        (
+                            beat,
+                            tokens[pos + 1] - COLOR_OFFSET,
+                            tokens[pos + 2] - COL_OFFSET,
+                            tokens[pos + 3] - ROW_OFFSET,
+                            tokens[pos + 4] - DIR_OFFSET,
+                            _dequantize_mu(tokens[pos + 5] - MU_OFFSET),
+                            tokens[pos + 6] - MID_ANCHOR_OFFSET,
+                        )
+                    )
                     pos += 7
                 elif event_type == CHAIN:
                     burst_sliders.append(

@@ -123,9 +123,7 @@ def test_round_trip_bomb() -> None:
 
 def test_round_trip_obstacle() -> None:
     tok = BeatmapTokenizer()
-    bm = _make_beatmap(
-        obstacles=[Obstacle(beat=14.0, duration=2.5, x=0, y=2, width=2, height=3)]
-    )
+    bm = _make_beatmap(obstacles=[Obstacle(beat=14.0, duration=2.5, x=0, y=2, width=2, height=3)])
     encoded = tok.encode_beatmap(bm)
     tokens = encoded[14.0]
     assert tokens[0] == WALL
@@ -400,15 +398,32 @@ def test_all_tokens_in_vocab_range() -> None:
         obstacles=[Obstacle(beat=3.0, duration=64.75, x=3, y=2, width=4, height=5)],
         sliders=[
             Slider(
-                color=1, beat=4.0, x=3, y=2, direction=8, mu=2.0,
-                tail_beat=5.0, tail_x=3, tail_y=2, tail_direction=8, tail_mu=2.0,
+                color=1,
+                beat=4.0,
+                x=3,
+                y=2,
+                direction=8,
+                mu=2.0,
+                tail_beat=5.0,
+                tail_x=3,
+                tail_y=2,
+                tail_direction=8,
+                tail_mu=2.0,
                 mid_anchor_mode=2,
             )
         ],
         burst_sliders=[
             BurstSlider(
-                color=1, beat=6.0, x=3, y=2, direction=8,
-                tail_beat=7.0, tail_x=3, tail_y=2, slice_count=32, squish=1.0,
+                color=1,
+                beat=6.0,
+                x=3,
+                y=2,
+                direction=8,
+                tail_beat=7.0,
+                tail_x=3,
+                tail_y=2,
+                slice_count=32,
+                squish=1.0,
             )
         ],
     )

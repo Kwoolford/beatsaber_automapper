@@ -278,9 +278,7 @@ def parse_difficulty_dat_json(data: dict[str, Any]) -> DifficultyBeatmap | None:
         sliders=[_parse_slider(s) for s in data.get("sliders", [])],
         burst_sliders=[_parse_burst_slider(bs) for bs in data.get("burstSliders", [])],
         basic_events=[_parse_basic_event(e) for e in data.get("basicBeatmapEvents", [])],
-        color_boost_events=[
-            _parse_color_boost(e) for e in data.get("colorBoostBeatmapEvents", [])
-        ],
+        color_boost_events=[_parse_color_boost(e) for e in data.get("colorBoostBeatmapEvents", [])],
     )
 
 

@@ -31,7 +31,7 @@ def _make_test_pt(tmpdir: Path, song_id: str = "song001", n_frames: int = 512) -
     token_sequences = [
         [4, 10, 12, 16, 19, 28, 1],  # NOTE + attrs + EOS
         [4, 11, 13, 17, 20, 29, 1],
-        [5, 14, 18, 1],               # BOMB + attrs + EOS
+        [5, 14, 18, 1],  # BOMB + attrs + EOS
         [4, 10, 15, 16, 22, 30, 1],
         [4, 11, 12, 17, 19, 28, 1],
     ]

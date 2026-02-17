@@ -217,7 +217,10 @@ def preprocess_single(
             token_sequences: list[list[int]] = []
             for beat in sorted(beat_tokens.keys()):
                 frame = beat_to_frame(
-                    beat, info.bpm, sample_rate=sr, hop_length=hop_length,
+                    beat,
+                    info.bpm,
+                    sample_rate=sr,
+                    hop_length=hop_length,
                     offset=info.song_time_offset,
                 )
                 if 0 <= frame < n_frames:
