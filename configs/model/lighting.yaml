@@ -1,0 +1,9 @@
+# Stage 3: Lighting generation model configuration
+d_model: 512
+nhead: 8
+num_layers: 4
+dropout: 0.1
+
+# Training
+learning_rate: 0.0003
+weight_decay: 0.01

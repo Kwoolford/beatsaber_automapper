@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+
+# Data (large files, local only)
+data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Experiment tracking
+wandb/
+lightning_logs/
+outputs/
+multirun/
+
+# Checkpoints
+checkpoints/
+*.ckpt
+*.pt
+*.pth
+
+# Generated levels
+*.zip
+
+# Misc
+.env
+*.log
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
