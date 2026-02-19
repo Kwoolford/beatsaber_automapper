@@ -4,7 +4,7 @@ Handles paginated API queries with rate limiting and quality filtering.
 Downloads map .zip files from BeatSaver's CDN.
 
 Key endpoints:
-    - GET /api/search/text/{page}?sortOrder=Rating — search by rating
+    - GET /search/text/{page}?sortOrder=Rating — search by rating
     - Download: https://r2cdn.beatsaver.com/{hash}.zip
 """
 
@@ -30,27 +30,28 @@ def download_maps(
     count: int = 500,
     min_rating: float = 0.8,
     max_nps: float = 20.0,
-    min_year: int = 2020,
-    require_difficulties: list[str] | None = None,
+    min_year: int = 2022,
     rate_limit: float = 0.5,
+    exclude_ai: bool = True,
 ) -> list[Path]:
     """Download high-quality maps from BeatSaver.
+
+    Accepts maps of any difficulty level (Easy through ExpertPlus) as long as
+    they have at least one Standard characteristic beatmap. The NPS cap is only
+    enforced on Expert/ExpertPlus diffs to catch speed-map outliers.
 
     Args:
         output_dir: Directory to save downloaded .zip files.
         count: Target number of maps to download.
         min_rating: Minimum upvote ratio (0.0-1.0).
-        max_nps: Maximum notes-per-second filter.
-        min_year: Minimum upload year.
-        require_difficulties: Required difficulties (e.g. ["Expert", "ExpertPlus"]).
+        max_nps: Maximum notes-per-second cap for Expert/ExpertPlus diffs.
+        min_year: Minimum upload year. Defaults to 2022 (v3 format era).
         rate_limit: Seconds between API requests.
+        exclude_ai: If True, skip maps marked as AI-generated or automapped.
 
     Returns:
         List of paths to downloaded .zip files.
     """
-    if require_difficulties is None:
-        require_difficulties = ["Expert", "ExpertPlus"]
-
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -94,7 +95,7 @@ def download_maps(
                 min_rating=min_rating,
                 max_nps=max_nps,
                 min_year=min_year,
-                require_difficulties=require_difficulties,
+                exclude_ai=exclude_ai,
             ):
                 continue
 
@@ -133,7 +134,7 @@ def _fetch_search_page(
         List of map data dicts, or empty list on error.
     """
     time.sleep(rate_limit)
-    url = f"{API_BASE}/api/search/text/{page}"
+    url = f"{API_BASE}/search/text/{page}"
     params = {"sortOrder": "Rating"}
 
     try:
@@ -151,15 +152,32 @@ def _fetch_search_page(
         return []
 
 
+_EXPERT_DIFFS = {"Expert", "ExpertPlus"}
+
+
 def _passes_filters(
     map_data: dict,
     *,
     min_rating: float,
     max_nps: float,
     min_year: int,
-    require_difficulties: list[str],
+    exclude_ai: bool = True,
 ) -> bool:
-    """Check if a map passes all quality filters."""
+    """Check if a map passes all quality filters.
+
+    Accepts any difficulty level (Easy–ExpertPlus). Requires at least one
+    Standard characteristic diff so we don't train on 360Degree/OneSaber/etc.
+    NPS cap is only enforced on Expert/ExpertPlus to catch speed-map outliers.
+    """
+    # Exclude AI/automapped maps from training data.
+    # declaredAi is a string field: "None" means human-made; "Assisted"/"SemiAuto"/"FullAuto" = AI.
+    if exclude_ai:
+        if map_data.get("automapper"):
+            return False
+        declared_ai = map_data.get("declaredAi", "None")
+        if declared_ai and declared_ai != "None":
+            return False
+
     # Rating filter
     stats = map_data.get("stats", {})
     score = stats.get("score", 0)
@@ -176,21 +194,22 @@ def _passes_filters(
         except (ValueError, IndexError):
             pass
 
-    # Difficulty filter — check all versions
-    available_diffs: set[str] = set()
-    for version in map_data.get("versions", []):
-        for diff in version.get("diffs", []):
-            available_diffs.add(diff.get("difficulty", ""))
-
-    has_required = any(d in available_diffs for d in require_difficulties)
-    if not has_required:
+    # Characteristic filter — must have at least one Standard diff.
+    # Excludes 360Degree, OneSaber, Lightshow, Lawless, etc.
+    standard_diffs = [
+        diff
+        for version in map_data.get("versions", [])
+        for diff in version.get("diffs", [])
+        if diff.get("characteristic") == "Standard"
+    ]
+    if not standard_diffs:
         return False
 
-    # NPS filter
-    for version in map_data.get("versions", []):
-        for diff in version.get("diffs", []):
-            nps = diff.get("nps", 0)
-            if nps > max_nps:
+    # NPS filter — only cap Expert/ExpertPlus to catch speed maps.
+    # Easy/Normal/Hard diffs are uncapped (low NPS by nature).
+    for diff in standard_diffs:
+        if diff.get("difficulty") in _EXPERT_DIFFS:
+            if diff.get("nps", 0) > max_nps:
                 return False
 
     return True

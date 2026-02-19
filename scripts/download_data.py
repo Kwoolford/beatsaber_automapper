@@ -22,8 +22,11 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=500, help="Number of maps to download")
     parser.add_argument("--min-rating", type=float, default=0.8, help="Minimum upvote ratio")
     parser.add_argument("--max-nps", type=float, default=20.0, help="Maximum notes-per-second")
-    parser.add_argument("--min-year", type=int, default=2020, help="Minimum upload year")
+    parser.add_argument("--min-year", type=int, default=2022, help="Min upload year")
     parser.add_argument("--rate-limit", type=float, default=0.5, help="Seconds between requests")
+    parser.add_argument(
+        "--include-ai", action="store_true", help="Include AI/automapped maps (excluded by default)"
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -37,6 +40,7 @@ def main() -> None:
         max_nps=args.max_nps,
         min_year=args.min_year,
         rate_limit=args.rate_limit,
+        exclude_ai=not args.include_ai,
     )
     logger.info("Done. Downloaded %d maps.", len(downloaded))
 
