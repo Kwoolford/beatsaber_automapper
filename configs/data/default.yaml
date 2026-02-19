@@ -1,0 +1,23 @@
+# Data pipeline configuration
+audio:
+  sample_rate: 44100
+  n_mels: 80
+  n_fft: 1024
+  hop_length: 512
+
+dataset:
+  train_split: 0.85
+  val_split: 0.10
+  test_split: 0.05
+  batch_size: 32
+  num_workers: 4
+  pin_memory: true
+
+download:
+  min_rating: 0.8
+  max_nps: 20.0
+  require_difficulties:
+    - Expert
+    - ExpertPlus
+  min_year: 2020
+  rate_limit_seconds: 0.5

@@ -163,8 +163,13 @@ def _quantize_angle(angle: int) -> int:
     return _quantize_to_bin(float(angle), [float(b) for b in _ANGLE_BINS])
 
 
+def _clamp(value: int, lo: int, hi: int) -> int:
+    """Clamp value to [lo, hi] inclusive."""
+    return max(lo, min(hi, value))
+
+
 def _dequantize_angle(bin_idx: int) -> int:
-    return _ANGLE_BINS[bin_idx]
+    return _ANGLE_BINS[_clamp(bin_idx, 0, ANGLE_OFFSET_COUNT - 1)]
 
 
 def _quantize_mu(mu: float) -> int:
@@ -172,7 +177,7 @@ def _quantize_mu(mu: float) -> int:
 
 
 def _dequantize_mu(bin_idx: int) -> float:
-    return _MU_BINS[bin_idx]
+    return _MU_BINS[_clamp(bin_idx, 0, MU_COUNT - 1)]
 
 
 def _quantize_squish(squish: float) -> int:
@@ -180,7 +185,7 @@ def _quantize_squish(squish: float) -> int:
 
 
 def _dequantize_squish(bin_idx: int) -> float:
-    return _SQUISH_BINS[bin_idx]
+    return _SQUISH_BINS[_clamp(bin_idx, 0, SQUISH_COUNT - 1)]
 
 
 def _quantize_dur_frac(frac: float) -> int:
@@ -188,7 +193,7 @@ def _quantize_dur_frac(frac: float) -> int:
 
 
 def _dequantize_dur_frac(bin_idx: int) -> float:
-    return _DUR_FRAC_BINS[bin_idx]
+    return _DUR_FRAC_BINS[_clamp(bin_idx, 0, DUR_FRAC_COUNT - 1)]
 
 
 # ---------------------------------------------------------------------------
@@ -354,7 +359,10 @@ class BeatmapTokenizer:
                     continue
 
                 event_type = tokens[pos]
+                remaining = len(tokens) - pos
                 if event_type == NOTE:
+                    if remaining < 6:
+                        break
                     color_notes.append(
                         ColorNote(
                             beat=beat,
@@ -367,6 +375,8 @@ class BeatmapTokenizer:
                     )
                     pos += 6
                 elif event_type == BOMB:
+                    if remaining < 3:
+                        break
                     bomb_notes.append(
                         BombNote(
                             beat=beat,
@@ -376,6 +386,8 @@ class BeatmapTokenizer:
                     )
                     pos += 3
                 elif event_type == WALL:
+                    if remaining < 7:
+                        break
                     dur_int = tokens[pos + 5] - DUR_INT_OFFSET
                     dur_frac = _dequantize_dur_frac(tokens[pos + 6] - DUR_FRAC_OFFSET)
                     obstacles.append(
@@ -390,6 +402,8 @@ class BeatmapTokenizer:
                     )
                     pos += 7
                 elif event_type == ARC_START:
+                    if remaining < 6:
+                        break
                     arc_starts.append(
                         (
                             beat,
@@ -402,6 +416,8 @@ class BeatmapTokenizer:
                     )
                     pos += 6
                 elif event_type == ARC_END:
+                    if remaining < 7:
+                        break
                     arc_ends.append(
                         (
                             beat,
@@ -415,6 +431,8 @@ class BeatmapTokenizer:
                     )
                     pos += 7
                 elif event_type == CHAIN:
+                    if remaining < 9:
+                        break
                     burst_sliders.append(
                         BurstSlider(
                             beat=beat,
@@ -501,3 +519,170 @@ DIFFICULTY_MAP: dict[str, int] = {
     "Expert": 3,
     "ExpertPlus": 4,
 }
+
+
+# ---------------------------------------------------------------------------
+# Lighting token vocabulary
+# ---------------------------------------------------------------------------
+# Shared special tokens (same IDs as note tokenizer for consistency)
+LIGHT_PAD = 0
+LIGHT_EOS = 1
+LIGHT_SEP = 2
+LIGHT_BOS = 3
+
+# Event-type tokens
+LIGHT_BASIC = 4  # basicBeatmapEvent: followed by [ET][VAL][BRIGHT]
+LIGHT_BOOST = 5  # colorBoostBeatmapEvent: followed by [ONOFF]
+
+# ET (event type): Beat Saber event types 0-14
+LIGHT_ET_OFFSET = 6
+LIGHT_ET_COUNT = 15  # tokens 6-20
+_LIGHT_ET_MAX = LIGHT_ET_COUNT - 1
+
+# VAL (event value): 0-7
+# 0=off, 1=blue-on, 2=blue-flash, 3=blue-fade, 5=red-on, 6=red-flash, 7=red-fade
+LIGHT_VAL_OFFSET = LIGHT_ET_OFFSET + LIGHT_ET_COUNT  # 21
+LIGHT_VAL_COUNT = 8  # tokens 21-28
+
+# BRIGHT (brightness / float_value): 4 bins
+LIGHT_BRIGHT_OFFSET = LIGHT_VAL_OFFSET + LIGHT_VAL_COUNT  # 29
+LIGHT_BRIGHT_COUNT = 4  # tokens 29-32
+_LIGHT_BRIGHT_BINS: list[float] = [0.0, 0.33, 0.67, 1.0]
+
+# ONOFF (boost on/off): 2 values
+LIGHT_ONOFF_OFFSET = LIGHT_BRIGHT_OFFSET + LIGHT_BRIGHT_COUNT  # 33
+LIGHT_ONOFF_COUNT = 2  # tokens 33-34
+
+LIGHT_VOCAB_SIZE = LIGHT_ONOFF_OFFSET + LIGHT_ONOFF_COUNT  # 35
+
+
+def _quantize_brightness(value: float) -> int:
+    """Quantize float brightness to nearest bin index."""
+    return _quantize_to_bin(value, _LIGHT_BRIGHT_BINS)
+
+
+def _dequantize_brightness(bin_idx: int) -> float:
+    return _LIGHT_BRIGHT_BINS[_clamp(bin_idx, 0, LIGHT_BRIGHT_COUNT - 1)]
+
+
+class LightingTokenizer:
+    """Tokenizer for Beat Saber lighting events.
+
+    Encodes basicBeatmapEvents and colorBoostBeatmapEvents into per-beat
+    token sequences and decodes them back to event objects.
+
+    Per-beat encoding:
+        BasicEvent:      [LIGHT_BASIC][ET_TOKEN][VAL_TOKEN][BRIGHT_TOKEN]
+        ColorBoostEvent: [LIGHT_BOOST][ONOFF_TOKEN]
+    Multiple events at the same beat are SEP-separated, ending with LIGHT_EOS.
+    """
+
+    def __init__(self) -> None:
+        self.vocab_size = LIGHT_VOCAB_SIZE
+        self.pad_token = LIGHT_PAD
+        self.eos_token = LIGHT_EOS
+        self.sep_token = LIGHT_SEP
+        self.bos_token = LIGHT_BOS
+
+    def encode_lighting(
+        self,
+        beatmap: DifficultyBeatmap,  # noqa: F821
+    ) -> dict[float, list[int]]:
+        """Encode lighting events from a beatmap into per-beat token sequences.
+
+        Args:
+            beatmap: Parsed difficulty beatmap containing basic_events and
+                color_boost_events.
+
+        Returns:
+            Dict mapping beat (float) -> list of tokens, ending with LIGHT_EOS.
+        """
+        from collections import defaultdict as _defaultdict
+
+        beat_events: dict[float, list[list[int]]] = _defaultdict(list)
+
+        for e in beatmap.basic_events:
+            et = _clamp(e.event_type, 0, _LIGHT_ET_MAX)
+            val = _clamp(e.value, 0, LIGHT_VAL_COUNT - 1)
+            bright = _quantize_brightness(e.float_value)
+            beat_events[e.beat].append(
+                [LIGHT_BASIC, LIGHT_ET_OFFSET + et, LIGHT_VAL_OFFSET + val,
+                 LIGHT_BRIGHT_OFFSET + bright]
+            )
+
+        for e in beatmap.color_boost_events:
+            onoff = 1 if e.boost else 0
+            beat_events[e.beat].append([LIGHT_BOOST, LIGHT_ONOFF_OFFSET + onoff])
+
+        result: dict[float, list[int]] = {}
+        for beat in sorted(beat_events.keys()):
+            events = beat_events[beat]
+            token_list: list[int] = []
+            for i, ev_tokens in enumerate(events):
+                if i > 0:
+                    token_list.append(LIGHT_SEP)
+                token_list.extend(ev_tokens)
+            token_list.append(LIGHT_EOS)
+            result[beat] = token_list
+
+        return result
+
+    def decode_lighting(
+        self,
+        beat_tokens: dict[float, list[int]],
+    ) -> tuple[list[BasicEvent], list[ColorBoostEvent]]:  # noqa: F821
+        """Decode per-beat token sequences back to lighting event objects.
+
+        Args:
+            beat_tokens: Dict mapping beat (float) -> list of tokens.
+
+        Returns:
+            Tuple of (basic_events, color_boost_events).
+        """
+        from beatsaber_automapper.data.beatmap import BasicEvent, ColorBoostEvent
+
+        basic_events: list[BasicEvent] = []
+        color_boost_events: list[ColorBoostEvent] = []
+
+        for beat in sorted(beat_tokens.keys()):
+            tokens = beat_tokens[beat]
+            pos = 0
+            while pos < len(tokens):
+                if tokens[pos] == LIGHT_EOS:
+                    break
+                if tokens[pos] == LIGHT_SEP:
+                    pos += 1
+                    continue
+
+                event_type = tokens[pos]
+                remaining = len(tokens) - pos
+
+                if event_type == LIGHT_BASIC:
+                    if remaining < 4:
+                        break
+                    et = _clamp(tokens[pos + 1] - LIGHT_ET_OFFSET, 0, _LIGHT_ET_MAX)
+                    val = _clamp(tokens[pos + 2] - LIGHT_VAL_OFFSET, 0, LIGHT_VAL_COUNT - 1)
+                    bright_idx = _clamp(
+                        tokens[pos + 3] - LIGHT_BRIGHT_OFFSET, 0, LIGHT_BRIGHT_COUNT - 1
+                    )
+                    basic_events.append(
+                        BasicEvent(
+                            beat=beat,
+                            event_type=et,
+                            value=val,
+                            float_value=_dequantize_brightness(bright_idx),
+                        )
+                    )
+                    pos += 4
+                elif event_type == LIGHT_BOOST:
+                    if remaining < 2:
+                        break
+                    onoff = _clamp(tokens[pos + 1] - LIGHT_ONOFF_OFFSET, 0, 1)
+                    color_boost_events.append(
+                        ColorBoostEvent(beat=beat, boost=bool(onoff))
+                    )
+                    pos += 2
+                else:
+                    pos += 1
+
+        return basic_events, color_boost_events

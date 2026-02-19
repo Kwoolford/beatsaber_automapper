@@ -2,8 +2,18 @@
 d_model: 512
 nhead: 8
 num_layers: 4
+dim_feedforward: 2048
 dropout: 0.1
 
+# Vocabulary
+light_vocab_size: 35   # LIGHT_VOCAB_SIZE
+note_vocab_size: 167   # VOCAB_SIZE (note tokenizer)
+
+# Context
+context_frames: 128    # mel frames around each lighting beat
+max_note_len: 64       # max note token sequence length
+max_light_len: 32      # max lighting token sequence length
+
 # Training
-learning_rate: 0.0003
-weight_decay: 0.01
+label_smoothing: 0.1
+freeze_encoder: false

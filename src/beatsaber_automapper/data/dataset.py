@@ -230,10 +230,131 @@ class SequenceDataset(Dataset):
 
 
 class LightingDataset(Dataset):
-    """Dataset for Stage 3 lighting generation training."""
+    """Dataset for Stage 3 lighting generation training.
 
-    def __init__(self) -> None:
-        raise NotImplementedError("LightingDataset will be implemented in PR 6")
+    Produces per-beat samples for beats that have lighting events.
+    Each sample provides a mel context window, note tokens for the beat
+    (for note conditioning), and lighting tokens as the target sequence.
+
+    Each sample:
+        {mel: [n_mels, context_frames], note_tokens: [max_note_len],
+         light_tokens: [max_light_len], difficulty: int}
+
+    The .pt files must contain ``light_frames`` and ``light_token_sequences``
+    entries (produced by the preprocessing pipeline with LightingTokenizer).
+    """
+
+    def __init__(
+        self,
+        data_dir: Path | str,
+        split: str = "train",
+        context_frames: int = 128,
+        max_note_len: int = 64,
+        max_light_len: int = 32,
+        difficulties: list[str] | None = None,
+    ) -> None:
+        """Initialize LightingDataset.
+
+        Args:
+            data_dir: Directory with preprocessed .pt files and splits.json.
+            split: One of "train", "val", "test".
+            context_frames: Number of mel frames for audio context around each beat.
+            max_note_len: Maximum note token sequence length (padded/truncated).
+            max_light_len: Maximum lighting token sequence length (padded/truncated).
+            difficulties: Which difficulties to include. Defaults to all available.
+        """
+        self.data_dir = Path(data_dir)
+        self.context_frames = context_frames
+        self.max_note_len = max_note_len
+        self.max_light_len = max_light_len
+        self.target_difficulties = difficulties
+
+        # Load split info
+        splits_path = self.data_dir / "splits.json"
+        if splits_path.exists():
+            with open(splits_path) as f:
+                splits = json.load(f)
+            song_ids = set(splits.get(split, []))
+        else:
+            song_ids = None
+
+        # Index all lighting-event samples: (pt_path, diff_name, light_idx, diff_id)
+        self.samples: list[tuple[Path, str, int, int]] = []
+        pt_files = sorted(self.data_dir.glob("*.pt"))
+        for pt_path in pt_files:
+            song_id = pt_path.stem
+            if song_ids is not None and song_id not in song_ids:
+                continue
+            data = torch.load(pt_path, weights_only=False)
+
+            for diff_name, diff_data in data.get("difficulties", {}).items():
+                if self.target_difficulties and diff_name not in self.target_difficulties:
+                    continue
+                if "light_token_sequences" not in diff_data:
+                    continue
+                diff_id = DIFFICULTY_MAP.get(diff_name, 3)
+                n_light = len(diff_data["light_token_sequences"])
+                for light_idx in range(n_light):
+                    self.samples.append((pt_path, diff_name, light_idx, diff_id))
+
+        self._cache: dict[str, dict] = {}
+
+    def _load(self, pt_path: Path) -> dict:
+        key = str(pt_path)
+        if key not in self._cache:
+            self._cache[key] = torch.load(pt_path, weights_only=False)
+        return self._cache[key]
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+        pt_path, diff_name, light_idx, diff_id = self.samples[idx]
+        data = self._load(pt_path)
+        mel = data["mel_spectrogram"]
+        diff_data = data["difficulties"][diff_name]
+
+        light_frame = int(diff_data["light_frames"][light_idx].item())
+        light_seq = diff_data["light_token_sequences"][light_idx]
+
+        # Find note tokens for the nearest onset to this beat
+        # (use the note token sequence closest in frame to light_frame)
+        onset_frames = diff_data.get("onset_frames", torch.tensor([]))
+        note_tokens: list[int] = []
+        if len(onset_frames) > 0:
+            dists = (onset_frames - light_frame).abs()
+            nearest_idx = int(dists.argmin().item())
+            note_tokens = diff_data["token_sequences"][nearest_idx]
+
+        # Extract mel context window
+        n_frames = mel.shape[1]
+        half = self.context_frames // 2
+        start = max(0, light_frame - half)
+        end = start + self.context_frames
+        if end > n_frames:
+            end = n_frames
+            start = max(0, end - self.context_frames)
+        mel_window = mel[:, start:end]
+        if mel_window.shape[1] < self.context_frames:
+            pad_size = self.context_frames - mel_window.shape[1]
+            mel_window = torch.nn.functional.pad(mel_window, (0, pad_size))
+
+        # Pad/truncate note tokens
+        if len(note_tokens) > self.max_note_len:
+            note_tokens = note_tokens[: self.max_note_len]
+        note_padded = note_tokens + [0] * (self.max_note_len - len(note_tokens))
+
+        # Pad/truncate lighting tokens
+        if len(light_seq) > self.max_light_len:
+            light_seq = light_seq[: self.max_light_len]
+        light_padded = light_seq + [0] * (self.max_light_len - len(light_seq))
+
+        return {
+            "mel": mel_window,
+            "note_tokens": torch.tensor(note_padded, dtype=torch.long),
+            "light_tokens": torch.tensor(light_padded, dtype=torch.long),
+            "difficulty": torch.tensor(diff_id, dtype=torch.long),
+        }
 
 
 def create_dataloader(

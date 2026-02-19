@@ -2,6 +2,8 @@
 defaults:
   - model/audio_encoder
   - model/onset
+  - model/sequence
+  - model/lighting
   - data/default
 
 # Training
@@ -25,8 +27,8 @@ scheduler:
 
 # Checkpointing
 checkpoint:
-  monitor: val_loss
-  mode: min
+  monitor: val_f1
+  mode: max
   save_top_k: 3
   save_last: true
 
@@ -35,6 +37,11 @@ logger:
   name: tensorboard  # tensorboard | wandb
   project: beatsaber_automapper
 
-# Paths
+# Paths (resolved relative to the project root, not Hydra's run dir)
 data_dir: data/processed
 output_dir: outputs
+
+# Keep CWD at the project root so relative paths (data_dir, output_dir) work correctly
+hydra:
+  job:
+    chdir: false

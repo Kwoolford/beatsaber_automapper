@@ -48,3 +48,56 @@ class SinusoidalPositionalEncoding(nn.Module):
         """
         x = x + self.pe[:, : x.size(1)]
         return self.dropout(x)
+
+
+def peak_picking(
+    probs: torch.Tensor,
+    threshold: float = 0.5,
+    min_distance: int = 5,
+) -> torch.Tensor:
+    """Pick peaks from a 1-D probability tensor.
+
+    Finds frames above threshold that are local maxima, then applies
+    greedy suppression by min_distance (keeping the highest first).
+
+    Args:
+        probs: 1-D tensor of probabilities [T].
+        threshold: Minimum probability to consider.
+        min_distance: Minimum frames between peaks.
+
+    Returns:
+        Sorted 1-D tensor of frame indices where peaks occur.
+    """
+    if probs.ndim != 1:
+        raise ValueError(f"Expected 1-D tensor, got {probs.ndim}-D")
+
+    # Find candidates above threshold
+    above = (probs >= threshold).nonzero(as_tuple=True)[0]
+    if len(above) == 0:
+        return torch.tensor([], dtype=torch.long, device=probs.device)
+
+    # Filter to local maxima (higher than both neighbors)
+    peaks = []
+    for idx in above:
+        i = idx.item()
+        left = probs[i - 1].item() if i > 0 else -1.0
+        right = probs[i + 1].item() if i < len(probs) - 1 else -1.0
+        if probs[i].item() >= left and probs[i].item() >= right:
+            peaks.append(i)
+
+    if not peaks:
+        return torch.tensor([], dtype=torch.long, device=probs.device)
+
+    # Greedy suppression: sort by probability descending, keep if far enough
+    peaks_t = torch.tensor(peaks, dtype=torch.long, device=probs.device)
+    peak_probs = probs[peaks_t]
+    order = peak_probs.argsort(descending=True)
+    peaks_sorted = peaks_t[order]
+
+    kept: list[int] = []
+    for p in peaks_sorted.tolist():
+        if all(abs(p - k) >= min_distance for k in kept):
+            kept.append(p)
+
+    result = torch.tensor(sorted(kept), dtype=torch.long, device=probs.device)
+    return result

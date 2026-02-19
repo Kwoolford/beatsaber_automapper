@@ -29,7 +29,7 @@ from beatsaber_automapper.data.beatmap import (
     parse_difficulty_dat_json,
     parse_info_dat_json,
 )
-from beatsaber_automapper.data.tokenizer import BeatmapTokenizer
+from beatsaber_automapper.data.tokenizer import BeatmapTokenizer, LightingTokenizer
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +159,7 @@ def preprocess_single(
         return pt_path
 
     tokenizer = BeatmapTokenizer()
+    light_tokenizer = LightingTokenizer()
 
     with zipfile.ZipFile(zip_path, "r") as zf:
         # Find and parse Info.dat (case-insensitive)
@@ -233,10 +234,30 @@ def preprocess_single(
             onset_frames = torch.tensor(onset_frames_list, dtype=torch.long)
             onset_labels = _compute_onset_labels(onset_frames, n_frames, sigma=sigma)
 
+            # Tokenize lighting events
+            light_beat_tokens = light_tokenizer.encode_lighting(beatmap)
+            light_frames_list: list[int] = []
+            light_token_sequences: list[list[int]] = []
+            for beat, ltokens in sorted(light_beat_tokens.items()):
+                frame = beat_to_frame(
+                    beat,
+                    info.bpm,
+                    sample_rate=sr,
+                    hop_length=hop_length,
+                    offset=info.song_time_offset,
+                )
+                if 0 <= frame < n_frames:
+                    light_frames_list.append(frame)
+                    light_token_sequences.append(ltokens)
+
+            light_frames = torch.tensor(light_frames_list, dtype=torch.long)
+
             difficulties[diff_info.difficulty] = {
                 "onset_frames": onset_frames,
                 "onset_labels": onset_labels,
                 "token_sequences": token_sequences,
+                "light_frames": light_frames,
+                "light_token_sequences": light_token_sequences,
             }
 
     if not difficulties:

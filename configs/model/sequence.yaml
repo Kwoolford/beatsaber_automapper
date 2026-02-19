@@ -1,5 +1,5 @@
 # Stage 2: Note sequence generation model configuration
-vocab_size: 256
+vocab_size: 167  # Must match tokenizer.VOCAB_SIZE
 d_model: 512
 nhead: 8
 num_layers: 8
@@ -11,6 +11,11 @@ dropout: 0.1
 learning_rate: 0.0003
 weight_decay: 0.01
 max_seq_length: 64  # Max tokens per onset timestamp
+label_smoothing: 0.1
+freeze_encoder: false
+
+# Dataset
+context_frames: 128  # Mel frames around each onset for audio context
 
 # Inference
 beam_size: 8
