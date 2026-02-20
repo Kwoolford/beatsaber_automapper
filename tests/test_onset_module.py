@@ -118,7 +118,8 @@ class TestOnsetLitModule:
         module = self._make_small_module()
         mel = torch.randn(2, 16, 32)
         diff = torch.tensor([0, 3])
-        out = module(mel, diff)
+        genre = torch.tensor([0, 1])
+        out = module(mel, diff, genre)
         assert out.shape == (2, 32)
 
     def test_training_step_returns_scalar(self):
@@ -128,6 +129,7 @@ class TestOnsetLitModule:
             "mel": torch.randn(2, 16, 32),
             "labels": torch.zeros(2, 32),
             "difficulty": torch.tensor([0, 1]),
+            "genre": torch.tensor([0, 2]),
         }
         loss = module.training_step(batch, 0)
         assert loss.ndim == 0

@@ -5,6 +5,7 @@ nhead: 8
 num_layers: 8
 dim_feedforward: 2048
 num_difficulties: 5
+num_genres: 11
 dropout: 0.1
 
 # Training

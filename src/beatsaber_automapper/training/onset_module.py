@@ -38,6 +38,7 @@ class OnsetLitModule(lightning.LightningModule):
         onset_nhead: Onset model attention heads.
         onset_num_layers: Onset model transformer layers.
         onset_num_difficulties: Number of difficulty levels.
+        onset_num_genres: Number of genre classes.
         onset_dropout: Onset model dropout.
         pos_weight: Positive class weight for BCE loss.
         learning_rate: Peak learning rate.
@@ -61,6 +62,7 @@ class OnsetLitModule(lightning.LightningModule):
         onset_nhead: int = 8,
         onset_num_layers: int = 2,
         onset_num_difficulties: int = 5,
+        onset_num_genres: int = 11,
         onset_dropout: float = 0.1,
         # Training params
         pos_weight: float = 5.0,
@@ -87,32 +89,36 @@ class OnsetLitModule(lightning.LightningModule):
             nhead=onset_nhead,
             num_layers=onset_num_layers,
             num_difficulties=onset_num_difficulties,
+            num_genres=onset_num_genres,
             dropout=onset_dropout,
         )
 
         self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight]))
 
-    def forward(self, mel: torch.Tensor, difficulty: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self, mel: torch.Tensor, difficulty: torch.Tensor, genre: torch.Tensor
+    ) -> torch.Tensor:
         """Forward pass: mel -> audio features -> onset logits.
 
         Args:
             mel: Mel spectrogram [B, n_mels, T].
             difficulty: Difficulty indices [B].
+            genre: Genre indices [B].
 
         Returns:
             Onset logits [B, T].
         """
         audio_features = self.audio_encoder(mel)
-        return self.onset_model(audio_features, difficulty)
+        return self.onset_model(audio_features, difficulty, genre)
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
-        logits = self(batch["mel"], batch["difficulty"])
+        logits = self(batch["mel"], batch["difficulty"], batch["genre"])
         loss = self.loss_fn(logits, batch["labels"])
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
-        logits = self(batch["mel"], batch["difficulty"])
+        logits = self(batch["mel"], batch["difficulty"], batch["genre"])
         loss = self.loss_fn(logits, batch["labels"])
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 

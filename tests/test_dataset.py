@@ -14,9 +14,16 @@ from beatsaber_automapper.data.dataset import (
     SequenceDataset,
     create_dataloader,
 )
+from beatsaber_automapper.data.tokenizer import GENRE_MAP
 
 
-def _make_test_pt(tmpdir: Path, song_id: str = "song001", n_frames: int = 512) -> Path:
+def _make_test_pt(
+    tmpdir: Path,
+    song_id: str = "song001",
+    n_frames: int = 512,
+    category: str = "vanilla",
+    genre: str = "unknown",
+) -> Path:
     """Create a minimal preprocessed .pt file for testing."""
     n_mels = 80
     mel = torch.randn(n_mels, n_frames)
@@ -46,6 +53,12 @@ def _make_test_pt(tmpdir: Path, song_id: str = "song001", n_frames: int = 512) -
                 "onset_labels": onset_labels,
                 "token_sequences": token_sequences,
             },
+        },
+        "mod_requirements": {
+            "category": category,
+            "requirements": [],
+            "suggestions": [],
+            "genre": genre,
         },
     }
 
@@ -234,3 +247,143 @@ def test_onset_dataset_no_splits() -> None:
 
         ds = OnsetDataset(tmpdir, split="train", window_size=128, hop=64)
         assert len(ds) > 0
+
+
+# ---------------------------------------------------------------------------
+# Category filtering
+# ---------------------------------------------------------------------------
+
+
+def test_onset_dataset_excludes_category() -> None:
+    """Maps with excluded category should be omitted from the index."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        _make_test_pt(tmpdir, "song_vanilla", n_frames=512, category="vanilla")
+        _make_test_pt(tmpdir, "song_noodle", n_frames=512, category="noodle")
+        _make_splits(
+            tmpdir,
+            train=["song_vanilla", "song_noodle"],
+            val=[],
+            test=[],
+        )
+
+        ds_all = OnsetDataset(tmpdir, split="train", window_size=128, hop=64)
+        ds_no_noodle = OnsetDataset(
+            tmpdir,
+            split="train",
+            window_size=128,
+            hop=64,
+            exclude_categories=["noodle"],
+        )
+
+        # Both songs contribute windows, so all > no_noodle
+        assert len(ds_all) > len(ds_no_noodle)
+        assert len(ds_no_noodle) > 0  # vanilla song still present
+
+        # Excluding vanilla leaves only noodle, so no_noodle excludes all
+        ds_no_vanilla = OnsetDataset(
+            tmpdir,
+            split="train",
+            window_size=128,
+            hop=64,
+            exclude_categories=["vanilla"],
+        )
+        # ds_no_vanilla should equal ds_all minus ds_no_noodle's windows
+        assert len(ds_no_vanilla) == len(ds_all) - len(ds_no_noodle)
+
+
+def test_sequence_dataset_excludes_category() -> None:
+    """SequenceDataset exclude_categories filters by mod_requirements.category."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        _make_test_pt(tmpdir, "song_vanilla", n_frames=512, category="vanilla")
+        _make_test_pt(tmpdir, "song_chroma", n_frames=512, category="chroma")
+        _make_splits(
+            tmpdir,
+            train=["song_vanilla", "song_chroma"],
+            val=[],
+            test=[],
+        )
+
+        ds_all = SequenceDataset(tmpdir, split="train", context_frames=64, max_token_len=32)
+        ds_no_chroma = SequenceDataset(
+            tmpdir,
+            split="train",
+            context_frames=64,
+            max_token_len=32,
+            exclude_categories=["chroma"],
+        )
+
+        # 5 onsets per song, 2 songs → 10 total; excluding chroma → 5
+        assert len(ds_all) == 10
+        assert len(ds_no_chroma) == 5
+
+
+def test_onset_dataset_excludes_unknown_category() -> None:
+    """Maps with 'unknown' category (no manifest) can be excluded."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        _make_test_pt(tmpdir, "song001", n_frames=512, category="unknown")
+        _make_splits(tmpdir, train=["song001"], val=[], test=[])
+
+        ds_include = OnsetDataset(tmpdir, split="train", window_size=128, hop=64)
+        ds_exclude = OnsetDataset(
+            tmpdir,
+            split="train",
+            window_size=128,
+            hop=64,
+            exclude_categories=["unknown"],
+        )
+
+        assert len(ds_include) > 0
+        assert len(ds_exclude) == 0
+
+
+# ---------------------------------------------------------------------------
+# Genre conditioning
+# ---------------------------------------------------------------------------
+
+
+def test_onset_dataset_genre_in_sample() -> None:
+    """OnsetDataset samples should include a 'genre' long tensor."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        _make_test_pt(tmpdir, "song001", n_frames=512, genre="electronic")
+        _make_splits(tmpdir, train=["song001"], val=[], test=[])
+
+        ds = OnsetDataset(tmpdir, split="train", window_size=128, hop=64)
+        sample = ds[0]
+
+        assert "genre" in sample
+        assert sample["genre"].dtype == torch.long
+        assert sample["genre"].shape == ()
+        assert sample["genre"].item() == GENRE_MAP["electronic"]
+
+
+def test_sequence_dataset_genre_in_sample() -> None:
+    """SequenceDataset samples should include a 'genre' long tensor."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        _make_test_pt(tmpdir, "song001", n_frames=512, genre="rock")
+        _make_splits(tmpdir, train=["song001"], val=[], test=[])
+
+        ds = SequenceDataset(tmpdir, split="train", context_frames=64, max_token_len=32)
+        sample = ds[0]
+
+        assert "genre" in sample
+        assert sample["genre"].dtype == torch.long
+        assert sample["genre"].item() == GENRE_MAP["rock"]
+
+
+def test_onset_dataset_unknown_genre_defaults_to_zero() -> None:
+    """Songs without genre in mod_requirements default to genre index 0 (unknown)."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir = Path(tmpdir)
+        # genre defaults to "unknown" -> index 0
+        _make_test_pt(tmpdir, "song001", n_frames=512)
+        _make_splits(tmpdir, train=["song001"], val=[], test=[])
+
+        ds = OnsetDataset(tmpdir, split="train", window_size=128, hop=64)
+        sample = ds[0]
+
+        assert sample["genre"].item() == 0  # GENRE_MAP["unknown"] == 0

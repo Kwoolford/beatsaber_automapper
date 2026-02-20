@@ -26,6 +26,7 @@ class OnsetModel(nn.Module):
         nhead: Number of attention heads.
         num_layers: Number of transformer encoder layers.
         num_difficulties: Number of difficulty levels (5: Easy-ExpertPlus).
+        num_genres: Number of genre classes (11).
         dropout: Dropout rate.
     """
 
@@ -35,6 +36,7 @@ class OnsetModel(nn.Module):
         nhead: int = 8,
         num_layers: int = 2,
         num_difficulties: int = 5,
+        num_genres: int = 11,
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
@@ -42,6 +44,9 @@ class OnsetModel(nn.Module):
 
         # Difficulty conditioning: learned embedding added to every frame
         self.difficulty_emb = nn.Embedding(num_difficulties, d_model)
+
+        # Genre conditioning: learned embedding added to every frame
+        self.genre_emb = nn.Embedding(num_genres, d_model)
 
         # Small transformer for onset-specific processing
         encoder_layer = nn.TransformerEncoderLayer(
@@ -60,19 +65,26 @@ class OnsetModel(nn.Module):
             nn.Linear(d_model, 1),
         )
 
-    def forward(self, audio_features: torch.Tensor, difficulty: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        audio_features: torch.Tensor,
+        difficulty: torch.Tensor,
+        genre: torch.Tensor,
+    ) -> torch.Tensor:
         """Predict onset logits per frame.
 
         Args:
             audio_features: Audio encoder output [B, T, d_model].
             difficulty: Difficulty index per sample [B].
+            genre: Genre index per sample [B].
 
         Returns:
             Raw logits [B, T] (apply sigmoid for probabilities).
         """
-        # Add difficulty embedding to every frame
+        # Add difficulty and genre embeddings to every frame
         diff_emb = self.difficulty_emb(difficulty)  # [B, d_model]
-        x = audio_features + diff_emb.unsqueeze(1)  # [B, T, d_model]
+        genre_emb = self.genre_emb(genre)           # [B, d_model]
+        x = audio_features + diff_emb.unsqueeze(1) + genre_emb.unsqueeze(1)  # [B, T, d_model]
 
         # Transformer
         x = self.transformer(x)

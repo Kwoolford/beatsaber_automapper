@@ -168,6 +168,53 @@ All items complete and verified:
 
 **Date started:** 2026-02-19
 
+### Genre tag conditioning (2026-02-20)
+
+Added genre as a second conditioning signal alongside difficulty, wired through the full pipeline.
+
+- [x] **`data/tokenizer.py`**: `GENRE_MAP` (11 classes: unknown=0, electronic, rock, pop, anime, hip-hop, classical, jazz, country, video-game, other), `NUM_GENRES=11`, `_GENRE_TAG_MAP`, `genre_from_tags()`.
+- [x] **`data/download.py`**: `_extract_genre_tags()` reads BeatSaver API tag list. Manifest entries now include `genre_tags: list[str]` and `genre: str`. Backfilled entries default to `genre_tags=[]`, `genre="unknown"`.
+- [x] **`scripts/preprocess.py`**: Reads `genre` from manifest; stores in `mod_requirements.genre` in every `.pt` file.
+- [x] **`data/dataset.py`**: All three dataset classes (`OnsetDataset`, `SequenceDataset`, `LightingDataset`) now include `genre_idx` in their samples tuple and return `"genre": torch.tensor(genre_idx)` in each batch item.
+- [x] **`models/onset_model.py`**: `genre_emb = nn.Embedding(num_genres, d_model)`, added additively to audio features. `forward(audio_features, difficulty, genre)`.
+- [x] **`models/sequence_model.py`**: Same pattern — `genre_emb` added additively. `forward()` and `decode_step()` both accept `genre`.
+- [x] **`models/lighting_model.py`**: Same pattern. `forward()` and `decode_step()` both accept `genre`.
+- [x] **`generation/beam_search.py`**: `beam_search_decode()` and `nucleus_sampling_decode()` both accept `genre: torch.Tensor`.
+- [x] **Training modules** (`onset_module.py`, `seq_module.py`, `light_module.py`): All accept `*_num_genres: int = 11` param, thread genre through forward/training/validation.
+- [x] **`generation/generate.py`**: `generate_level()` accepts `genre: str = "unknown"`, converts to index via `GENRE_MAP`, passes as tensor through all three stages.
+- [x] **`scripts/generate.py`**: `--genre` CLI arg with choices from GENRE_MAP keys.
+- [x] **`configs/model/`**: `num_genres: 11` added to `onset.yaml`, `sequence.yaml`, `lighting.yaml`.
+- [x] **Tests**: All test files updated — model fixtures gain `num_genres=11`, all forward/decode_step calls pass `genre` tensor, training batches include `"genre"` key. 3 new genre dataset tests.
+- [x] `ruff check .` — all checks passed
+- [x] `pytest` — 182/182 tests passed (6 new + 176 prior)
+
+### Modding framework quotas + preprocessor tagging (2026-02-20)
+
+Added per-category download quotas and mod_requirements tagging to support
+clean separation of vanilla vs modded maps in the training pipeline.
+
+- [x] **`download.py`**: New `_classify_map_api()` (pre-download, from API booleans), `_classify_map_zip()` (post-download, from Info.dat customData), `_load_manifest()`, `_save_manifest()` (atomic write). `download_maps()` now accepts `quotas: dict[str, int | None]` and maintains `data/raw/manifest.json` tracking every map's category, requirements, suggestions, and download timestamp. Existing 5k zips are backfilled on first run.
+- [x] **`scripts/download_data.py`**: `--quota category:N` (repeatable) replaces `--count` as primary interface. `--count` kept as legacy fallback. Example: `bsa-download --quota vanilla:10000 --quota chroma:2000 --quota noodle:1000`
+- [x] **`scripts/preprocess.py`**: Loads manifest at start; passes `manifest_entry` to `preprocess_single()`; embeds `mod_requirements: {category, requirements, suggestions}` in every `.pt` file. `--exclude-categories` CLI arg to skip entire categories during preprocessing.
+- [x] **`data/dataset.py`**: `exclude_categories: list[str] | None = None` added to `OnsetDataset`, `SequenceDataset`, and `LightingDataset`. Category check (`mod_requirements.category`) applied during index construction (not at `__getitem__` time). Missing `mod_requirements` defaults to `"vanilla"`.
+- [x] **`tests/test_dataset.py`**: `_make_test_pt()` updated with `category` param + `mod_requirements` in saved data. Three new tests: `test_onset_dataset_excludes_category`, `test_sequence_dataset_excludes_category`, `test_onset_dataset_excludes_unknown_category`.
+- [x] `ruff check .` — all checks passed
+- [x] `pytest` — 179/179 tests passed (3 new + 176 prior)
+
+**Quota strategy for next download run:**
+```
+bsa-download --quota vanilla:10000 --quota chroma:2000 --quota noodle:1000 --min-rating 0.8 --min-year 2022
+```
+vivify and mapping_extensions are opportunistic (no cap). Existing 5k zips count toward quotas after backfill. Expected total: ~13k maps.
+
+**Categories:**
+- `vanilla` — no mod requirements
+- `chroma` — Chroma in requirements/suggestions
+- `noodle` — Noodle Extensions required
+- `mapping_extensions` — Mapping Extensions required
+- `vivify` — Vivify in requirements/suggestions (highest priority)
+- `unknown` — no manifest entry (pre-backfill maps)
+
 ### Download client fixes (2026-02-19)
 
 Three bugs found and fixed in `data/download.py` while running first real download:

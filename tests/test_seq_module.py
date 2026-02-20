@@ -38,7 +38,8 @@ class TestSequenceLitModuleForward:
         mel = torch.randn(2, 80, 32)
         tokens = torch.randint(0, VOCAB_SIZE, (2, 10))
         difficulty = torch.tensor([0, 4])
-        logits = module(mel, tokens, difficulty)
+        genre = torch.tensor([0, 1])
+        logits = module(mel, tokens, difficulty, genre)
         assert logits.shape == (2, 10, VOCAB_SIZE)
 
     def test_training_step_returns_scalar(self, module):
@@ -46,6 +47,7 @@ class TestSequenceLitModuleForward:
             "mel": torch.randn(2, 80, 32),
             "tokens": torch.randint(4, VOCAB_SIZE, (2, 10)),
             "difficulty": torch.tensor([0, 3]),
+            "genre": torch.tensor([0, 2]),
         }
         loss = module.training_step(batch, 0)
         assert loss.ndim == 0

@@ -18,6 +18,7 @@ def model() -> LightingModel:
         nhead=4,
         num_layers=1,
         dim_feedforward=128,
+        num_genres=11,
         dropout=0.0,
     )
 
@@ -27,21 +28,24 @@ class TestLightingModelForward:
         light_tokens = torch.randint(0, LIGHT_VOCAB_SIZE, (2, 8))
         audio = torch.randn(2, 16, 64)
         note_tokens = torch.randint(0, VOCAB_SIZE, (2, 10))
-        logits = model(light_tokens, audio, note_tokens)
+        genre = torch.tensor([0, 1])
+        logits = model(light_tokens, audio, note_tokens, genre)
         assert logits.shape == (2, 8, LIGHT_VOCAB_SIZE)
 
     def test_single_token(self, model):
         light_tokens = torch.randint(0, LIGHT_VOCAB_SIZE, (1, 1))
         audio = torch.randn(1, 4, 64)
         note_tokens = torch.randint(0, VOCAB_SIZE, (1, 5))
-        logits = model(light_tokens, audio, note_tokens)
+        genre = torch.tensor([0])
+        logits = model(light_tokens, audio, note_tokens, genre)
         assert logits.shape == (1, 1, LIGHT_VOCAB_SIZE)
 
     def test_decode_step_shape(self, model):
         light_tokens = torch.randint(0, LIGHT_VOCAB_SIZE, (1, 3))
         audio = torch.randn(1, 8, 64)
         note_tokens = torch.randint(0, VOCAB_SIZE, (1, 6))
-        logits = model.decode_step(light_tokens, audio, note_tokens)
+        genre = torch.tensor([0])
+        logits = model.decode_step(light_tokens, audio, note_tokens, genre)
         assert logits.shape == (1, LIGHT_VOCAB_SIZE)
 
     def test_all_pad_note_tokens(self, model):
@@ -49,7 +53,8 @@ class TestLightingModelForward:
         light_tokens = torch.randint(0, LIGHT_VOCAB_SIZE, (2, 4))
         audio = torch.randn(2, 8, 64)
         note_tokens = torch.zeros(2, 8, dtype=torch.long)  # all PAD
-        logits = model(light_tokens, audio, note_tokens)
+        genre = torch.tensor([0, 0])
+        logits = model(light_tokens, audio, note_tokens, genre)
         assert logits.shape == (2, 4, LIGHT_VOCAB_SIZE)
 
     def test_output_finite(self, model):
@@ -57,7 +62,8 @@ class TestLightingModelForward:
         light_tokens = torch.randint(1, LIGHT_VOCAB_SIZE, (2, 6))
         audio = torch.randn(2, 12, 64)
         note_tokens = torch.randint(1, VOCAB_SIZE, (2, 8))
-        logits = model(light_tokens, audio, note_tokens)
+        genre = torch.tensor([0, 1])
+        logits = model(light_tokens, audio, note_tokens, genre)
         assert torch.isfinite(logits).all()
 
     def test_batch_independence(self, model):
@@ -66,14 +72,16 @@ class TestLightingModelForward:
         light = torch.randint(1, LIGHT_VOCAB_SIZE, (1, 5))
         audio = torch.randn(1, 8, 64)
         note = torch.randint(1, VOCAB_SIZE, (1, 4))
+        genre = torch.tensor([0])
 
-        logits_single = model(light, audio, note)
+        logits_single = model(light, audio, note, genre)
 
         # Stack same sample twice
         light2 = light.repeat(2, 1)
         audio2 = audio.repeat(2, 1, 1)
         note2 = note.repeat(2, 1)
-        logits_batch = model(light2, audio2, note2)
+        genre2 = genre.repeat(2)
+        logits_batch = model(light2, audio2, note2, genre2)
 
         assert torch.allclose(logits_single, logits_batch[:1], atol=1e-5)
 
@@ -96,6 +104,7 @@ class TestLightingLitModule:
             light_nhead=4,
             light_num_layers=1,
             light_dim_feedforward=128,
+            light_num_genres=11,
             light_dropout=0.0,
             label_smoothing=0.0,
         )
@@ -104,7 +113,8 @@ class TestLightingLitModule:
         mel = torch.randn(2, 80, 32)
         light_tokens = torch.randint(1, LIGHT_VOCAB_SIZE, (2, 6))
         note_tokens = torch.randint(1, VOCAB_SIZE, (2, 8))
-        logits = lit_module(mel, light_tokens, note_tokens)
+        genre = torch.tensor([0, 1])
+        logits = lit_module(mel, light_tokens, note_tokens, genre)
         assert logits.shape == (2, 6, LIGHT_VOCAB_SIZE)
 
     def test_training_step_returns_scalar(self, lit_module):
@@ -113,6 +123,7 @@ class TestLightingLitModule:
             "light_tokens": torch.randint(1, LIGHT_VOCAB_SIZE, (2, 8)),
             "note_tokens": torch.randint(1, VOCAB_SIZE, (2, 10)),
             "difficulty": torch.tensor([3, 3]),
+            "genre": torch.tensor([0, 1]),
         }
         loss = lit_module.training_step(batch, 0)
         assert loss.ndim == 0

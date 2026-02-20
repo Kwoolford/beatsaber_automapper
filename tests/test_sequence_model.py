@@ -16,6 +16,7 @@ def model():
         num_layers=1,
         dim_feedforward=128,
         num_difficulties=5,
+        num_genres=11,
         dropout=0.0,
     )
 
@@ -27,21 +28,24 @@ class TestSequenceModelForward:
         tokens = torch.randint(0, VOCAB_SIZE, (2, 8))
         audio = torch.randn(2, 16, 64)
         difficulty = torch.tensor([0, 3])
-        logits = model(tokens, audio, difficulty)
+        genre = torch.tensor([0, 1])
+        logits = model(tokens, audio, difficulty, genre)
         assert logits.shape == (2, 8, VOCAB_SIZE)
 
     def test_single_token(self, model):
         tokens = torch.randint(0, VOCAB_SIZE, (1, 1))
         audio = torch.randn(1, 4, 64)
         difficulty = torch.tensor([2])
-        logits = model(tokens, audio, difficulty)
+        genre = torch.tensor([0])
+        logits = model(tokens, audio, difficulty, genre)
         assert logits.shape == (1, 1, VOCAB_SIZE)
 
     def test_decode_step_shape(self, model):
         tokens = torch.randint(0, VOCAB_SIZE, (1, 5))
         audio = torch.randn(1, 10, 64)
         difficulty = torch.tensor([1])
-        logits = model.decode_step(tokens, audio, difficulty)
+        genre = torch.tensor([0])
+        logits = model.decode_step(tokens, audio, difficulty, genre)
         assert logits.shape == (1, VOCAB_SIZE)
 
 
@@ -52,14 +56,15 @@ class TestCausalMasking:
         model.eval()
         audio = torch.randn(1, 10, 64)
         difficulty = torch.tensor([0])
+        genre = torch.tensor([0])
 
         tokens_a = torch.tensor([[3, 4, 10, 19, 12, 16, 28, 1]])  # some valid tokens
         tokens_b = tokens_a.clone()
         tokens_b[0, 4:] = torch.randint(0, VOCAB_SIZE, (4,))  # change future tokens
 
         with torch.no_grad():
-            logits_a = model(tokens_a, audio, difficulty)
-            logits_b = model(tokens_b, audio, difficulty)
+            logits_a = model(tokens_a, audio, difficulty, genre)
+            logits_b = model(tokens_b, audio, difficulty, genre)
 
         # Logits at positions 0-3 should be identical regardless of future tokens
         for pos in range(4):
@@ -77,10 +82,11 @@ class TestDifficultyConditioning:
         model.eval()
         tokens = torch.randint(4, VOCAB_SIZE, (1, 6))
         audio = torch.randn(1, 10, 64)
+        genre = torch.tensor([0])
 
         with torch.no_grad():
-            logits_easy = model(tokens, audio, torch.tensor([0]))
-            logits_expert = model(tokens, audio, torch.tensor([4]))
+            logits_easy = model(tokens, audio, torch.tensor([0]), genre)
+            logits_expert = model(tokens, audio, torch.tensor([4]), genre)
 
         assert not torch.allclose(logits_easy, logits_expert, atol=1e-5)
 
@@ -92,8 +98,9 @@ class TestGradientFlow:
         tokens = torch.randint(4, VOCAB_SIZE, (2, 8))
         audio = torch.randn(2, 16, 64)
         difficulty = torch.tensor([0, 3])
+        genre = torch.tensor([0, 1])
 
-        logits = model(tokens, audio, difficulty)
+        logits = model(tokens, audio, difficulty, genre)
         loss = logits.sum()
         loss.backward()
 

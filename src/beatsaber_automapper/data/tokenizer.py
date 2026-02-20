@@ -520,6 +520,95 @@ DIFFICULTY_MAP: dict[str, int] = {
     "ExpertPlus": 4,
 }
 
+# Genre name -> integer mapping for embedding layers.
+# Derived from BeatSaver map tags. "unknown" (0) is the default when no tag
+# is available. Tags are matched case-insensitively; partial matches work
+# (e.g. "edm" maps to "electronic").
+GENRE_MAP: dict[str, int] = {
+    "unknown": 0,
+    "electronic": 1,
+    "rock": 2,
+    "pop": 3,
+    "anime": 4,
+    "hip-hop": 5,
+    "classical": 6,
+    "jazz": 7,
+    "country": 8,
+    "video-game": 9,
+    "other": 10,
+}
+NUM_GENRES: int = len(GENRE_MAP)  # 11
+
+# BeatSaver tag strings -> canonical GENRE_MAP key (longest match wins)
+_GENRE_TAG_MAP: list[tuple[str, str]] = [
+    # electronic sub-genres
+    ("drum-and-bass", "electronic"),
+    ("drumstep", "electronic"),
+    ("dubstep", "electronic"),
+    ("hardstyle", "electronic"),
+    ("house", "electronic"),
+    ("techno", "electronic"),
+    ("trance", "electronic"),
+    ("dnb", "electronic"),
+    ("edm", "electronic"),
+    ("electronic", "electronic"),
+    # rock / metal
+    ("metal", "rock"),
+    ("punk", "rock"),
+    ("alternative", "rock"),
+    ("rock", "rock"),
+    # pop
+    ("k-pop", "pop"),
+    ("kpop", "pop"),
+    ("j-pop", "pop"),
+    ("jpop", "pop"),
+    ("pop", "pop"),
+    # anime / vocaloid
+    ("vocaloid", "anime"),
+    ("anime", "anime"),
+    # hip-hop / rap
+    ("trap", "hip-hop"),
+    ("rap", "hip-hop"),
+    ("hip-hop", "hip-hop"),
+    ("hiphop", "hip-hop"),
+    # classical / orchestral
+    ("orchestral", "classical"),
+    ("classical", "classical"),
+    ("instrumental", "classical"),
+    # jazz / blues / soul
+    ("blues", "jazz"),
+    ("soul", "jazz"),
+    ("jazz", "jazz"),
+    # country / folk
+    ("folk", "country"),
+    ("country", "country"),
+    # video game music
+    ("video-game", "video-game"),
+    ("videogame", "video-game"),
+    ("game", "video-game"),
+    ("gaming", "video-game"),
+]
+
+
+def genre_from_tags(tags: list[str]) -> str:
+    """Map a list of BeatSaver tag strings to a canonical genre key.
+
+    Tries each tag against the known tag map (case-insensitive substring
+    match). Returns the first match, or "unknown" if none found.
+
+    Args:
+        tags: List of tag strings from BeatSaver API (e.g. ["electronic", "edm"]).
+
+    Returns:
+        Canonical genre key that exists in GENRE_MAP (e.g. "electronic").
+    """
+    lower_tags = [t.lower().strip() for t in tags]
+    for tag_needle, genre in _GENRE_TAG_MAP:
+        for tag in lower_tags:
+            if tag_needle in tag or tag in tag_needle:
+                return genre
+    return "unknown"
+
 
 # ---------------------------------------------------------------------------
 # Lighting token vocabulary

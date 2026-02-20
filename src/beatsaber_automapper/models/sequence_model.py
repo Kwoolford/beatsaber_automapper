@@ -37,6 +37,7 @@ class SequenceModel(nn.Module):
         num_layers: Number of transformer decoder layers.
         dim_feedforward: Feed-forward network dimension.
         num_difficulties: Number of difficulty levels.
+        num_genres: Number of genre classes.
         dropout: Dropout rate.
     """
 
@@ -48,6 +49,7 @@ class SequenceModel(nn.Module):
         num_layers: int = 8,
         dim_feedforward: int = 2048,
         num_difficulties: int = 5,
+        num_genres: int = 11,
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
@@ -63,6 +65,9 @@ class SequenceModel(nn.Module):
 
         # Difficulty conditioning: learned embedding added to every position
         self.difficulty_emb = nn.Embedding(num_difficulties, d_model)
+
+        # Genre conditioning: learned embedding added to every position
+        self.genre_emb = nn.Embedding(num_genres, d_model)
 
         # Transformer decoder (causal self-attention + cross-attention to audio)
         decoder_layer = nn.TransformerDecoderLayer(
@@ -84,6 +89,7 @@ class SequenceModel(nn.Module):
         tokens: torch.Tensor,
         audio_features: torch.Tensor,
         difficulty: torch.Tensor,
+        genre: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass for teacher forcing.
 
@@ -91,6 +97,7 @@ class SequenceModel(nn.Module):
             tokens: Input token indices [B, S] (decoder input, typically BOS-prepended).
             audio_features: Audio encoder output [B, T, d_model].
             difficulty: Difficulty index per sample [B].
+            genre: Genre index per sample [B].
 
         Returns:
             Logits over vocabulary [B, S, vocab_size].
@@ -101,9 +108,10 @@ class SequenceModel(nn.Module):
         x = self.token_emb(tokens) * self.scale
         x = self.pos_enc(x)
 
-        # Add difficulty embedding
+        # Add difficulty and genre embeddings
         diff_emb = self.difficulty_emb(difficulty)  # [B, d_model]
-        x = x + diff_emb.unsqueeze(1)  # broadcast over sequence
+        genre_emb = self.genre_emb(genre)           # [B, d_model]
+        x = x + diff_emb.unsqueeze(1) + genre_emb.unsqueeze(1)
 
         # Causal mask: prevent attending to future tokens
         causal_mask = nn.Transformer.generate_square_subsequent_mask(
@@ -132,6 +140,7 @@ class SequenceModel(nn.Module):
         tokens: torch.Tensor,
         audio_features: torch.Tensor,
         difficulty: torch.Tensor,
+        genre: torch.Tensor,
     ) -> torch.Tensor:
         """Single-step decode for autoregressive inference.
 
@@ -141,9 +150,10 @@ class SequenceModel(nn.Module):
             tokens: Token indices generated so far [B, S].
             audio_features: Audio encoder output [B, T, d_model].
             difficulty: Difficulty index per sample [B].
+            genre: Genre index per sample [B].
 
         Returns:
             Logits at last position [B, vocab_size].
         """
-        logits = self.forward(tokens, audio_features, difficulty)
+        logits = self.forward(tokens, audio_features, difficulty, genre)
         return logits[:, -1, :]  # [B, vocab_size]

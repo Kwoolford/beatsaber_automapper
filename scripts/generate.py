@@ -60,7 +60,16 @@ def main() -> None:
         "--bpm",
         type=float,
         default=None,
-        help="Song BPM (if not provided, defaults to 120.0)",
+        help="Song BPM. Auto-detected via librosa if not provided.",
+    )
+    parser.add_argument(
+        "--genre",
+        default="unknown",
+        choices=[
+            "unknown", "electronic", "rock", "pop", "anime",
+            "hip-hop", "classical", "jazz", "country", "video-game", "other",
+        ],
+        help="Music genre for model conditioning.",
     )
     parser.add_argument(
         "--song-name",
@@ -157,6 +166,7 @@ def main() -> None:
         song_name=args.song_name,
         song_author=args.song_author,
         bpm=args.bpm,
+        genre=args.genre,
         device=args.device,
     )
 

@@ -30,6 +30,7 @@ class LightingModel(nn.Module):
     Conditions on:
     - Audio features via cross-attention (same as Stage 2)
     - Note token context via mean-pooled embedding added to each position
+    - Genre via learned embedding added to each position
 
     Args:
         light_vocab_size: Size of the lighting token vocabulary.
@@ -38,6 +39,7 @@ class LightingModel(nn.Module):
         nhead: Number of attention heads.
         num_layers: Number of transformer decoder layers.
         dim_feedforward: Feed-forward network dimension.
+        num_genres: Number of genre classes.
         dropout: Dropout rate.
     """
 
@@ -49,6 +51,7 @@ class LightingModel(nn.Module):
         nhead: int = 8,
         num_layers: int = 4,
         dim_feedforward: int = 2048,
+        num_genres: int = 11,
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
@@ -66,6 +69,9 @@ class LightingModel(nn.Module):
         # Added additively to every position of the lighting token sequence
         self.note_emb = nn.Embedding(note_vocab_size, d_model, padding_idx=0)
         self.note_proj = nn.Linear(d_model, d_model)
+
+        # Genre conditioning: learned embedding added to every position
+        self.genre_emb = nn.Embedding(num_genres, d_model)
 
         # Transformer decoder (causal self-attention + cross-attention to audio)
         decoder_layer = nn.TransformerDecoderLayer(
@@ -104,6 +110,7 @@ class LightingModel(nn.Module):
         light_tokens: torch.Tensor,
         audio_features: torch.Tensor,
         note_tokens: torch.Tensor,
+        genre: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass for teacher forcing.
 
@@ -111,6 +118,7 @@ class LightingModel(nn.Module):
             light_tokens: Lighting token indices [B, S] (decoder input, BOS-prepended).
             audio_features: Audio encoder output [B, T, d_model].
             note_tokens: Note token context for this beat [B, N].
+            genre: Genre index per sample [B].
 
         Returns:
             Logits over lighting vocabulary [B, S, light_vocab_size].
@@ -121,9 +129,10 @@ class LightingModel(nn.Module):
         x = self.light_emb(light_tokens) * self.scale
         x = self.pos_enc(x)
 
-        # Add note context (broadcast over sequence)
+        # Add note context and genre embedding (broadcast over sequence)
         note_ctx = self._encode_note_context(note_tokens)  # [B, d_model]
-        x = x + note_ctx.unsqueeze(1)
+        genre_emb = self.genre_emb(genre)                  # [B, d_model]
+        x = x + note_ctx.unsqueeze(1) + genre_emb.unsqueeze(1)
 
         # Causal mask
         causal_mask = nn.Transformer.generate_square_subsequent_mask(
@@ -150,6 +159,7 @@ class LightingModel(nn.Module):
         light_tokens: torch.Tensor,
         audio_features: torch.Tensor,
         note_tokens: torch.Tensor,
+        genre: torch.Tensor,
     ) -> torch.Tensor:
         """Single-step decode for autoregressive inference.
 
@@ -157,9 +167,10 @@ class LightingModel(nn.Module):
             light_tokens: Tokens generated so far [B, S].
             audio_features: Audio encoder output [B, T, d_model].
             note_tokens: Note token context [B, N].
+            genre: Genre index per sample [B].
 
         Returns:
             Logits at last position [B, light_vocab_size].
         """
-        logits = self.forward(light_tokens, audio_features, note_tokens)
+        logits = self.forward(light_tokens, audio_features, note_tokens, genre)
         return logits[:, -1, :]  # [B, light_vocab_size]

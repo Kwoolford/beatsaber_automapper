@@ -2,6 +2,16 @@
 
 This is the source-of-truth document for the beatsaber_automapper project. Read this file completely before starting any work.
 
+## Architecture Diagram — Keep Updated
+
+`README.md` contains the canonical ML pipeline flow diagram under "## ML Pipeline Architecture".
+**Whenever you change model inputs, outputs, conditioning signals, or stage structure, update both:**
+1. The ASCII diagram in `README.md` (the `## ML Pipeline Architecture` section)
+2. The `## Architecture` section below in this file
+
+Current conditioning inputs per stage: **difficulty** (5-class embedding) + **genre** (11-class embedding), both additive.
+BPM is auto-detected via `detect_bpm()` in `data/audio.py` when not provided by the user.
+
 ## Project Overview
 
 An open-source AI system that generates high-quality Beat Saber levels from audio files. Given a song, the system produces a playable .zip level package containing notes, arcs, chains, bombs, obstacles, and a synchronized light show — targeting the v3 Beat Saber map format.

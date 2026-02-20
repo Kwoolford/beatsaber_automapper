@@ -16,8 +16,13 @@ from typing import Any
 
 import torch
 
-from beatsaber_automapper.data.audio import extract_mel_spectrogram, frame_to_beat, load_audio
-from beatsaber_automapper.data.tokenizer import DIFFICULTY_MAP
+from beatsaber_automapper.data.audio import (
+    detect_bpm,
+    extract_mel_spectrogram,
+    frame_to_beat,
+    load_audio,
+)
+from beatsaber_automapper.data.tokenizer import DIFFICULTY_MAP, GENRE_MAP
 from beatsaber_automapper.generation.beam_search import beam_search_decode, nucleus_sampling_decode
 from beatsaber_automapper.generation.export import package_level, tokens_to_beatmap
 from beatsaber_automapper.models.components import peak_picking
@@ -120,18 +125,20 @@ def generate_lighting_events(
     lighting_module: Any,
     audio_features: torch.Tensor,
     note_tokens_tensor: torch.Tensor,
+    genre_tensor: torch.Tensor,
     beam_size: int = 4,
     temperature: float = 1.0,
     max_length: int = 32,
     device: torch.device | None = None,
 ) -> list[int]:
-    """Run Stage 3 beam search to generate lighting tokens for one beat.
+    """Run Stage 3 greedy decoding to generate lighting tokens for one beat.
 
     Args:
         lighting_module: LightingLitModule (has audio_encoder + lighting_model).
         audio_features: Context audio features [1, T, d_model].
         note_tokens_tensor: Note tokens for context beat [1, N].
-        beam_size: Beam search width.
+        genre_tensor: Genre index tensor [1].
+        beam_size: Unused (kept for API compatibility).
         temperature: Sampling temperature.
         max_length: Maximum lighting token sequence length.
         device: Torch device.
@@ -144,7 +151,7 @@ def generate_lighting_events(
     if device is None:
         device = next(lighting_module.parameters()).device
 
-    # Simple greedy decoding for lighting (beam search would need light-specific impl)
+    # Simple greedy decoding for lighting
     tokens = [LIGHT_BOS]
     model = lighting_module.lighting_model
 
@@ -152,7 +159,7 @@ def generate_lighting_events(
         token_tensor = torch.tensor([tokens], dtype=torch.long, device=device)
         with torch.no_grad():
             logits = model.decode_step(
-                token_tensor, audio_features, note_tokens_tensor
+                token_tensor, audio_features, note_tokens_tensor, genre_tensor
             )  # [1, V]
         logits = logits.squeeze(0) / temperature
         next_token = int(logits.argmax().item())
@@ -167,6 +174,7 @@ def predict_onsets(
     onset_module: Any,
     mel: torch.Tensor,
     difficulty_idx: int,
+    genre_idx: int = 0,
     threshold: float = 0.5,
     min_distance: int = 5,
     device: torch.device | None = None,
@@ -177,6 +185,7 @@ def predict_onsets(
         onset_module: OnsetLitModule (or object with audio_encoder + onset_model).
         mel: Mel spectrogram [n_mels, T].
         difficulty_idx: Integer difficulty index (0-4).
+        genre_idx: Integer genre index (0-10).
         threshold: Peak picking probability threshold.
         min_distance: Minimum frames between peaks.
         device: Torch device for inference.
@@ -189,9 +198,10 @@ def predict_onsets(
 
     mel_batch = mel.unsqueeze(0).to(device)  # [1, n_mels, T]
     diff_tensor = torch.tensor([difficulty_idx], device=device)
+    genre_tensor = torch.tensor([genre_idx], device=device)
 
     with torch.no_grad():
-        logits = onset_module(mel_batch, diff_tensor)  # [1, T]
+        logits = onset_module(mel_batch, diff_tensor, genre_tensor)  # [1, T]
         probs = torch.sigmoid(logits.squeeze(0))  # [T]
 
     frames = peak_picking(probs, threshold=threshold, min_distance=min_distance)
@@ -202,6 +212,7 @@ def generate_note_sequence(
     seq_module: Any,
     audio_features: torch.Tensor,
     difficulty_idx: int,
+    genre_idx: int = 0,
     beam_size: int = 8,
     temperature: float = 1.0,
     use_sampling: bool = False,
@@ -215,6 +226,7 @@ def generate_note_sequence(
         seq_module: SequenceLitModule (has audio_encoder + sequence_model).
         audio_features: Context audio features [1, T, d_model].
         difficulty_idx: Integer difficulty index (0-4).
+        genre_idx: Integer genre index (0-10).
         beam_size: Beam search width.
         temperature: Sampling temperature.
         use_sampling: If True, use nucleus sampling instead of beam search.
@@ -229,12 +241,14 @@ def generate_note_sequence(
         device = next(seq_module.parameters()).device
 
     diff_tensor = torch.tensor([difficulty_idx], device=device)
+    genre_tensor = torch.tensor([genre_idx], device=device)
 
     if use_sampling:
         return nucleus_sampling_decode(
             model=seq_module.sequence_model,
             audio_features=audio_features,
             difficulty=diff_tensor,
+            genre=genre_tensor,
             max_length=max_length,
             temperature=temperature,
             top_p=top_p,
@@ -244,6 +258,7 @@ def generate_note_sequence(
             model=seq_module.sequence_model,
             audio_features=audio_features,
             difficulty=diff_tensor,
+            genre=genre_tensor,
             beam_size=beam_size,
             max_length=max_length,
             temperature=temperature,
@@ -267,6 +282,7 @@ def generate_level(
     song_name: str | None = None,
     song_author: str = "Unknown Artist",
     bpm: float | None = None,
+    genre: str = "unknown",
     device: str | None = None,
     n_mels: int = 80,
     n_fft: int = 1024,
@@ -302,6 +318,7 @@ def generate_level(
         song_name: Song title for Info.dat (defaults to audio filename stem).
         song_author: Song artist name for Info.dat.
         bpm: BPM for Info.dat. If None, defaults to 120.0 (no detection).
+        genre: Genre string for conditioning (e.g. "electronic", "rock"). Defaults to "unknown".
         device: Torch device string (e.g. "cuda", "cpu"). Auto-detected if None.
         n_mels: Number of mel bands (must match trained model).
         n_fft: FFT window size.
@@ -317,9 +334,6 @@ def generate_level(
 
     if song_name is None:
         song_name = audio_path.stem
-    if bpm is None:
-        bpm = 120.0
-        logger.warning("No BPM provided — defaulting to 120.0. Pass bpm= for accurate timing.")
 
     # Device selection
     if device is None:
@@ -328,12 +342,23 @@ def generate_level(
         resolved_device = torch.device(device)
     logger.info("Using device: %s", resolved_device)
 
-    # Difficulty index
+    # Difficulty and genre indices
     difficulty_idx = DIFFICULTY_MAP.get(difficulty, 3)
+    genre_idx = GENRE_MAP.get(genre, 0)
+    logger.info("Difficulty: %s (%d), Genre: %s (%d)", difficulty, difficulty_idx, genre, genre_idx)
 
     # --- Load audio & mel ---
     logger.info("Loading audio: %s", audio_path)
     waveform, sr = load_audio(audio_path, target_sr=sample_rate)
+
+    # Auto-detect BPM if not supplied
+    if bpm is None:
+        logger.info("No BPM provided — auto-detecting via librosa...")
+        bpm = detect_bpm(waveform, sample_rate=sr)
+        logger.info("Using BPM: %.1f", bpm)
+    else:
+        logger.info("Using provided BPM: %.1f", bpm)
+
     mel = extract_mel_spectrogram(
         waveform, sample_rate=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length
     )
@@ -377,6 +402,7 @@ def generate_level(
         onset_module=onset_module,
         mel=mel,
         difficulty_idx=difficulty_idx,
+        genre_idx=genre_idx,
         threshold=onset_threshold,
         min_distance=min_onset_distance,
         device=resolved_device,
@@ -402,6 +428,7 @@ def generate_level(
             seq_module=seq_module,
             audio_features=context_features,
             difficulty_idx=difficulty_idx,
+            genre_idx=genre_idx,
             beam_size=beam_size,
             temperature=temperature,
             use_sampling=use_sampling,
@@ -458,6 +485,7 @@ def generate_level(
 
         light_beat_tokens: dict[float, list[int]] = {}
         max_note_len = 64
+        genre_tensor = torch.tensor([genre_idx], dtype=torch.long, device=resolved_device)
 
         for lbeat in light_beats:
             # Get note context nearest to this lighting beat
@@ -486,6 +514,7 @@ def generate_level(
                 lighting_module=lighting_module,
                 audio_features=light_ctx,
                 note_tokens_tensor=note_tensor,
+                genre_tensor=genre_tensor,
                 temperature=temperature,
                 max_length=32,
                 device=resolved_device,

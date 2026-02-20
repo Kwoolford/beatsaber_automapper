@@ -3,8 +3,15 @@
 Usage:
     bsa-preprocess --input data/raw --output data/processed
 
+    # Skip modded maps during preprocessing:
+    bsa-preprocess --input data/raw --output data/processed \\
+        --exclude-categories noodle mapping_extensions
+
 Reads .zip map files, extracts audio + beatmap data, produces .pt files
-containing mel spectrograms, onset labels, and token sequences.
+containing mel spectrograms, onset labels, token sequences, and mod metadata.
+
+The manifest.json created by bsa-download is read to embed mod_requirements
+in each .pt file, enabling category-based filtering at dataset load time.
 """
 
 from __future__ import annotations
@@ -29,6 +36,7 @@ from beatsaber_automapper.data.beatmap import (
     parse_difficulty_dat_json,
     parse_info_dat_json,
 )
+from beatsaber_automapper.data.download import _load_manifest
 from beatsaber_automapper.data.tokenizer import BeatmapTokenizer, LightingTokenizer
 
 logger = logging.getLogger(__name__)
@@ -46,6 +54,17 @@ def main() -> None:
     parser.add_argument("--n-fft", type=int, default=1024, help="FFT window size")
     parser.add_argument("--hop-length", type=int, default=512, help="Hop length")
     parser.add_argument("--sigma", type=float, default=3.0, help="Gaussian smoothing sigma")
+    parser.add_argument(
+        "--exclude-categories",
+        nargs="+",
+        metavar="CATEGORY",
+        default=[],
+        help=(
+            "Skip maps belonging to these mod categories during preprocessing. "
+            "Valid values: vanilla, chroma, noodle, mapping_extensions, vivify, unknown. "
+            "Example: --exclude-categories noodle mapping_extensions"
+        ),
+    )
     args = parser.parse_args()
 
     logging.basicConfig(
@@ -60,6 +79,7 @@ def main() -> None:
         n_fft=args.n_fft,
         hop_length=args.hop_length,
         sigma=args.sigma,
+        exclude_categories=args.exclude_categories or None,
     )
 
 
@@ -72,17 +92,24 @@ def preprocess_all(
     n_fft: int = 1024,
     hop_length: int = 512,
     sigma: float = 3.0,
+    exclude_categories: list[str] | None = None,
 ) -> list[Path]:
     """Preprocess all map zips in input_dir into .pt files.
 
+    Loads the manifest.json from input_dir (created by bsa-download) to embed
+    mod_requirements metadata in each .pt file. Maps whose category appears in
+    exclude_categories are skipped entirely.
+
     Args:
-        input_dir: Directory containing .zip map files.
+        input_dir: Directory containing .zip map files and manifest.json.
         output_dir: Directory for output .pt files and splits.json.
         sample_rate: Target audio sample rate.
         n_mels: Number of mel frequency bands.
         n_fft: FFT window size.
         hop_length: Spectrogram hop length.
         sigma: Gaussian smoothing sigma for onset labels.
+        exclude_categories: Category names to skip (e.g. ["noodle",
+            "mapping_extensions"]). None means include all categories.
 
     Returns:
         List of paths to generated .pt files.
@@ -91,6 +118,19 @@ def preprocess_all(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Load manifest for mod_requirements metadata
+    manifest = _load_manifest(input_dir)
+    if manifest:
+        logger.info("Loaded manifest with %d entries", len(manifest))
+    else:
+        logger.info("No manifest found — mod_requirements will be tagged as 'unknown'")
+
+    if exclude_categories:
+        logger.info("Excluding categories: %s", exclude_categories)
+        exclude_set = set(exclude_categories)
+    else:
+        exclude_set = set()
+
     zip_files = sorted(input_dir.glob("*.zip"))
     if not zip_files:
         logger.warning("No .zip files found in %s", input_dir)
@@ -98,12 +138,24 @@ def preprocess_all(
 
     logger.info("Found %d zip files to process", len(zip_files))
     results: list[Path] = []
+    skipped_category = 0
 
     for zip_path in tqdm(zip_files, desc="Preprocessing", unit="map"):
+        map_id = zip_path.stem
+        manifest_entry = manifest.get(map_id, {})
+        category = manifest_entry.get("category", "unknown")
+
+        # Skip excluded categories before any expensive processing
+        if exclude_set and category in exclude_set:
+            skipped_category += 1
+            logger.debug("Skipping %s (category=%s)", map_id, category)
+            continue
+
         try:
             pt_path = preprocess_single(
                 zip_path,
                 output_dir,
+                manifest_entry=manifest_entry,
                 sample_rate=sample_rate,
                 n_mels=n_mels,
                 n_fft=n_fft,
@@ -114,6 +166,9 @@ def preprocess_all(
                 results.append(pt_path)
         except Exception as e:
             logger.warning("Failed to process %s: %s", zip_path.name, e)
+
+    if skipped_category:
+        logger.info("Skipped %d maps due to excluded categories", skipped_category)
 
     # Generate train/val/test splits
     song_ids = [p.stem for p in results]
@@ -128,6 +183,7 @@ def preprocess_single(
     zip_path: Path | str,
     output_dir: Path | str,
     *,
+    manifest_entry: dict | None = None,
     sample_rate: int = 44100,
     n_mels: int = 80,
     n_fft: int = 1024,
@@ -139,6 +195,8 @@ def preprocess_single(
     Args:
         zip_path: Path to the map .zip file.
         output_dir: Directory for output .pt file.
+        manifest_entry: Manifest dict entry for this map (category, requirements,
+            suggestions). If None or empty, defaults to category="unknown".
         sample_rate: Target audio sample rate.
         n_mels: Number of mel frequency bands.
         n_fft: FFT window size.
@@ -157,6 +215,14 @@ def preprocess_single(
     if pt_path.exists():
         logger.debug("Skipping %s (already processed)", song_id)
         return pt_path
+
+    manifest_entry = manifest_entry or {}
+    mod_requirements = {
+        "category": manifest_entry.get("category", "unknown"),
+        "requirements": manifest_entry.get("requirements", []),
+        "suggestions": manifest_entry.get("suggestions", []),
+        "genre": manifest_entry.get("genre", "unknown"),
+    }
 
     tokenizer = BeatmapTokenizer()
     light_tokenizer = LightingTokenizer()
@@ -271,6 +337,7 @@ def preprocess_single(
             "bpm": info.bpm,
             "mel_spectrogram": mel,
             "difficulties": difficulties,
+            "mod_requirements": mod_requirements,
         },
         pt_path,
     )

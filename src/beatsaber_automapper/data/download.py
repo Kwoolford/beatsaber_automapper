@@ -1,21 +1,33 @@
 """BeatSaver API client for downloading Beat Saber maps.
 
-Handles paginated API queries with rate limiting and quality filtering.
-Downloads map .zip files from BeatSaver's CDN.
+Handles paginated API queries with rate limiting, quality filtering,
+per-category quotas, and a persistent manifest tracking every downloaded map.
 
 Key endpoints:
     - GET /search/text/{page}?sortOrder=Rating — search by rating
     - Download: https://r2cdn.beatsaver.com/{hash}.zip
+
+Manifest (data/raw/manifest.json):
+    Maps each map ID to its category, mod requirements, and download time.
+    Used by the preprocessor to embed mod_requirements in .pt files and to
+    skip categories during preprocessing.
 """
 
 from __future__ import annotations
 
+import json
 import logging
+import os
 import time
+import zipfile
+from collections import Counter
+from datetime import UTC, datetime
 from pathlib import Path
 
 import requests
 from tqdm import tqdm
+
+from beatsaber_automapper.data.tokenizer import genre_from_tags
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +35,169 @@ API_BASE = "https://api.beatsaver.com"
 CDN_BASE = "https://r2cdn.beatsaver.com"
 USER_AGENT = "beatsaber-automapper/0.1.0 (https://github.com/Kwoolford/beatsaber_automapper)"
 
+MANIFEST_FILENAME = "manifest.json"
+MANIFEST_SAVE_INTERVAL = 25  # Save manifest every N new downloads
+
+
+def _classify_map_api(map_data: dict) -> str:
+    """Classify a map from BeatSaver API diff booleans (pre-download).
+
+    Uses ne/me/chroma boolean flags on each diff. Cannot detect Vivify —
+    use _classify_map_zip for accurate classification post-download.
+
+    Priority: noodle > mapping_extensions > chroma > vanilla
+
+    Args:
+        map_data: BeatSaver API map object.
+
+    Returns:
+        Category string: "noodle", "mapping_extensions", "chroma", or "vanilla".
+    """
+    has_ne = has_me = has_chroma = False
+    for version in map_data.get("versions", []):
+        for diff in version.get("diffs", []):
+            if diff.get("ne"):
+                has_ne = True
+            if diff.get("me"):
+                has_me = True
+            if diff.get("chroma"):
+                has_chroma = True
+    if has_ne:
+        return "noodle"
+    if has_me:
+        return "mapping_extensions"
+    if has_chroma:
+        return "chroma"
+    return "vanilla"
+
+
+def _extract_genre_tags(map_data: dict) -> list[str]:
+    """Extract genre-relevant tags from a BeatSaver API map object.
+
+    BeatSaver maps carry a free-form ``tags`` list (e.g. ``["electronic",
+    "edm", "fast"]``). We return the raw list; callers use
+    ``genre_from_tags()`` from the tokenizer to convert to a canonical genre.
+
+    Args:
+        map_data: BeatSaver API map object.
+
+    Returns:
+        List of tag strings (may be empty).
+    """
+    return list(map_data.get("tags", []))
+
+
+def _classify_map_zip(zip_path: Path) -> tuple[str, list[str], list[str]]:
+    """Classify a map by reading Info.dat inside the zip (post-download).
+
+    Reads _customData._requirements and _customData._suggestions from both
+    the top-level Info.dat and per-difficulty _customData entries.
+
+    Priority: vivify > noodle > mapping_extensions > chroma > vanilla
+
+    Args:
+        zip_path: Path to the downloaded .zip file.
+
+    Returns:
+        Tuple of (category, requirements, suggestions). Requirements and
+        suggestions are deduplicated sorted lists of mod name strings.
+    """
+    requirements: set[str] = set()
+    suggestions: set[str] = set()
+
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zf:
+            # Find Info.dat case-insensitively
+            info_name = None
+            for name in zf.namelist():
+                basename = name.rsplit("/", 1)[-1] if "/" in name else name
+                if basename.lower() == "info.dat":
+                    info_name = name
+                    break
+
+            if info_name is None:
+                return "vanilla", [], []
+
+            info_data = json.loads(zf.read(info_name).decode("utf-8"))
+
+        # Top-level customData
+        top_custom = info_data.get("_customData", {})
+        requirements.update(top_custom.get("_requirements", []))
+        suggestions.update(top_custom.get("_suggestions", []))
+
+        # Per-difficulty customData
+        for bms in info_data.get("_difficultyBeatmapSets", []):
+            for diff in bms.get("_difficultyBeatmaps", []):
+                custom = diff.get("_customData", {})
+                requirements.update(custom.get("_requirements", []))
+                suggestions.update(custom.get("_suggestions", []))
+
+    except Exception as e:
+        logger.debug("Could not classify %s: %s", zip_path.name, e)
+        return "vanilla", [], []
+
+    reqs = sorted(requirements)
+    suggs = sorted(suggestions)
+    all_mods = requirements | suggestions
+
+    # Determine category by priority
+    if any("vivify" in m.lower() for m in all_mods):
+        return "vivify", reqs, suggs
+    if any("noodle extensions" in m.lower() for m in requirements):
+        return "noodle", reqs, suggs
+    if any("mapping extensions" in m.lower() for m in requirements):
+        return "mapping_extensions", reqs, suggs
+    if any("chroma" in m.lower() for m in all_mods):
+        return "chroma", reqs, suggs
+    return "vanilla", reqs, suggs
+
+
+def _load_manifest(output_dir: Path) -> dict:
+    """Load the download manifest from output_dir/manifest.json.
+
+    Args:
+        output_dir: Directory containing manifest.json.
+
+    Returns:
+        Manifest dict mapping map ID -> {category, requirements, suggestions,
+        downloaded_at}, or empty dict if file doesn't exist.
+    """
+    manifest_path = output_dir / MANIFEST_FILENAME
+    if not manifest_path.exists():
+        return {}
+    try:
+        with open(manifest_path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning("Could not load manifest: %s", e)
+        return {}
+
+
+def _save_manifest(manifest: dict, output_dir: Path) -> None:
+    """Atomically save the manifest to output_dir/manifest.json.
+
+    Writes to a .tmp file then renames to avoid corruption on crash.
+
+    Args:
+        manifest: Manifest dict to save.
+        output_dir: Directory for manifest.json.
+    """
+    manifest_path = output_dir / MANIFEST_FILENAME
+    tmp_path = manifest_path.with_suffix(".tmp")
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+        os.replace(tmp_path, manifest_path)
+    except Exception as e:
+        logger.warning("Could not save manifest: %s", e)
+        if tmp_path.exists():
+            tmp_path.unlink(missing_ok=True)
+
 
 def download_maps(
     output_dir: Path | str,
     *,
+    quotas: dict[str, int | None] | None = None,
     count: int = 500,
     min_rating: float = 0.8,
     max_nps: float = 20.0,
@@ -34,7 +205,17 @@ def download_maps(
     rate_limit: float = 0.5,
     exclude_ai: bool = True,
 ) -> list[Path]:
-    """Download high-quality maps from BeatSaver.
+    """Download high-quality maps from BeatSaver with per-category quotas.
+
+    If ``quotas`` is provided, downloads are tracked per category and stopped
+    when each non-None quota is reached. Categories omitted from quotas (or
+    with None values) are downloaded opportunistically with no cap. If
+    ``quotas`` is None, falls back to ``count`` as a total cap across all
+    categories.
+
+    Maintains a ``manifest.json`` in ``output_dir`` tracking every map's
+    category, requirements, and suggestions. Existing zips are backfilled into
+    the manifest on the first run (one-time cost of opening ~N zips).
 
     Accepts maps of any difficulty level (Easy through ExpertPlus) as long as
     they have at least one Standard characteristic beatmap. The NPS cap is only
@@ -42,18 +223,75 @@ def download_maps(
 
     Args:
         output_dir: Directory to save downloaded .zip files.
-        count: Target number of maps to download.
-        min_rating: Minimum upvote ratio (0.0-1.0).
+        quotas: Per-category download targets, e.g.
+            ``{"vanilla": 10000, "chroma": 2000, "noodle": 1000}``.
+            A None value for a category means no cap (opportunistic).
+            Omitted categories are also opportunistic.
+        count: Total target when ``quotas`` is None. Ignored if ``quotas`` set.
+        min_rating: Minimum upvote ratio (0.0–1.0).
         max_nps: Maximum notes-per-second cap for Expert/ExpertPlus diffs.
         min_year: Minimum upload year. Defaults to 2022 (v3 format era).
         rate_limit: Seconds between API requests.
         exclude_ai: If True, skip maps marked as AI-generated or automapped.
 
     Returns:
-        List of paths to downloaded .zip files.
+        List of paths to newly downloaded .zip files (excludes pre-existing).
     """
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load manifest and backfill all existing zips (one-time cost)
+    manifest = _load_manifest(output_dir)
+    category_counts: Counter = Counter()
+    manifest_dirty = False
+
+    existing_zips = list(output_dir.glob("*.zip"))
+    if existing_zips:
+        logger.info("Backfilling %d existing zips into manifest...", len(existing_zips))
+        for zip_path in tqdm(existing_zips, desc="Backfilling manifest", unit="map"):
+            map_id = zip_path.stem
+            if map_id not in manifest:
+                cat, reqs, suggs = _classify_map_zip(zip_path)
+                manifest[map_id] = {
+                    "category": cat,
+                    "requirements": reqs,
+                    "suggestions": suggs,
+                    "genre_tags": [],
+                    "genre": "unknown",
+                    "downloaded_at": datetime.now(UTC).isoformat(),
+                }
+                manifest_dirty = True
+            category_counts[manifest[map_id]["category"]] += 1
+
+    if manifest_dirty:
+        _save_manifest(manifest, output_dir)
+        manifest_dirty = False
+
+    logger.info("Category counts from existing maps: %s", dict(category_counts))
+
+    # Determine total target for progress bar
+    if quotas is not None:
+        capped = {cat: q for cat, q in quotas.items() if q is not None}
+        total_target = sum(capped.values()) if capped else count
+    else:
+        capped = {}
+        total_target = count
+
+    def _quota_met(category: str) -> bool:
+        """Return True if the quota for this category has been reached."""
+        if quotas is None:
+            return False
+        quota = quotas.get(category)
+        if quota is None:
+            return False  # Opportunistic — no cap
+        return category_counts[category] >= quota
+
+    def _all_quotas_met() -> bool:
+        """Return True when it's time to stop the download loop."""
+        if not capped:
+            # No capped categories — fall back to total count of new downloads
+            return len(downloaded) >= count
+        return all(category_counts[cat] >= quota for cat, quota in capped.items())
 
     session = requests.Session()
     session.headers.update({"User-Agent": USER_AGENT})
@@ -61,11 +299,17 @@ def download_maps(
     downloaded: list[Path] = []
     page = 0
     consecutive_empty = 0
+    saves_since_write = 0
 
-    pbar = tqdm(total=count, desc="Downloading maps", unit="map")
+    pbar = tqdm(total=total_target, desc="Downloading maps", unit="map")
+    # Pre-fill pbar with existing counts toward capped quotas
+    if capped:
+        existing_progress = sum(
+            min(category_counts.get(cat, 0), quota) for cat, quota in capped.items()
+        )
+        pbar.update(existing_progress)
 
-    while len(downloaded) < count:
-        # Fetch search results page
+    while not _all_quotas_met():
         maps = _fetch_search_page(session, page, rate_limit)
         if not maps:
             consecutive_empty += 1
@@ -77,19 +321,17 @@ def download_maps(
         consecutive_empty = 0
 
         for map_data in maps:
-            if len(downloaded) >= count:
+            if _all_quotas_met():
                 break
 
             map_id = map_data.get("id", "")
             zip_path = output_dir / f"{map_id}.zip"
 
-            # Resume support: skip already downloaded
+            # Skip already-downloaded maps (counted during backfill)
             if zip_path.exists():
-                downloaded.append(zip_path)
-                pbar.update(1)
                 continue
 
-            # Apply filters
+            # Apply quality filters
             if not _passes_filters(
                 map_data,
                 min_rating=min_rating,
@@ -99,22 +341,63 @@ def download_maps(
             ):
                 continue
 
-            # Download the map
+            # Pre-classify from API booleans to skip obvious over-quota categories
+            api_category = _classify_map_api(map_data)
+            if _quota_met(api_category):
+                continue
+
+            # Extract genre tags from API response (available pre-download)
+            genre_tags = _extract_genre_tags(map_data)
+            genre = genre_from_tags(genre_tags)
+
+            # Download
             dl_hash = _get_download_hash(map_data)
             if not dl_hash:
                 continue
 
             try:
                 _download_zip(session, dl_hash, zip_path, rate_limit)
-                downloaded.append(zip_path)
-                pbar.update(1)
             except requests.RequestException as e:
                 logger.warning("Failed to download %s: %s", map_id, e)
+                continue
+
+            # Accurate classification from the downloaded zip
+            cat, reqs, suggs = _classify_map_zip(zip_path)
+
+            # Re-check quota with the accurate category
+            if _quota_met(cat):
+                zip_path.unlink(missing_ok=True)
+                logger.debug("Removed %s: %s quota already met", map_id, cat)
+                continue
+
+            category_counts[cat] += 1
+            manifest[map_id] = {
+                "category": cat,
+                "requirements": reqs,
+                "suggestions": suggs,
+                "genre_tags": genre_tags,
+                "genre": genre,
+                "downloaded_at": datetime.now(UTC).isoformat(),
+            }
+            manifest_dirty = True
+            downloaded.append(zip_path)
+            pbar.update(1)
+            saves_since_write += 1
+
+            if saves_since_write >= MANIFEST_SAVE_INTERVAL:
+                _save_manifest(manifest, output_dir)
+                manifest_dirty = False
+                saves_since_write = 0
 
         page += 1
 
     pbar.close()
-    logger.info("Downloaded %d maps to %s", len(downloaded), output_dir)
+
+    if manifest_dirty:
+        _save_manifest(manifest, output_dir)
+
+    logger.info("Downloaded %d new maps to %s", len(downloaded), output_dir)
+    logger.info("Final category counts: %s", dict(category_counts))
     return downloaded
 
 

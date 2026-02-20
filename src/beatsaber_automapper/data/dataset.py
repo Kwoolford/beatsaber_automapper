@@ -8,7 +8,16 @@ Provides datasets for each training stage:
 Preprocessed .pt format (one per song):
     {"song_id": str, "bpm": float, "mel_spectrogram": Tensor[n_mels, n_frames],
      "difficulties": {"Expert": {"onset_frames": Tensor[n_onsets],
-       "onset_labels": Tensor[n_frames], "token_sequences": list[list[int]]}}}
+       "onset_labels": Tensor[n_frames], "token_sequences": list[list[int]]}},
+     "mod_requirements": {"category": str, "requirements": list[str],
+       "suggestions": list[str], "genre": str}}
+
+The ``exclude_categories`` parameter on each dataset class filters out maps
+whose ``mod_requirements.category`` matches, enabling clean separation of
+vanilla maps from modded ones (noodle, mapping_extensions, chroma, vivify).
+
+Genre conditioning: each sample includes a ``"genre"`` int tensor (0-10) drawn
+from ``mod_requirements.genre`` via ``GENRE_MAP`` in the tokenizer.
 """
 
 from __future__ import annotations
@@ -19,6 +28,8 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, Dataset
+
+from beatsaber_automapper.data.tokenizer import GENRE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +48,8 @@ class OnsetDataset(Dataset):
     Produces sliding windows over mel spectrogram frames with
     Gaussian-smoothed onset labels for binary classification.
 
-    Each sample: {mel: [n_mels, window_size], labels: [window_size], difficulty: int}
+    Each sample: {mel: [n_mels, window_size], labels: [window_size],
+                  difficulty: int, genre: int}
     """
 
     def __init__(
@@ -47,6 +59,7 @@ class OnsetDataset(Dataset):
         window_size: int = 256,
         hop: int = 128,
         difficulties: list[str] | None = None,
+        exclude_categories: list[str] | None = None,
     ) -> None:
         """Initialize OnsetDataset.
 
@@ -56,11 +69,15 @@ class OnsetDataset(Dataset):
             window_size: Number of frames per sliding window.
             hop: Hop between consecutive windows.
             difficulties: Which difficulties to include. Defaults to all available.
+            exclude_categories: Mod categories to exclude (e.g. ["noodle",
+                "mapping_extensions"]). Filters by mod_requirements.category
+                embedded in each .pt file. None includes all categories.
         """
         self.data_dir = Path(data_dir)
         self.window_size = window_size
         self.hop = hop
         self.target_difficulties = difficulties
+        self.exclude_categories = set(exclude_categories) if exclude_categories else set()
 
         # Load split info
         splits_path = self.data_dir / "splits.json"
@@ -72,13 +89,23 @@ class OnsetDataset(Dataset):
             song_ids = None
 
         # Index all windows across all songs
-        self.samples: list[tuple[Path, str, int, int]] = []  # (pt_path, diff, start_frame, diff_id)
+        # (pt_path, diff_name, start_frame, diff_id, genre_idx)
+        self.samples: list[tuple[Path, str, int, int, int]] = []
         pt_files = sorted(self.data_dir.glob("*.pt"))
         for pt_path in pt_files:
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
                 continue
             data = torch.load(pt_path, weights_only=False)
+
+            mod_reqs = data.get("mod_requirements", {})
+            cat = mod_reqs.get("category", "vanilla")
+
+            # Filter by mod category
+            if self.exclude_categories and cat in self.exclude_categories:
+                continue
+
+            genre_idx = GENRE_MAP.get(mod_reqs.get("genre", "unknown"), 0)
             mel = data["mel_spectrogram"]
             n_frames = mel.shape[1]
 
@@ -89,11 +116,12 @@ class OnsetDataset(Dataset):
                 # Generate sliding windows
                 start = 0
                 while start + window_size <= n_frames:
-                    self.samples.append((pt_path, diff_name, start, diff_id))
+                    self.samples.append((pt_path, diff_name, start, diff_id, genre_idx))
                     start += hop
                 # Include last partial window if there's remaining data
                 if start < n_frames and n_frames > window_size:
-                    self.samples.append((pt_path, diff_name, n_frames - window_size, diff_id))
+                    tail_start = n_frames - window_size
+                    self.samples.append((pt_path, diff_name, tail_start, diff_id, genre_idx))
 
         # Cache loaded data to avoid re-reading
         self._cache: dict[str, dict] = {}
@@ -108,7 +136,7 @@ class OnsetDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
-        pt_path, diff_name, start, diff_id = self.samples[idx]
+        pt_path, diff_name, start, diff_id, genre_idx = self.samples[idx]
         data = self._load(pt_path)
         mel = data["mel_spectrogram"]
         labels = data["difficulties"][diff_name]["onset_labels"]
@@ -118,6 +146,7 @@ class OnsetDataset(Dataset):
             "mel": mel[:, start:end],
             "labels": labels[start:end],
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
+            "genre": torch.tensor(genre_idx, dtype=torch.long),
         }
 
 
@@ -128,7 +157,7 @@ class SequenceDataset(Dataset):
     centered on the onset, plus the token sequence for that onset.
 
     Each sample: {mel: [n_mels, context_frames], tokens: [max_token_len],
-                  token_length: int, difficulty: int}
+                  token_length: int, difficulty: int, genre: int}
     """
 
     def __init__(
@@ -138,6 +167,7 @@ class SequenceDataset(Dataset):
         context_frames: int = 128,
         max_token_len: int = 64,
         difficulties: list[str] | None = None,
+        exclude_categories: list[str] | None = None,
     ) -> None:
         """Initialize SequenceDataset.
 
@@ -147,11 +177,15 @@ class SequenceDataset(Dataset):
             context_frames: Number of mel frames for audio context around each onset.
             max_token_len: Maximum token sequence length (padded/truncated).
             difficulties: Which difficulties to include. Defaults to all available.
+            exclude_categories: Mod categories to exclude (e.g. ["noodle",
+                "mapping_extensions"]). Filters by mod_requirements.category
+                embedded in each .pt file. None includes all categories.
         """
         self.data_dir = Path(data_dir)
         self.context_frames = context_frames
         self.max_token_len = max_token_len
         self.target_difficulties = difficulties
+        self.exclude_categories = set(exclude_categories) if exclude_categories else set()
 
         # Load split info
         splits_path = self.data_dir / "splits.json"
@@ -163,8 +197,8 @@ class SequenceDataset(Dataset):
             song_ids = None
 
         # Index all onset samples
-        # (pt_path, diff_name, onset_idx, diff_id)
-        self.samples: list[tuple[Path, str, int, int]] = []
+        # (pt_path, diff_name, onset_idx, diff_id, genre_idx)
+        self.samples: list[tuple[Path, str, int, int, int]] = []
         pt_files = sorted(self.data_dir.glob("*.pt"))
         for pt_path in pt_files:
             song_id = pt_path.stem
@@ -172,13 +206,22 @@ class SequenceDataset(Dataset):
                 continue
             data = torch.load(pt_path, weights_only=False)
 
+            mod_reqs = data.get("mod_requirements", {})
+            cat = mod_reqs.get("category", "vanilla")
+
+            # Filter by mod category
+            if self.exclude_categories and cat in self.exclude_categories:
+                continue
+
+            genre_idx = GENRE_MAP.get(mod_reqs.get("genre", "unknown"), 0)
+
             for diff_name, diff_data in data.get("difficulties", {}).items():
                 if self.target_difficulties and diff_name not in self.target_difficulties:
                     continue
                 diff_id = DIFFICULTY_MAP.get(diff_name, 3)
                 n_onsets = len(diff_data.get("token_sequences", []))
                 for onset_idx in range(n_onsets):
-                    self.samples.append((pt_path, diff_name, onset_idx, diff_id))
+                    self.samples.append((pt_path, diff_name, onset_idx, diff_id, genre_idx))
 
         self._cache: dict[str, dict] = {}
 
@@ -192,7 +235,7 @@ class SequenceDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
-        pt_path, diff_name, onset_idx, diff_id = self.samples[idx]
+        pt_path, diff_name, onset_idx, diff_id, genre_idx = self.samples[idx]
         data = self._load(pt_path)
         mel = data["mel_spectrogram"]
         diff_data = data["difficulties"][diff_name]
@@ -226,6 +269,7 @@ class SequenceDataset(Dataset):
             "tokens": torch.tensor(padded, dtype=torch.long),
             "token_length": torch.tensor(token_length, dtype=torch.long),
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
+            "genre": torch.tensor(genre_idx, dtype=torch.long),
         }
 
 
@@ -238,7 +282,7 @@ class LightingDataset(Dataset):
 
     Each sample:
         {mel: [n_mels, context_frames], note_tokens: [max_note_len],
-         light_tokens: [max_light_len], difficulty: int}
+         light_tokens: [max_light_len], difficulty: int, genre: int}
 
     The .pt files must contain ``light_frames`` and ``light_token_sequences``
     entries (produced by the preprocessing pipeline with LightingTokenizer).
@@ -252,6 +296,7 @@ class LightingDataset(Dataset):
         max_note_len: int = 64,
         max_light_len: int = 32,
         difficulties: list[str] | None = None,
+        exclude_categories: list[str] | None = None,
     ) -> None:
         """Initialize LightingDataset.
 
@@ -262,12 +307,16 @@ class LightingDataset(Dataset):
             max_note_len: Maximum note token sequence length (padded/truncated).
             max_light_len: Maximum lighting token sequence length (padded/truncated).
             difficulties: Which difficulties to include. Defaults to all available.
+            exclude_categories: Mod categories to exclude (e.g. ["noodle",
+                "mapping_extensions"]). Filters by mod_requirements.category
+                embedded in each .pt file. None includes all categories.
         """
         self.data_dir = Path(data_dir)
         self.context_frames = context_frames
         self.max_note_len = max_note_len
         self.max_light_len = max_light_len
         self.target_difficulties = difficulties
+        self.exclude_categories = set(exclude_categories) if exclude_categories else set()
 
         # Load split info
         splits_path = self.data_dir / "splits.json"
@@ -278,14 +327,23 @@ class LightingDataset(Dataset):
         else:
             song_ids = None
 
-        # Index all lighting-event samples: (pt_path, diff_name, light_idx, diff_id)
-        self.samples: list[tuple[Path, str, int, int]] = []
+        # Index all lighting-event samples: (pt_path, diff_name, light_idx, diff_id, genre_idx)
+        self.samples: list[tuple[Path, str, int, int, int]] = []
         pt_files = sorted(self.data_dir.glob("*.pt"))
         for pt_path in pt_files:
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
                 continue
             data = torch.load(pt_path, weights_only=False)
+
+            mod_reqs = data.get("mod_requirements", {})
+            cat = mod_reqs.get("category", "vanilla")
+
+            # Filter by mod category
+            if self.exclude_categories and cat in self.exclude_categories:
+                continue
+
+            genre_idx = GENRE_MAP.get(mod_reqs.get("genre", "unknown"), 0)
 
             for diff_name, diff_data in data.get("difficulties", {}).items():
                 if self.target_difficulties and diff_name not in self.target_difficulties:
@@ -295,7 +353,7 @@ class LightingDataset(Dataset):
                 diff_id = DIFFICULTY_MAP.get(diff_name, 3)
                 n_light = len(diff_data["light_token_sequences"])
                 for light_idx in range(n_light):
-                    self.samples.append((pt_path, diff_name, light_idx, diff_id))
+                    self.samples.append((pt_path, diff_name, light_idx, diff_id, genre_idx))
 
         self._cache: dict[str, dict] = {}
 
@@ -309,7 +367,7 @@ class LightingDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
-        pt_path, diff_name, light_idx, diff_id = self.samples[idx]
+        pt_path, diff_name, light_idx, diff_id, genre_idx = self.samples[idx]
         data = self._load(pt_path)
         mel = data["mel_spectrogram"]
         diff_data = data["difficulties"][diff_name]
@@ -354,6 +412,7 @@ class LightingDataset(Dataset):
             "note_tokens": torch.tensor(note_padded, dtype=torch.long),
             "light_tokens": torch.tensor(light_padded, dtype=torch.long),
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
+            "genre": torch.tensor(genre_idx, dtype=torch.long),
         }
 
 

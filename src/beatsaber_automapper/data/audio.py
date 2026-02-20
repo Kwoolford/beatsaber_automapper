@@ -85,6 +85,44 @@ def extract_mel_spectrogram(
     return mel.squeeze(0)  # [n_mels, n_frames]
 
 
+def detect_bpm(waveform: torch.Tensor, sample_rate: int = 44100) -> float:
+    """Detect the tempo (BPM) of an audio waveform using librosa's beat tracker.
+
+    Converts the waveform to a numpy array, runs librosa's beat_track(), and
+    returns the estimated tempo. Falls back to 120.0 BPM on any error.
+
+    Args:
+        waveform: Audio tensor [1, samples] or [samples].
+        sample_rate: Sample rate of the waveform.
+
+    Returns:
+        Estimated BPM as a float (e.g. 128.0).
+    """
+    import numpy as np
+
+    try:
+        import librosa
+    except ImportError:
+        logger.warning("librosa not installed — cannot detect BPM, defaulting to 120.0")
+        return 120.0
+
+    # Convert to mono numpy array
+    audio_np = waveform.squeeze().numpy().astype(np.float32)
+
+    try:
+        tempo, _ = librosa.beat.beat_track(y=audio_np, sr=sample_rate)
+        # tempo may be a numpy scalar or 0-d array
+        bpm = float(np.atleast_1d(tempo)[0])
+        if bpm <= 0:
+            logger.warning("librosa returned invalid BPM %.1f — defaulting to 120.0", bpm)
+            return 120.0
+        logger.info("Auto-detected BPM: %.1f", bpm)
+        return bpm
+    except Exception as e:
+        logger.warning("BPM detection failed (%s) — defaulting to 120.0", e)
+        return 120.0
+
+
 def beat_to_frame(
     beat: float,
     bpm: float,

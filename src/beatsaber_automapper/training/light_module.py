@@ -41,6 +41,7 @@ class LightingLitModule(lightning.LightningModule):
         light_nhead: Lighting model attention heads.
         light_num_layers: Lighting model transformer layers.
         light_dim_feedforward: Lighting model FFN dimension.
+        light_num_genres: Number of genre classes.
         light_dropout: Lighting model dropout.
         label_smoothing: Label smoothing for cross-entropy loss.
         learning_rate: Peak learning rate.
@@ -65,6 +66,7 @@ class LightingLitModule(lightning.LightningModule):
         light_nhead: int = 8,
         light_num_layers: int = 4,
         light_dim_feedforward: int = 2048,
+        light_num_genres: int = 11,
         light_dropout: float = 0.1,
         # Training params
         label_smoothing: float = 0.1,
@@ -91,6 +93,7 @@ class LightingLitModule(lightning.LightningModule):
             nhead=light_nhead,
             num_layers=light_num_layers,
             dim_feedforward=light_dim_feedforward,
+            num_genres=light_num_genres,
             dropout=light_dropout,
         )
 
@@ -123,6 +126,7 @@ class LightingLitModule(lightning.LightningModule):
         mel: torch.Tensor,
         light_tokens: torch.Tensor,
         note_tokens: torch.Tensor,
+        genre: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass: mel -> audio features -> lighting logits.
 
@@ -130,23 +134,24 @@ class LightingLitModule(lightning.LightningModule):
             mel: Mel spectrogram [B, n_mels, T].
             light_tokens: Decoder input lighting tokens [B, S] (BOS-prepended).
             note_tokens: Note token context [B, N].
+            genre: Genre indices [B].
 
         Returns:
             Lighting logits [B, S, light_vocab_size].
         """
         audio_features = self.audio_encoder(mel)
-        return self.lighting_model(light_tokens, audio_features, note_tokens)
+        return self.lighting_model(light_tokens, audio_features, note_tokens, genre)
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         decoder_input, target = self._prepare_teacher_forcing(batch["light_tokens"])
-        logits = self(batch["mel"], decoder_input, batch["note_tokens"])
+        logits = self(batch["mel"], decoder_input, batch["note_tokens"], batch["genre"])
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         decoder_input, target = self._prepare_teacher_forcing(batch["light_tokens"])
-        logits = self(batch["mel"], decoder_input, batch["note_tokens"])
+        logits = self(batch["mel"], decoder_input, batch["note_tokens"], batch["genre"])
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 

@@ -21,6 +21,7 @@ def beam_search_decode(
     model: object,
     audio_features: torch.Tensor,
     difficulty: torch.Tensor,
+    genre: torch.Tensor,
     beam_size: int = 8,
     max_length: int = 64,
     temperature: float = 1.0,
@@ -34,6 +35,7 @@ def beam_search_decode(
         model: The SequenceModel instance (must have decode_step method).
         audio_features: Encoded audio frame embeddings [1, T, d_model].
         difficulty: Difficulty index tensor [1].
+        genre: Genre index tensor [1].
         beam_size: Number of beams to maintain.
         max_length: Maximum output token sequence length.
         temperature: Temperature for logit scaling (>1 = more diverse).
@@ -52,7 +54,7 @@ def beam_search_decode(
 
         for log_prob, tokens in beams:
             token_tensor = torch.tensor([tokens], dtype=torch.long, device=device)
-            logits = model.decode_step(token_tensor, audio_features, difficulty)  # [1, V]
+            logits = model.decode_step(token_tensor, audio_features, difficulty, genre)  # [1, V]
             logits = logits.squeeze(0) / temperature  # [V]
             log_probs = F.log_softmax(logits, dim=-1)
 
@@ -100,6 +102,7 @@ def nucleus_sampling_decode(
     model: object,
     audio_features: torch.Tensor,
     difficulty: torch.Tensor,
+    genre: torch.Tensor,
     max_length: int = 64,
     temperature: float = 1.0,
     top_p: float = 0.9,
@@ -113,6 +116,7 @@ def nucleus_sampling_decode(
         model: The SequenceModel instance (must have decode_step method).
         audio_features: Encoded audio frame embeddings [1, T, d_model].
         difficulty: Difficulty index tensor [1].
+        genre: Genre index tensor [1].
         max_length: Maximum output token sequence length.
         temperature: Temperature for logit scaling.
         top_p: Cumulative probability threshold for nucleus filtering.
@@ -125,7 +129,7 @@ def nucleus_sampling_decode(
 
     for _ in range(max_length):
         token_tensor = torch.tensor([tokens], dtype=torch.long, device=device)
-        logits = model.decode_step(token_tensor, audio_features, difficulty)  # [1, V]
+        logits = model.decode_step(token_tensor, audio_features, difficulty, genre)  # [1, V]
         logits = logits.squeeze(0) / temperature  # [V]
 
         # Sort by descending probability

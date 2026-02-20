@@ -40,6 +40,7 @@ class SequenceLitModule(lightning.LightningModule):
         seq_num_layers: Sequence model transformer layers.
         seq_dim_feedforward: Sequence model FFN dimension.
         seq_num_difficulties: Number of difficulty levels.
+        seq_num_genres: Number of genre classes.
         seq_dropout: Sequence model dropout.
         label_smoothing: Label smoothing for cross-entropy loss.
         learning_rate: Peak learning rate.
@@ -64,6 +65,7 @@ class SequenceLitModule(lightning.LightningModule):
         seq_num_layers: int = 8,
         seq_dim_feedforward: int = 2048,
         seq_num_difficulties: int = 5,
+        seq_num_genres: int = 11,
         seq_dropout: float = 0.1,
         # Training params
         label_smoothing: float = 0.1,
@@ -90,6 +92,7 @@ class SequenceLitModule(lightning.LightningModule):
             num_layers=seq_num_layers,
             dim_feedforward=seq_dim_feedforward,
             num_difficulties=seq_num_difficulties,
+            num_genres=seq_num_genres,
             dropout=seq_dropout,
         )
 
@@ -117,7 +120,11 @@ class SequenceLitModule(lightning.LightningModule):
         return decoder_input, target
 
     def forward(
-        self, mel: torch.Tensor, tokens: torch.Tensor, difficulty: torch.Tensor
+        self,
+        mel: torch.Tensor,
+        tokens: torch.Tensor,
+        difficulty: torch.Tensor,
+        genre: torch.Tensor,
     ) -> torch.Tensor:
         """Forward pass: mel -> audio features -> token logits.
 
@@ -125,16 +132,17 @@ class SequenceLitModule(lightning.LightningModule):
             mel: Mel spectrogram [B, n_mels, T].
             tokens: Decoder input tokens [B, S] (already BOS-prepended).
             difficulty: Difficulty indices [B].
+            genre: Genre indices [B].
 
         Returns:
             Token logits [B, S, vocab_size].
         """
         audio_features = self.audio_encoder(mel)
-        return self.sequence_model(tokens, audio_features, difficulty)
+        return self.sequence_model(tokens, audio_features, difficulty, genre)
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         decoder_input, target = self._prepare_teacher_forcing(batch["tokens"])
-        logits = self(batch["mel"], decoder_input, batch["difficulty"])
+        logits = self(batch["mel"], decoder_input, batch["difficulty"], batch["genre"])
         # logits: [B, S, V], target: [B, S]
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         self.log("train_loss", loss, prog_bar=True)
@@ -142,7 +150,7 @@ class SequenceLitModule(lightning.LightningModule):
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         decoder_input, target = self._prepare_teacher_forcing(batch["tokens"])
-        logits = self(batch["mel"], decoder_input, batch["difficulty"])
+        logits = self(batch["mel"], decoder_input, batch["difficulty"], batch["genre"])
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 
