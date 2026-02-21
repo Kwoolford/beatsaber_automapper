@@ -11,7 +11,7 @@ stage: onset  # onset | sequence | lighting
 max_epochs: 100
 accelerator: gpu
 devices: 1
-precision: 16-mixed
+precision: bf16-mixed
 
 # Optimizer
 optimizer:

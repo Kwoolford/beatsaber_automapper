@@ -29,6 +29,7 @@ from tqdm import tqdm
 
 from beatsaber_automapper.data.audio import (
     beat_to_frame,
+    beat_to_frame_variable_bpm,
     extract_mel_spectrogram,
     load_audio,
 )
@@ -262,9 +263,18 @@ def preprocess_single(
         )
         n_frames = mel.shape[1]
 
-        # Process each difficulty
+        # Process each difficulty — Standard characteristic only
         difficulties: dict[str, dict] = {}
         for diff_info in info.difficulties:
+            if diff_info.characteristic != "Standard":
+                logger.debug(
+                    "Skipping non-Standard difficulty %s/%s in %s",
+                    diff_info.characteristic,
+                    diff_info.difficulty,
+                    zip_path.name,
+                )
+                continue
+
             diff_name = _find_file_in_zip(zf, diff_info.filename)
             if diff_name is None:
                 continue
@@ -273,6 +283,27 @@ def preprocess_single(
             beatmap = parse_difficulty_dat_json(diff_data)
             if beatmap is None:
                 continue
+
+            # Extract BPM changes from v2 customData for accurate frame timing
+            bpm_changes = diff_data.get("_customData", {}).get("_BPMChanges", [])
+
+            def _beat_to_frame(beat: float) -> int:
+                if bpm_changes:
+                    return beat_to_frame_variable_bpm(
+                        beat,
+                        info.bpm,
+                        bpm_changes,
+                        sample_rate=sr,
+                        hop_length=hop_length,
+                        offset=info.song_time_offset,
+                    )
+                return beat_to_frame(
+                    beat,
+                    info.bpm,
+                    sample_rate=sr,
+                    hop_length=hop_length,
+                    offset=info.song_time_offset,
+                )
 
             # Tokenize
             beat_tokens = tokenizer.encode_beatmap(beatmap)
@@ -283,13 +314,7 @@ def preprocess_single(
             onset_frames_list: list[int] = []
             token_sequences: list[list[int]] = []
             for beat in sorted(beat_tokens.keys()):
-                frame = beat_to_frame(
-                    beat,
-                    info.bpm,
-                    sample_rate=sr,
-                    hop_length=hop_length,
-                    offset=info.song_time_offset,
-                )
+                frame = _beat_to_frame(beat)
                 if 0 <= frame < n_frames:
                     onset_frames_list.append(frame)
                     token_sequences.append(beat_tokens[beat])
@@ -305,13 +330,7 @@ def preprocess_single(
             light_frames_list: list[int] = []
             light_token_sequences: list[list[int]] = []
             for beat, ltokens in sorted(light_beat_tokens.items()):
-                frame = beat_to_frame(
-                    beat,
-                    info.bpm,
-                    sample_rate=sr,
-                    hop_length=hop_length,
-                    offset=info.song_time_offset,
-                )
+                frame = _beat_to_frame(beat)
                 if 0 <= frame < n_frames:
                     light_frames_list.append(frame)
                     light_token_sequences.append(ltokens)

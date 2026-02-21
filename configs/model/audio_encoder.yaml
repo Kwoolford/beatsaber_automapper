@@ -1,3 +1,4 @@
+# @package model.audio_encoder
 # Shared audio encoder configuration
 n_mels: 80
 d_model: 512

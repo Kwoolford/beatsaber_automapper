@@ -48,6 +48,7 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         onset_nhead=oc.nhead,
         onset_num_layers=oc.num_layers,
         onset_num_difficulties=oc.num_difficulties,
+        onset_num_genres=oc.get("num_genres", 11),
         onset_dropout=oc.dropout,
         pos_weight=oc.get("pos_weight", 5.0),
         learning_rate=cfg.optimizer.learning_rate,
@@ -87,6 +88,7 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         accelerator=cfg.accelerator,
         devices=cfg.devices,
         precision=cfg.precision,
+        gradient_clip_val=1.0,
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=cfg.output_dir,
@@ -113,6 +115,7 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         seq_num_layers=sc.num_layers,
         seq_dim_feedforward=sc.dim_feedforward,
         seq_num_difficulties=sc.num_difficulties,
+        seq_num_genres=sc.get("num_genres", 11),
         seq_dropout=sc.dropout,
         label_smoothing=sc.get("label_smoothing", 0.1),
         learning_rate=cfg.optimizer.learning_rate,
@@ -151,6 +154,7 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         accelerator=cfg.accelerator,
         devices=cfg.devices,
         precision=cfg.precision,
+        gradient_clip_val=1.0,
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=cfg.output_dir,
@@ -177,6 +181,7 @@ def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         light_nhead=lc.nhead,
         light_num_layers=lc.num_layers,
         light_dim_feedforward=lc.dim_feedforward,
+        light_num_genres=lc.get("num_genres", 11),
         light_dropout=lc.dropout,
         label_smoothing=lc.get("label_smoothing", 0.1),
         learning_rate=cfg.optimizer.learning_rate,
@@ -213,6 +218,7 @@ def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         accelerator=cfg.accelerator,
         devices=cfg.devices,
         precision=cfg.precision,
+        gradient_clip_val=1.0,
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=cfg.output_dir,
@@ -224,6 +230,9 @@ def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
 @hydra.main(config_path="../configs", config_name="train", version_base=None)
 def main(cfg: DictConfig) -> None:
     """Entry point for the training CLI."""
+    import torch
+
+    torch.set_float32_matmul_precision("high")
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s: %(message)s",

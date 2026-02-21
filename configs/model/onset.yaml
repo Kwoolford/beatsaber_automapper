@@ -1,3 +1,4 @@
+# @package model.onset
 # Stage 1: Onset prediction model configuration
 d_model: 512
 nhead: 8

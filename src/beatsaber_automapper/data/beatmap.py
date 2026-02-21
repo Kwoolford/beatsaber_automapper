@@ -113,6 +113,7 @@ class DifficultyInfo:
     difficulty: str  # e.g. "Expert"
     difficulty_rank: int  # e.g. 7
     filename: str  # e.g. "ExpertStandard.dat"
+    characteristic: str = "Standard"  # e.g. "Standard", "OneSaber", "Lightshow"
     note_jump_speed: float = 16.0
     note_jump_offset: float = 0.0
 
@@ -168,12 +169,14 @@ def parse_info_dat(path: Path | str) -> BeatmapInfo | None:
 
     difficulties: list[DifficultyInfo] = []
     for bset in data.get("_difficultyBeatmapSets", []):
+        char = bset.get("_beatmapCharacteristicName", "Standard")
         for diff in bset.get("_difficultyBeatmaps", []):
             difficulties.append(
                 DifficultyInfo(
                     difficulty=diff.get("_difficulty", ""),
                     difficulty_rank=diff.get("_difficultyRank", 0),
                     filename=diff.get("_beatmapFilename", ""),
+                    characteristic=char,
                     note_jump_speed=diff.get("_noteJumpMovementSpeed", 16.0),
                     note_jump_offset=diff.get("_noteJumpStartBeatOffset", 0.0),
                 )
@@ -206,12 +209,14 @@ def parse_info_dat_json(data: dict[str, Any]) -> BeatmapInfo | None:
     """
     difficulties: list[DifficultyInfo] = []
     for bset in data.get("_difficultyBeatmapSets", []):
+        char = bset.get("_beatmapCharacteristicName", "Standard")
         for diff in bset.get("_difficultyBeatmaps", []):
             difficulties.append(
                 DifficultyInfo(
                     difficulty=diff.get("_difficulty", ""),
                     difficulty_rank=diff.get("_difficultyRank", 0),
                     filename=diff.get("_beatmapFilename", ""),
+                    characteristic=char,
                     note_jump_speed=diff.get("_noteJumpMovementSpeed", 16.0),
                     note_jump_offset=diff.get("_noteJumpStartBeatOffset", 0.0),
                 )
@@ -250,35 +255,122 @@ def parse_difficulty_dat(path: Path | str) -> DifficultyBeatmap | None:
 def parse_difficulty_dat_json(data: dict[str, Any]) -> DifficultyBeatmap | None:
     """Parse a difficulty .dat from an already-loaded JSON dict.
 
+    Supports both v2 (underscore-prefixed keys, _notes/_events/_obstacles) and
+    v3 (camelCase keys, colorNotes/basicBeatmapEvents/etc.) formats.
+
     Args:
         data: Parsed JSON dictionary from a difficulty .dat file.
 
     Returns:
-        DifficultyBeatmap with all parsed objects, or None if v2 format.
+        DifficultyBeatmap with all parsed objects, or None on unrecognised format.
     """
+    # v3 format has a "version" key (no underscore)
     version = data.get("version", "")
-    if not version or version.startswith("2"):
-        # v2 format not supported
-        if version.startswith("2"):
-            logger.warning("Skipping v2 beatmap (version=%s)", version)
-        else:
-            # Check for _version field (v2 indicator)
-            v2_version = data.get("_version", "")
-            if v2_version:
-                logger.warning("Skipping v2 beatmap (_version=%s)", v2_version)
-                return None
-            logger.warning("No version field found, skipping beatmap")
-        return None
+    if version and not version.startswith("2"):
+        return DifficultyBeatmap(
+            version=version,
+            color_notes=[_parse_color_note(n) for n in data.get("colorNotes", [])],
+            bomb_notes=[_parse_bomb_note(n) for n in data.get("bombNotes", [])],
+            obstacles=[_parse_obstacle(o) for o in data.get("obstacles", [])],
+            sliders=[_parse_slider(s) for s in data.get("sliders", [])],
+            burst_sliders=[_parse_burst_slider(bs) for bs in data.get("burstSliders", [])],
+            basic_events=[_parse_basic_event(e) for e in data.get("basicBeatmapEvents", [])],
+            color_boost_events=[
+                _parse_color_boost(e) for e in data.get("colorBoostBeatmapEvents", [])
+            ],
+        )
+
+    # v2 format has a "_version" key
+    v2_version = data.get("_version", "")
+    if v2_version:
+        return _parse_difficulty_v2(data, v2_version)
+
+    logger.warning("No version field found in difficulty .dat — skipping")
+    return None
+
+
+def _parse_difficulty_v2(data: dict[str, Any], version: str) -> DifficultyBeatmap:
+    """Parse a v2 difficulty .dat file into a DifficultyBeatmap.
+
+    V2 format differences from v3:
+    - All keys are underscore-prefixed (_notes, _obstacles, _events)
+    - Bombs are embedded in _notes as _type=3 (not a separate bombNotes array)
+    - Obstacles use _type (0=full-height, 1=crouch) instead of explicit y/height
+    - No sliders (arcs) or burstSliders (chains)
+    - Events have no _floatValue field (defaults to 1.0)
+    - BPM changes are in _customData._BPMChanges (handled by preprocess.py)
+
+    Args:
+        data: Parsed JSON dict from a v2 difficulty .dat.
+        version: Version string (e.g. "2.2.0").
+
+    Returns:
+        DifficultyBeatmap parsed from v2 data.
+    """
+    color_notes: list[ColorNote] = []
+    bomb_notes: list[BombNote] = []
+
+    for note in data.get("_notes", []):
+        # Skip fake notes (Noodle Extensions decorative notes)
+        cd = note.get("_customData", {})
+        if cd.get("_fake", False):
+            continue
+
+        note_type = int(note.get("_type", 0))
+        beat = float(note.get("_time", 0))
+        # Clamp to valid grid (mapping extensions allows out-of-bounds coords)
+        x = max(0, min(3, int(note.get("_lineIndex", 0))))
+        y = max(0, min(2, int(note.get("_lineLayer", 0))))
+
+        if note_type == 3:
+            bomb_notes.append(BombNote(beat=beat, x=x, y=y))
+        elif note_type in (0, 1):
+            direction = int(note.get("_cutDirection", 0))
+            color_notes.append(
+                ColorNote(beat=beat, x=x, y=y, color=note_type, direction=direction)
+            )
+        # type 2 does not exist in v2; ignore any unknown types
+
+    obstacles: list[Obstacle] = []
+    for obs in data.get("_obstacles", []):
+        obs_type = int(obs.get("_type", 0))
+        # type 0 = full-height wall: y=0, height=5
+        # type 1 = crouch wall:      y=2, height=3
+        y = 2 if obs_type == 1 else 0
+        height = 3 if obs_type == 1 else 5
+        x = max(0, min(3, int(obs.get("_lineIndex", 0))))
+        width = max(1, min(4, int(obs.get("_width", 1))))
+        obstacles.append(
+            Obstacle(
+                beat=float(obs.get("_time", 0)),
+                duration=float(obs.get("_duration", 0)),
+                x=x,
+                y=y,
+                width=width,
+                height=height,
+            )
+        )
+
+    basic_events: list[BasicEvent] = []
+    for evt in data.get("_events", []):
+        basic_events.append(
+            BasicEvent(
+                beat=float(evt.get("_time", 0)),
+                event_type=int(evt.get("_type", 0)),
+                value=int(evt.get("_value", 0)),
+                float_value=float(evt.get("_floatValue", 1.0)),
+            )
+        )
 
     return DifficultyBeatmap(
         version=version,
-        color_notes=[_parse_color_note(n) for n in data.get("colorNotes", [])],
-        bomb_notes=[_parse_bomb_note(n) for n in data.get("bombNotes", [])],
-        obstacles=[_parse_obstacle(o) for o in data.get("obstacles", [])],
-        sliders=[_parse_slider(s) for s in data.get("sliders", [])],
-        burst_sliders=[_parse_burst_slider(bs) for bs in data.get("burstSliders", [])],
-        basic_events=[_parse_basic_event(e) for e in data.get("basicBeatmapEvents", [])],
-        color_boost_events=[_parse_color_boost(e) for e in data.get("colorBoostBeatmapEvents", [])],
+        color_notes=color_notes,
+        bomb_notes=bomb_notes,
+        obstacles=obstacles,
+        sliders=[],  # v2 has no arcs
+        burst_sliders=[],  # v2 has no chains
+        basic_events=basic_events,
+        color_boost_events=[],  # v2 has no color boost events
     )
 
 

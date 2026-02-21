@@ -1,3 +1,4 @@
+# @package model.lighting
 # Stage 3: Lighting generation model configuration
 d_model: 512
 nhead: 8

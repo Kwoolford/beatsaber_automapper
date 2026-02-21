@@ -232,7 +232,7 @@ Three bugs found and fixed in `data/download.py` while running first real downlo
 
 ### Data collection status
 
-- [ ] **Full download**: `python scripts/download_data.py --count 5000 --output data/raw` — IN PROGRESS
+- [x] **Full download**: 14,492 maps in `data/raw/` — exhausted full BeatSaver catalog under filters (≥80% rating, post-2022, Standard characteristic, no AI maps). Final category counts: vanilla=10,432, chroma=3,122, noodle=777, mapping_extensions=112, vivify=49. Manifest at `data/raw/manifest.json`.
 - [ ] **Preprocess**: `python scripts/preprocess.py --input data/raw --output data/processed`
 - [ ] **Train onset model**: `python scripts/train.py stage=onset data_dir=data/processed`
 - [ ] **Train sequence model**: `python scripts/train.py stage=sequence data_dir=data/processed`

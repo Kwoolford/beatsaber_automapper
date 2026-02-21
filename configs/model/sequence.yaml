@@ -1,3 +1,4 @@
+# @package model.sequence
 # Stage 2: Note sequence generation model configuration
 vocab_size: 167  # Must match tokenizer.VOCAB_SIZE
 d_model: 512

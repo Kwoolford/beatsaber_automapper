@@ -130,7 +130,7 @@ def beat_to_frame(
     hop_length: int = 512,
     offset: float = 0.0,
 ) -> int:
-    """Convert a beat number to a spectrogram frame index.
+    """Convert a beat number to a spectrogram frame index (constant BPM).
 
     Args:
         beat: Beat number (e.g. 10.5).
@@ -145,6 +145,58 @@ def beat_to_frame(
     time_seconds = (beat * 60.0 / bpm) + offset
     sample_index = time_seconds * sample_rate
     return int(round(sample_index / hop_length))
+
+
+def beat_to_frame_variable_bpm(
+    beat: float,
+    base_bpm: float,
+    bpm_changes: list[dict],
+    sample_rate: int = 44100,
+    hop_length: int = 512,
+    offset: float = 0.0,
+) -> int:
+    """Convert a beat number to a frame index, accounting for BPM changes.
+
+    Used for v2 maps that have ``_customData._BPMChanges``. Each entry in
+    ``bpm_changes`` has ``_BPM`` (new tempo) and ``_time`` (beat position in
+    base-BPM beats where the change takes effect).
+
+    Args:
+        beat: Beat number to convert.
+        base_bpm: Song's base BPM from Info.dat.
+        bpm_changes: List of dicts with ``_BPM`` and ``_time`` keys.
+        sample_rate: Audio sample rate.
+        hop_length: Hop length used for spectrogram.
+        offset: Song time offset in seconds.
+
+    Returns:
+        Frame index (integer).
+    """
+    # Build sorted list of (change_beat, new_bpm) segments
+    changes = sorted(
+        [{"_time": c["_time"], "_BPM": c["_BPM"]} for c in bpm_changes],
+        key=lambda c: c["_time"],
+    )
+
+    time_seconds = 0.0
+    current_bpm = base_bpm
+    prev_beat = 0.0
+
+    for change in changes:
+        change_beat = float(change["_time"])
+        new_bpm = float(change["_BPM"])
+        if change_beat >= beat:
+            break
+        # Accumulate time for the segment [prev_beat, change_beat]
+        time_seconds += (change_beat - prev_beat) * 60.0 / current_bpm
+        prev_beat = change_beat
+        current_bpm = new_bpm
+
+    # Remaining beats after last BPM change
+    time_seconds += (beat - prev_beat) * 60.0 / current_bpm
+    time_seconds += offset
+
+    return int(round(time_seconds * sample_rate / hop_length))
 
 
 def frame_to_beat(

@@ -117,8 +117,21 @@ SAMPLE_V3_DAT = {
 
 
 SAMPLE_V2_DAT = {
-    "_version": "2.6.0",
-    "_notes": [{"_time": 10.0, "_lineIndex": 1, "_lineLayer": 0, "_type": 0, "_cutDirection": 1}],
+    "_version": "2.2.0",
+    "_notes": [
+        {"_time": 10.0, "_lineIndex": 1, "_lineLayer": 0, "_type": 0, "_cutDirection": 1},
+        {"_time": 12.0, "_lineIndex": 2, "_lineLayer": 0, "_type": 1, "_cutDirection": 1},
+        {"_time": 14.0, "_lineIndex": 0, "_lineLayer": 1, "_type": 3, "_cutDirection": 0},  # bomb
+    ],
+    "_obstacles": [
+        {"_time": 5.0, "_lineIndex": 0, "_type": 0, "_duration": 2.0, "_width": 2},  # full-height
+        {"_time": 8.0, "_lineIndex": 1, "_type": 1, "_duration": 1.0, "_width": 1},  # crouch
+    ],
+    "_events": [
+        {"_time": 4.0, "_type": 4, "_value": 5},
+    ],
+    "_customData": {},
+    "_waypoints": [],
 }
 
 
@@ -290,14 +303,100 @@ def test_parse_v3_empty_collections() -> None:
 
 
 # ---------------------------------------------------------------------------
-# v2 detection
+# V2 parsing
 # ---------------------------------------------------------------------------
 
 
-def test_v2_returns_none() -> None:
-    """v2 format beatmaps should return None."""
+def test_v2_parses_color_notes() -> None:
+    """V2 _notes with type 0/1 become color notes."""
     result = parse_difficulty_dat_json(SAMPLE_V2_DAT)
-    assert result is None
+    assert result is not None
+    assert len(result.color_notes) == 2
+    assert result.color_notes[0].beat == 10.0
+    assert result.color_notes[0].x == 1
+    assert result.color_notes[0].color == 0
+    assert result.color_notes[1].color == 1
+
+
+def test_v2_parses_bombs() -> None:
+    """V2 _notes with type 3 become bomb notes."""
+    result = parse_difficulty_dat_json(SAMPLE_V2_DAT)
+    assert result is not None
+    assert len(result.bomb_notes) == 1
+    assert result.bomb_notes[0].beat == 14.0
+
+
+def test_v2_parses_obstacles() -> None:
+    """V2 _obstacles are parsed with correct y/height from _type."""
+    result = parse_difficulty_dat_json(SAMPLE_V2_DAT)
+    assert result is not None
+    assert len(result.obstacles) == 2
+    full_wall = result.obstacles[0]
+    assert full_wall.y == 0
+    assert full_wall.height == 5
+    crouch_wall = result.obstacles[1]
+    assert crouch_wall.y == 2
+    assert crouch_wall.height == 3
+
+
+def test_v2_parses_events() -> None:
+    """V2 _events become basic_events."""
+    result = parse_difficulty_dat_json(SAMPLE_V2_DAT)
+    assert result is not None
+    assert len(result.basic_events) == 1
+    assert result.basic_events[0].event_type == 4
+    assert result.basic_events[0].value == 5
+    assert result.basic_events[0].float_value == 1.0  # default
+
+
+def test_v2_no_sliders_or_burst_sliders() -> None:
+    """V2 maps always have empty sliders and burst_sliders."""
+    result = parse_difficulty_dat_json(SAMPLE_V2_DAT)
+    assert result is not None
+    assert result.sliders == []
+    assert result.burst_sliders == []
+
+
+def test_v2_skips_fake_notes() -> None:
+    """V2 notes with _customData._fake=True are skipped."""
+    data = {
+        "_version": "2.2.0",
+        "_notes": [
+            {"_time": 1.0, "_lineIndex": 0, "_lineLayer": 0, "_type": 0, "_cutDirection": 0},
+            {
+                "_time": 2.0,
+                "_lineIndex": 1,
+                "_lineLayer": 0,
+                "_type": 0,
+                "_cutDirection": 0,
+                "_customData": {"_fake": True},
+            },
+        ],
+        "_obstacles": [],
+        "_events": [],
+    }
+    result = parse_difficulty_dat_json(data)
+    assert result is not None
+    assert len(result.color_notes) == 1
+    assert result.color_notes[0].beat == 1.0
+
+
+def test_v2_clamps_oob_coords() -> None:
+    """V2 out-of-bounds coords (mapping extensions) are clamped to valid grid."""
+    data = {
+        "_version": "2.2.0",
+        "_notes": [
+            {"_time": 1.0, "_lineIndex": -1, "_lineLayer": 0, "_type": 0, "_cutDirection": 0},
+            {"_time": 2.0, "_lineIndex": 4, "_lineLayer": 3, "_type": 1, "_cutDirection": 0},
+        ],
+        "_obstacles": [],
+        "_events": [],
+    }
+    result = parse_difficulty_dat_json(data)
+    assert result is not None
+    assert result.color_notes[0].x == 0  # clamped from -1
+    assert result.color_notes[1].x == 3  # clamped from 4
+    assert result.color_notes[1].y == 2  # clamped from 3
 
 
 def test_no_version_returns_none() -> None:
