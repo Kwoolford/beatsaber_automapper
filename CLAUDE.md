@@ -340,8 +340,11 @@ beatsaber_automapper/
 ├── scripts/
 │   ├── download_data.py         # CLI: download maps from BeatSaver
 │   ├── preprocess.py            # CLI: preprocess downloaded maps into tensors
+│   ├── build_index.py           # CLI: rebuild frame_index.json after adding/removing .pt files
 │   ├── train.py                 # CLI: train a model stage
-│   └── generate.py              # CLI: generate a level from audio
+│   ├── generate.py              # CLI: generate a level from audio
+│   ├── dashboard.py             # Launch TensorBoard + print latest metrics summary
+│   └── run_training_pipeline.py # Chain onset→sequence→lighting automatically
 ├── tests/
 │   ├── test_tokenizer.py
 │   ├── test_beatmap_parser.py

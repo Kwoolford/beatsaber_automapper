@@ -269,6 +269,12 @@ Three bugs found and fixed in `data/download.py` while running first real downlo
    - `scripts/train.py`: `logging.getLogger("torch.utils.flop_counter").setLevel(logging.ERROR)` in `main()`.
    - `data/dataset.py`: `_worker_init_fn()` sets same logger level in each worker, passed via `worker_init_fn=`.
 
+**If you ever delete `.pt` files, also remove their entries from `frame_index.json`:**
+```bash
+python scripts/build_index.py --data-dir data/processed   # full rebuild (~20 min)
+# or manually edit data/processed/frame_index.json to remove the bad keys
+```
+
 **WARNING — never delete `.pt` files while a training run is active.** The DataLoader indexes all
 files at startup; deleting a file mid-run causes `FileNotFoundError` in a worker. Also purge deleted
 entries from `frame_index.json` before next run.
