@@ -7,6 +7,9 @@ num_difficulties: 5
 num_genres: 11
 dropout: 0.1
 
+# Memory optimization (set true when VRAM is limited, e.g. gaming in background)
+gradient_checkpointing: false
+
 # Training
 learning_rate: 0.0003
 weight_decay: 0.01

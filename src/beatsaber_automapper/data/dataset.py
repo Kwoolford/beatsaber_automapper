@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections import OrderedDict
 from pathlib import Path
 
 import torch
@@ -88,6 +89,13 @@ class OnsetDataset(Dataset):
         else:
             song_ids = None
 
+        # Load frame index if available (avoids reading every .pt file at init)
+        frame_index_path = self.data_dir / "frame_index.json"
+        frame_index: dict | None = None
+        if frame_index_path.exists():
+            with open(frame_index_path) as f:
+                frame_index = json.load(f)
+
         # Index all windows across all songs
         # (pt_path, diff_name, start_frame, diff_id, genre_idx)
         self.samples: list[tuple[Path, str, int, int, int]] = []
@@ -96,20 +104,28 @@ class OnsetDataset(Dataset):
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
                 continue
-            data = torch.load(pt_path, weights_only=False)
 
-            mod_reqs = data.get("mod_requirements", {})
-            cat = mod_reqs.get("category", "vanilla")
+            if frame_index is not None and song_id in frame_index:
+                # Fast path: use pre-built index, no file I/O
+                entry = frame_index[song_id]
+                cat = entry.get("category", "vanilla")
+                if self.exclude_categories and cat in self.exclude_categories:
+                    continue
+                genre_idx = GENRE_MAP.get(entry.get("genre", "unknown"), 0)
+                n_frames = entry["n_frames"]
+                diff_names = entry.get("difficulties", [])
+            else:
+                # Slow path: load .pt file to get metadata
+                data = torch.load(pt_path, weights_only=False)
+                mod_reqs = data.get("mod_requirements", {})
+                cat = mod_reqs.get("category", "vanilla")
+                if self.exclude_categories and cat in self.exclude_categories:
+                    continue
+                genre_idx = GENRE_MAP.get(mod_reqs.get("genre", "unknown"), 0)
+                n_frames = data["mel_spectrogram"].shape[1]
+                diff_names = list(data.get("difficulties", {}).keys())
 
-            # Filter by mod category
-            if self.exclude_categories and cat in self.exclude_categories:
-                continue
-
-            genre_idx = GENRE_MAP.get(mod_reqs.get("genre", "unknown"), 0)
-            mel = data["mel_spectrogram"]
-            n_frames = mel.shape[1]
-
-            for diff_name, diff_data in data.get("difficulties", {}).items():
+            for diff_name in diff_names:
                 if self.target_difficulties and diff_name not in self.target_difficulties:
                     continue
                 diff_id = DIFFICULTY_MAP.get(diff_name, 3)
@@ -123,14 +139,21 @@ class OnsetDataset(Dataset):
                     tail_start = n_frames - window_size
                     self.samples.append((pt_path, diff_name, tail_start, diff_id, genre_idx))
 
-        # Cache loaded data to avoid re-reading
-        self._cache: dict[str, dict] = {}
+        # Bounded LRU cache: keeps the most-recently-used files in memory.
+        # 200 files × ~6 MB each ≈ 1.2 GB per worker — safe even with num_workers>0.
+        self._cache: OrderedDict[str, dict] = OrderedDict()
+        self._cache_max = 200
 
     def _load(self, pt_path: Path) -> dict:
         key = str(pt_path)
-        if key not in self._cache:
-            self._cache[key] = torch.load(pt_path, weights_only=False)
-        return self._cache[key]
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        data = torch.load(pt_path, weights_only=False)
+        self._cache[key] = data
+        if len(self._cache) > self._cache_max:
+            self._cache.popitem(last=False)
+        return data
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -196,6 +219,13 @@ class SequenceDataset(Dataset):
         else:
             song_ids = None
 
+        # Load frame index if available (avoids reading every .pt file at init)
+        frame_index_path = self.data_dir / "frame_index.json"
+        frame_index: dict | None = None
+        if frame_index_path.exists():
+            with open(frame_index_path) as f:
+                frame_index = json.load(f)
+
         # Index all onset samples
         # (pt_path, diff_name, onset_idx, diff_id, genre_idx)
         self.samples: list[tuple[Path, str, int, int, int]] = []
@@ -204,6 +234,23 @@ class SequenceDataset(Dataset):
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
                 continue
+
+            if frame_index is not None and song_id in frame_index:
+                entry = frame_index[song_id]
+                cat = entry.get("category", "vanilla")
+                if self.exclude_categories and cat in self.exclude_categories:
+                    continue
+                genre_idx = GENRE_MAP.get(entry.get("genre", "unknown"), 0)
+                diff_meta = entry.get("difficulties", {})
+                for diff_name, dmeta in diff_meta.items():
+                    if self.target_difficulties and diff_name not in self.target_difficulties:
+                        continue
+                    diff_id = DIFFICULTY_MAP.get(diff_name, 3)
+                    n_onsets = dmeta.get("n_onsets", 0)
+                    for onset_idx in range(n_onsets):
+                        self.samples.append((pt_path, diff_name, onset_idx, diff_id, genre_idx))
+                continue  # skip slow path below
+
             data = torch.load(pt_path, weights_only=False)
 
             mod_reqs = data.get("mod_requirements", {})
@@ -223,13 +270,19 @@ class SequenceDataset(Dataset):
                 for onset_idx in range(n_onsets):
                     self.samples.append((pt_path, diff_name, onset_idx, diff_id, genre_idx))
 
-        self._cache: dict[str, dict] = {}
+        self._cache: OrderedDict[str, dict] = OrderedDict()
+        self._cache_max = 200
 
     def _load(self, pt_path: Path) -> dict:
         key = str(pt_path)
-        if key not in self._cache:
-            self._cache[key] = torch.load(pt_path, weights_only=False)
-        return self._cache[key]
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        data = torch.load(pt_path, weights_only=False)
+        self._cache[key] = data
+        if len(self._cache) > self._cache_max:
+            self._cache.popitem(last=False)
+        return data
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -266,7 +319,7 @@ class SequenceDataset(Dataset):
 
         return {
             "mel": mel_window,
-            "tokens": torch.tensor(padded, dtype=torch.long),
+            "tokens": torch.tensor(padded, dtype=torch.long).clamp(0, 166),
             "token_length": torch.tensor(token_length, dtype=torch.long),
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
             "genre": torch.tensor(genre_idx, dtype=torch.long),
@@ -327,6 +380,13 @@ class LightingDataset(Dataset):
         else:
             song_ids = None
 
+        # Load frame index if available (avoids reading every .pt file at init)
+        frame_index_path = self.data_dir / "frame_index.json"
+        frame_index: dict | None = None
+        if frame_index_path.exists():
+            with open(frame_index_path) as f:
+                frame_index = json.load(f)
+
         # Index all lighting-event samples: (pt_path, diff_name, light_idx, diff_id, genre_idx)
         self.samples: list[tuple[Path, str, int, int, int]] = []
         pt_files = sorted(self.data_dir.glob("*.pt"))
@@ -334,6 +394,25 @@ class LightingDataset(Dataset):
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
                 continue
+
+            if frame_index is not None and song_id in frame_index:
+                entry = frame_index[song_id]
+                cat = entry.get("category", "vanilla")
+                if self.exclude_categories and cat in self.exclude_categories:
+                    continue
+                genre_idx = GENRE_MAP.get(entry.get("genre", "unknown"), 0)
+                diff_meta = entry.get("difficulties", {})
+                for diff_name, dmeta in diff_meta.items():
+                    if self.target_difficulties and diff_name not in self.target_difficulties:
+                        continue
+                    n_light = dmeta.get("n_lights", 0)
+                    if n_light == 0:
+                        continue
+                    diff_id = DIFFICULTY_MAP.get(diff_name, 3)
+                    for light_idx in range(n_light):
+                        self.samples.append((pt_path, diff_name, light_idx, diff_id, genre_idx))
+                continue  # skip slow path below
+
             data = torch.load(pt_path, weights_only=False)
 
             mod_reqs = data.get("mod_requirements", {})
@@ -355,13 +434,19 @@ class LightingDataset(Dataset):
                 for light_idx in range(n_light):
                     self.samples.append((pt_path, diff_name, light_idx, diff_id, genre_idx))
 
-        self._cache: dict[str, dict] = {}
+        self._cache: OrderedDict[str, dict] = OrderedDict()
+        self._cache_max = 200
 
     def _load(self, pt_path: Path) -> dict:
         key = str(pt_path)
-        if key not in self._cache:
-            self._cache[key] = torch.load(pt_path, weights_only=False)
-        return self._cache[key]
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        data = torch.load(pt_path, weights_only=False)
+        self._cache[key] = data
+        if len(self._cache) > self._cache_max:
+            self._cache.popitem(last=False)
+        return data
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -416,6 +501,13 @@ class LightingDataset(Dataset):
         }
 
 
+def _worker_init_fn(worker_id: int) -> None:  # noqa: ARG001
+    """Suppress noisy per-worker PyTorch log spam."""
+    import logging
+
+    logging.getLogger("torch.utils.flop_counter").setLevel(logging.ERROR)
+
+
 def create_dataloader(
     dataset: Dataset,
     batch_size: int = 32,
@@ -442,4 +534,9 @@ def create_dataloader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=False,
+        # Keep workers alive between epochs so their file caches persist.
+        # prefetch_factor=2 keeps data prefetched ahead of the GPU.
+        persistent_workers=(num_workers > 0),
+        prefetch_factor=2 if num_workers > 0 else None,
+        worker_init_fn=_worker_init_fn if num_workers > 0 else None,
     )

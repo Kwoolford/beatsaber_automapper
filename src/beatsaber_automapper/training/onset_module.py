@@ -72,6 +72,8 @@ class OnsetLitModule(lightning.LightningModule):
         # Inference params
         onset_threshold: float = 0.5,
         min_onset_distance: int = 5,
+        # Memory optimization
+        use_gradient_checkpointing: bool = False,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -83,6 +85,7 @@ class OnsetLitModule(lightning.LightningModule):
             num_layers=encoder_num_layers,
             dim_feedforward=encoder_dim_feedforward,
             dropout=encoder_dropout,
+            use_checkpoint=use_gradient_checkpointing,
         )
         self.onset_model = OnsetModel(
             d_model=onset_d_model,
@@ -91,6 +94,7 @@ class OnsetLitModule(lightning.LightningModule):
             num_difficulties=onset_num_difficulties,
             num_genres=onset_num_genres,
             dropout=onset_dropout,
+            use_checkpoint=use_gradient_checkpointing,
         )
 
         self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight]))
@@ -113,13 +117,15 @@ class OnsetLitModule(lightning.LightningModule):
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         logits = self(batch["mel"], batch["difficulty"], batch["genre"])
-        loss = self.loss_fn(logits, batch["labels"])
+        # Cast to float32: BCEWithLogitsLoss is numerically unstable with bf16 logits
+        # (unlike CrossEntropyLoss). NaN gradients → CUDNN_STATUS_EXECUTION_FAILED.
+        loss = self.loss_fn(logits.float(), batch["labels"])
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         logits = self(batch["mel"], batch["difficulty"], batch["genre"])
-        loss = self.loss_fn(logits, batch["labels"])
+        loss = self.loss_fn(logits.float(), batch["labels"])
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 
         # Compute onset F1 on this batch

@@ -56,6 +56,7 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         warmup_steps=cfg.scheduler.warmup_steps,
         onset_threshold=oc.onset_threshold,
         min_onset_distance=oc.get("min_onset_distance_frames", 5),
+        use_gradient_checkpointing=oc.get("gradient_checkpointing", False),
     )
 
     # Callbacks
@@ -89,6 +90,7 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         devices=cfg.devices,
         precision=cfg.precision,
         gradient_clip_val=1.0,
+        accumulate_grad_batches=cfg.get("accumulate_grad_batches", 1),
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=cfg.output_dir,
@@ -237,6 +239,20 @@ def main(cfg: DictConfig) -> None:
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s: %(message)s",
     )
+    # Suppress "triton not found" spam that fires once per DataLoader worker process.
+    logging.getLogger("torch.utils.flop_counter").setLevel(logging.ERROR)
+
+    # Gaming mode: run at below-normal CPU priority so the OS schedules games first.
+    # DataLoader workers inherit this priority, preventing rhythm-game micro-stutters.
+    if cfg.get("low_priority", False):
+        import sys as _sys
+
+        if _sys.platform == "win32":
+            import ctypes
+
+            handle = ctypes.windll.kernel32.GetCurrentProcess()
+            ctypes.windll.kernel32.SetPriorityClass(handle, 0x4000)  # BELOW_NORMAL
+            logger.info("Process priority set to BELOW_NORMAL (gaming mode)")
 
     stage = cfg.stage
     logger.info("Training stage: %s", stage)

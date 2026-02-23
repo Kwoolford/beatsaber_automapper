@@ -1,8 +1,8 @@
 # Beat Saber Automapper — Progress Tracker
 
-## Current Status: PR 6 Complete (Stage 3 — Lighting Generation)
+## Current Status: PR 7 In Progress — Training Established, Stable
 
-**Date:** 2026-02-18
+**Date:** 2026-02-22
 **Branch:** main
 
 ## PR 6: Stage 3 (Lighting Generation) — DONE
@@ -233,18 +233,73 @@ Three bugs found and fixed in `data/download.py` while running first real downlo
 ### Data collection status
 
 - [x] **Full download**: 14,492 maps in `data/raw/` — exhausted full BeatSaver catalog under filters (≥80% rating, post-2022, Standard characteristic, no AI maps). Final category counts: vanilla=10,432, chroma=3,122, noodle=777, mapping_extensions=112, vivify=49. Manifest at `data/raw/manifest.json`.
-- [ ] **Preprocess**: `python scripts/preprocess.py --input data/raw --output data/processed`
+- [x] **Training pipeline fixes** (2026-02-20):
+  - Fixed Hydra config nesting: `# @package model.{name}` in each YAML so `cfg.model.audio_encoder` etc. resolve correctly
+  - Fixed NaN loss: switched `precision: 16-mixed` → `bf16-mixed`, added `gradient_clip_val=1.0` to all Trainers
+  - Added `torch.set_float32_matmul_precision("high")` for Blackwell Tensor Core hint
+  - Wired `num_genres=11` through all three `_build_*()` functions in `train.py`
+  - Smoke-test results: onset val_f1=0.248 after 3 epochs; sequence loss 5.3 (not NaN); lighting loss 3.6 (not NaN)
+- [~] **Preprocess**: Running — `python scripts/preprocess.py --input data/raw --output data/processed` (~2 hrs, ~2 maps/s)
 - [ ] **Train onset model**: `python scripts/train.py stage=onset data_dir=data/processed`
 - [ ] **Train sequence model**: `python scripts/train.py stage=sequence data_dir=data/processed`
 - [ ] **Train lighting model**: `python scripts/train.py stage=lighting data_dir=data/processed`
 - [ ] **Generate + evaluate**: `python scripts/generate.py song.mp3 --onset-ckpt ... --seq-ckpt ... --lighting-ckpt ...`
 - [ ] **Preview in ArcViewer**, check with BS Map Check, compute onset F1 and token accuracy
 
-### Notes for next session
+### Training pipeline notes (for next session)
 
-- Download is running — check `data/raw/` for .zip files; resume support means rerunning skips already-downloaded maps
-- Model weights will go to HuggingFace Hub (PR 8); training data stays local (reproducible from BeatSaver public API)
-- After download: run preprocess, then train all 3 stages in order
+- Preprocessing complete: **12,014/14,492 .pt files** in `data/processed/`; remainder skipped (v2 maps)
+- Dataset split: 10,213 train / 1,200 val / 599 test; `frame_index.json` present for fast init
+
+**Bugs fixed (2026-02-22):**
+1. `BCEWithLogitsLoss` + bf16 logits → `CUDNN_STATUS_EXECUTION_FAILED`. Fix: `logits.float()` in
+   `onset_module.py` training_step and validation_step.
+2. CUDA OOM when gaming: added gradient checkpointing (`use_checkpoint` flag) to AudioEncoder and
+   OnsetModel, controlled by `model.onset.gradient_checkpointing=true` config flag.
+3. Added `accumulate_grad_batches: 1` to train.yaml (overridable). Also added `+accumulate_grad_batches=4`
+   CLI override pattern.
+4. **CUDA device-side assert** in sequence training: 15 stale `.pt` files had token indices ≥ 167
+   (old preprocessor missing `min(int(o.duration), 64)` wall-duration clamp). Token 1034 = `DUR_INT_OFFSET(98) + 936` (a 936-beat wall).
+   - Fix A: `data/dataset.py` `SequenceDataset.__getitem__` clamps tokens: `.clamp(0, 166)` safety net.
+   - Fix B: All 15 bad files deleted from `data/processed/`; their entries removed from `frame_index.json`.
+   - Bad files: `15b49 15d52 15d87 160b8 161a9 1677f 1a037 1a53b 1a561 1ad83 1b068 1b66f 31dc5 38139 3ac33`
+   - 11,997 clean `.pt` files remain.
+5. **Triton spam** (`W... triton not found; flop counting will not work for triton kernels`) printed
+   once per DataLoader worker on every run. Fixed by:
+   - `scripts/train.py`: `logging.getLogger("torch.utils.flop_counter").setLevel(logging.ERROR)` in `main()`.
+   - `data/dataset.py`: `_worker_init_fn()` sets same logger level in each worker, passed via `worker_init_fn=`.
+
+**WARNING — never delete `.pt` files while a training run is active.** The DataLoader indexes all
+files at startup; deleting a file mid-run causes `FileNotFoundError` in a worker. Also purge deleted
+entries from `frame_index.json` before next run.
+
+**Training commands (full VRAM, no game, both stages in parallel):**
+```
+# Sequence (version_20 was running, ~12k steps into epoch 0)
+python scripts/train.py stage=sequence data_dir=data/processed max_epochs=100 \
+    data.dataset.batch_size=32 data.dataset.num_workers=8 low_priority=true accelerator=gpu
+
+# Onset (version_21 was running, just started)
+python scripts/train.py stage=onset data_dir=data/processed max_epochs=100 \
+    data.dataset.batch_size=32 data.dataset.num_workers=8 low_priority=true accelerator=gpu
+```
+- Both stages fit on RTX 5090 32GB simultaneously (~8 GB onset + ~11 GB sequence)
+- Sequence runs at ~5.36 it/s solo; ~2.17 it/s when sharing GPU with onset
+- Epoch 0 for sequence = ~535k steps @ 5 it/s ≈ 30 hours solo, ~70 hours shared
+- **No checkpoints saved yet** — epoch 0 not complete for either stage on full dataset
+- TensorBoard: `python scripts/dashboard.py --no-browser` then open http://localhost:6006
+
+**Prior smoke-test checkpoints** (11,997-file dataset, short run):
+```
+outputs/beatsaber_automapper/version_0/checkpoints/sequence-epoch=01-val_loss=1.329.ckpt
+outputs/smoke_test/beatsaber_automapper/version_1/checkpoints/onset-epoch=02-val_f1=0.248.ckpt
+```
+These are usable for quick generation tests while full training runs.
+
+- Checkpoints saved under `outputs/beatsaber_automapper/` after each epoch
+- Each stage has EarlyStopping(patience=10), so actual epochs << 100 if model converges
+- bf16-mixed + gradient_clip_val=1.0 committed to train.yaml and train.py
+- Model weights will go to HuggingFace Hub (PR 8); training data stays local
 
 ## PR Roadmap Reference
 

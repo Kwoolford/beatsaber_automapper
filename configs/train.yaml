@@ -12,6 +12,8 @@ max_epochs: 100
 accelerator: gpu
 devices: 1
 precision: bf16-mixed
+accumulate_grad_batches: 1  # increase to simulate larger batch with less VRAM
+low_priority: false  # set true when gaming — runs at BELOW_NORMAL CPU priority
 
 # Optimizer
 optimizer:

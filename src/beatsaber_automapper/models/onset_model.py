@@ -14,6 +14,7 @@ import logging
 
 import torch
 import torch.nn as nn
+import torch.utils.checkpoint
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +39,11 @@ class OnsetModel(nn.Module):
         num_difficulties: int = 5,
         num_genres: int = 11,
         dropout: float = 0.1,
+        use_checkpoint: bool = False,
     ) -> None:
         super().__init__()
         self.d_model = d_model
+        self.use_checkpoint = use_checkpoint
 
         # Difficulty conditioning: learned embedding added to every frame
         self.difficulty_emb = nn.Embedding(num_difficulties, d_model)
@@ -87,7 +90,13 @@ class OnsetModel(nn.Module):
         x = audio_features + diff_emb.unsqueeze(1) + genre_emb.unsqueeze(1)  # [B, T, d_model]
 
         # Transformer
-        x = self.transformer(x)
+        if self.use_checkpoint:
+            for layer in self.transformer.layers:
+                x = torch.utils.checkpoint.checkpoint(layer, x, use_reentrant=False)
+            if self.transformer.norm is not None:
+                x = self.transformer.norm(x)
+        else:
+            x = self.transformer(x)
 
         # Output head
         logits = self.head(x).squeeze(-1)  # [B, T]

@@ -18,6 +18,7 @@ import logging
 
 import torch
 import torch.nn as nn
+import torch.utils.checkpoint
 
 from beatsaber_automapper.models.components import SinusoidalPositionalEncoding
 
@@ -44,6 +45,7 @@ class AudioEncoder(nn.Module):
         num_layers: int = 6,
         dim_feedforward: int = 2048,
         dropout: float = 0.1,
+        use_checkpoint: bool = False,
     ) -> None:
         super().__init__()
         if n_mels % 16 != 0:
@@ -51,6 +53,7 @@ class AudioEncoder(nn.Module):
 
         self.n_mels = n_mels
         self.d_model = d_model
+        self.use_checkpoint = use_checkpoint
 
         # CNN frontend: 4 conv layers, stride=(2,1) reduces freq by 16x, keeps time
         channels = [1, 32, 64, 128, 256]
@@ -113,6 +116,12 @@ class AudioEncoder(nn.Module):
 
         # Positional encoding + Transformer
         x = self.pos_enc(x)
-        x = self.transformer(x)
+        if self.use_checkpoint:
+            for layer in self.transformer.layers:
+                x = torch.utils.checkpoint.checkpoint(layer, x, use_reentrant=False)
+            if self.transformer.norm is not None:
+                x = self.transformer.norm(x)
+        else:
+            x = self.transformer(x)
 
         return x
