@@ -89,6 +89,13 @@ class OnsetDataset(Dataset):
         else:
             song_ids = None
 
+        # Load blacklist if present (outlier filtering)
+        blacklist_path = self.data_dir / "blacklist.json"
+        blacklist: set[str] = set()
+        if blacklist_path.exists():
+            with open(blacklist_path) as f:
+                blacklist = set(json.load(f).keys())
+
         # Load frame index if available (avoids reading every .pt file at init)
         frame_index_path = self.data_dir / "frame_index.json"
         frame_index: dict | None = None
@@ -103,6 +110,8 @@ class OnsetDataset(Dataset):
         for pt_path in pt_files:
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
+                continue
+            if song_id in blacklist:
                 continue
 
             if frame_index is not None and song_id in frame_index:
@@ -140,9 +149,9 @@ class OnsetDataset(Dataset):
                     self.samples.append((pt_path, diff_name, tail_start, diff_id, genre_idx))
 
         # Bounded LRU cache: keeps the most-recently-used files in memory.
-        # 200 files × ~6 MB each ≈ 1.2 GB per worker — safe even with num_workers>0.
+        # 100 files × ~6 MB each ≈ 600 MB per worker — safe with 8+ workers overnight.
         self._cache: OrderedDict[str, dict] = OrderedDict()
-        self._cache_max = 200
+        self._cache_max = 100
 
     def _load(self, pt_path: Path) -> dict:
         key = str(pt_path)
@@ -219,6 +228,13 @@ class SequenceDataset(Dataset):
         else:
             song_ids = None
 
+        # Load blacklist if present (outlier filtering)
+        blacklist_path = self.data_dir / "blacklist.json"
+        blacklist: set[str] = set()
+        if blacklist_path.exists():
+            with open(blacklist_path) as f:
+                blacklist = set(json.load(f).keys())
+
         # Load frame index if available (avoids reading every .pt file at init)
         frame_index_path = self.data_dir / "frame_index.json"
         frame_index: dict | None = None
@@ -233,6 +249,8 @@ class SequenceDataset(Dataset):
         for pt_path in pt_files:
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
+                continue
+            if song_id in blacklist:
                 continue
 
             if frame_index is not None and song_id in frame_index:
@@ -271,7 +289,7 @@ class SequenceDataset(Dataset):
                     self.samples.append((pt_path, diff_name, onset_idx, diff_id, genre_idx))
 
         self._cache: OrderedDict[str, dict] = OrderedDict()
-        self._cache_max = 200
+        self._cache_max = 100
 
     def _load(self, pt_path: Path) -> dict:
         key = str(pt_path)
@@ -380,6 +398,13 @@ class LightingDataset(Dataset):
         else:
             song_ids = None
 
+        # Load blacklist if present (outlier filtering)
+        blacklist_path = self.data_dir / "blacklist.json"
+        blacklist: set[str] = set()
+        if blacklist_path.exists():
+            with open(blacklist_path) as f:
+                blacklist = set(json.load(f).keys())
+
         # Load frame index if available (avoids reading every .pt file at init)
         frame_index_path = self.data_dir / "frame_index.json"
         frame_index: dict | None = None
@@ -393,6 +418,8 @@ class LightingDataset(Dataset):
         for pt_path in pt_files:
             song_id = pt_path.stem
             if song_ids is not None and song_id not in song_ids:
+                continue
+            if song_id in blacklist:
                 continue
 
             if frame_index is not None and song_id in frame_index:
@@ -435,7 +462,7 @@ class LightingDataset(Dataset):
                     self.samples.append((pt_path, diff_name, light_idx, diff_id, genre_idx))
 
         self._cache: OrderedDict[str, dict] = OrderedDict()
-        self._cache_max = 200
+        self._cache_max = 100
 
     def _load(self, pt_path: Path) -> dict:
         key = str(pt_path)

@@ -4,7 +4,7 @@ d_model: 512
 nhead: 8
 num_layers: 2
 num_difficulties: 5
-num_genres: 11
+num_genres: 1  # Disabled — 100% of maps have genre="unknown", embedding was pure noise
 dropout: 0.1
 
 # Memory optimization (set true when VRAM is limited, e.g. gaming in background)
@@ -13,14 +13,19 @@ gradient_checkpointing: false
 # Training
 learning_rate: 0.0003
 weight_decay: 0.01
-label_smoothing_sigma: 3  # Gaussian smoothing width in frames
-pos_weight: 5.0  # BCE positive class weight (onsets are ~5% of frames)
+label_smoothing_sigma: 2  # Gaussian smoothing width in frames (sharper peaks)
+pos_weight: 1.0  # No class reweighting — Gaussian smoothing already covers timing tolerance
 
 # Dataset windowing
-window_size: 256  # Frames per sliding window
-hop: 128  # Hop between windows
+window_size: 1024  # Frames per sliding window (~12 seconds of context)
+hop: 512  # Hop between windows
+
+# Difficulty filtering (null = all difficulties)
+difficulties:
+  - Expert
+  - ExpertPlus
 
 # Inference
-onset_threshold: 0.5
+onset_threshold: 0.35  # Lower threshold for conservative model (precision > recall)
 min_onset_distance_ms: 50  # Minimum gap between onsets
 min_onset_distance_frames: 5  # Minimum frames between predicted onsets

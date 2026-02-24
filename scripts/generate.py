@@ -25,9 +25,10 @@ def main() -> None:
     parser.add_argument("audio", type=Path, help="Input audio file (.mp3, .ogg, .wav)")
     parser.add_argument(
         "--difficulty",
-        default="Expert",
+        nargs="+",
+        default=["Expert"],
         choices=["Easy", "Normal", "Hard", "Expert", "ExpertPlus"],
-        help="Difficulty level to generate",
+        help="Difficulty level(s) to generate (can specify multiple)",
     )
     parser.add_argument(
         "--output",
@@ -153,7 +154,7 @@ def main() -> None:
     result = generate_level(
         audio_path=audio_path,
         output_path=output_path,
-        difficulty=args.difficulty,
+        difficulties=args.difficulty,
         onset_checkpoint=args.onset_ckpt,
         sequence_checkpoint=args.seq_ckpt,
         lighting_checkpoint=args.lighting_ckpt,

@@ -21,32 +21,86 @@ logger = logging.getLogger(__name__)
 def load_audio(path: Path | str, target_sr: int = 44100) -> tuple[torch.Tensor, int]:
     """Load an audio file and convert to mono at the target sample rate.
 
-    Uses soundfile for reading (avoids torchcodec dependency in torchaudio nightly).
+    Uses soundfile for reading. Falls back to ffmpeg for formats soundfile
+    can't handle natively (e.g. .mp3 on Windows without libsndfile extras).
 
     Args:
-        path: Path to audio file (.mp3, .ogg, .wav).
+        path: Path to audio file (.mp3, .ogg, .wav, .egg, .flac).
         target_sr: Target sample rate in Hz.
 
     Returns:
         Tuple of (waveform tensor [1, samples], sample_rate).
+
+    Raises:
+        RuntimeError: If the audio file cannot be loaded by any backend.
     """
     path = Path(path)
-    data, sr = sf.read(str(path), dtype="float32", always_2d=True)
-    # data shape: [samples, channels]
+    if not path.exists():
+        raise FileNotFoundError(f"Audio file not found: {path}")
 
-    # Convert to mono by averaging channels
+    # Try soundfile first (fast, no ffmpeg dependency)
+    try:
+        data, sr = sf.read(str(path), dtype="float32", always_2d=True)
+    except Exception:
+        # Fallback: use ffmpeg to convert to WAV in memory
+        data, sr = _load_audio_ffmpeg(path)
+
+    # data shape: [samples, channels]
     if data.shape[1] > 1:
         data = data.mean(axis=1, keepdims=True)
 
-    # Convert to torch: [channels, samples]
     waveform = torch.from_numpy(data.T)
 
-    # Resample if needed
     if sr != target_sr:
         resampler = torchaudio.transforms.Resample(orig_freq=sr, new_freq=target_sr)
         waveform = resampler(waveform)
 
     return waveform, target_sr
+
+
+def _load_audio_ffmpeg(path: Path) -> tuple:
+    """Load audio via ffmpeg subprocess (fallback for mp3 etc).
+
+    Args:
+        path: Path to audio file.
+
+    Returns:
+        Tuple of (numpy array [samples, channels], sample_rate).
+
+    Raises:
+        RuntimeError: If ffmpeg is not installed or conversion fails.
+    """
+    import subprocess
+    import tempfile
+
+    try:
+        # Convert to WAV via ffmpeg
+        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+            tmp_path = tmp.name
+
+        cmd = [
+            "ffmpeg", "-y", "-i", str(path),
+            "-ar", "44100", "-ac", "1", "-f", "wav", tmp_path,
+        ]
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=120,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"ffmpeg failed (code {result.returncode}): {result.stderr[:500]}"
+            )
+
+        data, sr = sf.read(tmp_path, dtype="float32", always_2d=True)
+        return data, sr
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"Cannot load {path.suffix} files: soundfile failed and ffmpeg "
+            "is not installed. Install ffmpeg or convert to .wav/.ogg first."
+        ) from None
+    finally:
+        tmp_path_obj = Path(tmp_path) if "tmp_path" in dir() else None
+        if tmp_path_obj and tmp_path_obj.exists():
+            tmp_path_obj.unlink(missing_ok=True)
 
 
 def extract_mel_spectrogram(
@@ -121,6 +175,48 @@ def detect_bpm(waveform: torch.Tensor, sample_rate: int = 44100) -> float:
     except Exception as e:
         logger.warning("BPM detection failed (%s) — defaulting to 120.0", e)
         return 120.0
+
+
+def convert_to_ogg(input_path: Path | str, output_path: Path | str) -> Path:
+    """Convert an audio file to OGG Vorbis format using ffmpeg.
+
+    Beat Saber expects .ogg or .egg audio. If the input is already .ogg,
+    it is copied as-is. Otherwise ffmpeg converts it.
+
+    Args:
+        input_path: Path to source audio file.
+        output_path: Path for the output .ogg file.
+
+    Returns:
+        Path to the output .ogg file.
+
+    Raises:
+        RuntimeError: If ffmpeg is not available and conversion is needed.
+    """
+    import shutil
+    import subprocess
+
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+
+    if input_path.suffix.lower() in (".ogg", ".egg"):
+        shutil.copy2(input_path, output_path)
+        return output_path
+
+    try:
+        cmd = [
+            "ffmpeg", "-y", "-i", str(input_path),
+            "-c:a", "libvorbis", "-q:a", "6", str(output_path),
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        if result.returncode != 0:
+            logger.warning("ffmpeg ogg conversion failed, using original file")
+            shutil.copy2(input_path, output_path)
+    except FileNotFoundError:
+        logger.warning("ffmpeg not found — using original audio format in zip")
+        shutil.copy2(input_path, output_path)
+
+    return output_path
 
 
 def beat_to_frame(

@@ -11,6 +11,7 @@ from beatsaber_automapper.generation.export import (
     tokens_to_beatmap,
 )
 from beatsaber_automapper.generation.generate import generate_level
+from beatsaber_automapper.generation.postprocess import postprocess_beatmap
 
 __all__ = [
     "beam_search_decode",
@@ -20,4 +21,5 @@ __all__ = [
     "package_level",
     "tokens_to_beatmap",
     "generate_level",
+    "postprocess_beatmap",
 ]

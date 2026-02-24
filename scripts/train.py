@@ -7,12 +7,14 @@ Usage:
 
 from __future__ import annotations
 
+import gc
 import logging
 from pathlib import Path
 
 import hydra
 import lightning
 from lightning.pytorch.callbacks import (
+    Callback,
     EarlyStopping,
     LearningRateMonitor,
     ModelCheckpoint,
@@ -30,6 +32,19 @@ from beatsaber_automapper.training.onset_module import OnsetLitModule
 from beatsaber_automapper.training.seq_module import SequenceLitModule
 
 logger = logging.getLogger(__name__)
+
+
+class _GarbageCollectCallback(Callback):
+    """Force garbage collection after each validation epoch to prevent memory creep."""
+
+    def on_validation_epoch_end(
+        self, trainer: lightning.Trainer, pl_module: lightning.LightningModule
+    ) -> None:
+        gc.collect()
+        import torch
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
 
 def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.Trainer]:
@@ -74,6 +89,7 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
             patience=10,
         ),
         LearningRateMonitor(logging_interval="step"),
+        _GarbageCollectCallback(),
     ]
 
     # Logger
@@ -94,6 +110,8 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=cfg.output_dir,
+        enable_model_summary=False,
+        num_sanity_val_steps=0,
     )
 
     return module, trainer
@@ -141,6 +159,7 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
             patience=10,
         ),
         LearningRateMonitor(logging_interval="step"),
+        _GarbageCollectCallback(),
     ]
 
     # Logger
@@ -160,6 +179,8 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=cfg.output_dir,
+        enable_model_summary=False,
+        num_sanity_val_steps=0,
     )
 
     return module, trainer
@@ -206,6 +227,7 @@ def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
             patience=10,
         ),
         LearningRateMonitor(logging_interval="step"),
+        _GarbageCollectCallback(),
     ]
 
     if cfg.logger.name == "wandb":
@@ -224,6 +246,8 @@ def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         callbacks=callbacks,
         logger=tb_logger,
         default_root_dir=cfg.output_dir,
+        enable_model_summary=False,
+        num_sanity_val_steps=0,
     )
 
     return module, trainer
@@ -265,8 +289,20 @@ def main(cfg: DictConfig) -> None:
         window_size = cfg.model.onset.get("window_size", 256)
         hop = cfg.model.onset.get("hop", 128)
 
-        train_ds = OnsetDataset(data_dir, split="train", window_size=window_size, hop=hop)
-        val_ds = OnsetDataset(data_dir, split="val", window_size=window_size, hop=hop)
+        # Filter to specific difficulties if configured (e.g. Expert/ExpertPlus only)
+        onset_diffs = cfg.model.onset.get("difficulties", None)
+        if onset_diffs is not None:
+            onset_diffs = list(onset_diffs)
+            logger.info("Filtering to difficulties: %s", onset_diffs)
+
+        train_ds = OnsetDataset(
+            data_dir, split="train", window_size=window_size, hop=hop,
+            difficulties=onset_diffs,
+        )
+        val_ds = OnsetDataset(
+            data_dir, split="val", window_size=window_size, hop=hop,
+            difficulties=onset_diffs,
+        )
 
         logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))
 
@@ -293,17 +329,24 @@ def main(cfg: DictConfig) -> None:
         ds_cfg = cfg.data.dataset
         sc = cfg.model.sequence
 
+        seq_diffs = sc.get("difficulties", None)
+        if seq_diffs is not None:
+            seq_diffs = list(seq_diffs)
+            logger.info("Filtering to difficulties: %s", seq_diffs)
+
         train_ds = SequenceDataset(
             data_dir,
             split="train",
             context_frames=sc.get("context_frames", 128),
             max_token_len=sc.get("max_seq_length", 64),
+            difficulties=seq_diffs,
         )
         val_ds = SequenceDataset(
             data_dir,
             split="val",
             context_frames=sc.get("context_frames", 128),
             max_token_len=sc.get("max_seq_length", 64),
+            difficulties=seq_diffs,
         )
 
         logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))

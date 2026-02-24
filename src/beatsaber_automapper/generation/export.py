@@ -223,57 +223,66 @@ def package_level(
     Returns:
         Path to the generated .zip file.
     """
+    import tempfile
+
+    from beatsaber_automapper.data.audio import convert_to_ogg
+
     audio_path = Path(audio_path)
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # Determine audio filename in zip (always store as .ogg for compatibility)
-    audio_suffix = audio_path.suffix.lower()
-    if audio_suffix in (".ogg", ".wav", ".mp3", ".egg"):
-        zip_audio_name = "song" + audio_suffix
-    else:
-        zip_audio_name = "song.ogg"
-
     cover_in_zip = "cover.png" if cover_path is not None else ""
 
-    # Build Info.dat
-    info = build_info_dat(
-        song_name=song_name,
-        song_author=song_author,
-        bpm=bpm,
-        difficulties=list(beatmaps.keys()),
-        song_filename=zip_audio_name,
-        cover_filename=cover_in_zip,
-        environment_name=environment_name,
-        song_time_offset=song_time_offset,
-    )
+    # Convert audio to .ogg for best Beat Saber compatibility
+    audio_suffix = audio_path.suffix.lower()
+    if audio_suffix in (".ogg", ".egg"):
+        zip_audio_name = "song.ogg"
+        audio_to_pack = audio_path
+        tmp_ogg = None
+    else:
+        zip_audio_name = "song.ogg"
+        tmp_ogg = Path(tempfile.mktemp(suffix=".ogg"))
+        convert_to_ogg(audio_path, tmp_ogg)
+        audio_to_pack = tmp_ogg
 
-    with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        # Info.dat
-        zf.writestr("Info.dat", json.dumps(info, indent=2))
+    try:
+        # Build Info.dat
+        info = build_info_dat(
+            song_name=song_name,
+            song_author=song_author,
+            bpm=bpm,
+            difficulties=list(beatmaps.keys()),
+            song_filename=zip_audio_name,
+            cover_filename=cover_in_zip,
+            environment_name=environment_name,
+            song_time_offset=song_time_offset,
+        )
 
-        # Difficulty .dat files
-        for diff_name, beatmap in beatmaps.items():
-            dat_name = f"{diff_name}Standard.dat"
-            dat_dict = beatmap_to_v3_dict(beatmap)
-            zf.writestr(dat_name, json.dumps(dat_dict))
-            logger.info(
-                "Packed %s: %d notes, %d bombs, %d walls, %d arcs, %d chains",
-                dat_name,
-                len(beatmap.color_notes),
-                len(beatmap.bomb_notes),
-                len(beatmap.obstacles),
-                len(beatmap.sliders),
-                len(beatmap.burst_sliders),
-            )
+        with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr("Info.dat", json.dumps(info, indent=2))
 
-        # Audio file
-        zf.write(audio_path, zip_audio_name)
+            for diff_name, beatmap in beatmaps.items():
+                dat_name = f"{diff_name}Standard.dat"
+                dat_dict = beatmap_to_v3_dict(beatmap)
+                zf.writestr(dat_name, json.dumps(dat_dict))
+                logger.info(
+                    "Packed %s: %d notes, %d bombs, %d walls, %d arcs, %d chains",
+                    dat_name,
+                    len(beatmap.color_notes),
+                    len(beatmap.bomb_notes),
+                    len(beatmap.obstacles),
+                    len(beatmap.sliders),
+                    len(beatmap.burst_sliders),
+                )
 
-        # Cover image (optional)
-        if cover_path is not None:
-            cover_path = Path(cover_path)
-            zf.write(cover_path, "cover.png")
+            zf.write(audio_to_pack, zip_audio_name)
+
+            if cover_path is not None:
+                cover_path = Path(cover_path)
+                zf.write(cover_path, "cover.png")
+    finally:
+        if tmp_ogg is not None and tmp_ogg.exists():
+            tmp_ogg.unlink(missing_ok=True)
 
     logger.info("Wrote Beat Saber level to %s", output_path)
     return output_path

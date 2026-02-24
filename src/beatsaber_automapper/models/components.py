@@ -37,6 +37,19 @@ class SinusoidalPositionalEncoding(nn.Module):
         pe = pe.unsqueeze(0)  # [1, max_len, d_model]
         self.register_buffer("pe", pe)
 
+    def _extend_pe(self, length: int) -> None:
+        """Extend the positional encoding buffer to handle longer sequences."""
+        d_model = self.pe.size(2)
+        pe = torch.zeros(length, d_model, device=self.pe.device, dtype=self.pe.dtype)
+        position = torch.arange(0, length, dtype=torch.float, device=self.pe.device).unsqueeze(1)
+        div_term = torch.exp(
+            torch.arange(0, d_model, 2, dtype=torch.float, device=self.pe.device)
+            * (-math.log(10000.0) / d_model)
+        )
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        self.pe = pe.unsqueeze(0)  # [1, length, d_model]
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Add positional encoding to input tensor.
 
@@ -46,6 +59,8 @@ class SinusoidalPositionalEncoding(nn.Module):
         Returns:
             Tensor with positional encoding added.
         """
+        if x.size(1) > self.pe.size(1):
+            self._extend_pe(x.size(1))
         x = x + self.pe[:, : x.size(1)]
         return self.dropout(x)
 

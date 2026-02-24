@@ -21,6 +21,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "mypy"]
 wandb = ["wandb"]
+ui = ["gradio>=4.0"]
 
 [project.scripts]
 bsa-download = "scripts.download_data:main"

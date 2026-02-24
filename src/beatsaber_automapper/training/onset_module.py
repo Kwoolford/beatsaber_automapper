@@ -65,7 +65,7 @@ class OnsetLitModule(lightning.LightningModule):
         onset_num_genres: int = 11,
         onset_dropout: float = 0.1,
         # Training params
-        pos_weight: float = 5.0,
+        pos_weight: float = 1.0,
         learning_rate: float = 3e-4,
         weight_decay: float = 0.01,
         warmup_steps: int = 1000,
