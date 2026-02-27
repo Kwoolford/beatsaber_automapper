@@ -528,6 +528,9 @@ def generate_level(
     logger.info("Using device: %s", resolved_device)
 
     genre_idx = GENRE_MAP.get(genre, 0)
+    # Guard against out-of-bounds genre index: trained models may have num_genres=1
+    # (all maps are "unknown"), so clamp to 0 if the model can't handle the requested genre.
+    # This is checked after models are loaded below.
 
     # --- Load audio & mel ---
     logger.info("Loading audio: %s", audio_path)
@@ -569,6 +572,15 @@ def generate_level(
     else:
         lighting_module = None
         logger.info("No lighting checkpoint — Stage 3 skipped")
+
+    # Clamp genre_idx to model's embedding size (trained models may have num_genres=1)
+    seq_genre_size = seq_module.sequence_model.genre_emb.num_embeddings
+    if genre_idx >= seq_genre_size:
+        logger.warning(
+            "Genre '%s' (idx=%d) exceeds model's num_genres=%d — falling back to 'unknown' (0)",
+            genre, genre_idx, seq_genre_size,
+        )
+        genre_idx = 0
 
     # --- Compute structure features ---
     structure_features = compute_structure_features(

@@ -85,18 +85,18 @@ bsa-generate song.mp3 --difficulty Expert --output level.zip
      → Linear(1)          causal self-attn      cross-attn → audio
      → sigmoid            cross-attn → audio    note ctx = mean-pool
                           + prev_context[K=8]   slot emb (cycling 4)
-                          512-frame context
+                          256-frame context
 
     Loss:                Loss:                 Loss:
-     BCE (Gaussian        CE (EOS 0.3x,         CE + label smooth
-     smoothed labels)     rhythm 3x) +
+     BCE (Gaussian        CE (rhythm 3x,        CE + label smooth
+     smoothed labels)     EOS 1.0x) +
                           flow loss (α=0.1)
 
     Output:              Output:               Output:
      per-frame onset      token sequences       lighting token seqs
      probability [T]      per onset             (constrained nucleus)
      → peak picking       (beam/nucleus,        → Chroma RGB colors
-     → onset timestamps    min_length=3)         (energy→palette)
+     → onset timestamps    min_length=7)         (energy→palette)
 
               │                   │                     │
               └───────────────────┴─────────────────────┘

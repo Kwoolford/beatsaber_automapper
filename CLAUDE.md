@@ -93,9 +93,9 @@ Audio File (.mp3/.ogg/.wav)
   - Cross-attention to audio encoder output + previous K=8 onset context vectors
   - Difficulty + genre conditioning via learned embeddings (additive)
   - Inter-onset context: previous 8 onset token sequences are mean-pooled, projected, and concatenated to cross-attention memory alongside audio features
-- Audio context: 512 frames (~6 seconds) per onset for musical phrase awareness
-- Training: Teacher forcing with cross-entropy loss (EOS downweighted to 0.3x, rhythm tokens 3x) + flow-aware auxiliary loss (parity violation penalty, alpha=0.1)
-- Inference: Beam search or nucleus sampling with min_length=3 (suppresses premature EOS)
+- Audio context: 256 frames (~3 seconds) per onset — balances musical context vs O(T²) encoder cost
+- Training: Teacher forcing with cross-entropy loss (rhythm tokens 3x, EOS normal weight) + flow-aware auxiliary loss (parity violation penalty, alpha=0.1). Epoch subsampling (500K random samples/epoch from 17M total) keeps epochs at ~15 min.
+- Inference: Beam search or nucleus sampling with min_length=7 (requires at least 1 complete note before EOS)
 
 ### Stage 3: Lighting Generation
 - Task: Given audio features + generated note sequence, produce lighting events

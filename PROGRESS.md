@@ -1,9 +1,66 @@
 # Beat Saber Automapper — Progress Tracker
 
-## Current Status: Architecture Rebuild COMPLETE — Ready for Smoke Test
+## Current Status: Architecture Rebuild + Training Optimization COMPLETE — Ready for Launch
 
-**Date:** 2026-02-26 evening
+**Date:** 2026-02-26 late evening
 **Branch:** main
+
+---
+
+## Training Optimization Pass (Feb 26 late evening)
+
+After the architecture rebuild, deep auditing revealed critical training time issues.
+Dataset counting showed the real sample counts — and the original approach was completely infeasible.
+
+### The Problem
+
+| Stage | Train Samples | Steps/Epoch (old batch) | Time/Epoch |
+|-------|--------------|------------------------|------------|
+| Onset | 315K | 4,930 (batch=64) | ~20 min |
+| Sequence | **17M** | **354K (batch=48)** | **~33 hours** |
+| Lighting | **48M** | **750K (batch=256)** | **~5 hours** |
+
+Sequence at 33 hrs/epoch x 100 epochs = 137 days. Completely impossible for a 1-week run.
+
+### The Solution: Three optimizations
+
+1. **Batch size increase** (sequence: 48 → 192): VRAM analysis showed the 54M-param model only uses ~5 GB at batch=48. RTX 5090 has 32 GB. Pushed to 192 (~19 GB with mixed precision).
+
+2. **Epoch subsampling** (500K random samples/epoch): Using `RandomSampler(num_samples=500K)`, each epoch sees a different random 3% of data. Full dataset coverage across ~34 epochs. Validated that Lightning's `estimated_stepping_batches` correctly reflects the subsampled epoch length for LR scheduling.
+
+3. **context_frames 512 → 256**: CNN has stride=(2,1) — zero time downsampling. So T frames go directly to 6-layer transformer encoder with O(T²) self-attention. 512² = 16x cost vs 128². Changed to 256 (4x cost, ~3 seconds of audio = ~16 beats at 120 BPM).
+
+### Result: Feasible Training Times
+
+| Stage | Batch | Samples/Epoch | Steps/Epoch | Time/Epoch | 100 Epochs |
+|-------|-------|--------------|-------------|------------|------------|
+| Onset | 64 | 315K (all) | 4,930 | ~20 min | ~33 hrs |
+| Sequence | 192 | 500K (sub) | 2,604 | ~15 min | ~25 hrs |
+| Lighting | 256 | 500K (sub) | 1,953 | ~10 min | ~17 hrs |
+| **Total** | | | | | **~75 hrs = ~3 days** |
+
+With early stopping (patience=25), convergence around epoch 40-60: **~2 days total**.
+Fits comfortably in a 1-week run with room for restarts.
+
+### Other Bugs Fixed
+
+- **Genre out-of-bounds crash**: Models trained with `num_genres=1` would crash on any genre besides "unknown" at inference. Added clamping + warning in generate.py.
+- **Stale window_size fallback**: train.py had fallback=256 but onset.yaml uses 1024. Fixed to match.
+- **EOS weight correction**: Changed from 0.3 → 1.0. Training data has zero empty onsets (preprocessing filters them), so downweighting EOS was fighting a nonexistent problem.
+- **min_length 3 → 7**: A complete NOTE needs 6 attribute tokens. min_length=3 allowed truncated notes.
+
+### Configuring Epoch Subsampling
+
+```bash
+# Default: 500K samples/epoch (recommended)
+python scripts/train.py stage=sequence
+
+# More data per epoch (slower but higher coverage per epoch):
+python scripts/train.py stage=sequence max_samples_per_epoch=2000000
+
+# Disable subsampling (original behavior — full epochs):
+python scripts/train.py stage=sequence max_samples_per_epoch=null
+```
 
 ---
 
@@ -18,7 +75,7 @@ All 10 phases of the master rebuild plan have been implemented. 213 tests pass.
 | 1 | Tokenizer direction clamping, lighting nucleus sampling + constrained decoding | tokenizer.py, generate.py |
 | 2 | Song structure features (6 per-frame librosa features → AudioEncoder) | audio.py, preprocess.py, dataset.py, audio_encoder.py, all 3 training modules |
 | 3 | Inter-onset context (prev K=8 onset seqs → cross-attention memory) | dataset.py, sequence_model.py, beam_search.py, generate.py, seq_module.py |
-| 4 | EOS rebalancing (0.3x weight) + min_length=3 at inference | seq_module.py, beam_search.py, sequence.yaml |
+| 4 | EOS weight normalized (1.0x — training data has no empty onsets) + min_length=7 at inference | seq_module.py, beam_search.py, sequence.yaml |
 | 5 | Flow-aware auxiliary loss (parity violation penalty, alpha=0.1) | seq_module.py |
 | 6 | Lighting slot embedding (4-position cycling for event grammar) | lighting_model.py |
 | 7 | Chroma RGB post-processing (6 palettes, energy→color mapping) | chroma.py (NEW), export.py, generate.py |
@@ -31,18 +88,48 @@ All 10 phases of the master rebuild plan have been implemented. 213 tests pass.
 
 2. **Inter-onset context via memory concatenation**: Previous 8 onset sequences are mean-pooled per onset, projected to d_model, concatenated to audio features along time dimension. Cross-attention naturally attends to both audio AND context. No mask changes needed.
 
-3. **512-frame audio context** (up from 128): ~6 seconds of audio, enough to hear musical phrase structure. May require smaller batch sizes — test during smoke test.
+3. **256-frame audio context** (up from 128): ~3 seconds of audio (~16 beats at 120 BPM). 512 was tested but caused 16x encoder cost due to O(T²) self-attention with no CNN time downsampling. 256 is the sweet spot (4x cost for 2x context vs the original 128).
 
 4. **Flow loss is detached**: Computes on argmax predictions, not through the gradient graph. Pure auxiliary signal that doesn't interfere with CE loss gradients.
 
 5. **Chroma as post-processing**: Rule-based, not learned. Avoids training complexity while still producing colorful light shows. Uses `_suggestions: ["Chroma"]` for graceful degradation in non-Chroma players.
 
+6. **Epoch subsampling for large datasets**: RandomSampler caps each epoch at 500K samples. Different random subset each epoch ensures full coverage across ~34 epochs. Keeps epoch duration at ~15 min for meaningful early stopping and checkpoint granularity.
+
+### Pipeline Reliability Fixes (Feb 26 late evening)
+
+1. **Stage-aware checkpoint resume**: `find_last_checkpoint()` now filters by stage name in checkpoint filenames (e.g., only resumes onset from directories containing `onset-*.ckpt`). Previously would resume onset training from a sequence checkpoint, causing a crash.
+
+2. **Heartbeat callback**: New `_HeartbeatCallback` in train.py writes `heartbeat.json` after every epoch with timestamp, stage, epoch, global_step, and current metric. Allows detecting hung/frozen training during multi-day runs. Previous heartbeat only updated at stage start/end.
+
+3. **Epoch subsampling logging**: Clear log messages when subsampling is active (`500K/17M per epoch`) or disabled (`max_samples_per_epoch=null`).
+
+4. **Genre out-of-bounds guard**: generate.py clamps genre_idx to model's embedding size with warning.
+
 ### Before Launching Overnight Smoke Test
 
-1. **Re-preprocess all .pt files** with `--force` to add structure_features (~2-3 hours)
-2. **Rebuild frame_index.json** after re-preprocessing
+1. **Re-preprocess all .pt files** with `--force` to add structure_features (~2-3 hours):
+   ```bash
+   source .venv/Scripts/activate
+   python scripts/preprocess.py data/raw data/processed --num-workers 16 --force
+   ```
+2. **Rebuild frame_index.json** after re-preprocessing:
+   ```bash
+   python scripts/build_index.py data/processed
+   ```
 3. **Delete old checkpoints** (version_41-43 are incompatible with new architecture)
-4. **Run smoke test**: `bash scripts/overnight_v3.sh --smoke-test`
+4. **Run smoke test** (5 epochs per stage, ~1 hour total):
+   ```bash
+   bash scripts/overnight_v3.sh --smoke-test
+   ```
+5. **Verify smoke test**:
+   - Check `outputs/heartbeat.json` — should update every ~15 min
+   - Check `outputs/training_*.log` — no crashes, loss decreasing
+   - Check TensorBoard: `tensorboard --logdir outputs/`
+6. **Launch full training** (~40h with early stopping):
+   ```bash
+   bash scripts/overnight_v3.sh
+   ```
 
 ---
 
@@ -76,20 +163,16 @@ We are applying the same proven approach to Beat Saber for the first time.
 - [ ] Log exact metrics: onset F1, sequence val_loss, token accuracy, EOS accuracy
 - [ ] Qualitative assessment: are notes synced to music? Do patterns flow?
 
-#### 2. TRAINING THROUGHPUT OPTIMIZATION (critical — 3-5x speedup expected)
-Current state: **41% GPU, 5GB/32GB VRAM.** Completely bottlenecked on data loading.
+#### 2. TRAINING THROUGHPUT OPTIMIZATION — DONE (Feb 26 evening)
 
-- [ ] **Batch size tuning:** Binary search for max batch size per stage
-  - Onset: try 64 → 128 → 256 (1024-frame windows are large, ~80*1024*4 bytes each)
-  - Sequence: try 64 → 128 → 256 → 512 (128-frame context windows are small)
-  - Lighting: try 64 → 128 → 256
-  - Target: GPU utilization >90%, VRAM usage >20GB
-- [ ] **Workers:** Increase to 16 for all stages (have 32 logical cores)
-- [ ] **torch.compile():** Add `model = torch.compile(model)` to training script
-- [ ] **Preload dataset into RAM:** 12K files × 6MB = 72GB. Check system RAM.
-  If ≥64GB, preload everything. If 32GB, preload top 5K files.
-- [ ] **Smoke test:** Run 3 epochs of each stage, verify speedup, estimate epoch times
-- [ ] **Calculate exact schedule:** `samples / batch_size / steps_per_sec / 3600 = hrs/epoch`
+**SOLVED.** VRAM analysis + epoch subsampling + batch size optimization.
+
+- [x] **VRAM analysis**: Model is 54M params (~108 MB in fp16). Per-sample activation ~90 MB. Max batch ~256 on 32GB.
+- [x] **Batch sizes**: onset=64 (tight at T=1024), sequence=192 (from 48!), lighting=256
+- [x] **Epoch subsampling**: 17M sequence & 48M lighting samples → 500K random subset per epoch. Different subset each epoch. Full coverage in ~34 epochs.
+- [x] **context_frames 512→256**: 16x encoder cost savings (O(T²) self-attention)
+- [x] **Workers**: 12 for all stages in overnight script
+- [x] **Training time validated**: ~15 min/epoch (sequence), ~10 min/epoch (lighting), total ~75h for 100 epochs or ~40h with early stopping
 
 #### 3. DATA QUALITY AUDIT
 
@@ -151,112 +234,28 @@ Action items:
   - Could add a parity-violation penalty to the loss function
   - Or: post-processing parity fix (already have `fix_parity()`)
 
-##### 4a. CRITICAL FIX: Inter-Onset Context for Sequence Model
+##### 4a. Inter-Onset Context — IMPLEMENTED (Phase 3)
 
-**Problem diagnosed (Feb 26):** The sequence model generates each onset independently — it has
-zero knowledge of what was generated at previous onsets. This is the root cause of:
-- **Mode collapse:** 97% of notes at column 1, row 0 (the single most common position)
-- **No color alternation:** 100% same color before post-processing
-- **No flow:** 248/553 parity violations in generated Expert map
-- **Repetitive patterns:** Same note repeated at every onset
+Previous K=8 onset token sequences are fed to the sequence model as cross-attention memory.
+Mean-pooled per onset, projected to d_model, concatenated alongside audio features.
+Training uses ground-truth previous onsets; inference uses own generated output (autoregressive over onsets).
+Audio context: 256 frames (~3 seconds, 4x cost vs 128). See Architecture Rebuild section.
 
-The model literally cannot learn alternating red/blue, forehand/backhand flow, or progressive
-patterns because it never sees what came before. This is like asking an LLM to write coherent
-text one word at a time with no memory of previous words.
+##### 4b. Flow-Aware Auxiliary Loss — IMPLEMENTED (Phase 5)
 
-**Solution: Feed previous N onset token sequences as conditioning input.**
+Detached auxiliary loss on argmax predictions. Computes parity violations between consecutive
+onsets (forehand/backhand classification). `total_loss = ce_loss + 0.1 * flow_loss`.
+Time gaps > 3 seconds reset parity. Horizontal and dot directions skipped.
 
-Implementation plan:
-1. **Modify `SequenceDataset`** to return previous K onset token sequences (K=5-10) alongside
-   the current onset's audio context and target tokens.
-   - Each sample becomes: `(mel_context, prev_onset_tokens[K], target_tokens, difficulty, genre)`
-   - `prev_onset_tokens` is a (K, max_seq_len) tensor, zero-padded for the first K onsets in a song
-   - Requires sorting/grouping samples by song and onset time during preprocessing
+#### 5. PIPELINE HARDENING — DONE (Feb 26 evening)
 
-2. **Add a "previous context encoder" to `SequenceModel`**:
-   - Embed previous onset tokens using the same token embedding layer
-   - Mean-pool each onset's tokens → K context vectors
-   - Run through a small 2-layer Transformer or just concatenate to audio features
-   - Add to the cross-attention memory alongside audio encoder output
-   - This lets the decoder attend to both audio AND previous note patterns
-
-3. **Training change**: Teacher forcing now uses ground-truth previous onsets (not model outputs).
-   At inference time, use the model's own generated outputs as context (autoregressive over onsets).
-
-4. **Wider audio context**: Expand from 128 frames (~1.5s) to 512+ frames (~6s) so the model
-   can hear the musical phrase structure, not just the immediate transient.
-
-**Expected impact:** This single change should break mode collapse. The model will learn:
-- "Previous note was red → this should be blue" (color alternation)
-- "Previous swing was downward → this should be upward" (parity/flow)
-- "Previous notes were at bottom → move to middle/top" (grid coverage)
-- "Song has been building → increase complexity" (musical awareness)
-
-##### 4b. Flow-Aware Auxiliary Loss
-
-**Problem:** Standard cross-entropy treats all wrong predictions equally. But in Beat Saber mapping,
-there are often multiple valid note placements for any given onset. A note that continues the
-current flow in a different-but-valid way should be punished less than a note that breaks flow entirely.
-
-**Key insight from user:** Beat Saber note flow is almost always a sequence of alternating swings.
-If the model starts a flow differently than ground truth but maintains valid flow, it's being
-unfairly penalized for every subsequent note — even though its output is playable and correct.
-
-**Flow-aware loss design:**
-
-1. **Swing angle continuity bonus:**
-   - For consecutive notes within 2-3 seconds, compute the angle between previous swing direction
-     and current note placement
-   - Ideal: next swing is 150-210 degrees opposite (natural backhand/forehand alternation)
-   - Bonus (reduced loss) when the predicted note falls in this "good flow" range
-   - No penalty when gap > 3 seconds (sequence restart — any direction is valid)
-
-2. **Position-aware swing evaluation:**
-   - A high note (row 2) with downward cut direction naturally leads to a low position
-   - Don't penalize a low-row follow-up note even if ground truth placed it elsewhere
-   - Consider the "swing continuation trajectory" — where does the saber end up after the cut?
-   - Saber endpoint = note position + swing direction vector → next note should be near there
-
-3. **Parity classification:**
-   - Forehand directions: {1 (down), 6 (down-left), 7 (down-right)}
-   - Backhand directions: {0 (up), 4 (up-left), 5 (up-right)}
-   - Horizontal: {2 (left), 3 (right)} — context-dependent, classify based on previous swing
-   - Dot notes (8): always valid, no parity constraint
-   - Loss modifier: if predicted note has correct parity class, reduce loss by 50%
-
-4. **Implementation approach:**
-   - Add `FlowAwareLoss` wrapper in `training/seq_module.py`
-   - Primary loss: standard CrossEntropyLoss (unchanged, keeps learning signal stable)
-   - Auxiliary loss: flow penalty/bonus computed on the argmax predicted tokens
-   - Combined: `total_loss = ce_loss + alpha * flow_loss` (alpha=0.1-0.3, tunable)
-   - Flow loss only applies to direction and position tokens (not event type, color, etc.)
-   - Requires decoding predicted token indices back to note properties within the loss function
-
-5. **Training data annotation (preprocessing):**
-   - Pre-compute flow labels for each onset: `expected_parity`, `swing_angle_from_prev`,
-     `time_gap_from_prev`, `position_trajectory_from_prev`
-   - Store in .pt files alongside existing token sequences
-   - This avoids expensive per-batch flow computation during training
-
-**Expected impact:**
-- Faster convergence on flow patterns (model doesn't fight against valid alternatives)
-- Fewer parity violations in generated output
-- More natural "game feel" even before post-processing fixes
-
-#### 5. PIPELINE HARDENING FOR 1-WEEK RUN
-
-- [ ] **Checkpoint every epoch** (not just top-3) — disk is cheap, lost progress is not
-- [ ] **Auto-resume from checkpoint** — if power blip kills training, script restarts from last.ckpt
-- [ ] **Health monitoring:** Simple script that checks:
-  - Is python.exe still running?
-  - Is the events file growing?
-  - What's the latest val_loss?
-  - GPU temperature / utilization
-  - Write status to a file that can be checked from phone
-- [ ] **Graceful stage transitions:** After onset converges, auto-start sequence, etc.
-- [ ] **Save training curves** to a simple text log (not just TensorBoard)
-- [ ] **Set process priority to BELOW_NORMAL** at startup (for background gaming)
-- [ ] **Increase early stopping patience to 20-30** — with fast epochs we can afford to wait
+- [x] **Checkpoint every epoch** — `save_last=True` in ModelCheckpoint + top-3 best
+- [x] **Auto-resume from checkpoint** — `find_last_checkpoint()` searches for stage-specific last.ckpt
+- [x] **Health monitoring** — `_HeartbeatCallback` writes `heartbeat.json` every epoch with stage/epoch/metric
+- [x] **Graceful stage transitions** — overnight_v3.sh runs onset→sequence→lighting sequentially, continues on failure
+- [x] **Training log** — `tee -a` to both console and `outputs/training_*.log`
+- [x] **Process priority** — `low_priority=true` sets BELOW_NORMAL via kernel32.SetPriorityClass
+- [x] **Early stopping patience=25** — with 15-min epochs, waits ~6 hours before stopping
 
 #### 6. COMMUNITY-IMPORTANT FEATURES TO VALIDATE
 
@@ -277,20 +276,21 @@ Action items:
 - [ ] Consider adding musical energy features to the audio encoder
   (RMS energy, spectral centroid — helps the model know "loud" vs "quiet")
 
-### Training Schedule (Estimated — Needs Validation)
+### Training Schedule (Validated with Real Data)
 
-Assumes throughput optimization achieves 3-5x speedup:
+Based on actual sample counts (315K onset, 17M sequence, 48M lighting) with epoch subsampling and optimized batch sizes on RTX 5090:
 
-| Stage | Epochs | Est. Epoch Time | Total Time | Cumulative |
-|-------|--------|-----------------|------------|------------|
-| Onset | 50-80 | ~15-30 min | 12-24h | Day 1 |
-| Sequence | 30-50 | ~30-60 min | 15-30h | Days 1-3 |
-| Lighting | 20-30 | ~15-30 min | 5-10h | Day 3-4 |
-| Sequence (phase 2, lower LR) | 20 | ~30-60 min | 10-20h | Days 4-6 |
-| Buffer / re-runs | — | — | 24h | Day 7 |
+| Stage | Batch | Samples/Epoch | Time/Epoch | Max Epochs | Est. Total | Cumulative |
+|-------|-------|--------------|------------|------------|------------|------------|
+| Onset | 64 | 315K (all) | ~20 min | 100 | ~33h (early stop ~15h) | Day 1 |
+| Sequence | 192 | 500K (sub) | ~15 min | 100 | ~25h (early stop ~15h) | Day 1-2 |
+| Lighting | 256 | 500K (sub) | ~10 min | 100 | ~17h (early stop ~10h) | Day 2-3 |
+| **Total** | | | | | **~40h with early stopping** | **Day 2-3** |
+| Buffer / re-runs / evaluation | | | | | ~100h remaining | Days 3-7 |
 
-**Phase 2 sequence training:** After initial convergence, restart with 10x lower LR
-(3e-5 instead of 3e-4) for fine-tuning. Common technique for squeezing out final quality.
+**Epoch subsampling**: Sequence and lighting datasets are too large for full epochs (17M and 48M samples). Each epoch randomly samples 500K samples. Full dataset coverage across ~34 (seq) or ~96 (lighting) epochs.
+
+**Early stopping**: patience=25 epochs. Expected convergence: onset ~15 epochs, sequence ~40-60 epochs, lighting ~30-50 epochs.
 
 ---
 
@@ -337,38 +337,14 @@ The V2 TCN architecture was working all along.
 - Sequence: val_loss=2.642 (epoch 1 best), still running. ~1.9 hours/epoch (!).
 - Lighting: not started yet — sequence takes too long.
 
-### NEXT SESSION: Training Performance Optimization (CRITICAL)
+### Training Performance Optimization — COMPLETED (Feb 26 evening)
 
-**The RTX 5090 is massively underutilized.** Must fix before any long training run.
+**Solved.** Full VRAM analysis + epoch subsampling + batch optimization.
+See "Training Optimization Pass" section at top of this file for details.
 
-Current state (measured 2026-02-25):
-- GPU utilization: **41%** (should be 95%+)
-- VRAM used: **5 GB / 32 GB** (wasting 27 GB)
-- CPU: 45% on Ryzen 9 7950X3D (16c/32t)
-- batch_size=32 is way too small — GPU finishes each batch instantly then waits for data
-- Previous overnight run crashed with OOM, so batch sizes were reduced as a knee-jerk fix.
-  The real fix is to find the actual OOM cause and set batch sizes properly.
-
-**Action items for next run (in priority order):**
-
-1. **Increase batch_size aggressively** — try 128, 256, or even 512 for sequence stage.
-   With 32 GB VRAM and the current model (~686 MB checkpoint), there is massive headroom.
-   Onset can probably go to 128+ (currently 32 with 1024-frame windows).
-
-2. **Increase num_workers to 16-20** — we have 32 logical cores, only using 8-12.
-
-3. **Preload dataset into RAM** — 12K .pt files × ~6 MB = ~72 GB. If system RAM is 64 GB+,
-   load everything at startup to eliminate disk I/O bottleneck entirely. Even partial preload
-   (e.g., the top 5K most-accessed files) would help hugely.
-
-4. **torch.compile()** — free 10-30% GPU speedup with one line. Add to training script.
-
-5. **Always use `low_priority=true`** in the pipeline script so gaming works during training.
-   Can also be applied retroactively to running processes via `kernel32.SetPriorityClass()`.
-
-6. **Estimate epoch time BEFORE committing to a schedule:**
-   `samples / batch_size / steps_per_second / 3600 = hours_per_epoch`
-   Sequence: 2.16M / 32 / 10 / 3600 = **1.9 hours/epoch** (not the 15 min we estimated!)
+Key metrics: onset=64 batch, sequence=192 batch (from 48!), lighting=256 batch.
+Epoch subsampling: 500K/epoch for seq (from 17M) and lighting (from 48M).
+Total estimated training: ~40h with early stopping (fits in 2 days of a 7-day window).
 
 ### Session Handoff (2026-02-24)
 

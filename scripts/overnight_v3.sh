@@ -25,7 +25,7 @@ MAX_EPOCHS_ONSET=100
 MAX_EPOCHS_SEQ=100
 MAX_EPOCHS_LIGHT=100
 BATCH_SIZE_ONSET=64
-BATCH_SIZE_SEQ=48
+BATCH_SIZE_SEQ=192
 BATCH_SIZE_LIGHT=256
 PATIENCE=25
 
@@ -92,16 +92,26 @@ HEOF
 
 find_last_checkpoint() {
     local stage="$1"
-    # Search for last.ckpt in the stage's checkpoint directory
+    # Search for a checkpoint that matches this stage.
+    # ModelCheckpoint filenames are: onset-{epoch}-{metric}.ckpt,
+    # sequence-{epoch}-{metric}.ckpt, lighting-{epoch}-{metric}.ckpt.
+    # We find the version directory containing a stage-matching checkpoint,
+    # then use last.ckpt from that directory (if it exists).
     local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper"
     if [ -d "$ckpt_dir" ]; then
-        # Find the latest version directory for this stage
-        local latest_version
-        latest_version=$(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V | tail -1)
-        if [ -n "$latest_version" ] && [ -f "$latest_version/checkpoints/last.ckpt" ]; then
-            echo "$latest_version/checkpoints/last.ckpt"
-            return 0
-        fi
+        # Search ALL version directories (newest first) for a stage-matching checkpoint
+        for vdir in $(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V -r); do
+            local ckpt_subdir="$vdir/checkpoints"
+            if [ -d "$ckpt_subdir" ]; then
+                # Check if this version has checkpoints for the right stage
+                if ls "$ckpt_subdir"/${stage}-*.ckpt 1>/dev/null 2>&1; then
+                    if [ -f "$ckpt_subdir/last.ckpt" ]; then
+                        echo "$ckpt_subdir/last.ckpt"
+                        return 0
+                    fi
+                fi
+            fi
+        done
     fi
     return 1
 }
@@ -131,7 +141,7 @@ run_stage() {
         output_dir="$OUTPUT_DIR" \
         max_epochs="$max_epochs" \
         data.dataset.batch_size="$batch_size" \
-        data.dataset.num_workers=8 \
+        data.dataset.num_workers=12 \
         early_stopping_patience="$PATIENCE" \
         low_priority=true \
         $resume_arg \

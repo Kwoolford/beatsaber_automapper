@@ -47,6 +47,45 @@ class _GarbageCollectCallback(Callback):
             torch.cuda.empty_cache()
 
 
+class _HeartbeatCallback(Callback):
+    """Write a heartbeat file after each epoch for remote monitoring.
+
+    Writes JSON with timestamp, stage, epoch, metric, and status
+    to $OUTPUT_DIR/heartbeat.json. Allows detecting hung/frozen training
+    processes during multi-day unattended runs.
+    """
+
+    def __init__(self, output_dir: str, stage: str) -> None:
+        self.heartbeat_path = Path(output_dir) / "heartbeat.json"
+        self.stage = stage
+
+    def on_train_epoch_end(
+        self, trainer: lightning.Trainer, pl_module: lightning.LightningModule
+    ) -> None:
+        import json
+        from datetime import datetime, timezone
+
+        metrics = trainer.callback_metrics
+        # Pick the most relevant metric per stage
+        if self.stage == "onset":
+            metric_val = f"val_f1={metrics.get('val_f1', 'N/A')}"
+        else:
+            metric_val = f"val_loss={metrics.get('val_loss', 'N/A')}"
+
+        heartbeat = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "stage": self.stage,
+            "epoch": trainer.current_epoch,
+            "global_step": trainer.global_step,
+            "metric": metric_val,
+            "status": "training",
+        }
+        try:
+            self.heartbeat_path.write_text(json.dumps(heartbeat, indent=2))
+        except OSError:
+            pass  # Don't crash training over a heartbeat write failure
+
+
 def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.Trainer]:
     """Build onset training components from Hydra config."""
     ac = cfg.model.audio_encoder
@@ -96,6 +135,7 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         ),
         LearningRateMonitor(logging_interval="step"),
         _GarbageCollectCallback(),
+        _HeartbeatCallback(cfg.output_dir, "onset"),
     ]
 
     # Logger
@@ -173,6 +213,7 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         ),
         LearningRateMonitor(logging_interval="step"),
         _GarbageCollectCallback(),
+        _HeartbeatCallback(cfg.output_dir, "sequence"),
     ]
 
     # Logger
@@ -242,6 +283,7 @@ def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         ),
         LearningRateMonitor(logging_interval="step"),
         _GarbageCollectCallback(),
+        _HeartbeatCallback(cfg.output_dir, "lighting"),
     ]
 
     if cfg.logger.name == "wandb":
@@ -304,7 +346,7 @@ def main(cfg: DictConfig) -> None:
 
         data_dir = Path(cfg.data_dir)
         ds_cfg = cfg.data.dataset
-        window_size = cfg.model.onset.get("window_size", 256)
+        window_size = cfg.model.onset.get("window_size", 1024)
         hop = cfg.model.onset.get("hop", 128)
 
         # Filter to specific difficulties if configured (e.g. Expert/ExpertPlus only)
@@ -370,7 +412,20 @@ def main(cfg: DictConfig) -> None:
             prev_context_k=prev_context_k,
         )
 
+        # Epoch subsampling: 17M samples would take ~8hrs/epoch at batch=192.
+        # Cap at max_samples_per_epoch so each epoch sees a random subset.
+        # Default 500K = ~2,600 steps at batch=192 = ~15 min/epoch.
+        # Full dataset is seen across ~34 epochs (17M/500K).
+        # Epoch subsampling: 17M sequence samples would take ~8hrs/epoch at batch=192.
+        # Default 500K = ~2,600 steps at batch=192 = ~15 min/epoch.
+        # Set max_samples_per_epoch=null to disable (full epochs).
+        max_samples = cfg.get("max_samples_per_epoch", 500_000)
         logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))
+        if max_samples is not None and max_samples < len(train_ds):
+            logger.info("Epoch subsampling: %d/%d per epoch (full coverage in ~%d epochs)",
+                        max_samples, len(train_ds), len(train_ds) // max_samples)
+        elif max_samples is None:
+            logger.info("Epoch subsampling disabled (max_samples_per_epoch=null) — full epochs")
 
         train_dl = create_dataloader(
             train_ds,
@@ -378,6 +433,7 @@ def main(cfg: DictConfig) -> None:
             shuffle=True,
             num_workers=ds_cfg.num_workers,
             pin_memory=ds_cfg.pin_memory,
+            max_samples_per_epoch=max_samples,
         )
         val_dl = create_dataloader(
             val_ds,
@@ -410,7 +466,16 @@ def main(cfg: DictConfig) -> None:
             max_light_len=lc.get("max_light_len", 32),
         )
 
+        # Epoch subsampling: 48M lighting samples would take days per epoch.
+        # Default 500K = ~1,950 steps at batch=256 = ~10 min/epoch.
+        # Set max_samples_per_epoch=null to disable (full epochs).
+        max_samples = cfg.get("max_samples_per_epoch", 500_000)
         logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))
+        if max_samples is not None and max_samples < len(train_ds):
+            logger.info("Epoch subsampling: %d/%d per epoch (full coverage in ~%d epochs)",
+                        max_samples, len(train_ds), len(train_ds) // max_samples)
+        elif max_samples is None:
+            logger.info("Epoch subsampling disabled (max_samples_per_epoch=null) — full epochs")
 
         train_dl = create_dataloader(
             train_ds,
@@ -418,6 +483,7 @@ def main(cfg: DictConfig) -> None:
             shuffle=True,
             num_workers=ds_cfg.num_workers,
             pin_memory=ds_cfg.pin_memory,
+            max_samples_per_epoch=max_samples,
         )
         val_dl = create_dataloader(
             val_ds,

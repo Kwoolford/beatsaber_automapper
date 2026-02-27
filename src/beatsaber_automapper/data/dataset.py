@@ -28,7 +28,7 @@ from collections import OrderedDict
 from pathlib import Path
 
 import torch
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, RandomSampler
 
 from beatsaber_automapper.data.tokenizer import GENRE_MAP
 
@@ -647,6 +647,7 @@ def create_dataloader(
     shuffle: bool = True,
     num_workers: int = 0,
     pin_memory: bool = True,
+    max_samples_per_epoch: int | None = None,
 ) -> DataLoader:
     """Create a DataLoader with sensible defaults.
 
@@ -656,14 +657,25 @@ def create_dataloader(
         shuffle: Whether to shuffle.
         num_workers: Number of data loading workers.
         pin_memory: Pin memory for GPU transfer.
+        max_samples_per_epoch: If set, cap the number of samples seen per epoch.
+            Uses RandomSampler with replacement=False so each epoch sees a
+            different random subset. Useful for very large datasets (17M+ samples)
+            where a full epoch would take days.
 
     Returns:
         Configured DataLoader.
     """
+    sampler = None
+    effective_shuffle = shuffle
+    if max_samples_per_epoch is not None and max_samples_per_epoch < len(dataset):
+        sampler = RandomSampler(dataset, replacement=False, num_samples=max_samples_per_epoch)
+        effective_shuffle = False  # sampler handles shuffling
+
     return DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=shuffle,
+        shuffle=effective_shuffle if sampler is None else False,
+        sampler=sampler,
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=False,
