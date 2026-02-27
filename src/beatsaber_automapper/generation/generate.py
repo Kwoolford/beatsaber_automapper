@@ -261,8 +261,10 @@ def generate_lighting_events(
             break
         tokens.append(next_token)
 
-        # Update state machine
-        if next_token == LIGHT_BASIC:
+        # Update state machine — check special tokens first, then state transitions
+        if next_token == LIGHT_SEP:
+            state = "start"
+        elif next_token == LIGHT_BASIC:
             state = "et"
         elif next_token == LIGHT_BOOST:
             state = "onoff"
@@ -272,8 +274,6 @@ def generate_lighting_events(
             state = "bright"
         elif state in ("bright", "onoff"):
             state = "start"  # event complete, expect SEP/EOS/new event
-        elif next_token == LIGHT_SEP:
-            state = "start"
 
     return tokens[1:]  # strip BOS
 
@@ -288,6 +288,7 @@ def predict_onsets(
     device: torch.device | None = None,
     window_size: int = 1024,
     hop: int = 512,
+    structure_features: torch.Tensor | None = None,
 ) -> list[int]:
     """Run Stage 1 onset prediction on a mel spectrogram.
 
@@ -306,6 +307,8 @@ def predict_onsets(
         device: Torch device for inference.
         window_size: Window size in frames (must match training).
         hop: Hop between windows in frames.
+        structure_features: Optional [6, T] song structure features (must match
+            training to avoid distribution shift).
 
     Returns:
         List of frame indices where onsets are predicted.
@@ -320,8 +323,15 @@ def predict_onsets(
     # If the song fits in a single window, process directly
     if total_frames <= window_size:
         mel_batch = mel.unsqueeze(0).to(device)
+        structure_batch = None
+        if structure_features is not None:
+            sf_window = structure_features[:, :total_frames]
+            if sf_window.shape[1] < window_size:
+                pad_size = window_size - sf_window.shape[1]
+                sf_window = torch.nn.functional.pad(sf_window, (0, pad_size))
+            structure_batch = sf_window.unsqueeze(0).to(device)
         with torch.no_grad():
-            logits = onset_module(mel_batch, diff_tensor, genre_tensor)
+            logits = onset_module(mel_batch, diff_tensor, genre_tensor, structure=structure_batch)
             probs = torch.sigmoid(logits.squeeze(0))
         frames = peak_picking(probs, threshold=threshold, min_distance=min_distance)
         return frames.tolist()
@@ -338,8 +348,17 @@ def predict_onsets(
     for start in starts:
         end = start + window_size
         window_mel = mel[:, start:end].unsqueeze(0).to(device)  # [1, n_mels, W]
+        structure_batch = None
+        if structure_features is not None:
+            sf_window = structure_features[:, start:end]
+            if sf_window.shape[1] < window_size:
+                pad_size = window_size - sf_window.shape[1]
+                sf_window = torch.nn.functional.pad(sf_window, (0, pad_size))
+            structure_batch = sf_window.unsqueeze(0).to(device)
         with torch.no_grad():
-            logits = onset_module(window_mel, diff_tensor, genre_tensor)  # [1, W]
+            logits = onset_module(
+                window_mel, diff_tensor, genre_tensor, structure=structure_batch
+            )
             probs = torch.sigmoid(logits.squeeze(0))  # [W]
         prob_sum[start:end] += probs
         hit_count[start:end] += 1.0
@@ -601,6 +620,7 @@ def generate_level(
             device=resolved_device,
             window_size=onset_window_size,
             hop=onset_hop,
+            structure_features=structure_features,
         )
         logger.info("Found %d onsets for %s", len(onset_frames), diff_name)
 
