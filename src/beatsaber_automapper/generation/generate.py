@@ -670,7 +670,7 @@ def generate_level(
                 top_p=top_p,
                 device=resolved_device,
                 prev_tokens=prev_tokens_tensor,
-                min_length=3,
+                min_length=7,  # BOS + 1 complete NOTE event (6 tokens) minimum
             )
 
             generated_sequences.append(tokens)

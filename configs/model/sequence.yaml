@@ -18,11 +18,13 @@ weight_decay: 0.01
 max_seq_length: 64  # Max tokens per onset timestamp
 label_smoothing: 0.1
 rhythm_weight: 3.0  # 3x weight on timing-sensitive tokens (EVENT_TYPE, SEP)
-eos_weight: 0.3  # Downweight EOS to fight over-prediction (65% of onsets were empty)
+eos_weight: 1.0  # Normal weight — training data has no empty onsets (preprocessing filters them)
 freeze_encoder: false
 
 # Dataset
-context_frames: 512  # Mel frames around each onset (~6 seconds of audio context)
+context_frames: 256  # Mel frames around each onset (~3 seconds of audio context)
+# NOTE: 512 was 16x compute cost due to O(T²) encoder self-attention with no CNN downsampling.
+# 256 gives 3 seconds (~16 beats at 120 BPM), 4x cost instead of 16x.
 
 # Inter-onset context: feed previous K onset token sequences to break mode collapse
 prev_context_k: 8  # Number of previous onset sequences (0 = disabled)
@@ -39,4 +41,4 @@ difficulties:
 beam_size: 8
 temperature: 1.0
 top_p: 0.9  # Nucleus sampling threshold
-min_length: 3  # Minimum tokens before EOS allowed (prevents empty sequences)
+min_length: 7  # Min tokens before EOS: BOS + NOTE + COLOR + COL + ROW + DIR + ANGLE = 7

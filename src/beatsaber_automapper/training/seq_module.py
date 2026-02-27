@@ -60,7 +60,8 @@ def _build_token_weights(
     for token_id in _RHYTHM_TOKENS:
         if 0 <= token_id < vocab_size:
             weights[token_id] = rhythm_weight
-    # EOS gets lower weight to combat over-prediction (65% of onsets were empty)
+    # EOS weight: training data has no empty onsets (preprocessing filters them),
+    # so eos_weight=1.0 is appropriate. min_length at inference prevents premature EOS.
     if 0 <= EOS < vocab_size:
         weights[EOS] = eos_weight
     # PAD should be ignored entirely (via ignore_index), but set to 0 for safety
