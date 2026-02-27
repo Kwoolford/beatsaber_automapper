@@ -96,6 +96,13 @@ class OnsetDataset(Dataset):
             with open(blacklist_path) as f:
                 blacklist = set(json.load(f).keys())
 
+        # Load whitelist if present (curated subset — only train on these maps)
+        whitelist_path = self.data_dir / "whitelist.json"
+        whitelist: set[str] | None = None
+        if whitelist_path.exists():
+            with open(whitelist_path) as f:
+                whitelist = set(json.load(f).keys())
+
         # Load frame index if available (avoids reading every .pt file at init)
         frame_index_path = self.data_dir / "frame_index.json"
         frame_index: dict | None = None
@@ -112,6 +119,8 @@ class OnsetDataset(Dataset):
             if song_ids is not None and song_id not in song_ids:
                 continue
             if song_id in blacklist:
+                continue
+            if whitelist is not None and song_id not in whitelist:
                 continue
 
             if frame_index is not None and song_id in frame_index:
@@ -171,14 +180,39 @@ class OnsetDataset(Dataset):
         pt_path, diff_name, start, diff_id, genre_idx = self.samples[idx]
         data = self._load(pt_path)
         mel = data["mel_spectrogram"]
-        labels = data["difficulties"][diff_name]["onset_labels"]
+        diff_data = data["difficulties"][diff_name]
+        labels = diff_data["onset_labels"]
 
         end = start + self.window_size
+
+        # Extract actual onset frame positions within this window (for proper F1 eval).
+        # Padded to fixed size so default collation works; n_onsets tracks the real count.
+        onset_frames = diff_data["onset_frames"]
+        mask = (onset_frames >= start) & (onset_frames < end)
+        window_onsets = onset_frames[mask] - start  # relative to window start
+        max_onsets = 256  # generous upper bound per 1024-frame window
+        n_real = min(len(window_onsets), max_onsets)
+        padded_onsets = torch.zeros(max_onsets, dtype=torch.long)
+        padded_onsets[:n_real] = window_onsets[:n_real]
+
+        # Structure features (backward compat: zeros if not in .pt file)
+        structure = data.get("structure_features", None)
+        if structure is not None:
+            structure_window = structure[:, start:end]
+            if structure_window.shape[1] < self.window_size:
+                pad_size = self.window_size - structure_window.shape[1]
+                structure_window = torch.nn.functional.pad(structure_window, (0, pad_size))
+        else:
+            structure_window = torch.zeros(6, self.window_size)
+
         return {
             "mel": mel[:, start:end],
             "labels": labels[start:end],
+            "onset_frames": padded_onsets,
+            "n_onsets": torch.tensor(n_real, dtype=torch.long),
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
             "genre": torch.tensor(genre_idx, dtype=torch.long),
+            "structure": structure_window,
         }
 
 
@@ -200,6 +234,7 @@ class SequenceDataset(Dataset):
         max_token_len: int = 64,
         difficulties: list[str] | None = None,
         exclude_categories: list[str] | None = None,
+        prev_context_k: int = 0,
     ) -> None:
         """Initialize SequenceDataset.
 
@@ -212,10 +247,13 @@ class SequenceDataset(Dataset):
             exclude_categories: Mod categories to exclude (e.g. ["noodle",
                 "mapping_extensions"]). Filters by mod_requirements.category
                 embedded in each .pt file. None includes all categories.
+            prev_context_k: Number of previous onset token sequences to include
+                as inter-onset context (0 = disabled, 8 = recommended).
         """
         self.data_dir = Path(data_dir)
         self.context_frames = context_frames
         self.max_token_len = max_token_len
+        self.prev_context_k = prev_context_k
         self.target_difficulties = difficulties
         self.exclude_categories = set(exclude_categories) if exclude_categories else set()
 
@@ -235,6 +273,13 @@ class SequenceDataset(Dataset):
             with open(blacklist_path) as f:
                 blacklist = set(json.load(f).keys())
 
+        # Load whitelist if present (curated subset — only train on these maps)
+        whitelist_path = self.data_dir / "whitelist.json"
+        whitelist: set[str] | None = None
+        if whitelist_path.exists():
+            with open(whitelist_path) as f:
+                whitelist = set(json.load(f).keys())
+
         # Load frame index if available (avoids reading every .pt file at init)
         frame_index_path = self.data_dir / "frame_index.json"
         frame_index: dict | None = None
@@ -251,6 +296,8 @@ class SequenceDataset(Dataset):
             if song_ids is not None and song_id not in song_ids:
                 continue
             if song_id in blacklist:
+                continue
+            if whitelist is not None and song_id not in whitelist:
                 continue
 
             if frame_index is not None and song_id in frame_index:
@@ -329,19 +376,58 @@ class SequenceDataset(Dataset):
             pad_size = self.context_frames - mel_window.shape[1]
             mel_window = torch.nn.functional.pad(mel_window, (0, pad_size))
 
+        # Structure features (backward compat: zeros if not in .pt file)
+        structure = data.get("structure_features", None)
+        if structure is not None:
+            structure_window = structure[:, start:end]
+            if structure_window.shape[1] < self.context_frames:
+                pad_size = self.context_frames - structure_window.shape[1]
+                structure_window = torch.nn.functional.pad(structure_window, (0, pad_size))
+        else:
+            structure_window = torch.zeros(6, self.context_frames)
+
         # Pad/truncate token sequence
         if len(token_seq) > self.max_token_len:
             token_seq = token_seq[: self.max_token_len]
         token_length = len(token_seq)
         padded = token_seq + [0] * (self.max_token_len - len(token_seq))
 
-        return {
+        result = {
             "mel": mel_window,
             "tokens": torch.tensor(padded, dtype=torch.long).clamp(0, 166),
             "token_length": torch.tensor(token_length, dtype=torch.long),
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
             "genre": torch.tensor(genre_idx, dtype=torch.long),
+            "structure": structure_window,
         }
+
+        # Previous onset context (Phase 3: inter-onset context)
+        if self.prev_context_k > 0:
+            all_seqs = diff_data["token_sequences"]
+            prev_tokens = []
+            for k in range(self.prev_context_k):
+                prev_idx = onset_idx - (self.prev_context_k - k)
+                if prev_idx >= 0:
+                    seq = list(all_seqs[prev_idx])
+                    if len(seq) > self.max_token_len:
+                        seq = seq[: self.max_token_len]
+                    seq = seq + [0] * (self.max_token_len - len(seq))
+                else:
+                    seq = [0] * self.max_token_len
+                prev_tokens.append(seq)
+            result["prev_tokens"] = torch.tensor(prev_tokens, dtype=torch.long)
+
+            # Time gap from previous onset (seconds) for flow loss
+            onset_frames = diff_data["onset_frames"]
+            if onset_idx > 0:
+                prev_frame = int(onset_frames[onset_idx - 1].item())
+                # ~86 frames/sec at sr=44100, hop=512
+                time_gap = (onset_frame - prev_frame) / 86.0
+            else:
+                time_gap = 999.0  # large gap = first onset
+            result["time_gap"] = torch.tensor(time_gap, dtype=torch.float32)
+
+        return result
 
 
 class LightingDataset(Dataset):
@@ -405,6 +491,13 @@ class LightingDataset(Dataset):
             with open(blacklist_path) as f:
                 blacklist = set(json.load(f).keys())
 
+        # Load whitelist if present (curated subset — only train on these maps)
+        whitelist_path = self.data_dir / "whitelist.json"
+        whitelist: set[str] | None = None
+        if whitelist_path.exists():
+            with open(whitelist_path) as f:
+                whitelist = set(json.load(f).keys())
+
         # Load frame index if available (avoids reading every .pt file at init)
         frame_index_path = self.data_dir / "frame_index.json"
         frame_index: dict | None = None
@@ -420,6 +513,8 @@ class LightingDataset(Dataset):
             if song_ids is not None and song_id not in song_ids:
                 continue
             if song_id in blacklist:
+                continue
+            if whitelist is not None and song_id not in whitelist:
                 continue
 
             if frame_index is not None and song_id in frame_index:
@@ -519,12 +614,23 @@ class LightingDataset(Dataset):
             light_seq = light_seq[: self.max_light_len]
         light_padded = light_seq + [0] * (self.max_light_len - len(light_seq))
 
+        # Structure features (backward compat: zeros if not in .pt file)
+        structure = data.get("structure_features", None)
+        if structure is not None:
+            structure_window = structure[:, start:end]
+            if structure_window.shape[1] < self.context_frames:
+                pad_size = self.context_frames - structure_window.shape[1]
+                structure_window = torch.nn.functional.pad(structure_window, (0, pad_size))
+        else:
+            structure_window = torch.zeros(6, self.context_frames)
+
         return {
             "mel": mel_window,
             "note_tokens": torch.tensor(note_padded, dtype=torch.long),
             "light_tokens": torch.tensor(light_padded, dtype=torch.long),
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
             "genre": torch.tensor(genre_idx, dtype=torch.long),
+            "structure": structure_window,
         }
 
 

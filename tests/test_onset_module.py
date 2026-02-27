@@ -111,6 +111,9 @@ class TestOnsetLitModule:
             onset_d_model=64,
             onset_nhead=4,
             onset_num_layers=1,
+            tcn_channels=32,
+            tcn_num_blocks=2,
+            tcn_kernel_size=3,
         )
 
     def test_forward_shape(self):

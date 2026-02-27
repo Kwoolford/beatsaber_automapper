@@ -366,11 +366,13 @@ class BeatmapTokenizer:
                     color_notes.append(
                         ColorNote(
                             beat=beat,
-                            color=tokens[pos + 1] - COLOR_OFFSET,
-                            x=tokens[pos + 2] - COL_OFFSET,
-                            y=tokens[pos + 3] - ROW_OFFSET,
-                            direction=tokens[pos + 4] - DIR_OFFSET,
-                            angle_offset=_dequantize_angle(tokens[pos + 5] - ANGLE_OFFSET_OFFSET),
+                            color=_clamp(tokens[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                            x=_clamp(tokens[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                            y=_clamp(tokens[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                            direction=_clamp(tokens[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                            angle_offset=_dequantize_angle(
+                                _clamp(tokens[pos + 5] - ANGLE_OFFSET_OFFSET, 0, ANGLE_OFFSET_COUNT - 1)
+                            ),
                         )
                     )
                     pos += 6
@@ -380,23 +382,25 @@ class BeatmapTokenizer:
                     bomb_notes.append(
                         BombNote(
                             beat=beat,
-                            x=tokens[pos + 1] - COL_OFFSET,
-                            y=tokens[pos + 2] - ROW_OFFSET,
+                            x=_clamp(tokens[pos + 1] - COL_OFFSET, 0, COL_COUNT - 1),
+                            y=_clamp(tokens[pos + 2] - ROW_OFFSET, 0, ROW_COUNT - 1),
                         )
                     )
                     pos += 3
                 elif event_type == WALL:
                     if remaining < 7:
                         break
-                    dur_int = tokens[pos + 5] - DUR_INT_OFFSET
-                    dur_frac = _dequantize_dur_frac(tokens[pos + 6] - DUR_FRAC_OFFSET)
+                    dur_int = _clamp(tokens[pos + 5] - DUR_INT_OFFSET, 0, DUR_INT_COUNT - 1)
+                    dur_frac = _dequantize_dur_frac(
+                        _clamp(tokens[pos + 6] - DUR_FRAC_OFFSET, 0, DUR_FRAC_COUNT - 1)
+                    )
                     obstacles.append(
                         Obstacle(
                             beat=beat,
-                            x=tokens[pos + 1] - COL_OFFSET,
-                            y=tokens[pos + 2] - ROW_OFFSET,
-                            width=(tokens[pos + 3] - WIDTH_OFFSET) + 1,
-                            height=(tokens[pos + 4] - HEIGHT_OFFSET) + 1,
+                            x=_clamp(tokens[pos + 1] - COL_OFFSET, 0, COL_COUNT - 1),
+                            y=_clamp(tokens[pos + 2] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                            width=_clamp(tokens[pos + 3] - WIDTH_OFFSET, 0, WIDTH_COUNT - 1) + 1,
+                            height=_clamp(tokens[pos + 4] - HEIGHT_OFFSET, 0, HEIGHT_COUNT - 1) + 1,
                             duration=dur_int + dur_frac,
                         )
                     )
@@ -407,11 +411,11 @@ class BeatmapTokenizer:
                     arc_starts.append(
                         (
                             beat,
-                            tokens[pos + 1] - COLOR_OFFSET,
-                            tokens[pos + 2] - COL_OFFSET,
-                            tokens[pos + 3] - ROW_OFFSET,
-                            tokens[pos + 4] - DIR_OFFSET,
-                            _dequantize_mu(tokens[pos + 5] - MU_OFFSET),
+                            _clamp(tokens[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                            _clamp(tokens[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                            _clamp(tokens[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                            _clamp(tokens[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                            _dequantize_mu(_clamp(tokens[pos + 5] - MU_OFFSET, 0, MU_COUNT - 1)),
                         )
                     )
                     pos += 6
@@ -421,12 +425,12 @@ class BeatmapTokenizer:
                     arc_ends.append(
                         (
                             beat,
-                            tokens[pos + 1] - COLOR_OFFSET,
-                            tokens[pos + 2] - COL_OFFSET,
-                            tokens[pos + 3] - ROW_OFFSET,
-                            tokens[pos + 4] - DIR_OFFSET,
-                            _dequantize_mu(tokens[pos + 5] - MU_OFFSET),
-                            tokens[pos + 6] - MID_ANCHOR_OFFSET,
+                            _clamp(tokens[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                            _clamp(tokens[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                            _clamp(tokens[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                            _clamp(tokens[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                            _dequantize_mu(_clamp(tokens[pos + 5] - MU_OFFSET, 0, MU_COUNT - 1)),
+                            _clamp(tokens[pos + 6] - MID_ANCHOR_OFFSET, 0, MID_ANCHOR_COUNT - 1),
                         )
                     )
                     pos += 7
@@ -436,15 +440,17 @@ class BeatmapTokenizer:
                     burst_sliders.append(
                         BurstSlider(
                             beat=beat,
-                            color=tokens[pos + 1] - COLOR_OFFSET,
-                            x=tokens[pos + 2] - COL_OFFSET,
-                            y=tokens[pos + 3] - ROW_OFFSET,
-                            direction=tokens[pos + 4] - DIR_OFFSET,
-                            tail_x=tokens[pos + 5] - COL_OFFSET,
-                            tail_y=tokens[pos + 6] - ROW_OFFSET,
+                            color=_clamp(tokens[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                            x=_clamp(tokens[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                            y=_clamp(tokens[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                            direction=_clamp(tokens[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                            tail_x=_clamp(tokens[pos + 5] - COL_OFFSET, 0, COL_COUNT - 1),
+                            tail_y=_clamp(tokens[pos + 6] - ROW_OFFSET, 0, ROW_COUNT - 1),
                             tail_beat=beat,  # chains don't store separate tail beat in tokens
-                            slice_count=(tokens[pos + 7] - SLICE_OFFSET) + _SLICE_MIN,
-                            squish=_dequantize_squish(tokens[pos + 8] - SQUISH_OFFSET),
+                            slice_count=_clamp(tokens[pos + 7] - SLICE_OFFSET, 0, SLICE_COUNT - 1) + _SLICE_MIN,
+                            squish=_dequantize_squish(
+                                _clamp(tokens[pos + 8] - SQUISH_OFFSET, 0, SQUISH_COUNT - 1)
+                            ),
                         )
                     )
                     pos += 9

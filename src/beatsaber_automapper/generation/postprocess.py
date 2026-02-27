@@ -70,6 +70,7 @@ def postprocess_beatmap(
 
     n_before = len(beatmap.color_notes)
 
+    beatmap = strip_non_note_objects(beatmap)
     beatmap = enforce_nps(beatmap, difficulty, bpm, song_duration_secs)
     beatmap = rebalance_colors(beatmap)
     beatmap = diversify_directions(beatmap)
@@ -82,6 +83,58 @@ def postprocess_beatmap(
         "Post-processing: %d -> %d notes, difficulty=%s",
         n_before, n_after, difficulty,
     )
+    return beatmap
+
+
+def strip_non_note_objects(beatmap: DifficultyBeatmap) -> DifficultyBeatmap:
+    """Remove all bombs, walls, arcs, and chains — notes only."""
+    removed = (
+        len(beatmap.bomb_notes) + len(beatmap.obstacles)
+        + len(beatmap.sliders) + len(beatmap.burst_sliders)
+    )
+    beatmap.bomb_notes = []
+    beatmap.obstacles = []
+    beatmap.sliders = []
+    beatmap.burst_sliders = []
+    if removed > 0:
+        logger.info("Stripped %d non-note objects (bombs/walls/arcs/chains)", removed)
+    return beatmap
+
+
+def cap_non_note_objects(
+    beatmap: DifficultyBeatmap,
+    song_duration_secs: float | None = None,
+) -> DifficultyBeatmap:
+    """Cap bombs, walls, arcs, and chains to reasonable densities.
+
+    Undertrained models produce excessive non-note objects that clutter the map.
+    This removes the excess, keeping only the most evenly spaced instances.
+    """
+    duration = song_duration_secs or 180.0
+
+    # Max density per second for each object type
+    limits = {
+        "bombs": int(max(10, duration * 0.15)),      # ~0.15/sec
+        "walls": int(max(5, duration * 0.10)),        # ~0.10/sec
+        "arcs": int(max(5, duration * 0.05)),         # ~0.05/sec
+        "chains": int(max(5, duration * 0.05)),       # ~0.05/sec
+    }
+
+    def _thin(items: list, max_count: int, label: str) -> list:
+        if len(items) <= max_count:
+            return items
+        # Keep evenly spaced items by beat
+        items.sort(key=lambda x: x.beat)
+        step = len(items) / max_count
+        kept = [items[int(i * step)] for i in range(max_count)]
+        logger.info("Cap %s: %d -> %d", label, len(items), len(kept))
+        return kept
+
+    beatmap.bomb_notes = _thin(beatmap.bomb_notes, limits["bombs"], "bombs")
+    beatmap.obstacles = _thin(beatmap.obstacles, limits["walls"], "walls")
+    beatmap.sliders = _thin(beatmap.sliders, limits["arcs"], "arcs")
+    beatmap.burst_sliders = _thin(beatmap.burst_sliders, limits["chains"], "chains")
+
     return beatmap
 
 

@@ -1,11 +1,21 @@
 # @package model.onset
 # Stage 1: Onset prediction model configuration
+# Architecture: TCN (local temporal patterns) + Transformer (global context)
 d_model: 512
 nhead: 8
 num_layers: 2
 num_difficulties: 5
 num_genres: 1  # Disabled — 100% of maps have genre="unknown", embedding was pure noise
 dropout: 0.1
+
+# TCN parameters (local temporal pattern detection)
+tcn_channels: 128        # Number of channels in TCN blocks
+tcn_num_blocks: 6        # 6 blocks with dilations 1,2,4,8,16,32
+tcn_kernel_size: 3        # Kernel size for dilated convolutions
+# tcn_dilations: null     # Default: powers of 2 (1,2,4,8,16,32)
+
+# Conditioning dropout for Classifier-Free Guidance
+conditioning_dropout: 0.2  # 20% dropout on difficulty/genre embeddings during training
 
 # Memory optimization (set true when VRAM is limited, e.g. gaming in background)
 gradient_checkpointing: false

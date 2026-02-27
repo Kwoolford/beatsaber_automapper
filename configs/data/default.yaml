@@ -9,8 +9,8 @@ dataset:
   train_split: 0.85
   val_split: 0.10
   test_split: 0.05
-  batch_size: 32
-  num_workers: 4
+  batch_size: 64
+  num_workers: 8
   pin_memory: true
 
 download:

@@ -1,7 +1,8 @@
 """Lightning module for Stage 1: Onset prediction training.
 
-Wraps the AudioEncoder + OnsetModel for training with binary cross-entropy
-loss on Gaussian-smoothed onset labels. Logs onset F1 score on validation.
+Wraps the AudioEncoder + OnsetModel (TCN + Transformer hybrid) for
+training with binary cross-entropy loss on Gaussian-smoothed onset labels.
+Logs onset F1 score on validation.
 """
 
 from __future__ import annotations
@@ -40,6 +41,10 @@ class OnsetLitModule(lightning.LightningModule):
         onset_num_difficulties: Number of difficulty levels.
         onset_num_genres: Number of genre classes.
         onset_dropout: Onset model dropout.
+        tcn_channels: Number of channels in TCN blocks.
+        tcn_num_blocks: Number of TCN residual blocks.
+        tcn_kernel_size: Kernel size for TCN convolutions.
+        conditioning_dropout: Dropout probability for difficulty/genre embeddings.
         pos_weight: Positive class weight for BCE loss.
         learning_rate: Peak learning rate.
         weight_decay: AdamW weight decay.
@@ -64,6 +69,12 @@ class OnsetLitModule(lightning.LightningModule):
         onset_num_difficulties: int = 5,
         onset_num_genres: int = 11,
         onset_dropout: float = 0.1,
+        # TCN params
+        tcn_channels: int = 128,
+        tcn_num_blocks: int = 6,
+        tcn_kernel_size: int = 3,
+        # Conditioning dropout for CFG
+        conditioning_dropout: float = 0.0,
         # Training params
         pos_weight: float = 1.0,
         learning_rate: float = 3e-4,
@@ -95,12 +106,20 @@ class OnsetLitModule(lightning.LightningModule):
             num_genres=onset_num_genres,
             dropout=onset_dropout,
             use_checkpoint=use_gradient_checkpointing,
+            tcn_channels=tcn_channels,
+            tcn_num_blocks=tcn_num_blocks,
+            tcn_kernel_size=tcn_kernel_size,
+            conditioning_dropout=conditioning_dropout,
         )
 
         self.loss_fn = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight]))
 
     def forward(
-        self, mel: torch.Tensor, difficulty: torch.Tensor, genre: torch.Tensor
+        self,
+        mel: torch.Tensor,
+        difficulty: torch.Tensor,
+        genre: torch.Tensor,
+        structure: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass: mel -> audio features -> onset logits.
 
@@ -108,15 +127,17 @@ class OnsetLitModule(lightning.LightningModule):
             mel: Mel spectrogram [B, n_mels, T].
             difficulty: Difficulty indices [B].
             genre: Genre indices [B].
+            structure: Optional structure features [B, 6, T].
 
         Returns:
             Onset logits [B, T].
         """
-        audio_features = self.audio_encoder(mel)
+        audio_features = self.audio_encoder(mel, structure_features=structure)
         return self.onset_model(audio_features, difficulty, genre)
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
-        logits = self(batch["mel"], batch["difficulty"], batch["genre"])
+        structure = batch.get("structure", None)
+        logits = self(batch["mel"], batch["difficulty"], batch["genre"], structure=structure)
         # Cast to float32: BCEWithLogitsLoss is numerically unstable with bf16 logits
         # (unlike CrossEntropyLoss). NaN gradients → CUDNN_STATUS_EXECUTION_FAILED.
         loss = self.loss_fn(logits.float(), batch["labels"])
@@ -124,7 +145,8 @@ class OnsetLitModule(lightning.LightningModule):
         return loss
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
-        logits = self(batch["mel"], batch["difficulty"], batch["genre"])
+        structure = batch.get("structure", None)
+        logits = self(batch["mel"], batch["difficulty"], batch["genre"], structure=structure)
         loss = self.loss_fn(logits.float(), batch["labels"])
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 
@@ -140,7 +162,10 @@ class OnsetLitModule(lightning.LightningModule):
 
         for i in range(probs.shape[0]):
             pred_frames = peak_picking(probs[i], threshold=threshold, min_distance=min_dist)
-            true_frames = (batch["labels"][i] > 0.5).nonzero(as_tuple=True)[0]
+            # Use actual onset positions (not smoothed labels) for accurate F1.
+            # onset_frames is padded; n_onsets gives the real count.
+            n = batch["n_onsets"][i].item()
+            true_frames = batch["onset_frames"][i, :n]
             metrics = onset_f1_framewise(pred_frames, true_frames, tolerance_frames=3)
             f1_sum += metrics["f1"]
             precision_sum += metrics["precision"]

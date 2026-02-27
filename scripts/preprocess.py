@@ -30,6 +30,7 @@ from tqdm import tqdm
 from beatsaber_automapper.data.audio import (
     beat_to_frame,
     beat_to_frame_variable_bpm,
+    compute_structure_features,
     extract_mel_spectrogram,
     load_audio,
 )
@@ -56,6 +57,11 @@ def main() -> None:
     parser.add_argument("--hop-length", type=int, default=512, help="Hop length")
     parser.add_argument("--sigma", type=float, default=3.0, help="Gaussian smoothing sigma")
     parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Force re-preprocessing of all maps (ignores existing .pt files)",
+    )
+    parser.add_argument(
         "--exclude-categories",
         nargs="+",
         metavar="CATEGORY",
@@ -81,6 +87,7 @@ def main() -> None:
         hop_length=args.hop_length,
         sigma=args.sigma,
         exclude_categories=args.exclude_categories or None,
+        force=args.force,
     )
 
 
@@ -94,6 +101,7 @@ def preprocess_all(
     hop_length: int = 512,
     sigma: float = 3.0,
     exclude_categories: list[str] | None = None,
+    force: bool = False,
 ) -> list[Path]:
     """Preprocess all map zips in input_dir into .pt files.
 
@@ -162,6 +170,7 @@ def preprocess_all(
                 n_fft=n_fft,
                 hop_length=hop_length,
                 sigma=sigma,
+                force=force,
             )
             if pt_path is not None:
                 results.append(pt_path)
@@ -190,6 +199,7 @@ def preprocess_single(
     n_fft: int = 1024,
     hop_length: int = 512,
     sigma: float = 3.0,
+    force: bool = False,
 ) -> Path | None:
     """Preprocess a single map zip into a .pt file.
 
@@ -203,6 +213,7 @@ def preprocess_single(
         n_fft: FFT window size.
         hop_length: Spectrogram hop length.
         sigma: Gaussian smoothing sigma for onset labels.
+        force: If True, re-preprocess even if .pt file already exists.
 
     Returns:
         Path to the generated .pt file, or None on failure.
@@ -211,9 +222,9 @@ def preprocess_single(
     output_dir = Path(output_dir)
     song_id = zip_path.stem
 
-    # Skip if already processed
+    # Skip if already processed (unless force=True)
     pt_path = output_dir / f"{song_id}.pt"
-    if pt_path.exists():
+    if pt_path.exists() and not force:
         logger.debug("Skipping %s (already processed)", song_id)
         return pt_path
 
@@ -262,6 +273,17 @@ def preprocess_single(
             waveform, sample_rate=sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length
         )
         n_frames = mel.shape[1]
+
+        # Compute song structure features (6 per-frame features for energy/section detection)
+        structure_features = compute_structure_features(
+            waveform, sample_rate=sr, hop_length=hop_length, n_mels=n_mels
+        )
+        # Align to mel length (may differ by 1 frame)
+        if structure_features.shape[1] > n_frames:
+            structure_features = structure_features[:, :n_frames]
+        elif structure_features.shape[1] < n_frames:
+            pad = n_frames - structure_features.shape[1]
+            structure_features = torch.nn.functional.pad(structure_features, (0, pad))
 
         # Process each difficulty — Standard characteristic only
         difficulties: dict[str, dict] = {}
@@ -355,6 +377,7 @@ def preprocess_single(
             "song_id": song_id,
             "bpm": info.bpm,
             "mel_spectrogram": mel,
+            "structure_features": structure_features,
             "difficulties": difficulties,
             "mod_requirements": mod_requirements,
         },

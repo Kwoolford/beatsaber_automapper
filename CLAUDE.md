@@ -9,7 +9,12 @@ This is the source-of-truth document for the beatsaber_automapper project. Read 
 1. The ASCII diagram in `README.md` (the `## ML Pipeline Architecture` section)
 2. The `## Architecture` section below in this file
 
-Current conditioning inputs per stage: **difficulty** (5-class embedding) + **genre** (11-class embedding), both additive.
+Current conditioning inputs per stage:
+- **All stages:** difficulty (5-class embedding) + genre (11-class embedding) + song structure features (6-dim per-frame projection), all additive to audio encoder output.
+- **Stage 2 additionally:** previous K=8 onset token sequences (mean-pooled, projected, concatenated to cross-attention memory).
+- **Stage 3 additionally:** structural slot embedding (4-position cycling) for event grammar.
+- **Post-processing:** Chroma RGB lighting colors derived from song energy profile.
+
 BPM is auto-detected via `detect_bpm()` in `data/audio.py` when not provided by the user.
 
 ## Project Overview
@@ -77,30 +82,36 @@ Audio File (.mp3/.ogg/.wav)
 
 ### Stage 1: Onset / Beat Prediction
 - Task: Binary classification per audio frame — "should a note appear here?"
-- Architecture: Audio encoder output -> small 2-layer transformer decoder (with difficulty embedding) -> linear -> sigmoid
+- Architecture: Audio encoder output (with structure features) -> 6-block TCN (dilated convolutions, 128ch) -> 2-layer Transformer decoder (with difficulty + genre embedding) -> linear -> sigmoid
 - Training: Binary cross-entropy with Gaussian-smoothed ("fuzzy") labels around true onsets
-- Inference: Peak picking with configurable threshold (controls note density / difficulty)
+- Inference: Windowed prediction (1024-frame windows with overlap averaging) -> peak picking with configurable threshold
 
 ### Stage 2: Note Sequence Generation
-- Task: Given onset timestamps + audio, generate the full note configuration at each onset
-- Architecture: Transformer decoder (8-12 layers, 8 heads, d_model=512) with:
+- Task: Given onset timestamps + audio + previous onset context, generate the full note configuration at each onset
+- Architecture: Transformer decoder (8 layers, 8 heads, d_model=512) with:
   - Causal self-attention over note token sequence (autoregressive)
-  - Cross-attention to audio encoder output
-  - Difficulty conditioning via learned embedding (Easy/Normal/Hard/Expert/ExpertPlus -> 64-dim vector)
-- Output objects (v3 format): colorNotes, bombNotes, obstacles, sliders (arcs), burstSliders (chains)
-- Training: Teacher forcing with cross-entropy loss over token vocabulary
-- Inference: Beam search (beam_size=8-16) or nucleus sampling
+  - Cross-attention to audio encoder output + previous K=8 onset context vectors
+  - Difficulty + genre conditioning via learned embeddings (additive)
+  - Inter-onset context: previous 8 onset token sequences are mean-pooled, projected, and concatenated to cross-attention memory alongside audio features
+- Audio context: 512 frames (~6 seconds) per onset for musical phrase awareness
+- Training: Teacher forcing with cross-entropy loss (EOS downweighted to 0.3x, rhythm tokens 3x) + flow-aware auxiliary loss (parity violation penalty, alpha=0.1)
+- Inference: Beam search or nucleus sampling with min_length=3 (suppresses premature EOS)
 
 ### Stage 3: Lighting Generation
 - Task: Given audio features + generated note sequence, produce lighting events
-- Architecture: Smaller transformer decoder conditioned on both audio and the note event sequence
-- Output objects (v3 format): basicBeatmapEvents, colorBoostBeatmapEvents, lightColorEventBoxGroups, lightRotationEventBoxGroups
-- This stage is trained AFTER Stages 1 and 2 are working
+- Architecture: Transformer decoder (4 layers, 8 heads) with:
+  - Structural slot embedding (4-position cycling: event_type -> ET -> VAL -> BRIGHT)
+  - Cross-attention to audio encoder output (with structure features)
+  - Note context via mean-pooled note token embeddings (additive)
+- Training: CrossEntropyLoss with label_smoothing=0.1
+- Inference: Constrained nucleus sampling (state machine enforces valid event grammar)
+- Post-processing: Chroma RGB colors added from song energy profile (6 curated palettes)
 
 ### Audio Encoder (Shared)
-- Input: Raw audio -> mono 44.1kHz -> Mel spectrogram (80 bands, hop ~10ms)
-- Architecture: 2D CNN frontend (3-4 conv layers) -> sinusoidal positional encoding -> Transformer encoder (6-8 layers, 8 heads, d_model=512)
-- Output: One embedding vector per ~10ms audio frame
+- Input: Raw audio -> mono 44.1kHz -> Mel spectrogram (80 bands, 1024 FFT, 512 hop, ~10ms/frame)
+- Architecture: 4-layer CNN frontend -> sinusoidal positional encoding -> Transformer encoder (6 layers, 8 heads, d_model=512)
+- Song structure features: 6 per-frame features (RMS energy, onset strength, bass/mid/high energy, spectral centroid) projected via nn.Linear(6, 512) and added to CNN output
+- Output: One embedding vector per ~10ms audio frame, enriched with song energy information
 - This is a task-specific encoder (NOT a pretrained speech model) — we need low-level rhythmic features
 
 ### Token Vocabulary (Stage 2)

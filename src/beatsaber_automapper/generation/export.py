@@ -28,11 +28,17 @@ _DIFFICULTY_META: dict[str, tuple[int, float]] = {
 }
 
 
-def beatmap_to_v3_dict(beatmap: DifficultyBeatmap) -> dict[str, Any]:
+def beatmap_to_v3_dict(
+    beatmap: DifficultyBeatmap,
+    chroma_events: list[dict] | None = None,
+) -> dict[str, Any]:
     """Convert a DifficultyBeatmap to a v3 .dat JSON dictionary.
 
     Args:
         beatmap: Parsed or generated difficulty beatmap.
+        chroma_events: Optional list of lighting events with Chroma _customData.
+            If provided, replaces the basic_events from beatmap with these
+            Chroma-enhanced events.
 
     Returns:
         Dictionary matching the Beat Saber v3 .dat JSON structure.
@@ -81,10 +87,16 @@ def beatmap_to_v3_dict(beatmap: DifficultyBeatmap) -> dict[str, Any]:
         }
         for bs in beatmap.burst_sliders
     ]
-    basic_events = [
-        {"b": e.beat, "et": e.event_type, "i": e.value, "f": e.float_value}
-        for e in beatmap.basic_events
-    ]
+
+    # Use Chroma-enhanced events if provided, otherwise standard events
+    if chroma_events is not None:
+        basic_events = chroma_events
+    else:
+        basic_events = [
+            {"b": e.beat, "et": e.event_type, "i": e.value, "f": e.float_value}
+            for e in beatmap.basic_events
+        ]
+
     color_boost_events = [
         {"b": e.beat, "o": e.boost}
         for e in beatmap.color_boost_events
@@ -136,6 +148,7 @@ def build_info_dat(
     song_time_offset: float = 0.0,
     preview_start: float = 12.0,
     preview_duration: float = 10.0,
+    chroma: bool = True,
 ) -> dict[str, Any]:
     """Build an Info.dat dictionary for a generated level.
 
@@ -168,7 +181,7 @@ def build_info_dat(
             }
         )
 
-    return {
+    info_dat: dict[str, Any] = {
         "_version": "2.1.0",
         "_songName": song_name,
         "_songSubName": "",
@@ -191,6 +204,12 @@ def build_info_dat(
         ],
     }
 
+    # Add Chroma as a suggestion for graceful degradation
+    if chroma:
+        info_dat["_customData"] = {"_suggestions": ["Chroma"]}
+
+    return info_dat
+
 
 def package_level(
     beatmaps: dict[str, DifficultyBeatmap],
@@ -202,6 +221,7 @@ def package_level(
     song_time_offset: float = 0.0,
     cover_path: Path | None = None,
     environment_name: str = "DefaultEnvironment",
+    chroma_events: dict[str, list[dict] | None] | None = None,
 ) -> Path:
     """Package beatmap data and audio into a Beat Saber .zip.
 
@@ -247,6 +267,7 @@ def package_level(
 
     try:
         # Build Info.dat
+        has_chroma = chroma_events is not None and any(v is not None for v in chroma_events.values())
         info = build_info_dat(
             song_name=song_name,
             song_author=song_author,
@@ -256,6 +277,7 @@ def package_level(
             cover_filename=cover_in_zip,
             environment_name=environment_name,
             song_time_offset=song_time_offset,
+            chroma=has_chroma,
         )
 
         with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -263,7 +285,10 @@ def package_level(
 
             for diff_name, beatmap in beatmaps.items():
                 dat_name = f"{diff_name}Standard.dat"
-                dat_dict = beatmap_to_v3_dict(beatmap)
+                diff_chroma = (
+                    chroma_events.get(diff_name) if chroma_events else None
+                )
+                dat_dict = beatmap_to_v3_dict(beatmap, chroma_events=diff_chroma)
                 zf.writestr(dat_name, json.dumps(dat_dict))
                 logger.info(
                     "Packed %s: %d notes, %d bombs, %d walls, %d arcs, %d chains",

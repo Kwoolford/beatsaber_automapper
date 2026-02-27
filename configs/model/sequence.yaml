@@ -9,15 +9,26 @@ num_difficulties: 5
 num_genres: 1  # Disabled — 100% of maps have genre="unknown"
 dropout: 0.1
 
+# Conditioning dropout for Classifier-Free Guidance
+conditioning_dropout: 0.2  # 20% dropout on difficulty/genre embeddings during training
+
 # Training
 learning_rate: 0.0003
 weight_decay: 0.01
 max_seq_length: 64  # Max tokens per onset timestamp
 label_smoothing: 0.1
+rhythm_weight: 3.0  # 3x weight on timing-sensitive tokens (EVENT_TYPE, SEP)
+eos_weight: 0.3  # Downweight EOS to fight over-prediction (65% of onsets were empty)
 freeze_encoder: false
 
 # Dataset
-context_frames: 128  # Mel frames around each onset for audio context
+context_frames: 512  # Mel frames around each onset (~6 seconds of audio context)
+
+# Inter-onset context: feed previous K onset token sequences to break mode collapse
+prev_context_k: 8  # Number of previous onset sequences (0 = disabled)
+
+# Flow-aware auxiliary loss
+flow_loss_alpha: 0.1  # Weight for flow parity auxiliary loss
 
 # Difficulty filtering (null = all difficulties)
 difficulties:
@@ -28,3 +39,4 @@ difficulties:
 beam_size: 8
 temperature: 1.0
 top_p: 0.9  # Nucleus sampling threshold
+min_length: 3  # Minimum tokens before EOS allowed (prevents empty sequences)

@@ -177,6 +177,91 @@ def detect_bpm(waveform: torch.Tensor, sample_rate: int = 44100) -> float:
         return 120.0
 
 
+def compute_structure_features(
+    waveform: torch.Tensor,
+    sample_rate: int = 44100,
+    hop_length: int = 512,
+    n_mels: int = 80,
+) -> torch.Tensor:
+    """Compute per-frame song structure features aligned to mel spectrogram.
+
+    Returns 6 normalized features that capture musical energy and section character.
+    These help all three stages understand song structure (buildups, drops, breakdowns).
+
+    Features:
+        [0] rms_energy       — overall loudness (0-1)
+        [1] onset_strength   — spectral flux / transient energy (0-1)
+        [2] bass_energy      — mean energy in low mel bands (0-1)
+        [3] mid_energy       — mean energy in mid mel bands (0-1)
+        [4] high_energy      — mean energy in high mel bands (0-1)
+        [5] spectral_centroid — brightness / frequency center (0-1)
+
+    Args:
+        waveform: Audio tensor [1, samples] or [samples].
+        sample_rate: Sample rate of the waveform.
+        hop_length: Hop length matching the mel spectrogram extraction.
+        n_mels: Number of mel bands (for sub-band split points).
+
+    Returns:
+        Tensor of shape [6, n_frames] with the same time axis as the mel spectrogram.
+    """
+    import numpy as np
+
+    try:
+        import librosa
+    except ImportError:
+        logger.warning("librosa not installed — returning zero structure features")
+        # Estimate n_frames from waveform length
+        n_frames = waveform.shape[-1] // hop_length + 1
+        return torch.zeros(6, n_frames)
+
+    y = waveform.squeeze().numpy().astype(np.float32)
+
+    # 1. RMS energy
+    rms = librosa.feature.rms(y=y, hop_length=hop_length)[0]
+    rms_norm = rms / (rms.max() + 1e-8)
+
+    # 2. Onset strength (spectral flux)
+    onset_env = librosa.onset.onset_strength(y=y, sr=sample_rate, hop_length=hop_length)
+    onset_norm = onset_env / (onset_env.max() + 1e-8)
+
+    # 3-5. Sub-band energy from mel spectrogram
+    S = librosa.feature.melspectrogram(
+        y=y, sr=sample_rate, n_mels=n_mels, hop_length=hop_length
+    )
+    S_db = librosa.power_to_db(S, ref=np.max)  # dB scale, max=0
+    S_01 = np.clip((S_db + 80) / 80, 0, 1)  # rough normalization to [0, 1]
+
+    bass_cutoff = n_mels // 4      # ~0-1kHz
+    mid_cutoff = n_mels * 5 // 8   # ~1-4kHz
+    bass = S_01[:bass_cutoff].mean(axis=0)
+    mid = S_01[bass_cutoff:mid_cutoff].mean(axis=0)
+    high = S_01[mid_cutoff:].mean(axis=0)
+
+    # 6. Spectral centroid (normalized by Nyquist)
+    centroid = librosa.feature.spectral_centroid(
+        y=y, sr=sample_rate, hop_length=hop_length
+    )[0]
+    centroid_norm = centroid / (sample_rate / 2)
+
+    # Align lengths (onset_strength can differ by 1 frame)
+    n_frames = min(len(rms_norm), len(onset_norm), len(bass), len(centroid_norm))
+
+    features = np.stack(
+        [
+            rms_norm[:n_frames],
+            onset_norm[:n_frames],
+            bass[:n_frames],
+            mid[:n_frames],
+            high[:n_frames],
+            centroid_norm[:n_frames],
+        ],
+        axis=0,
+    )
+
+    return torch.from_numpy(features.astype(np.float32))
+
+
 def convert_to_ogg(input_path: Path | str, output_path: Path | str) -> Path:
     """Convert an audio file to OGG Vorbis format using ffmpeg.
 

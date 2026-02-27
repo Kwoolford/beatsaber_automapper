@@ -46,6 +46,7 @@ class AudioEncoder(nn.Module):
         dim_feedforward: int = 2048,
         dropout: float = 0.1,
         use_checkpoint: bool = False,
+        n_structure_features: int = 6,
     ) -> None:
         super().__init__()
         if n_mels % 16 != 0:
@@ -54,6 +55,10 @@ class AudioEncoder(nn.Module):
         self.n_mels = n_mels
         self.d_model = d_model
         self.use_checkpoint = use_checkpoint
+
+        # Project per-frame structure features (energy, onset strength, etc.) to d_model
+        # Added to transformer input alongside CNN output (additive conditioning)
+        self.structure_proj = nn.Linear(n_structure_features, d_model)
 
         # CNN frontend: 4 conv layers, stride=(2,1) reduces freq by 16x, keeps time
         channels = [1, 32, 64, 128, 256]
@@ -92,11 +97,18 @@ class AudioEncoder(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
 
-    def forward(self, mel: torch.Tensor) -> torch.Tensor:
+    def forward(
+        self,
+        mel: torch.Tensor,
+        structure_features: torch.Tensor | None = None,
+    ) -> torch.Tensor:
         """Encode mel spectrogram into frame embeddings.
 
         Args:
             mel: Mel spectrogram tensor [B, n_mels, T].
+            structure_features: Optional per-frame structure features [B, 6, T].
+                If provided, projected to d_model and added to the CNN output
+                before the transformer encoder.
 
         Returns:
             Frame embeddings [B, T, d_model].
@@ -113,6 +125,15 @@ class AudioEncoder(nn.Module):
 
         # Project to d_model: [B, T, d_model]
         x = self.proj(x)
+
+        # Add structure feature conditioning (additive, like difficulty/genre embeddings)
+        if structure_features is not None:
+            # structure_features: [B, 6, T] -> transpose to [B, T, 6] -> project to [B, T, d_model]
+            sf = structure_features.transpose(1, 2)  # [B, T, 6]
+            if sf.shape[1] != t:
+                # Align lengths if they differ slightly
+                sf = sf[:, :t, :]
+            x = x + self.structure_proj(sf)
 
         # Positional encoding + Transformer
         x = self.pos_enc(x)

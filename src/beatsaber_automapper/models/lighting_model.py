@@ -73,6 +73,14 @@ class LightingModel(nn.Module):
         # Genre conditioning: learned embedding added to every position
         self.genre_emb = nn.Embedding(num_genres, d_model)
 
+        # Structural slot embedding: tells the model what TYPE of token to produce
+        # Slot 0: event type marker (LIGHT_BASIC/LIGHT_BOOST)
+        # Slot 1: ET (event type 0-14)
+        # Slot 2: VAL (value 0-7)
+        # Slot 3: BRIGHT (brightness bin)
+        # Cycles every 4 tokens within each event, with SEP/EOS resetting
+        self.slot_emb = nn.Embedding(4, d_model)
+
         # Transformer decoder (causal self-attention + cross-attention to audio)
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=d_model,
@@ -128,6 +136,10 @@ class LightingModel(nn.Module):
         # Lighting token embedding scaled by sqrt(d_model) + positional encoding
         x = self.light_emb(light_tokens) * self.scale
         x = self.pos_enc(x)
+
+        # Add structural slot embedding (cycles every 4 positions)
+        slot_ids = torch.arange(s, device=light_tokens.device) % 4
+        x = x + self.slot_emb(slot_ids).unsqueeze(0)  # broadcast over batch
 
         # Add note context and genre embedding (broadcast over sequence)
         note_ctx = self._encode_note_context(note_tokens)  # [B, d_model]

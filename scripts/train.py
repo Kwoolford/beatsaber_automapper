@@ -65,7 +65,13 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         onset_num_difficulties=oc.num_difficulties,
         onset_num_genres=oc.get("num_genres", 11),
         onset_dropout=oc.dropout,
-        pos_weight=oc.get("pos_weight", 5.0),
+        # TCN parameters
+        tcn_channels=oc.get("tcn_channels", 128),
+        tcn_num_blocks=oc.get("tcn_num_blocks", 6),
+        tcn_kernel_size=oc.get("tcn_kernel_size", 3),
+        # Conditioning dropout for CFG
+        conditioning_dropout=oc.get("conditioning_dropout", 0.0),
+        pos_weight=oc.get("pos_weight", 1.0),
         learning_rate=cfg.optimizer.learning_rate,
         weight_decay=cfg.optimizer.weight_decay,
         warmup_steps=cfg.scheduler.warmup_steps,
@@ -86,7 +92,7 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         EarlyStopping(
             monitor="val_f1",
             mode="max",
-            patience=10,
+            patience=cfg.get("early_stopping_patience", 15),
         ),
         LearningRateMonitor(logging_interval="step"),
         _GarbageCollectCallback(),
@@ -137,11 +143,18 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         seq_num_difficulties=sc.num_difficulties,
         seq_num_genres=sc.get("num_genres", 11),
         seq_dropout=sc.dropout,
+        # Inter-onset context
+        prev_context_k=sc.get("prev_context_k", 0),
+        # Conditioning dropout for CFG
+        conditioning_dropout=sc.get("conditioning_dropout", 0.0),
         label_smoothing=sc.get("label_smoothing", 0.1),
+        rhythm_weight=sc.get("rhythm_weight", 3.0),
+        eos_weight=sc.get("eos_weight", 0.3),
         learning_rate=cfg.optimizer.learning_rate,
         weight_decay=cfg.optimizer.weight_decay,
         warmup_steps=cfg.scheduler.warmup_steps,
         freeze_encoder=sc.get("freeze_encoder", False),
+        flow_loss_alpha=sc.get("flow_loss_alpha", 0.0),
     )
 
     # Callbacks
@@ -156,7 +169,7 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         EarlyStopping(
             monitor="val_loss",
             mode="min",
-            patience=10,
+            patience=cfg.get("early_stopping_patience", 15),
         ),
         LearningRateMonitor(logging_interval="step"),
         _GarbageCollectCallback(),
@@ -224,7 +237,7 @@ def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         EarlyStopping(
             monitor="val_loss",
             mode="min",
-            patience=10,
+            patience=cfg.get("early_stopping_patience", 15),
         ),
         LearningRateMonitor(logging_interval="step"),
         _GarbageCollectCallback(),
@@ -279,7 +292,10 @@ def main(cfg: DictConfig) -> None:
             logger.info("Process priority set to BELOW_NORMAL (gaming mode)")
 
     stage = cfg.stage
+    ckpt_path = cfg.get("ckpt_path", None)
     logger.info("Training stage: %s", stage)
+    if ckpt_path:
+        logger.info("Resuming from checkpoint: %s", ckpt_path)
 
     if stage == "onset":
         module, trainer = _build_onset(cfg)
@@ -321,7 +337,7 @@ def main(cfg: DictConfig) -> None:
             pin_memory=ds_cfg.pin_memory,
         )
 
-        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl)
+        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
     elif stage == "sequence":
         module, trainer = _build_sequence(cfg)
 
@@ -334,12 +350,14 @@ def main(cfg: DictConfig) -> None:
             seq_diffs = list(seq_diffs)
             logger.info("Filtering to difficulties: %s", seq_diffs)
 
+        prev_context_k = sc.get("prev_context_k", 0)
         train_ds = SequenceDataset(
             data_dir,
             split="train",
             context_frames=sc.get("context_frames", 128),
             max_token_len=sc.get("max_seq_length", 64),
             difficulties=seq_diffs,
+            prev_context_k=prev_context_k,
         )
         val_ds = SequenceDataset(
             data_dir,
@@ -347,6 +365,7 @@ def main(cfg: DictConfig) -> None:
             context_frames=sc.get("context_frames", 128),
             max_token_len=sc.get("max_seq_length", 64),
             difficulties=seq_diffs,
+            prev_context_k=prev_context_k,
         )
 
         logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))
@@ -366,7 +385,7 @@ def main(cfg: DictConfig) -> None:
             pin_memory=ds_cfg.pin_memory,
         )
 
-        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl)
+        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
     elif stage == "lighting":
         module, trainer = _build_lighting(cfg)
 
@@ -406,7 +425,7 @@ def main(cfg: DictConfig) -> None:
             pin_memory=ds_cfg.pin_memory,
         )
 
-        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl)
+        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
     else:
         raise ValueError(f"Unknown stage: {stage}. Must be one of: onset, sequence, lighting")
 

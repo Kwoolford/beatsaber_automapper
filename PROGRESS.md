@@ -1,14 +1,407 @@
 # Beat Saber Automapper — Progress Tracker
 
-## Current Status: PR 7 In Progress — Overnight Pipeline Running
+## Current Status: Architecture Rebuild COMPLETE — Ready for Smoke Test
 
-**Date:** 2026-02-23 late night
+**Date:** 2026-02-26 evening
 **Branch:** main
 
-### Session Handoff (2026-02-23 ~11:15 PM)
+---
 
-**Overnight Pipeline:** PID 31384, fully detached, will run onset → sequence → lighting
-sequentially. Each stage: max_epochs=100, EarlyStopping(patience=10).
+## Architecture Rebuild Session (Feb 26 evening)
+
+All 10 phases of the master rebuild plan have been implemented. 213 tests pass.
+
+### What Changed (Summary)
+
+| Phase | Change | Files |
+|-------|--------|-------|
+| 1 | Tokenizer direction clamping, lighting nucleus sampling + constrained decoding | tokenizer.py, generate.py |
+| 2 | Song structure features (6 per-frame librosa features → AudioEncoder) | audio.py, preprocess.py, dataset.py, audio_encoder.py, all 3 training modules |
+| 3 | Inter-onset context (prev K=8 onset seqs → cross-attention memory) | dataset.py, sequence_model.py, beam_search.py, generate.py, seq_module.py |
+| 4 | EOS rebalancing (0.3x weight) + min_length=3 at inference | seq_module.py, beam_search.py, sequence.yaml |
+| 5 | Flow-aware auxiliary loss (parity violation penalty, alpha=0.1) | seq_module.py |
+| 6 | Lighting slot embedding (4-position cycling for event grammar) | lighting_model.py |
+| 7 | Chroma RGB post-processing (6 palettes, energy→color mapping) | chroma.py (NEW), export.py, generate.py |
+| 8-9 | Pipeline hardening (overnight_v3.sh, auto-resume, heartbeat, batch sizes) | overnight_v3.sh (NEW), train.py, data config |
+| 10 | Re-preprocessing --force flag | preprocess.py |
+
+### Key Architecture Decisions
+
+1. **Structure features as additive projection** (not concatenated to mel): `nn.Linear(6, d_model)` output added to CNN output before positional encoding. Zero-cost backward compat — if structure_features is None, nothing changes.
+
+2. **Inter-onset context via memory concatenation**: Previous 8 onset sequences are mean-pooled per onset, projected to d_model, concatenated to audio features along time dimension. Cross-attention naturally attends to both audio AND context. No mask changes needed.
+
+3. **512-frame audio context** (up from 128): ~6 seconds of audio, enough to hear musical phrase structure. May require smaller batch sizes — test during smoke test.
+
+4. **Flow loss is detached**: Computes on argmax predictions, not through the gradient graph. Pure auxiliary signal that doesn't interfere with CE loss gradients.
+
+5. **Chroma as post-processing**: Rule-based, not learned. Avoids training complexity while still producing colorful light shows. Uses `_suggestions: ["Chroma"]` for graceful degradation in non-Chroma players.
+
+### Before Launching Overnight Smoke Test
+
+1. **Re-preprocess all .pt files** with `--force` to add structure_features (~2-3 hours)
+2. **Rebuild frame_index.json** after re-preprocessing
+3. **Delete old checkpoints** (version_41-43 are incompatible with new architecture)
+4. **Run smoke test**: `bash scripts/overnight_v3.sh --smoke-test`
+
+---
+
+## THE PLAN: 1-Week Unattended Training Run
+
+**Goal:** Produce the best open-source Beat Saber automapper. Revolutionary for the community.
+**Hardware:** RTX 5090 (32GB), Ryzen 9 7950X3D (16c/32t), running 24/7 for ~7 days.
+**Timeline:** Launch in ~2 days (Feb 27-28). Owner leaves for 1 week.
+
+### Why We Can Win
+
+| Tool | Architecture | v3 Arcs/Chains | Difficulty Cond. | Open Source |
+|------|-------------|----------------|------------------|-------------|
+| Beat Sage | 2x DNN (2020) | No | No | No (unmaintained) |
+| InfernoSaber | Conv AE + TCN + DNN | No | No | Yes |
+| TopMapper | Undisclosed (commercial) | Claims yes | Yes | No (Patreon) |
+| **Ours** | **Audio Encoder + Transformer Decoder** | **Yes (learned)** | **Yes (5-class)** | **Yes** |
+
+No open-source Beat Saber mapper uses an autoregressive transformer decoder with cross-attention.
+No mapper learns arc/chain placement from data. InfernoSaber has zero v3 support.
+Mapperatorinator (osu!) proved this exact architecture works — Whisper encoder + sparse decoder.
+We are applying the same proven approach to Beat Saber for the first time.
+
+### Pre-Launch Checklist (Morning of Feb 26)
+
+#### 1. EVALUATE CURRENT RUN (first thing)
+- [ ] Check all 3 stage checkpoints (onset version_41, sequence version_42, lighting TBD)
+- [ ] Generate a test map from audio, load in ArcViewer
+- [ ] Run BS Map Check on generated .dat files
+- [ ] Check parity with Map Inspector
+- [ ] Log exact metrics: onset F1, sequence val_loss, token accuracy, EOS accuracy
+- [ ] Qualitative assessment: are notes synced to music? Do patterns flow?
+
+#### 2. TRAINING THROUGHPUT OPTIMIZATION (critical — 3-5x speedup expected)
+Current state: **41% GPU, 5GB/32GB VRAM.** Completely bottlenecked on data loading.
+
+- [ ] **Batch size tuning:** Binary search for max batch size per stage
+  - Onset: try 64 → 128 → 256 (1024-frame windows are large, ~80*1024*4 bytes each)
+  - Sequence: try 64 → 128 → 256 → 512 (128-frame context windows are small)
+  - Lighting: try 64 → 128 → 256
+  - Target: GPU utilization >90%, VRAM usage >20GB
+- [ ] **Workers:** Increase to 16 for all stages (have 32 logical cores)
+- [ ] **torch.compile():** Add `model = torch.compile(model)` to training script
+- [ ] **Preload dataset into RAM:** 12K files × 6MB = 72GB. Check system RAM.
+  If ≥64GB, preload everything. If 32GB, preload top 5K files.
+- [ ] **Smoke test:** Run 3 epochs of each stage, verify speedup, estimate epoch times
+- [ ] **Calculate exact schedule:** `samples / batch_size / steps_per_sec / 3600 = hrs/epoch`
+
+#### 3. DATA QUALITY AUDIT
+
+**Arc/Chain coverage is sparse — may need targeted data:**
+- Only **32.2% of (song, diff) pairs** have any arcs
+- Only **13.6%** have chains
+- Arcs are 1.9% of event tokens, chains are 0.5%
+- The model may not see enough arc/chain examples to learn good placement
+
+Action items:
+- [ ] **Count arc/chain maps in full dataset** (not just 30 samples)
+- [ ] **Consider downloading more arc-heavy maps** from BeatSaver
+  - Filter: maps posted after 2023 (v3 adoption), rated ≥80%, containing sliders
+  - Target: at least 2000 maps with arcs, 1000 with chains
+- [ ] **Consider arc/chain token upweighting** in loss (like rhythm_weight=3.0)
+- [ ] **Bombs: deprioritize** — high noise in data, stretch goal for later
+
+**Ranked maps are gold standard:**
+- [ ] Check how many ScoreSaber-ranked maps we have in the dataset
+- [ ] Consider adding a `ranked_weight` multiplier — sample ranked maps more often
+- [ ] Download ranked map list from ScoreSaber API and cross-reference
+
+#### 4. ARCHITECTURE REVIEW
+
+**What Mapperatorinator proved works for rhythm games:**
+- Whisper-based encoder-decoder (219M params, trained 2500 GPU-hours)
+- Sparse event tokens (only emit on note events, not every frame)
+- Conditional generation (difficulty, mapper style, year)
+- Classifier-Free Guidance for sharper conditioning
+- Post-processing via diffusion model for coordinate refinement
+- 90% overlapping windows for long-form generation
+
+**Our architecture vs. Mapperatorinator:**
+
+| Component | Mapperatorinator (osu!) | Ours (Beat Saber) |
+|-----------|------------------------|-------------------|
+| Encoder | Whisper (pretrained) | Custom CNN+Transformer (from scratch) |
+| Decoder | Whisper decoder | 8-layer Transformer decoder |
+| Onset detection | Part of decoder | Separate TCN+Transformer (Stage 1) |
+| Conditioning | Difficulty + mapper ID + year | Difficulty + genre (+ CFG dropout) |
+| Inference | Overlapping windows | Beam search / nucleus sampling |
+| Post-processing | Diffusion model | Rule-based pipeline |
+
+**Review questions for morning session:**
+- [ ] Is our audio encoder good enough vs. using pretrained Whisper features?
+  - Whisper is trained on 680K hours of audio — our encoder sees ~200 hours
+  - But Whisper is speech-optimized; we need rhythmic features
+  - Consider: use Whisper mel frontend but our own transformer on top?
+- [ ] Should we switch to sparse event tokens like Mapperatorinator?
+  - Currently Stage 2 only sees a 128-frame window per onset
+  - Mapperatorinator processes entire song sections with overlapping windows
+  - This may limit our model's ability to learn long-range patterns
+- [ ] Is 8 layers / 512 d_model big enough?
+  - Mapperatorinator: 219M params. Ours: ~60M params (rough estimate)
+  - With a week of training we could go bigger — 12 layers, 768 d_model?
+  - Need to balance against batch size / VRAM
+- [ ] Do we need a dedicated parity loss term?
+  - Currently relying on model learning parity from data
+  - Could add a parity-violation penalty to the loss function
+  - Or: post-processing parity fix (already have `fix_parity()`)
+
+##### 4a. CRITICAL FIX: Inter-Onset Context for Sequence Model
+
+**Problem diagnosed (Feb 26):** The sequence model generates each onset independently — it has
+zero knowledge of what was generated at previous onsets. This is the root cause of:
+- **Mode collapse:** 97% of notes at column 1, row 0 (the single most common position)
+- **No color alternation:** 100% same color before post-processing
+- **No flow:** 248/553 parity violations in generated Expert map
+- **Repetitive patterns:** Same note repeated at every onset
+
+The model literally cannot learn alternating red/blue, forehand/backhand flow, or progressive
+patterns because it never sees what came before. This is like asking an LLM to write coherent
+text one word at a time with no memory of previous words.
+
+**Solution: Feed previous N onset token sequences as conditioning input.**
+
+Implementation plan:
+1. **Modify `SequenceDataset`** to return previous K onset token sequences (K=5-10) alongside
+   the current onset's audio context and target tokens.
+   - Each sample becomes: `(mel_context, prev_onset_tokens[K], target_tokens, difficulty, genre)`
+   - `prev_onset_tokens` is a (K, max_seq_len) tensor, zero-padded for the first K onsets in a song
+   - Requires sorting/grouping samples by song and onset time during preprocessing
+
+2. **Add a "previous context encoder" to `SequenceModel`**:
+   - Embed previous onset tokens using the same token embedding layer
+   - Mean-pool each onset's tokens → K context vectors
+   - Run through a small 2-layer Transformer or just concatenate to audio features
+   - Add to the cross-attention memory alongside audio encoder output
+   - This lets the decoder attend to both audio AND previous note patterns
+
+3. **Training change**: Teacher forcing now uses ground-truth previous onsets (not model outputs).
+   At inference time, use the model's own generated outputs as context (autoregressive over onsets).
+
+4. **Wider audio context**: Expand from 128 frames (~1.5s) to 512+ frames (~6s) so the model
+   can hear the musical phrase structure, not just the immediate transient.
+
+**Expected impact:** This single change should break mode collapse. The model will learn:
+- "Previous note was red → this should be blue" (color alternation)
+- "Previous swing was downward → this should be upward" (parity/flow)
+- "Previous notes were at bottom → move to middle/top" (grid coverage)
+- "Song has been building → increase complexity" (musical awareness)
+
+##### 4b. Flow-Aware Auxiliary Loss
+
+**Problem:** Standard cross-entropy treats all wrong predictions equally. But in Beat Saber mapping,
+there are often multiple valid note placements for any given onset. A note that continues the
+current flow in a different-but-valid way should be punished less than a note that breaks flow entirely.
+
+**Key insight from user:** Beat Saber note flow is almost always a sequence of alternating swings.
+If the model starts a flow differently than ground truth but maintains valid flow, it's being
+unfairly penalized for every subsequent note — even though its output is playable and correct.
+
+**Flow-aware loss design:**
+
+1. **Swing angle continuity bonus:**
+   - For consecutive notes within 2-3 seconds, compute the angle between previous swing direction
+     and current note placement
+   - Ideal: next swing is 150-210 degrees opposite (natural backhand/forehand alternation)
+   - Bonus (reduced loss) when the predicted note falls in this "good flow" range
+   - No penalty when gap > 3 seconds (sequence restart — any direction is valid)
+
+2. **Position-aware swing evaluation:**
+   - A high note (row 2) with downward cut direction naturally leads to a low position
+   - Don't penalize a low-row follow-up note even if ground truth placed it elsewhere
+   - Consider the "swing continuation trajectory" — where does the saber end up after the cut?
+   - Saber endpoint = note position + swing direction vector → next note should be near there
+
+3. **Parity classification:**
+   - Forehand directions: {1 (down), 6 (down-left), 7 (down-right)}
+   - Backhand directions: {0 (up), 4 (up-left), 5 (up-right)}
+   - Horizontal: {2 (left), 3 (right)} — context-dependent, classify based on previous swing
+   - Dot notes (8): always valid, no parity constraint
+   - Loss modifier: if predicted note has correct parity class, reduce loss by 50%
+
+4. **Implementation approach:**
+   - Add `FlowAwareLoss` wrapper in `training/seq_module.py`
+   - Primary loss: standard CrossEntropyLoss (unchanged, keeps learning signal stable)
+   - Auxiliary loss: flow penalty/bonus computed on the argmax predicted tokens
+   - Combined: `total_loss = ce_loss + alpha * flow_loss` (alpha=0.1-0.3, tunable)
+   - Flow loss only applies to direction and position tokens (not event type, color, etc.)
+   - Requires decoding predicted token indices back to note properties within the loss function
+
+5. **Training data annotation (preprocessing):**
+   - Pre-compute flow labels for each onset: `expected_parity`, `swing_angle_from_prev`,
+     `time_gap_from_prev`, `position_trajectory_from_prev`
+   - Store in .pt files alongside existing token sequences
+   - This avoids expensive per-batch flow computation during training
+
+**Expected impact:**
+- Faster convergence on flow patterns (model doesn't fight against valid alternatives)
+- Fewer parity violations in generated output
+- More natural "game feel" even before post-processing fixes
+
+#### 5. PIPELINE HARDENING FOR 1-WEEK RUN
+
+- [ ] **Checkpoint every epoch** (not just top-3) — disk is cheap, lost progress is not
+- [ ] **Auto-resume from checkpoint** — if power blip kills training, script restarts from last.ckpt
+- [ ] **Health monitoring:** Simple script that checks:
+  - Is python.exe still running?
+  - Is the events file growing?
+  - What's the latest val_loss?
+  - GPU temperature / utilization
+  - Write status to a file that can be checked from phone
+- [ ] **Graceful stage transitions:** After onset converges, auto-start sequence, etc.
+- [ ] **Save training curves** to a simple text log (not just TensorBoard)
+- [ ] **Set process priority to BELOW_NORMAL** at startup (for background gaming)
+- [ ] **Increase early stopping patience to 20-30** — with fast epochs we can afford to wait
+
+#### 6. COMMUNITY-IMPORTANT FEATURES TO VALIDATE
+
+Based on research, the Beat Saber community's top complaints about AI maps:
+
+1. **Parity errors** — #1 complaint. Must verify our maps have correct forehand/backhand flow
+2. **Poor flow** — notes should lead naturally into next swing
+3. **No musical representation** — big moments need emphasis, quiet moments need space
+4. **Vision blocks** — center-row notes obscure upcoming notes
+5. **Handclaps** — opposite-color notes pointing at each other
+6. **Repetitive patterns** — same 4-bar loop repeated endlessly
+
+Action items:
+- [ ] Generate 5-10 maps, manually check each issue above in ArcViewer
+- [ ] Add handclap detection to post-processing (`postprocess.py`)
+- [ ] Add vision-block detection to post-processing
+- [ ] Verify `fix_parity()` actually works on generated output
+- [ ] Consider adding musical energy features to the audio encoder
+  (RMS energy, spectral centroid — helps the model know "loud" vs "quiet")
+
+### Training Schedule (Estimated — Needs Validation)
+
+Assumes throughput optimization achieves 3-5x speedup:
+
+| Stage | Epochs | Est. Epoch Time | Total Time | Cumulative |
+|-------|--------|-----------------|------------|------------|
+| Onset | 50-80 | ~15-30 min | 12-24h | Day 1 |
+| Sequence | 30-50 | ~30-60 min | 15-30h | Days 1-3 |
+| Lighting | 20-30 | ~15-30 min | 5-10h | Day 3-4 |
+| Sequence (phase 2, lower LR) | 20 | ~30-60 min | 10-20h | Days 4-6 |
+| Buffer / re-runs | — | — | 24h | Day 7 |
+
+**Phase 2 sequence training:** After initial convergence, restart with 10x lower LR
+(3e-5 instead of 3e-4) for fine-tuning. Common technique for squeezing out final quality.
+
+---
+
+### Session Handoff (2026-02-26 morning)
+
+**Generated first real map — identified critical architecture gaps:**
+
+Onset model (version_41): val_f1=0.726. Working well. Early stopped epoch 6.
+Sequence model (version_42): val_loss=1.964, val_token_acc=35%, val_eos_acc=95%. ~12 epochs done.
+
+**Generated Expert map analysis (4:12 song at 174 BPM):**
+- 747 onsets detected, 553 notes generated, 3.14 NPS — reasonable density
+- **Zero arcs, chains, bombs, or walls** — model only generates basic notes
+- **97% of notes at column 1, row 0** (bottom-left) — severe mode collapse
+- **100% same color** before post-processing — no color alternation learned
+- **248/553 parity violations** — model has no concept of flow
+- Direction 12 appearing (invalid — angle offset token decoded as direction)
+
+**Root causes identified:**
+1. Each onset generated independently — no inter-onset context (see 4a above)
+2. 128-frame audio window too narrow (~1.5s) — can't hear musical phrases
+3. Standard cross-entropy punishes valid alternative flows equally (see 4b above)
+4. Arc/chain data too sparse (32%/14% of maps) — model never learns them
+
+**Two major architecture changes planned for 1-week run:**
+- 4a: Inter-onset context (feed previous 5-10 onset token sequences to decoder)
+- 4b: Flow-aware auxiliary loss (reward valid alternative flows, parity bonus)
+
+### Session Handoff (2026-02-25)
+
+**Major fix: Onset F1 metric was broken** — validation compared peak-picked predictions
+against Gaussian-smoothed labels (frames > 0.5). A perfect model could only score F1 ~0.25.
+Fixed to compare against actual `onset_frames` positions. Onset val_f1 jumped from 0.23 → **0.726**.
+The V2 TCN architecture was working all along.
+
+**Files changed:**
+- `data/dataset.py` — OnsetDataset now returns `onset_frames` + `n_onsets` per window
+- `training/onset_module.py` — validation uses actual onset positions, not smoothed labels
+- `scripts/train.py` — early stopping patience now configurable via `early_stopping_patience`
+- `configs/train.yaml` — added `early_stopping_patience: 15`
+
+**Training run (version_41 onset, version_42 sequence):**
+- Onset: val_f1=0.726 (epoch 1 best), early stopped at epoch 6. ~1 hour.
+- Sequence: val_loss=2.642 (epoch 1 best), still running. ~1.9 hours/epoch (!).
+- Lighting: not started yet — sequence takes too long.
+
+### NEXT SESSION: Training Performance Optimization (CRITICAL)
+
+**The RTX 5090 is massively underutilized.** Must fix before any long training run.
+
+Current state (measured 2026-02-25):
+- GPU utilization: **41%** (should be 95%+)
+- VRAM used: **5 GB / 32 GB** (wasting 27 GB)
+- CPU: 45% on Ryzen 9 7950X3D (16c/32t)
+- batch_size=32 is way too small — GPU finishes each batch instantly then waits for data
+- Previous overnight run crashed with OOM, so batch sizes were reduced as a knee-jerk fix.
+  The real fix is to find the actual OOM cause and set batch sizes properly.
+
+**Action items for next run (in priority order):**
+
+1. **Increase batch_size aggressively** — try 128, 256, or even 512 for sequence stage.
+   With 32 GB VRAM and the current model (~686 MB checkpoint), there is massive headroom.
+   Onset can probably go to 128+ (currently 32 with 1024-frame windows).
+
+2. **Increase num_workers to 16-20** — we have 32 logical cores, only using 8-12.
+
+3. **Preload dataset into RAM** — 12K .pt files × ~6 MB = ~72 GB. If system RAM is 64 GB+,
+   load everything at startup to eliminate disk I/O bottleneck entirely. Even partial preload
+   (e.g., the top 5K most-accessed files) would help hugely.
+
+4. **torch.compile()** — free 10-30% GPU speedup with one line. Add to training script.
+
+5. **Always use `low_priority=true`** in the pipeline script so gaming works during training.
+   Can also be applied retroactively to running processes via `kernel32.SetPriorityClass()`.
+
+6. **Estimate epoch time BEFORE committing to a schedule:**
+   `samples / batch_size / steps_per_second / 3600 = hours_per_epoch`
+   Sequence: 2.16M / 32 / 10 / 3600 = **1.9 hours/epoch** (not the 15 min we estimated!)
+
+### Session Handoff (2026-02-24)
+
+**Architecture V2 changes implemented (all 4 priorities):**
+
+1. **TCN + Transformer hybrid onset model** — replaced 2-layer Transformer-only onset model
+   with 6-block TCN (dilated convolutions 1,2,4,8,16,32, 128 channels) + 2-layer Transformer
+   on top for global context. Receptive field: 127 frames. This follows the proven approach
+   from madmom/BeatNet/InfernoSaber. (`models/onset_model.py`)
+
+2. **KV caching for beam search** — added `CachedTransformerDecoder` and `KVCache` in
+   `models/components.py`. Sequence model now supports `decode_step_cached()` for incremental
+   decoding. Beam search and nucleus sampling both auto-detect and use cache. Expected 10x
+   speedup for generation. (`models/components.py`, `models/sequence_model.py`, `generation/beam_search.py`)
+
+3. **Rhythm token weighting 3x** — timing-sensitive tokens (NOTE, BOMB, WALL, ARC_START,
+   ARC_END, CHAIN, SEP, EOS) get 3x weight in CrossEntropyLoss. From Mapperatorinator
+   research — timing is the hardest and most important thing to learn.
+   (`training/seq_module.py`, `configs/model/sequence.yaml`)
+
+4. **Conditioning dropout 20%** — both onset and sequence models drop difficulty/genre
+   embeddings with 20% probability during training. Enables Classifier-Free Guidance at
+   inference for sharper difficulty control. (`models/onset_model.py`, `models/sequence_model.py`,
+   `configs/model/onset.yaml`, `configs/model/sequence.yaml`)
+
+**Tests:** 213 pass (8 new TCN tests, was 205). `ruff check .` clean.
+
+**Next: Train on gold 500 dataset with new architecture.** Old checkpoints are incompatible —
+new models have different architectures. Need fresh training run.
+
+### Previous session (2026-02-24 daytime)
+
+**Overnight Pipeline:** PID 31384, fully detached, ran onset → sequence → lighting.
 - Pipeline log: `logs/overnight_pipeline.log`
 - Per-stage logs: `logs/train_{onset,sequence,lighting}_full.log`
 - TensorBoard: `outputs/beatsaber_automapper/version_27/` (onset)

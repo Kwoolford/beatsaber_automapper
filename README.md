@@ -43,23 +43,27 @@ bsa-generate song.mp3 --difficulty Expert --output level.zip
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         AUDIO PREPROCESSING                                 │
 │                                                                             │
-│  Raw Audio → mono 44.1kHz → Mel Spectrogram                                │
+│  Raw Audio → mono 44.1kHz → Mel Spectrogram + Structure Features           │
 │              80 mel bands, 1024-pt FFT, 512 hop (~10ms/frame)              │
+│              6 structure features: RMS, onset strength, bass/mid/high,      │
+│              spectral centroid (all per-frame, librosa-derived)             │
 │                                                                             │
-│  Output: [80 mel bands, T frames]    (~100 frames per second)              │
+│  Output: [80, T] mel + [6, T] structure   (~100 frames per second)         │
 └─────────────────────────────────────────────────────────────────────────────┘
                                   │
-                                  │  [80, T]
+                                  │  [80, T] + [6, T]
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      SHARED AUDIO ENCODER                                   │
 │                    (used by all 3 stages)                                   │
 │                                                                             │
 │  4-layer CNN frontend  →  Linear projection (d_model=512)                  │
+│  + Structure projection: Linear(6→512), added to CNN output                │
 │  → Sinusoidal positional encoding                                           │
 │  → Transformer Encoder (6 layers, 8 heads)                                 │
 │                                                                             │
 │  Output: contextualized frame embeddings  [T, 512]                         │
+│          (enriched with song energy/structure information)                  │
 └─────────────────────────────────────────────────────────────────────────────┘
                                   │
               ┌───────────────────┼────────────────────┐
@@ -72,20 +76,27 @@ bsa-generate song.mp3 --difficulty Expert --output level.zip
      difficulty emb       onset timestamps      note tokens (stage 2)
      genre emb            difficulty emb        difficulty emb
                           genre emb             genre emb
-                                                beat grid timestamps
+                          prev 8 onset seqs     beat grid timestamps
+                                                slot embedding (4-pos)
 
     Arch:                Arch:                 Arch:
-     2-layer Transformer  Transformer decoder   Transformer decoder
-     encoder              8 layers, 8 heads     4 layers, 8 heads
+     6-block TCN          Transformer decoder   Transformer decoder
+     + 2-layer Xfmr       8 layers, 8 heads     4 layers, 8 heads
      → Linear(1)          causal self-attn      cross-attn → audio
      → sigmoid            cross-attn → audio    note ctx = mean-pool
-                          autoregressive
+                          + prev_context[K=8]   slot emb (cycling 4)
+                          512-frame context
+
+    Loss:                Loss:                 Loss:
+     BCE (Gaussian        CE (EOS 0.3x,         CE + label smooth
+     smoothed labels)     rhythm 3x) +
+                          flow loss (α=0.1)
 
     Output:              Output:               Output:
      per-frame onset      token sequences       lighting token seqs
-     probability [T]      per onset             (greedy decode)
-     → peak picking
-     → onset timestamps
+     probability [T]      per onset             (constrained nucleus)
+     → peak picking       (beam/nucleus,        → Chroma RGB colors
+     → onset timestamps    min_length=3)         (energy→palette)
 
               │                   │                     │
               └───────────────────┴─────────────────────┘
@@ -96,13 +107,14 @@ bsa-generate song.mp3 --difficulty Expert --output level.zip
 │                                                                             │
 │  Note tokens  →  BeatmapTokenizer.decode_beatmap()  →  DifficultyBeatmap  │
 │  Light tokens →  LightingTokenizer.decode_lighting() →  lighting events    │
+│  Chroma       →  add_chroma_colors(events, energy)  →  RGB _customData    │
 │                                                                             │
 │  DifficultyBeatmap:                                                         │
 │    colorNotes   bombNotes   obstacles   sliders   burstSliders              │
-│    basicEvents  colorBoosts                                                 │
+│    basicEvents  colorBoosts  (+ Chroma _color per event)                   │
 │                                                                             │
 │  beatmap_to_v3_dict() → v3 JSON .dat                                       │
-│  build_info_dat()     → Info.dat                                           │
+│  build_info_dat()     → Info.dat (with Chroma suggestion)                  │
 │  package_level()      → .zip                                               │
 └─────────────────────────────────────────────────────────────────────────────┘
                                   │
@@ -126,6 +138,9 @@ Every model stage is conditioned on:
 |-------|------|--------|--------|
 | `difficulty` | learned embedding (5→512, additive) | Easy / Normal / Hard / Expert / ExpertPlus | Controls note density and pattern complexity |
 | `genre` | learned embedding (11→512, additive) | electronic, rock, pop, anime, hip-hop, classical, jazz, country, video-game, other, unknown | Shapes map style and feel |
+| `structure` | linear projection (6→512, additive) | RMS energy, onset strength, bass/mid/high energy, spectral centroid | Song energy awareness (drops, buildups, calm sections) |
+| `prev_tokens` | mean-pool + project (Stage 2 only) | Previous K=8 onset token sequences | Inter-onset flow, color alternation, pattern diversity |
+| `slot_emb` | learned embedding (Stage 3 only) | 4-position cycling (type/ET/VAL/BRIGHT) | Structural grammar enforcement for lighting events |
 
 ### Token Vocabulary (Stage 2 — 167 tokens)
 
@@ -220,7 +235,7 @@ beatsaber_automapper/
 │   ├── generation/              # Inference pipeline, beam search, export
 │   └── evaluation/              # Metrics (onset F1, token accuracy)
 ├── scripts/                     # CLI entry points
-└── tests/                       # pytest test suite (179 tests)
+└── tests/                       # pytest test suite (213 tests)
 ```
 
 ## Tech Stack

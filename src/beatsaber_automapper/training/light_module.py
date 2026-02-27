@@ -127,6 +127,7 @@ class LightingLitModule(lightning.LightningModule):
         light_tokens: torch.Tensor,
         note_tokens: torch.Tensor,
         genre: torch.Tensor,
+        structure: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass: mel -> audio features -> lighting logits.
 
@@ -135,23 +136,32 @@ class LightingLitModule(lightning.LightningModule):
             light_tokens: Decoder input lighting tokens [B, S] (BOS-prepended).
             note_tokens: Note token context [B, N].
             genre: Genre indices [B].
+            structure: Optional structure features [B, 6, T].
 
         Returns:
             Lighting logits [B, S, light_vocab_size].
         """
-        audio_features = self.audio_encoder(mel)
+        audio_features = self.audio_encoder(mel, structure_features=structure)
         return self.lighting_model(light_tokens, audio_features, note_tokens, genre)
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         decoder_input, target = self._prepare_teacher_forcing(batch["light_tokens"])
-        logits = self(batch["mel"], decoder_input, batch["note_tokens"], batch["genre"])
+        structure = batch.get("structure", None)
+        logits = self(
+            batch["mel"], decoder_input, batch["note_tokens"], batch["genre"],
+            structure=structure,
+        )
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         decoder_input, target = self._prepare_teacher_forcing(batch["light_tokens"])
-        logits = self(batch["mel"], decoder_input, batch["note_tokens"], batch["genre"])
+        structure = batch.get("structure", None)
+        logits = self(
+            batch["mel"], decoder_input, batch["note_tokens"], batch["genre"],
+            structure=structure,
+        )
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 

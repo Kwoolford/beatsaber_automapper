@@ -18,6 +18,7 @@ import torch
 
 from beatsaber_automapper.data.audio import (
     beat_to_frame,
+    compute_structure_features,
     detect_bpm,
     extract_mel_spectrogram,
     frame_to_beat,
@@ -166,8 +167,13 @@ def generate_lighting_events(
     temperature: float = 1.0,
     max_length: int = 32,
     device: torch.device | None = None,
+    top_p: float = 0.9,
 ) -> list[int]:
-    """Run Stage 3 greedy decoding to generate lighting tokens for one beat.
+    """Run Stage 3 constrained nucleus sampling to generate lighting tokens for one beat.
+
+    Uses a state machine to enforce valid lighting event structure:
+    LIGHT_BASIC(4) must be followed by ET(6-20), VAL(21-28), BRIGHT(29-32).
+    After a complete event, only SEP(2), EOS(1), or a new event type marker is allowed.
 
     Args:
         lighting_module: LightingLitModule (has audio_encoder + lighting_model).
@@ -178,18 +184,37 @@ def generate_lighting_events(
         temperature: Sampling temperature.
         max_length: Maximum lighting token sequence length.
         device: Torch device.
+        top_p: Nucleus sampling probability threshold.
 
     Returns:
         List of generated lighting tokens (without BOS/EOS).
     """
-    from beatsaber_automapper.data.tokenizer import LIGHT_BOS, LIGHT_EOS
+    from beatsaber_automapper.data.tokenizer import (
+        LIGHT_BASIC,
+        LIGHT_BOOST,
+        LIGHT_BOS,
+        LIGHT_EOS,
+        LIGHT_ET_OFFSET,
+        LIGHT_ONOFF_OFFSET,
+        LIGHT_SEP,
+        LIGHT_VAL_OFFSET,
+        LIGHT_BRIGHT_OFFSET,
+        LIGHT_VOCAB_SIZE,
+    )
 
     if device is None:
         device = next(lighting_module.parameters()).device
 
-    # Simple greedy decoding for lighting
     tokens = [LIGHT_BOS]
     model = lighting_module.lighting_model
+
+    # State machine for constrained decoding
+    # States: "start" -> waiting for event type marker
+    #         "et"    -> expecting ET token (6-20)
+    #         "val"   -> expecting VAL token (21-28)
+    #         "bright"-> expecting BRIGHT token (29-32)
+    #         "onoff" -> expecting ONOFF token (33-34)
+    state = "start"
 
     for _ in range(max_length):
         token_tensor = torch.tensor([tokens], dtype=torch.long, device=device)
@@ -198,10 +223,57 @@ def generate_lighting_events(
                 token_tensor, audio_features, note_tokens_tensor, genre_tensor
             )  # [1, V]
         logits = logits.squeeze(0) / temperature
-        next_token = int(logits.argmax().item())
+
+        # Apply structural constraints via logit masking
+        mask = torch.full((LIGHT_VOCAB_SIZE,), float("-inf"), device=device)
+        if state == "start":
+            # Allow: LIGHT_BASIC(4), LIGHT_BOOST(5), EOS(1)
+            mask[LIGHT_BASIC] = 0.0
+            mask[LIGHT_BOOST] = 0.0
+            mask[LIGHT_EOS] = 0.0
+        elif state == "et":
+            # Allow: ET tokens (6-20)
+            mask[LIGHT_ET_OFFSET : LIGHT_ET_OFFSET + 15] = 0.0
+        elif state == "val":
+            # Allow: VAL tokens (21-28)
+            mask[LIGHT_VAL_OFFSET : LIGHT_VAL_OFFSET + 8] = 0.0
+        elif state == "bright":
+            # Allow: BRIGHT tokens (29-32)
+            mask[LIGHT_BRIGHT_OFFSET : LIGHT_BRIGHT_OFFSET + 4] = 0.0
+        elif state == "onoff":
+            # Allow: ONOFF tokens (33-34)
+            mask[LIGHT_ONOFF_OFFSET : LIGHT_ONOFF_OFFSET + 2] = 0.0
+
+        logits = logits + mask
+
+        # Nucleus sampling
+        probs = torch.softmax(logits, dim=-1)
+        sorted_probs, sorted_indices = torch.sort(probs, descending=True)
+        cumulative = torch.cumsum(sorted_probs, dim=-1)
+        # Remove tokens with cumulative > top_p (keep at least 1)
+        remove_mask = cumulative - sorted_probs > top_p
+        sorted_probs[remove_mask] = 0.0
+        sorted_probs = sorted_probs / sorted_probs.sum()
+        idx = torch.multinomial(sorted_probs, 1).item()
+        next_token = int(sorted_indices[idx].item())
+
         if next_token == LIGHT_EOS:
             break
         tokens.append(next_token)
+
+        # Update state machine
+        if next_token == LIGHT_BASIC:
+            state = "et"
+        elif next_token == LIGHT_BOOST:
+            state = "onoff"
+        elif state == "et":
+            state = "val"
+        elif state == "val":
+            state = "bright"
+        elif state in ("bright", "onoff"):
+            state = "start"  # event complete, expect SEP/EOS/new event
+        elif next_token == LIGHT_SEP:
+            state = "start"
 
     return tokens[1:]  # strip BOS
 
@@ -260,7 +332,7 @@ def predict_onsets(
 
     starts = list(range(0, total_frames - window_size + 1, hop))
     # Ensure we cover the tail end
-    if starts[-1] + window_size < total_frames:
+    if starts and starts[-1] + window_size < total_frames:
         starts.append(total_frames - window_size)
 
     for start in starts:
@@ -290,6 +362,8 @@ def generate_note_sequence(
     top_p: float = 0.9,
     max_length: int = 64,
     device: torch.device | None = None,
+    prev_tokens: torch.Tensor | None = None,
+    min_length: int = 3,
 ) -> list[int]:
     """Run Stage 2 beam search to generate tokens for a single onset.
 
@@ -304,6 +378,8 @@ def generate_note_sequence(
         top_p: Nucleus sampling top-p threshold.
         max_length: Maximum token sequence length.
         device: Torch device for inference.
+        prev_tokens: Optional previous onset tokens [1, K, S] for inter-onset context.
+        min_length: Minimum tokens before EOS is allowed.
 
     Returns:
         List of generated tokens (without BOS/EOS).
@@ -323,6 +399,8 @@ def generate_note_sequence(
             max_length=max_length,
             temperature=temperature,
             top_p=top_p,
+            prev_tokens=prev_tokens,
+            min_length=min_length,
         )
     else:
         return beam_search_decode(
@@ -333,6 +411,8 @@ def generate_note_sequence(
             beam_size=beam_size,
             max_length=max_length,
             temperature=temperature,
+            prev_tokens=prev_tokens,
+            min_length=min_length,
         )
 
 
@@ -471,10 +551,22 @@ def generate_level(
         lighting_module = None
         logger.info("No lighting checkpoint — Stage 3 skipped")
 
+    # --- Compute structure features ---
+    structure_features = compute_structure_features(
+        waveform, sample_rate=sr, hop_length=hop_length, n_mels=n_mels
+    )
+    # Align to mel length
+    if structure_features.shape[1] > mel.shape[1]:
+        structure_features = structure_features[:, :mel.shape[1]]
+    elif structure_features.shape[1] < mel.shape[1]:
+        pad = mel.shape[1] - structure_features.shape[1]
+        structure_features = torch.nn.functional.pad(structure_features, (0, pad))
+
     # --- Shared audio encoding (computed once, reused for all difficulties) ---
     mel_batch = mel.unsqueeze(0).to(resolved_device)  # [1, n_mels, T]
+    structure_batch = structure_features.unsqueeze(0).to(resolved_device)  # [1, 6, T]
     with torch.no_grad():
-        full_audio_features = seq_module.audio_encoder(mel_batch)
+        full_audio_features = seq_module.audio_encoder(mel_batch, structure_features=structure_batch)
 
     total_frames = mel.shape[1]
     half_ctx = context_frames // 2
@@ -483,7 +575,9 @@ def generate_level(
     light_audio_features = None
     if run_lighting and lighting_module is not None:
         with torch.no_grad():
-            light_audio_features = lighting_module.audio_encoder(mel_batch)
+            light_audio_features = lighting_module.audio_encoder(
+                mel_batch, structure_features=structure_batch
+            )
 
     # --- Generate each difficulty ---
     all_beatmaps: dict[str, Any] = {}
@@ -516,12 +610,34 @@ def generate_level(
                 diff_name, onset_threshold,
             )
 
-        # Stage 2: Note sequence generation per onset
+        # Stage 2: Note sequence generation per onset (autoregressive over onsets)
         beat_tokens: dict[float, list[int]] = {}
-        for onset_frame in onset_frames:
+        generated_sequences: list[list[int]] = []  # for building prev_tokens
+        prev_context_k = getattr(seq_module.sequence_model, "prev_context_k", 0)
+        max_token_len = 64
+
+        for i, onset_frame in enumerate(onset_frames):
             start = max(0, onset_frame - half_ctx)
             end = min(total_frames, onset_frame + half_ctx)
             context_features = full_audio_features[:, start:end, :]
+
+            # Build prev_tokens from previously generated onsets
+            prev_tokens_tensor = None
+            if prev_context_k > 0:
+                prev_seqs = []
+                for k in range(prev_context_k):
+                    prev_idx = i - (prev_context_k - k)
+                    if prev_idx >= 0:
+                        seq = list(generated_sequences[prev_idx])
+                        if len(seq) > max_token_len:
+                            seq = seq[:max_token_len]
+                        seq = seq + [0] * (max_token_len - len(seq))
+                    else:
+                        seq = [0] * max_token_len
+                    prev_seqs.append(seq)
+                prev_tokens_tensor = torch.tensor(
+                    [prev_seqs], dtype=torch.long, device=resolved_device
+                )  # [1, K, S]
 
             tokens = generate_note_sequence(
                 seq_module=seq_module,
@@ -533,7 +649,11 @@ def generate_level(
                 use_sampling=use_sampling,
                 top_p=top_p,
                 device=resolved_device,
+                prev_tokens=prev_tokens_tensor,
+                min_length=3,
             )
+
+            generated_sequences.append(tokens)
 
             if tokens:
                 beat = frame_to_beat(
@@ -600,6 +720,31 @@ def generate_level(
 
         all_beatmaps[diff_name] = beatmap
 
+    # --- Apply Chroma colors to lighting events ---
+    from beatsaber_automapper.generation.chroma import add_chroma_colors
+    from beatsaber_automapper.generation.export import beatmap_to_v3_dict, build_info_dat
+
+    chroma_beatmap_dicts: dict[str, Any] = {}
+    for diff_name, beatmap in all_beatmaps.items():
+        if beatmap.basic_events:
+            # Build plain event dicts first
+            plain_events = [
+                {"b": e.beat, "et": e.event_type, "i": e.value, "f": e.float_value}
+                for e in beatmap.basic_events
+            ]
+            # Add Chroma RGB colors based on song structure
+            chroma_events = add_chroma_colors(
+                events=plain_events,
+                structure_features=structure_features,
+                bpm=bpm,
+                sample_rate=sample_rate,
+                hop_length=hop_length,
+                genre=genre,
+            )
+            chroma_beatmap_dicts[diff_name] = chroma_events
+        else:
+            chroma_beatmap_dicts[diff_name] = None
+
     # --- Export to .zip ---
     output_path = package_level(
         beatmaps=all_beatmaps,
@@ -608,6 +753,7 @@ def generate_level(
         song_name=song_name,
         song_author=song_author,
         bpm=bpm,
+        chroma_events=chroma_beatmap_dicts,
     )
 
     return output_path
