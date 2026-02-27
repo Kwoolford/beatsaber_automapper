@@ -49,6 +49,10 @@ while [[ $# -gt 0 ]]; do
             MAX_EPOCHS_LIGHT="$2"
             shift 2
             ;;
+        --patience)
+            PATIENCE="$2"
+            shift 2
+            ;;
         *)
             echo "Unknown arg: $1"
             exit 1
