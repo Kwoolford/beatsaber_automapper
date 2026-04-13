@@ -1,0 +1,22 @@
+# @package model.note_pred
+# Stage 2 (v2): Structured note prediction model configuration
+# Uses cross-attention pooling with learnable slot queries instead of autoregressive decoding
+
+# Model architecture (audio encoder params come from audio_encoder.yaml)
+nhead: 8
+num_pool_layers: 2
+dim_feedforward: 2048
+dropout: 0.1
+
+# Multi-task loss weights
+w_n_notes: 2.0    # Higher weight — getting note count right is critical
+w_color: 1.0
+w_pos: 1.0        # Applied to both col and row CE
+w_dir: 2.0        # Higher weight — direction determines playability
+w_angle: 0.5      # Lower weight — angle offset is less critical
+w_type: 1.0       # Event type (note vs bomb vs arc etc)
+
+# Auxiliary loss weights
+lambda_parity: 0.1     # Differentiable parity violation penalty
+lambda_ergo: 0.1       # Red-left/blue-right ergonomic penalty
+lambda_collision: 0.2  # Grid collision penalty between slots

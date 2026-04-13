@@ -4,10 +4,11 @@ defaults:
   - model/onset
   - model/sequence
   - model/lighting
+  - model/note_pred
   - data/default
 
 # Training
-stage: onset  # onset | sequence | lighting
+stage: onset  # onset | sequence | note_pred | lighting
 max_epochs: 100
 accelerator: gpu
 devices: 1
@@ -15,6 +16,7 @@ precision: bf16-mixed
 accumulate_grad_batches: 1  # increase to simulate larger batch with less VRAM
 low_priority: false  # set true when gaming — runs at BELOW_NORMAL CPU priority
 early_stopping_patience: 15  # epochs without improvement before stopping
+max_samples_per_epoch: 500000  # cap samples per epoch (null = full epochs)
 
 # Optimizer
 optimizer:

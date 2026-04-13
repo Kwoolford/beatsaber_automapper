@@ -1,25 +1,28 @@
 # @package model.sequence
 # Stage 2: Note sequence generation model configuration
-vocab_size: 167  # Must match tokenizer.VOCAB_SIZE
+vocab_size: 183  # Must match tokenizer.VOCAB_SIZE
 d_model: 512
 nhead: 8
 num_layers: 8
 dim_feedforward: 2048
 num_difficulties: 5
-num_genres: 1  # Disabled — 100% of maps have genre="unknown"
+num_genres: 1  # Effectively disabled — all maps map to genre index 0. Kept as plumbing for future use.
 dropout: 0.1
 
 # Conditioning dropout for Classifier-Free Guidance
 conditioning_dropout: 0.2  # 20% dropout on difficulty/genre embeddings during training
 
 # Training
-learning_rate: 0.0003
+learning_rate: 0.0001  # Lowered from 3e-4 to prevent catastrophic divergence
 weight_decay: 0.01
 max_seq_length: 64  # Max tokens per onset timestamp
 label_smoothing: 0.1
 rhythm_weight: 3.0  # 3x weight on timing-sensitive tokens (EVENT_TYPE, SEP)
 eos_weight: 1.0  # Normal weight — training data has no empty onsets (preprocessing filters them)
 freeze_encoder: false
+warmup_steps: 2000  # Smoother ramp with larger dataset
+lr_min_ratio: 0.01  # Cosine floor at 1e-6 prevents dead learning
+token_dropout: 0.1  # Replace 10% of decoder input tokens with random tokens
 
 # Dataset
 context_frames: 256  # Mel frames around each onset (~3 seconds of audio context)
@@ -29,8 +32,17 @@ context_frames: 256  # Mel frames around each onset (~3 seconds of audio context
 # Inter-onset context: feed previous K onset token sequences to break mode collapse
 prev_context_k: 8  # Number of previous onset sequences (0 = disabled)
 
-# Flow-aware auxiliary loss
-flow_loss_alpha: 0.1  # Weight for flow parity auxiliary loss
+# Auxiliary losses
+flow_loss_alpha: 0.25  # Per-color parity loss (0.1 was too weak, 0.25 gives real signal)
+ergo_loss_alpha: 0.15  # Color-side preference loss (red→left, blue→right)
+
+# Onset planner (song-level context)
+use_planner: false  # Enable bidirectional onset planner for song-level planning
+planner_layers: 4   # Transformer encoder layers in planner
+planner_heads: 8    # Attention heads in planner
+
+# Data augmentation
+mirror_augment: true  # 50% chance to flip left/right + swap colors (train only)
 
 # Difficulty filtering (null = all difficulties)
 difficulties:
@@ -39,6 +51,7 @@ difficulties:
 
 # Inference
 beam_size: 8
-temperature: 1.0
-top_p: 0.9  # Nucleus sampling threshold
+temperature: 0.95
+top_p: 0.92  # Nucleus sampling threshold
 min_length: 7  # Min tokens before EOS: BOS + NOTE + COLOR + COL + ROW + DIR + ANGLE = 7
+repetition_penalty: 1.2  # Divide logits of recently generated tokens by this factor

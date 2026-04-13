@@ -5,7 +5,7 @@ d_model: 512
 nhead: 8
 num_layers: 2
 num_difficulties: 5
-num_genres: 1  # Disabled — 100% of maps have genre="unknown", embedding was pure noise
+num_genres: 1  # Effectively disabled — all maps map to genre index 0. Kept as plumbing for future use.
 dropout: 0.1
 
 # TCN parameters (local temporal pattern detection)
@@ -39,3 +39,8 @@ difficulties:
 onset_threshold: 0.35  # Lower threshold for conservative model (precision > recall)
 min_onset_distance_ms: 50  # Minimum gap between onsets
 min_onset_distance_frames: 5  # Minimum frames between predicted onsets
+
+# Energy-adaptive thresholds (louder sections → more onsets, quiet → fewer)
+adaptive_threshold: true
+base_threshold: 0.25  # Threshold floor in loud sections
+threshold_range: 0.20  # Added to base in quiet sections → max = 0.45

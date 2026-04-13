@@ -9,7 +9,7 @@ dropout: 0.1
 
 # Vocabulary
 light_vocab_size: 35   # LIGHT_VOCAB_SIZE
-note_vocab_size: 167   # VOCAB_SIZE (note tokenizer)
+note_vocab_size: 183   # VOCAB_SIZE (note tokenizer)
 
 # Context
 context_frames: 128    # mel frames around each lighting beat

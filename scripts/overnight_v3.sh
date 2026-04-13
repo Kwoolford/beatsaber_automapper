@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
-# Hardened overnight training pipeline v3
-# Runs all 3 stages sequentially with auto-resume and health monitoring.
+# Overnight training pipeline v3 — Smoke test #2 + production runs
+# Lighting is now rule-based — only onset + sequence stages are trained.
 #
 # Usage:
 #   bash scripts/overnight_v3.sh                  # full run
-#   bash scripts/overnight_v3.sh --smoke-test     # 5 epochs per stage
+#   bash scripts/overnight_v3.sh --smoke-test     # reduced epochs
 #   bash scripts/overnight_v3.sh --stage sequence # start from a specific stage
+#
+# Smoke test #2 changes from v2:
+#   - No lighting stage (rule-based now)
+#   - Sequence: LR=1e-4, warmup=2000, token_dropout=0.1, samples_per_epoch=1.5M
+#   - Auto-generates baseline map after sequence training
 #
 # Features:
 #   - Auto-resumes from last.ckpt if available
@@ -22,20 +27,18 @@ cd "$PROJECT_DIR" || exit 1
 SMOKE_TEST=false
 START_STAGE="onset"
 MAX_EPOCHS_ONSET=100
-MAX_EPOCHS_SEQ=100
-MAX_EPOCHS_LIGHT=100
+MAX_EPOCHS_SEQ=50
 BATCH_SIZE_ONSET=64
 BATCH_SIZE_SEQ=192
-BATCH_SIZE_LIGHT=256
 PATIENCE=25
+GENERATE_BASELINE=true
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --smoke-test)
             SMOKE_TEST=true
-            MAX_EPOCHS_ONSET=5
-            MAX_EPOCHS_SEQ=5
-            MAX_EPOCHS_LIGHT=5
+            MAX_EPOCHS_ONSET=10
+            MAX_EPOCHS_SEQ=15
             PATIENCE=100  # don't early stop during smoke test
             shift
             ;;
@@ -46,12 +49,15 @@ while [[ $# -gt 0 ]]; do
         --epochs)
             MAX_EPOCHS_ONSET="$2"
             MAX_EPOCHS_SEQ="$2"
-            MAX_EPOCHS_LIGHT="$2"
             shift 2
             ;;
         --patience)
             PATIENCE="$2"
             shift 2
+            ;;
+        --no-generate)
+            GENERATE_BASELINE=false
+            shift
             ;;
         *)
             echo "Unknown arg: $1"
@@ -96,18 +102,11 @@ HEOF
 
 find_last_checkpoint() {
     local stage="$1"
-    # Search for a checkpoint that matches this stage.
-    # ModelCheckpoint filenames are: onset-{epoch}-{metric}.ckpt,
-    # sequence-{epoch}-{metric}.ckpt, lighting-{epoch}-{metric}.ckpt.
-    # We find the version directory containing a stage-matching checkpoint,
-    # then use last.ckpt from that directory (if it exists).
     local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper"
     if [ -d "$ckpt_dir" ]; then
-        # Search ALL version directories (newest first) for a stage-matching checkpoint
         for vdir in $(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V -r); do
             local ckpt_subdir="$vdir/checkpoints"
             if [ -d "$ckpt_subdir" ]; then
-                # Check if this version has checkpoints for the right stage
                 if ls "$ckpt_subdir"/${stage}-*.ckpt 1>/dev/null 2>&1; then
                     if [ -f "$ckpt_subdir/last.ckpt" ]; then
                         echo "$ckpt_subdir/last.ckpt"
@@ -120,13 +119,37 @@ find_last_checkpoint() {
     return 1
 }
 
+find_best_checkpoint() {
+    local stage="$1"
+    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper"
+    if [ -d "$ckpt_dir" ]; then
+        for vdir in $(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V -r); do
+            local ckpt_subdir="$vdir/checkpoints"
+            if [ -d "$ckpt_subdir" ]; then
+                # Find best checkpoint (not last.ckpt) for the stage
+                local best=$(ls "$ckpt_subdir"/${stage}-*.ckpt 2>/dev/null | grep -v last.ckpt | sort -V -r | head -1)
+                if [ -n "$best" ]; then
+                    echo "$best"
+                    return 0
+                fi
+            fi
+        done
+    fi
+    return 1
+}
+
 run_stage() {
     local stage="$1"
     local max_epochs="$2"
     local batch_size="$3"
+    shift 3
+    local extra_args="$*"
 
     log "=========================================="
     log "Starting stage: $stage (max_epochs=$max_epochs, batch=$batch_size)"
+    if [ -n "$extra_args" ]; then
+        log "Extra args: $extra_args"
+    fi
     log "=========================================="
 
     write_heartbeat "$stage" 0 "starting" "running"
@@ -149,6 +172,7 @@ run_stage() {
         early_stopping_patience="$PATIENCE" \
         low_priority=true \
         $resume_arg \
+        $extra_args \
         2>&1 | tee -a "$LOG_FILE"
 
     local exit_code=${PIPESTATUS[0]}
@@ -166,38 +190,81 @@ run_stage() {
 
 # Main pipeline
 log "============================================"
-log "Overnight Training Pipeline v3"
+log "Overnight Training Pipeline v3 (no lighting — rule-based)"
 log "Smoke test: $SMOKE_TEST"
 log "Start stage: $START_STAGE"
 log "Data dir: $DATA_DIR"
 log "Output dir: $OUTPUT_DIR"
 log "============================================"
 
+# Only onset + sequence stages (lighting is rule-based now)
 stages_to_run=()
 case "$START_STAGE" in
-    onset)    stages_to_run=(onset sequence lighting) ;;
-    sequence) stages_to_run=(sequence lighting) ;;
-    lighting) stages_to_run=(lighting) ;;
+    onset)    stages_to_run=(onset sequence) ;;
+    sequence) stages_to_run=(sequence) ;;
     *)
-        log "Unknown stage: $START_STAGE"
+        log "Unknown stage: $START_STAGE (valid: onset, sequence)"
         exit 1
         ;;
 esac
 
 for stage in "${stages_to_run[@]}"; do
     case "$stage" in
-        onset)    run_stage onset "$MAX_EPOCHS_ONSET" "$BATCH_SIZE_ONSET" ;;
-        sequence) run_stage sequence "$MAX_EPOCHS_SEQ" "$BATCH_SIZE_SEQ" ;;
-        lighting) run_stage lighting "$MAX_EPOCHS_LIGHT" "$BATCH_SIZE_LIGHT" ;;
+        onset)
+            run_stage onset "$MAX_EPOCHS_ONSET" "$BATCH_SIZE_ONSET"
+            ;;
+        sequence)
+            # Smoke test #2 fixes: lower LR, more warmup, token dropout, more samples
+            run_stage sequence "$MAX_EPOCHS_SEQ" "$BATCH_SIZE_SEQ" \
+                "max_samples_per_epoch=1500000"
+            ;;
     esac
     stage_result=$?
 
     if [ $stage_result -ne 0 ]; then
         log "Pipeline stopped at stage $stage due to error"
-        # Continue to next stage anyway (non-fatal)
         log "Continuing to next stage despite error..."
     fi
 done
+
+# Auto-generate baseline map after training
+if [ "$GENERATE_BASELINE" = true ]; then
+    log "=========================================="
+    log "Generating baseline map (so_tired_rock.mp3)"
+    log "=========================================="
+
+    ONSET_CKPT=$(find_best_checkpoint onset)
+    SEQ_CKPT=$(find_best_checkpoint sequence)
+
+    BASELINE_AUDIO="data/baseline/so_tired_rock.mp3"
+    BASELINE_OUTPUT="data/generated/smoke_test_2_baseline.zip"
+    mkdir -p "data/generated"
+
+    if [ -f "$BASELINE_AUDIO" ] && [ -n "$ONSET_CKPT" ] && [ -n "$SEQ_CKPT" ]; then
+        log "Onset checkpoint: $ONSET_CKPT"
+        log "Sequence checkpoint: $SEQ_CKPT"
+
+        python scripts/generate.py \
+            "$BASELINE_AUDIO" \
+            --output "$BASELINE_OUTPUT" \
+            --onset-ckpt "$ONSET_CKPT" \
+            --seq-ckpt "$SEQ_CKPT" \
+            --difficulty Expert \
+            --genre rock \
+            2>&1 | tee -a "$LOG_FILE"
+
+        if [ $? -eq 0 ]; then
+            log "Baseline map generated: $BASELINE_OUTPUT"
+        else
+            log "Baseline generation failed"
+        fi
+    else
+        log "Skipping baseline generation (missing audio or checkpoints)"
+        [ ! -f "$BASELINE_AUDIO" ] && log "  Missing: $BASELINE_AUDIO"
+        [ -z "$ONSET_CKPT" ] && log "  Missing onset checkpoint"
+        [ -z "$SEQ_CKPT" ] && log "  Missing sequence checkpoint"
+    fi
+fi
 
 log "============================================"
 log "Pipeline complete!"
