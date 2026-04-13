@@ -10,12 +10,14 @@ from beatsaber_automapper.models.components import (
 )
 from beatsaber_automapper.models.lighting_model import LightingModel
 from beatsaber_automapper.models.onset_model import OnsetModel, TCNEncoder, TemporalConvBlock
+from beatsaber_automapper.models.onset_planner import OnsetPlanner
 from beatsaber_automapper.models.sequence_model import SequenceModel
 
 __all__ = [
     "AudioEncoder",
     "LightingModel",
     "OnsetModel",
+    "OnsetPlanner",
     "TCNEncoder",
     "TemporalConvBlock",
     "SequenceModel",

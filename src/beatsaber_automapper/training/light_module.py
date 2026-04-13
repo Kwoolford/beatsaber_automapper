@@ -74,6 +74,8 @@ class LightingLitModule(lightning.LightningModule):
         weight_decay: float = 0.01,
         warmup_steps: int = 1000,
         freeze_encoder: bool = False,
+        # Structure features
+        n_structure_features: int = 8,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -85,6 +87,7 @@ class LightingLitModule(lightning.LightningModule):
             num_layers=encoder_num_layers,
             dim_feedforward=encoder_dim_feedforward,
             dropout=encoder_dropout,
+            n_structure_features=n_structure_features,
         )
         self.lighting_model = LightingModel(
             light_vocab_size=light_vocab_size,

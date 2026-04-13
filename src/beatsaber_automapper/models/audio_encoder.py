@@ -46,7 +46,7 @@ class AudioEncoder(nn.Module):
         dim_feedforward: int = 2048,
         dropout: float = 0.1,
         use_checkpoint: bool = False,
-        n_structure_features: int = 6,
+        n_structure_features: int = 8,
     ) -> None:
         super().__init__()
         if n_mels % 16 != 0:

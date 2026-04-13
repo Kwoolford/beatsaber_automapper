@@ -54,7 +54,7 @@ class SequenceModel(nn.Module):
 
     def __init__(
         self,
-        vocab_size: int = 167,
+        vocab_size: int = 183,
         d_model: int = 512,
         nhead: int = 8,
         num_layers: int = 8,
@@ -126,20 +126,27 @@ class SequenceModel(nn.Module):
         self,
         audio_features: torch.Tensor,
         prev_tokens: torch.Tensor | None = None,
+        plan_vector: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        """Combine audio features with optional previous onset context.
+        """Combine audio features with optional plan vector and previous onset context.
 
         Args:
             audio_features: Audio encoder output [B, T, d_model].
             prev_tokens: Optional previous onset tokens [B, K, S].
+            plan_vector: Optional plan vector from OnsetPlanner [B, 1, d_model].
 
         Returns:
-            Memory tensor [B, T+K, d_model] for cross-attention.
+            Memory tensor [B, T(+1)(+K), d_model] for cross-attention.
         """
+        parts = [audio_features]
+        if plan_vector is not None:
+            parts.append(plan_vector)
         if prev_tokens is not None and self.prev_context_k > 0:
             prev_context = self._encode_prev_context(prev_tokens)  # [B, K, d_model]
-            return torch.cat([audio_features, prev_context], dim=1)
-        return audio_features
+            parts.append(prev_context)
+        if len(parts) == 1:
+            return parts[0]
+        return torch.cat(parts, dim=1)
 
     def forward(
         self,
@@ -148,6 +155,7 @@ class SequenceModel(nn.Module):
         difficulty: torch.Tensor,
         genre: torch.Tensor,
         prev_tokens: torch.Tensor | None = None,
+        plan_vector: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass for teacher forcing.
 
@@ -157,6 +165,7 @@ class SequenceModel(nn.Module):
             difficulty: Difficulty index per sample [B].
             genre: Genre index per sample [B].
             prev_tokens: Optional previous onset tokens [B, K, S] for inter-onset context.
+            plan_vector: Optional plan vector from OnsetPlanner [B, 1, d_model].
 
         Returns:
             Logits over vocabulary [B, S, vocab_size].
@@ -180,8 +189,8 @@ class SequenceModel(nn.Module):
 
         x = x + diff_emb.unsqueeze(1) + genre_emb.unsqueeze(1)
 
-        # Build cross-attention memory: audio features + optional prev onset context
-        memory = self._build_memory(audio_features, prev_tokens)
+        # Build cross-attention memory: audio + optional plan vector + optional prev context
+        memory = self._build_memory(audio_features, prev_tokens, plan_vector)
 
         # Causal mask: prevent attending to future tokens
         causal_mask = nn.Transformer.generate_square_subsequent_mask(
@@ -212,6 +221,7 @@ class SequenceModel(nn.Module):
         difficulty: torch.Tensor,
         genre: torch.Tensor,
         prev_tokens: torch.Tensor | None = None,
+        plan_vector: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Single-step decode for autoregressive inference (no cache).
 
@@ -224,11 +234,15 @@ class SequenceModel(nn.Module):
             difficulty: Difficulty index per sample [B].
             genre: Genre index per sample [B].
             prev_tokens: Optional previous onset tokens [B, K, S].
+            plan_vector: Optional plan vector from OnsetPlanner [B, 1, d_model].
 
         Returns:
             Logits at last position [B, vocab_size].
         """
-        logits = self.forward(tokens, audio_features, difficulty, genre, prev_tokens=prev_tokens)
+        logits = self.forward(
+            tokens, audio_features, difficulty, genre,
+            prev_tokens=prev_tokens, plan_vector=plan_vector,
+        )
         return logits[:, -1, :]  # [B, vocab_size]
 
     def new_caches(self) -> list[LayerCaches]:
@@ -245,6 +259,7 @@ class SequenceModel(nn.Module):
         layer_caches: list[LayerCaches],
         step: int,
         prev_tokens: torch.Tensor | None = None,
+        plan_vector: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Single-step decode with KV cache for fast inference.
 
@@ -259,6 +274,7 @@ class SequenceModel(nn.Module):
             layer_caches: Per-layer KV caches (modified in-place).
             step: Current step index (0-based) for positional encoding.
             prev_tokens: Optional previous onset tokens [B, K, S].
+            plan_vector: Optional plan vector from OnsetPlanner [B, 1, d_model].
 
         Returns:
             Logits at the new position [B, vocab_size].
@@ -276,8 +292,8 @@ class SequenceModel(nn.Module):
         genre_emb = self.genre_emb(genre)           # [B, d_model]
         x = x + diff_emb.unsqueeze(1) + genre_emb.unsqueeze(1)
 
-        # Build cross-attention memory: audio + prev context
-        memory = self._build_memory(audio_features, prev_tokens)
+        # Build cross-attention memory: audio + plan vector + prev context
+        memory = self._build_memory(audio_features, prev_tokens, plan_vector)
 
         # Run through decoder with cache (no causal mask needed — cache handles it)
         x = self.transformer_decoder(

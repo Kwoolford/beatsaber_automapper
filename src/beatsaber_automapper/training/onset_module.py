@@ -85,6 +85,8 @@ class OnsetLitModule(lightning.LightningModule):
         min_onset_distance: int = 5,
         # Memory optimization
         use_gradient_checkpointing: bool = False,
+        # Structure features
+        n_structure_features: int = 8,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -97,6 +99,7 @@ class OnsetLitModule(lightning.LightningModule):
             dim_feedforward=encoder_dim_feedforward,
             dropout=encoder_dropout,
             use_checkpoint=use_gradient_checkpointing,
+            n_structure_features=n_structure_features,
         )
         self.onset_model = OnsetModel(
             d_model=onset_d_model,
@@ -186,13 +189,16 @@ class OnsetLitModule(lightning.LightningModule):
 
         warmup_steps = self.hparams.warmup_steps
 
+        lr_min_ratio = getattr(self.hparams, "lr_min_ratio", 0.01)
+
         def lr_lambda(step: int) -> float:
             if step < warmup_steps:
                 return step / max(1, warmup_steps)
-            # Cosine decay after warmup
+            # Cosine decay after warmup with floor
             total = self.trainer.estimated_stepping_batches - warmup_steps
             progress = (step - warmup_steps) / max(1, total)
-            return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
+            cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+            return max(lr_min_ratio, cosine)
 
         scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
 
