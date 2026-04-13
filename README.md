@@ -45,20 +45,21 @@ bsa-generate song.mp3 --difficulty Expert --output level.zip
 │                                                                             │
 │  Raw Audio → mono 44.1kHz → Mel Spectrogram + Structure Features           │
 │              80 mel bands, 1024-pt FFT, 512 hop (~10ms/frame)              │
-│              6 structure features: RMS, onset strength, bass/mid/high,      │
-│              spectral centroid (all per-frame, librosa-derived)             │
+│              8 structure features: RMS, onset strength, bass/mid/high,      │
+│              spectral centroid, section_id, section_progress                │
+│              (librosa-derived; sections via self-similarity + clustering)   │
 │                                                                             │
-│  Output: [80, T] mel + [6, T] structure   (~100 frames per second)         │
+│  Output: [80, T] mel + [8, T] structure   (~100 frames per second)         │
 └─────────────────────────────────────────────────────────────────────────────┘
                                   │
-                                  │  [80, T] + [6, T]
+                                  │  [80, T] + [8, T]
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                      SHARED AUDIO ENCODER                                   │
 │                    (used by all 3 stages)                                   │
 │                                                                             │
 │  4-layer CNN frontend  →  Linear projection (d_model=512)                  │
-│  + Structure projection: Linear(6→512), added to CNN output                │
+│  + Structure projection: Linear(8→512), added to CNN output                │
 │  → Sinusoidal positional encoding                                           │
 │  → Transformer Encoder (6 layers, 8 heads)                                 │
 │                                                                             │
@@ -77,7 +78,7 @@ bsa-generate song.mp3 --difficulty Expert --output level.zip
      genre emb            difficulty emb        difficulty emb
                           genre emb             genre emb
                           prev 8 onset seqs     beat grid timestamps
-                                                slot embedding (4-pos)
+                          plan vector (opt.)    slot embedding (4-pos)
 
     Arch:                Arch:                 Arch:
      6-block TCN          Transformer decoder   Transformer decoder
@@ -85,12 +86,15 @@ bsa-generate song.mp3 --difficulty Expert --output level.zip
      → Linear(1)          causal self-attn      cross-attn → audio
      → sigmoid            cross-attn → audio    note ctx = mean-pool
                           + prev_context[K=8]   slot emb (cycling 4)
+                          + planner (opt., 4L
+                            bidirectional)
                           256-frame context
 
     Loss:                Loss:                 Loss:
      BCE (Gaussian        CE (rhythm 3x,        CE + label smooth
      smoothed labels)     EOS 1.0x) +
-                          flow loss (α=0.1)
+                          flow loss (α=0.25) +
+                          ergo loss (α=0.15)
 
     Output:              Output:               Output:
      per-frame onset      token sequences       lighting token seqs
@@ -138,11 +142,12 @@ Every model stage is conditioned on:
 |-------|------|--------|--------|
 | `difficulty` | learned embedding (5→512, additive) | Easy / Normal / Hard / Expert / ExpertPlus | Controls note density and pattern complexity |
 | `genre` | learned embedding (11→512, additive) | electronic, rock, pop, anime, hip-hop, classical, jazz, country, video-game, other, unknown | Shapes map style and feel |
-| `structure` | linear projection (6→512, additive) | RMS energy, onset strength, bass/mid/high energy, spectral centroid | Song energy awareness (drops, buildups, calm sections) |
+| `structure` | linear projection (8→512, additive) | RMS energy, onset strength, bass/mid/high energy, spectral centroid, section_id, section_progress | Song energy + section awareness (intro/verse/chorus/bridge/drop/outro) |
 | `prev_tokens` | mean-pool + project (Stage 2 only) | Previous K=8 onset token sequences | Inter-onset flow, color alternation, pattern diversity |
+| `plan_vector` | bidirectional planner (Stage 2 only, optional) | Song-level plan embedding per onset, section-conditioned | Coherent density/pattern planning across a song |
 | `slot_emb` | learned embedding (Stage 3 only) | 4-position cycling (type/ET/VAL/BRIGHT) | Structural grammar enforcement for lighting events |
 
-### Token Vocabulary (Stage 2 — 167 tokens)
+### Token Vocabulary (Stage 2 — 183 tokens)
 
 ```
 Special:   PAD=0  EOS=1  SEP=2  BOS=3

@@ -2,6 +2,14 @@
 
 This is the source-of-truth document for the beatsaber_automapper project. Read this file completely before starting any work.
 
+## Key Documents
+
+| Document | Purpose | When to Read |
+|----------|---------|-------------|
+| `TODO.md` | **Active work plan, implementation phases, bug fixes** | Always — this is what we're working on |
+| `docs/architecture_v3_analysis.md` | Deep architecture analysis, literature review, design rationale | When you need details on WHY we're making changes |
+| `PROGRESS.md` | Historical record of what was done, what worked, what didn't | When you need context on past decisions |
+
 ## Architecture Diagram — Keep Updated
 
 `README.md` contains the canonical ML pipeline flow diagram under "## ML Pipeline Architecture".
@@ -10,8 +18,8 @@ This is the source-of-truth document for the beatsaber_automapper project. Read 
 2. The `## Architecture` section below in this file
 
 Current conditioning inputs per stage:
-- **All stages:** difficulty (5-class embedding) + genre (11-class embedding) + song structure features (6-dim per-frame projection), all additive to audio encoder output.
-- **Stage 2 additionally:** previous K=8 onset token sequences (mean-pooled, projected, concatenated to cross-attention memory).
+- **All stages:** difficulty (5-class embedding) + genre (11-class embedding) + song structure features (8-dim per-frame projection: 6 energy features + section_id + section_progress), all additive to audio encoder output.
+- **Stage 2 additionally:** previous K=8 onset token sequences (mean-pooled, projected, concatenated to cross-attention memory) + optional OnsetPlanner plan vectors (bidirectional song-level context with section conditioning).
 - **Stage 3 additionally:** structural slot embedding (4-position cycling) for event grammar.
 - **Post-processing:** Chroma RGB lighting colors derived from song energy profile.
 
@@ -110,7 +118,7 @@ Audio File (.mp3/.ogg/.wav)
 ### Audio Encoder (Shared)
 - Input: Raw audio -> mono 44.1kHz -> Mel spectrogram (80 bands, 1024 FFT, 512 hop, ~10ms/frame)
 - Architecture: 4-layer CNN frontend -> sinusoidal positional encoding -> Transformer encoder (6 layers, 8 heads, d_model=512)
-- Song structure features: 6 per-frame features (RMS energy, onset strength, bass/mid/high energy, spectral centroid) projected via nn.Linear(6, 512) and added to CNN output
+- Song structure features: 8 per-frame features (RMS energy, onset strength, bass/mid/high energy, spectral centroid, section_id, section_progress) projected via nn.Linear(8, 512) and added to CNN output
 - Output: One embedding vector per ~10ms audio frame, enriched with song energy information
 - This is a task-specific encoder (NOT a pretrained speech model) — we need low-level rhythmic features
 

@@ -1,9 +1,274 @@
-# Beat Saber Automapper — Progress Tracker
+# Beat Saber Automapper — Progress History
 
-## Current Status: Architecture Rebuild + Training Optimization COMPLETE — Ready for Launch
+> **For current work, active TODOs, and implementation plan, see [`TODO.md`](TODO.md)**
+> **For detailed architecture analysis, see [`docs/architecture_v3_analysis.md`](docs/architecture_v3_analysis.md)**
 
-**Date:** 2026-02-26 late evening
-**Branch:** main
+This file is a historical record of what was done, what worked, and what didn't.
+
+---
+
+## Phase 6 Retrain — version_14 (Apr 13, 2026)
+
+**Goal:** Retrain sequence model from scratch on reprocessed data (vocab 183, 8-channel structure features) with OnsetPlanner enabled for the first time.
+
+### Preprocessing (Phase 1C — DONE)
+- Parallelized `scripts/preprocess.py` with `--workers` flag (ProcessPoolExecutor)
+- Reprocessed 14,360 / 14,492 maps in ~1h38m with 12 workers (~2.5 maps/sec)
+- Dataset: 1.69M train / 194K val samples (Expert + ExpertPlus)
+
+### Training Config
+- `stage=sequence`, `use_planner=true`, `token_dropout=0.05` (was 0.10)
+- `batch_size=256`, `num_workers=16`, `max_samples_per_epoch=750000`
+- `early_stopping_patience=5` (tight — prioritize rapid iteration)
+- Runtime: ~6 hours, 15 epochs, 22.9GB / 32GB VRAM
+
+### Results
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| val_loss | **1.090** | epochs 10 and 13 (tied) |
+| val_token_acc | 75.7% | |
+| Best epoch | 13 | stopped at 15 via early stopping |
+
+### Comparison vs v6 (old baseline)
+- v6: val_loss=1.055 @ epoch 55 (no planner, old data, flow loss detached)
+- v14: val_loss=1.090 @ epoch 13 (planner enabled, reprocessed data, patience=5)
+
+v14 plateaued higher than v6's best, but at a much earlier epoch. The tight patience prioritizes iteration speed — v14 likely had room to improve with more epochs. Best checkpoint: `version_14/checkpoints/sequence-epoch=13-val_loss=1.090.ckpt`.
+
+---
+
+## Architecture Improvements — Pre-Retrain (Apr 12, 2026)
+
+**Goal:** Complete all architecture changes and data fixes BEFORE retraining.
+
+### Completed Phases
+
+**Phase 4A+4B: Quick Wins (no retrain needed)**
+- Musically-aware NPS enforcement: importance-based note removal (beat strength, gap penalty, color pairing) replaces uniform thinning
+- Lighting postprocessing: dedup, density cap (4/quarter-beat), brightness smoothing
+
+**Phase 1A: Fix chain tail_beat encoding**
+- Added CHAIN_TAIL_BEAT_OFFSET (16 bins, 0.25-beat resolution, 0-3.75 range) to tokenizer
+- VOCAB_SIZE: 167 → 183. Chain tokens: 9 → 10 per event
+- Previously, all chain duration info was silently lost in training data
+
+**Phase 1B: Fix arc color matching**
+- Replaced FIFO ARC_START/ARC_END matching with nearest-beat matching
+- Prevents misalignment of overlapping same-color arcs
+
+**Phase 2A-2D: OnsetPlanner (bidirectional song-level planning)**
+- New module: `models/onset_planner.py` — 4-layer bidirectional TransformerEncoder
+- Plan vectors concatenated to SequenceModel cross-attention memory as extra token
+- Song-level batching: `SongBatchDataset` + `song_batch_collate()` for planner training
+- Full inference pipeline wiring: `generate.py` computes plan vectors per onset
+- Config: `use_planner: false` (default, no-op until enabled for retraining)
+
+**Phase 3A-3C: Song Structure Segmentation**
+- `detect_sections()` in audio.py: self-similarity matrix + agglomerative clustering → section labels (intro/verse/chorus/bridge/drop/outro)
+- `compute_section_features()`: per-frame section_id + section_progress tensors
+- Structure features expanded: [6, T] → [8, T] (added section_id + section_progress channels)
+- Audio encoder: `n_structure_features` param, default 8, backward compat with old 6-channel .pt files
+- OnsetPlanner: `section_emb` + `progress_proj` condition planner on section structure
+- scikit-learn added as dependency
+
+### Still TODO
+- Phase 5A: Training data quality filtering
+- Phase 1C: Repreprocess all training data with corrected tokenizer (vocab 183, 8-channel structure)
+- Phase 6: Retrain sequence model with all improvements enabled
+
+### Test Status
+240 tests pass, ruff clean, 1 deselected flaky test (`test_frame_indices_in_range`)
+
+---
+
+## Sequence Retrain with Fixed Flow Loss (Mar 10-11, 2026) — version_9 → version_11
+
+**Goal:** Retrain autoregressive sequence model now that flow_loss is properly differentiable.
+
+Changes since last sequence training (version_6):
+- **P0 fix:** `_compute_flow_loss()` uses `torch.softmax(logits)` — actual gradient signal for parity
+- **Improved parity fixer:** `_choose_flow_direction()` now position-aware (edge cols swing inward, center mixes straight/diagonal based on row + next note flow)
+- **NotePredictor generation path:** Added `--note-pred-ckpt` flag + `predict_notes_structured()` to generation pipeline
+- **Per-color parity (Mar 11):** Flow loss now tracks parity per color (red/blue independently) instead of only checking first note's direction. Also handles multi-note onsets correctly.
+
+Training config: stage=sequence, batch_size=192, max_epochs=100, patience=20, 500K samples/epoch, flow_loss_alpha=0.1
+
+### version_9 (crashed at epoch 10 — VSCode crash)
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| val_loss | **1.068** | Best at epoch 10, still improving (patience 0/20) |
+| Previous best (v6) | **1.055** | At epoch 55 — v9 was on track to beat it |
+
+### version_11 (resumed from v9/last.ckpt on Mar 11)
+
+Resumed from epoch 10 with per-color flow loss fix. Saves to version_11 (Lightning increments version on resume).
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| val_loss (epoch 11) | 1.075 | First epoch after resume, expected to settle |
+| val_loss | TBD | Monitoring... |
+
+**Outcome:** Early-stopped at epoch 33 (best val_loss=1.067 at epoch 13, then degraded). Did not beat v6's 1.055. The per-color flow loss fix on resume may have shifted the loss landscape.
+
+---
+
+## Version 12: Full Improvements (Mar 11, 2026)
+
+**Goal:** Fresh training from scratch with all improvements applied from epoch 0.
+
+Changes from v9/v11:
+- **Per-color flow loss** (fixed bug: was checking first note only, now per-color parity)
+- **flow_loss_alpha: 0.25** (up from 0.1 — stronger parity signal)
+- **Ergonomic auxiliary loss** (ergo_loss_alpha=0.15): penalizes wrong-side column predictions during training (red→right cols, blue→left cols). Closes training-inference gap.
+- **Mirror augmentation** (50% chance): flips columns left↔right, swaps red↔blue, mirrors directions. Doubles effective data diversity, teaches spatial symmetry.
+
+Training config: stage=sequence, batch_size=192, max_epochs=80, patience=25, 500K samples/epoch
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| val_loss | TBD | |
+| train_flow_loss | TBD | Should be non-zero and decreasing |
+| train_ergo_loss | TBD | Should decrease as model learns color-side preference |
+
+**Status:** Running as of 2026-03-11 19:52, expected ~12h
+
+---
+
+## Phase 2: NotePredictor Training Run (Mar 9, 2026) — version_8
+
+**Architecture change:** Replaced autoregressive token generation with structured multi-head prediction.
+
+Changes:
+- **New model:** `NotePredictor` — cross-attention pooling with learnable slot queries + 7 independent classification heads
+- **New training module:** `NotePredictionLitModule` — multi-task loss with parity/ergo/collision penalties
+- **Training config:** batch_size=256, max_epochs=80, patience=20, 500K samples/epoch
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| val_loss | 8.762 | Best at epoch 5 |
+| val_n_notes_acc | 77.9% | Predicts n_notes=0 at inference (collapsed) |
+| val_color_acc | 65.9% | OK |
+| val_direction_acc | 41.0% | Poor — not enough spatial info from audio |
+| val_col_acc | 39.8% | Poor |
+| val_row_acc | 52.4% | Marginal |
+
+**Outcome:** Model learned note count + color but spatial accuracy is poor. At inference, n_notes head always predicts 0 (collapsed). Using per-slot color to determine active slots works — generates 2 notes/onset with correct red/blue balance but extremely repetitive patterns (only up/down, only 3 columns). NotePredictor is 40x faster than autoregressive but equally monotonous.
+
+**Generated maps comparison (Mar 10):**
+- `notepred_expert.zip`: 1,177 notes, 0 errors, 2 dirs, 3 cols — structurally valid but monotonous
+- `autoreg_expert_v2.zip`: 1,189 notes, 0 errors, 2 dirs, 4 cols — similar monotony
+- `autoreg_expert_v3.zip`: 717 notes, 0 errors, **6 dirs** — improved parity fixer adds variety
+
+---
+
+## 1-Week Training Run Results (Feb 27 – Mar 3, 2026)
+
+| Stage | Best Metric | Epochs | Checkpoint |
+|-------|------------|--------|------------|
+| Onset | val_f1 = 0.726 | 7 (early stopped) | `version_0/onset-epoch=07` |
+| Sequence | val_loss = 1.055, token_acc = 78.3% | 71 (55 best) | `version_6/sequence-epoch=55` |
+| Lighting | Rule-based (ML abandoned) | N/A | `generation/lighting_rules.py` |
+
+**Outcome:** Metrics look good but generated maps are unplayable. Detailed analysis in `docs/architecture_v3_analysis.md`.
+
+**Key finding:** Flow loss was detached from gradients (`.detach()` on predictions) — it never affected training despite being configured at alpha=0.1.
+
+---
+
+## Smoke Test #1 Results (Feb 27 morning)
+
+## Smoke Test #1 Results & Investigation (Feb 27 morning)
+
+Overnight training ran all 3 stages successfully (onset → sequence → lighting).
+
+### Training Results
+
+| Stage | Best Metric | Epochs Run | Converged? |
+|-------|------------|------------|------------|
+| Onset | val_f1 = **0.732** (epoch 5) | ~15 (early stopped) | Yes |
+| Sequence | val_loss = **1.107** (epoch 0) | 11 (diverged, early stopped) | **NO — catastrophic divergence** |
+| Lighting | val_loss = **1.322** (epoch 0) | 10 (stopped manually) | **NO — never improved** |
+
+Sequence model divergence timeline:
+| Epoch | val_loss | val_token_acc | Status |
+|-------|----------|---------------|--------|
+| 0 | 1.107 | 74.5% | Best |
+| 1 | 1.130 | 73.8% | Slightly worse |
+| 2 | 1.150 | 72.7% | Declining |
+| 5 | 1.532 | 61.6% | Diverging |
+| 10 | 2.532 | 25.6% | Catastrophic |
+
+### Critical Problem #1: Sequence Model Mode Collapse
+
+**Every single onset produces the identical token sequence:**
+```
+NOTE(red, x=1, y=0, down) SEP NOTE(blue, x=2, y=0, down)
+```
+Regardless of song position, audio content, or musical dynamics. The post-processing
+(direction reassignment, parity fixes, grid nudging) masks this in the .zip but the
+model has learned nothing useful.
+
+**Root causes:**
+- **Insufficient training**: Epoch 0 saw 500K of 2.16M samples (23%). The model memorized
+  the single most common pattern rather than learning the distribution.
+- **Learning rate too high**: 3e-4 with cosine decay caused divergence after epoch 0.
+  val_loss went from 1.107 → 2.532 over 11 epochs.
+- **Teacher forcing exposure bias**: 74.5% token accuracy sounds good, but at inference
+  the model feeds its own predictions back. ~25% per-token error cascades into total collapse
+  after 3-4 autoregressive steps.
+- **Beam search amplifies collapse**: Deterministic beam search always picks the highest-prob
+  sequence, which for a barely-trained model is always the same most-common pattern.
+
+### Critical Problem #2: Onset Model Rhythmic Monotony
+
+**85.9% of note gaps are eighth notes (0.3-0.6 beats).** The model produces a metronomic
+stream regardless of musical content.
+
+Compare to training data:
+| Gap Type | Training Data | Generated |
+|----------|--------------|-----------|
+| 16th notes (<0.3 beats) | 34.8% | 8.4% |
+| 8th notes (0.3-0.6) | 43.4% | **85.9%** |
+| Quarter notes (0.6-1.1) | 17.4% | 5.7% |
+| Half notes (1.1-2.1) | 3.5% | 0.0% |
+| Whole+ (>2.1) | 1.0% | 0.0% |
+
+Training data has coefficient of variation = 0.970 (huge rhythmic variety).
+Generated output is nearly uniform eighth notes.
+
+**Root causes:**
+- Per-frame binary classification + Gaussian smoothing + peak picking creates a natural
+  metronome. Even if raw probabilities have varied density, peak picking with min_distance
+  regularizes them into evenly-spaced outputs.
+- No mechanism for phrase-level rhythm planning. Each frame gets an independent probability.
+- Threshold=0.5 clips too much of the probability curve. Dynamic thresholding based on
+  local energy could help.
+
+### Critical Problem #3: Grid Position Inversion
+
+| Row | Training Data | Generated |
+|-----|---------------|-----------|
+| Top (y=2) | 25.5% | **88.5%** |
+| Mid (y=1) | 27.6% | 0.1% |
+| Bot (y=0) | **46.9%** | 11.4% |
+
+The model completely inverts the training distribution. This is a direct consequence of
+sequence model mode collapse — the model always predicts the same grid positions.
+
+### Problem #4: Generation Speed
+
+891 seconds (14.8 minutes) for one song with 690 onsets = 1.3 sec/onset.
+Despite KV caching in the decoder, the audio encoder forward pass per onset
+(256-frame context through 6-layer transformer) is the bottleneck.
+
+### Problem #5: Lighting Model Not Viable
+
+The ML lighting model converges at epoch 0 and never improves. Analysis shows lighting
+events in training data are too inconsistent across mappers for a model to learn coherent
+patterns. **Decision: Replace with rule-based lighting generation** using song structure
+features to classify song sections and apply static lighting palettes.
 
 ---
 
