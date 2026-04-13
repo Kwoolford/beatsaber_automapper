@@ -51,6 +51,14 @@ def main() -> None:
         help="Path to trained SequenceLitModule checkpoint (.ckpt)",
     )
     parser.add_argument(
+        "--note-pred-ckpt",
+        type=Path,
+        default=None,
+        dest="note_pred_ckpt",
+        help="Path to trained NotePredictionLitModule checkpoint (.ckpt). "
+             "If provided, uses structured prediction instead of autoregressive decoding.",
+    )
+    parser.add_argument(
         "--lighting-ckpt",
         type=Path,
         default=None,
@@ -94,21 +102,35 @@ def main() -> None:
     parser.add_argument(
         "--temperature",
         type=float,
-        default=1.0,
-        help="Sampling temperature (>1 = more diverse)",
+        default=0.8,
+        help="Sampling temperature (lower = less random, 0.8 recommended)",
     )
     parser.add_argument(
         "--nucleus-sampling",
         action="store_true",
+        default=True,
         dest="nucleus_sampling",
-        help="Use nucleus sampling instead of beam search",
+        help="Use nucleus sampling (default: on)",
+    )
+    parser.add_argument(
+        "--beam-search",
+        action="store_false",
+        dest="nucleus_sampling",
+        help="Use beam search instead of nucleus sampling",
     )
     parser.add_argument(
         "--top-p",
         type=float,
-        default=0.9,
+        default=0.85,
         dest="top_p",
-        help="Top-p threshold for nucleus sampling",
+        help="Top-p threshold for nucleus sampling (0.85 = tighter nucleus)",
+    )
+    parser.add_argument(
+        "--repetition-penalty",
+        type=float,
+        default=1.5,
+        dest="repetition_penalty",
+        help="Repetition penalty for nucleus sampling (1.5 = more variety)",
     )
     parser.add_argument(
         "--onset-threshold",
@@ -157,6 +179,7 @@ def main() -> None:
         difficulties=args.difficulty,
         onset_checkpoint=args.onset_ckpt,
         sequence_checkpoint=args.seq_ckpt,
+        note_pred_checkpoint=args.note_pred_ckpt,
         lighting_checkpoint=args.lighting_ckpt,
         onset_threshold=args.onset_threshold,
         min_onset_distance=args.min_onset_distance,
@@ -164,6 +187,7 @@ def main() -> None:
         temperature=args.temperature,
         use_sampling=args.nucleus_sampling,
         top_p=args.top_p,
+        repetition_penalty=args.repetition_penalty,
         song_name=args.song_name,
         song_author=args.song_author,
         bpm=args.bpm,

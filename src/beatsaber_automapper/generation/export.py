@@ -267,7 +267,9 @@ def package_level(
 
     try:
         # Build Info.dat
-        has_chroma = chroma_events is not None and any(v is not None for v in chroma_events.values())
+        has_chroma = chroma_events is not None and any(
+            v is not None for v in chroma_events.values()
+        )
         info = build_info_dat(
             song_name=song_name,
             song_author=song_author,

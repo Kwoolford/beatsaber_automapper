@@ -14,18 +14,27 @@ import logging
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import torch
 
 from beatsaber_automapper.data.audio import (
     beat_to_frame,
+    compute_section_features,
     compute_structure_features,
     detect_bpm,
+    detect_sections,
     extract_mel_spectrogram,
     frame_to_beat,
     load_audio,
 )
+from beatsaber_automapper.data.beatmap import ColorNote, DifficultyBeatmap
 from beatsaber_automapper.data.tokenizer import DIFFICULTY_MAP, GENRE_MAP
-from beatsaber_automapper.generation.beam_search import beam_search_decode, nucleus_sampling_decode
+from beatsaber_automapper.generation.beam_search import (
+    ConstraintState,
+    beam_search_decode,
+    init_constraints,
+    nucleus_sampling_decode,
+)
 from beatsaber_automapper.generation.export import package_level, tokens_to_beatmap
 from beatsaber_automapper.generation.postprocess import postprocess_beatmap
 from beatsaber_automapper.models.components import peak_picking
@@ -158,6 +167,102 @@ def _make_default_lighting_module() -> Any:
     return module
 
 
+def _load_note_pred_module(checkpoint_path: Path) -> Any:
+    """Load a trained NotePredictionLitModule from a Lightning checkpoint."""
+    from beatsaber_automapper.training.note_module import NotePredictionLitModule
+
+    checkpoint_path = Path(checkpoint_path)
+    if not checkpoint_path.exists():
+        raise FileNotFoundError(f"Note predictor checkpoint not found: {checkpoint_path}")
+    try:
+        module = NotePredictionLitModule.load_from_checkpoint(str(checkpoint_path))
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to load note predictor checkpoint {checkpoint_path}: {e}"
+        ) from e
+    module.eval()
+    return module
+
+
+# Angle offset index -> degree offset mapping
+_ANGLE_OFFSETS = [-45, -30, -15, 0, 15, 30, 45]
+
+
+def predict_notes_structured(
+    note_pred_module: Any,
+    audio_features: torch.Tensor,
+    difficulty_idx: int,
+    genre_idx: int = 0,
+    device: torch.device | None = None,
+    prev_tokens: torch.Tensor | None = None,
+) -> list[ColorNote]:
+    """Run NotePredictor to generate notes for a single onset.
+
+    Converts the multi-head structured predictions into ColorNote objects.
+
+    Args:
+        note_pred_module: NotePredictionLitModule with audio_encoder + note_predictor.
+        audio_features: Audio context features [1, T, d_model].
+        difficulty_idx: Difficulty index (0-4).
+        genre_idx: Genre index (0-10).
+        device: Torch device.
+        prev_tokens: Optional previous onset tokens [1, K, S].
+
+    Returns:
+        List of ColorNote objects for this onset (0-3 notes).
+    """
+    if device is None:
+        device = next(note_pred_module.parameters()).device
+
+    diff_tensor = torch.tensor([difficulty_idx], device=device)
+    genre_tensor = torch.tensor([genre_idx], device=device)
+
+    with torch.no_grad():
+        preds = note_pred_module.note_predictor(
+            audio_features=audio_features,
+            difficulty=diff_tensor,
+            genre=genre_tensor,
+            prev_tokens=prev_tokens,
+        )
+
+    # Decode predictions — use per-slot color to determine active slots
+    # (n_notes head may be unreliable; color==2 means "none"/inactive)
+    colors = preds["color"].argmax(dim=-1).squeeze(0)     # [3]
+    cols = preds["col"].argmax(dim=-1).squeeze(0)          # [3]
+    rows = preds["row"].argmax(dim=-1).squeeze(0)          # [3]
+    dirs = preds["direction"].argmax(dim=-1).squeeze(0)    # [3]
+    angles = preds["angle"].argmax(dim=-1).squeeze(0)      # [3]
+
+    notes = []
+    used_positions: set[tuple[int, int]] = set()
+    for slot in range(3):
+        color = colors[slot].item()
+        if color >= 2:  # "none" = inactive slot
+            continue
+        col = cols[slot].item()
+        row = rows[slot].item()
+        # Skip grid collisions
+        pos = (col, row)
+        if pos in used_positions:
+            continue
+        used_positions.add(pos)
+
+        direction = dirs[slot].item()
+        angle_idx = angles[slot].item()
+        angle_offset = _ANGLE_OFFSETS[angle_idx] if angle_idx < len(_ANGLE_OFFSETS) else 0
+
+        notes.append(ColorNote(
+            beat=0.0,  # Will be set by the caller
+            x=col,
+            y=row,
+            color=color,
+            direction=direction,
+            angle_offset=angle_offset,
+        ))
+
+    return notes
+
+
 def generate_lighting_events(
     lighting_module: Any,
     audio_features: torch.Tensor,
@@ -193,12 +298,12 @@ def generate_lighting_events(
         LIGHT_BASIC,
         LIGHT_BOOST,
         LIGHT_BOS,
+        LIGHT_BRIGHT_OFFSET,
         LIGHT_EOS,
         LIGHT_ET_OFFSET,
         LIGHT_ONOFF_OFFSET,
         LIGHT_SEP,
         LIGHT_VAL_OFFSET,
-        LIGHT_BRIGHT_OFFSET,
         LIGHT_VOCAB_SIZE,
     )
 
@@ -278,6 +383,196 @@ def generate_lighting_events(
     return tokens[1:]  # strip BOS
 
 
+# Target NPS ranges by difficulty (from training data analysis)
+_NPS_RANGES: dict[int, tuple[float, float]] = {
+    0: (1.0, 3.0),   # Easy
+    1: (2.0, 5.0),   # Normal
+    2: (3.0, 7.0),   # Hard
+    3: (4.0, 10.0),  # Expert
+    4: (5.0, 14.0),  # ExpertPlus
+}
+
+
+def _compute_adaptive_threshold(
+    structure_features: torch.Tensor,
+    base_threshold: float = 0.25,
+    threshold_range: float = 0.20,
+) -> torch.Tensor:
+    """Compute per-frame adaptive onset threshold from energy.
+
+    Loud sections get lower threshold (more onsets), quiet sections
+    get higher threshold (fewer onsets).
+
+    Args:
+        structure_features: Song structure features [6, T].
+        base_threshold: Threshold floor in loudest sections.
+        threshold_range: Range added in quietest sections.
+
+    Returns:
+        Per-frame threshold tensor [T].
+    """
+    rms_energy = structure_features[0]  # [T]
+    # Smooth with ~2-second window (200 frames at ~10ms/frame)
+    kernel_size = min(200, rms_energy.shape[0])
+    if kernel_size > 1:
+        padding = kernel_size // 2
+        smoothed = torch.nn.functional.avg_pool1d(
+            rms_energy.unsqueeze(0).unsqueeze(0),
+            kernel_size=kernel_size,
+            padding=padding,
+            count_include_pad=False,
+        ).squeeze()[:rms_energy.shape[0]]
+    else:
+        smoothed = rms_energy
+
+    # Normalize to 0-1 range
+    e_min, e_max = smoothed.min(), smoothed.max()
+    if e_max > e_min:
+        normalized = (smoothed - e_min) / (e_max - e_min)
+    else:
+        normalized = torch.full_like(smoothed, 0.5)
+
+    # High energy → low threshold (more notes), low energy → high threshold
+    return base_threshold + (1.0 - normalized) * threshold_range
+
+
+def _quantize_to_beat_grid(
+    onset_frames: list[int],
+    bpm: float,
+    sample_rate: int,
+    hop_length: int,
+    max_subdivision: int = 8,
+) -> list[int]:
+    """Snap onset frames to nearest beat subdivision.
+
+    Args:
+        onset_frames: List of frame indices.
+        bpm: Song BPM.
+        sample_rate: Audio sample rate.
+        hop_length: Spectrogram hop length.
+        max_subdivision: Finest subdivision (8 = eighth notes).
+
+    Returns:
+        Sorted, deduplicated list of quantized frame indices.
+    """
+    if not onset_frames or bpm <= 0:
+        return onset_frames
+
+    frames_per_beat = (60.0 / bpm) * sample_rate / hop_length
+    grid_spacing = frames_per_beat / max_subdivision
+
+    if grid_spacing < 1:
+        return onset_frames
+
+    max_frame = max(onset_frames) + int(frames_per_beat)
+    grid = np.arange(0, max_frame, grid_spacing)
+
+    if len(grid) == 0:
+        return onset_frames
+
+    snapped = set()
+    for f in onset_frames:
+        nearest_idx = np.argmin(np.abs(grid - f))
+        snapped.add(int(round(grid[nearest_idx])))
+
+    return sorted(snapped)
+
+
+def _apply_density_curve(
+    onset_frames: list[int],
+    difficulty_idx: int,
+    structure_features: torch.Tensor,
+    bpm: float,
+    sample_rate: int,
+    hop_length: int,
+    avg_probs: torch.Tensor | None = None,
+) -> list[int]:
+    """Thin onsets to match difficulty-appropriate NPS based on energy.
+
+    In high-energy sections, allow up to the upper NPS bound.
+    In low-energy sections, target the lower NPS bound.
+    Remove lowest-confidence onsets first when thinning.
+
+    Args:
+        onset_frames: Detected onset frame indices.
+        difficulty_idx: 0-4 difficulty index.
+        structure_features: [6, T] features.
+        bpm: Song BPM.
+        sample_rate: Audio sample rate.
+        hop_length: Spectrogram hop length.
+        avg_probs: Per-frame onset probabilities [T] for confidence ranking.
+
+    Returns:
+        Filtered onset frame list.
+    """
+    if not onset_frames or bpm <= 0:
+        return onset_frames
+
+    nps_min, nps_max = _NPS_RANGES.get(difficulty_idx, (4.0, 10.0))
+    frames_per_second = sample_rate / hop_length
+    total_frames = structure_features.shape[1]
+
+    # Compute local energy for each onset
+    rms = structure_features[0].cpu().numpy()  # [T]
+    # Smooth energy
+    kernel = min(200, len(rms))
+    if kernel > 1:
+        try:
+            from scipy.ndimage import uniform_filter1d
+            smoothed_rms = uniform_filter1d(rms, size=kernel)
+        except ImportError:
+            # Fallback: simple moving average
+            cumsum = np.cumsum(np.insert(rms, 0, 0))
+            smoothed_rms = (cumsum[kernel:] - cumsum[:-kernel]) / kernel
+            # Pad to match original length
+            pad_left = kernel // 2
+            pad_right = len(rms) - len(smoothed_rms) - pad_left
+            smoothed_rms = np.pad(smoothed_rms, (pad_left, max(0, pad_right)), mode="edge")
+    else:
+        smoothed_rms = rms
+
+    # Normalize
+    e_min, e_max = smoothed_rms.min(), smoothed_rms.max()
+    if e_max > e_min:
+        norm_rms = (smoothed_rms - e_min) / (e_max - e_min)
+    else:
+        norm_rms = np.full_like(smoothed_rms, 0.5)
+
+    # For each onset, compute target NPS based on local energy
+    # Use 2-second windows to check density
+    window_frames = int(2.0 * frames_per_second)
+    if window_frames < 1:
+        return onset_frames
+
+    # Build confidence scores for each onset
+    onset_scores = []
+    for f in onset_frames:
+        energy = norm_rms[min(f, len(norm_rms) - 1)]
+        target_nps = nps_min + energy * (nps_max - nps_min)
+        conf = avg_probs[f].item() if avg_probs is not None and f < len(avg_probs) else 0.5
+        onset_scores.append((f, target_nps, conf))
+
+    # Check density in sliding windows and thin if needed
+    # Simple approach: compute overall target and thin globally
+    avg_energy = float(norm_rms.mean())
+    target_nps = nps_min + avg_energy * (nps_max - nps_min)
+    total_seconds = total_frames / frames_per_second
+    target_count = int(target_nps * total_seconds)
+
+    if len(onset_frames) <= target_count:
+        return onset_frames
+
+    # Sort by confidence and keep the highest-confidence ones
+    onset_scores.sort(key=lambda x: x[2], reverse=True)
+    kept = sorted([s[0] for s in onset_scores[:target_count]])
+
+    logger.info(
+        "Density curve: %d -> %d onsets (target NPS=%.1f for difficulty=%d, avg_energy=%.2f)",
+        len(onset_frames), len(kept), target_nps, difficulty_idx, avg_energy,
+    )
+    return kept
+
+
 def predict_onsets(
     onset_module: Any,
     mel: torch.Tensor,
@@ -289,6 +584,12 @@ def predict_onsets(
     window_size: int = 1024,
     hop: int = 512,
     structure_features: torch.Tensor | None = None,
+    adaptive_threshold: bool = True,
+    base_threshold: float = 0.25,
+    threshold_range: float = 0.20,
+    bpm: float = 120.0,
+    sample_rate: int = 44100,
+    hop_length: int = 512,
 ) -> list[int]:
     """Run Stage 1 onset prediction on a mel spectrogram.
 
@@ -297,18 +598,26 @@ def predict_onsets(
     across the full song and average the probability predictions in
     overlapping regions before peak picking.
 
+    Supports energy-adaptive thresholds, beat grid quantization, and
+    difficulty-scaled density curves.
+
     Args:
         onset_module: OnsetLitModule (or object with audio_encoder + onset_model).
         mel: Mel spectrogram [n_mels, T].
         difficulty_idx: Integer difficulty index (0-4).
         genre_idx: Integer genre index (0-10).
-        threshold: Peak picking probability threshold.
+        threshold: Peak picking probability threshold (used when adaptive is off).
         min_distance: Minimum frames between peaks.
         device: Torch device for inference.
         window_size: Window size in frames (must match training).
         hop: Hop between windows in frames.
-        structure_features: Optional [6, T] song structure features (must match
-            training to avoid distribution shift).
+        structure_features: Optional [6, T] song structure features.
+        adaptive_threshold: Use energy-adaptive thresholds.
+        base_threshold: Threshold floor for adaptive mode.
+        threshold_range: Threshold range for adaptive mode.
+        bpm: Song BPM for beat grid quantization.
+        sample_rate: Audio sample rate.
+        hop_length: Spectrogram hop length.
 
     Returns:
         List of frame indices where onsets are predicted.
@@ -332,42 +641,81 @@ def predict_onsets(
             structure_batch = sf_window.unsqueeze(0).to(device)
         with torch.no_grad():
             logits = onset_module(mel_batch, diff_tensor, genre_tensor, structure=structure_batch)
-            probs = torch.sigmoid(logits.squeeze(0))
-        frames = peak_picking(probs, threshold=threshold, min_distance=min_distance)
-        return frames.tolist()
+            avg_probs = torch.sigmoid(logits.squeeze(0))
+    else:
+        # Sliding window with overlap averaging
+        prob_sum = torch.zeros(total_frames, device=device)
+        hit_count = torch.zeros(total_frames, device=device)
 
-    # Sliding window with overlap averaging
-    prob_sum = torch.zeros(total_frames, device=device)
-    hit_count = torch.zeros(total_frames, device=device)
+        starts = list(range(0, total_frames - window_size + 1, hop))
+        # Ensure we cover the tail end
+        if starts and starts[-1] + window_size < total_frames:
+            starts.append(total_frames - window_size)
 
-    starts = list(range(0, total_frames - window_size + 1, hop))
-    # Ensure we cover the tail end
-    if starts and starts[-1] + window_size < total_frames:
-        starts.append(total_frames - window_size)
+        for start in starts:
+            end = start + window_size
+            window_mel = mel[:, start:end].unsqueeze(0).to(device)  # [1, n_mels, W]
+            structure_batch = None
+            if structure_features is not None:
+                sf_window = structure_features[:, start:end]
+                if sf_window.shape[1] < window_size:
+                    pad_size = window_size - sf_window.shape[1]
+                    sf_window = torch.nn.functional.pad(sf_window, (0, pad_size))
+                structure_batch = sf_window.unsqueeze(0).to(device)
+            with torch.no_grad():
+                logits = onset_module(
+                    window_mel, diff_tensor, genre_tensor, structure=structure_batch
+                )
+                probs = torch.sigmoid(logits.squeeze(0))  # [W]
+            prob_sum[start:end] += probs
+            hit_count[start:end] += 1.0
 
-    for start in starts:
-        end = start + window_size
-        window_mel = mel[:, start:end].unsqueeze(0).to(device)  # [1, n_mels, W]
-        structure_batch = None
-        if structure_features is not None:
-            sf_window = structure_features[:, start:end]
-            if sf_window.shape[1] < window_size:
-                pad_size = window_size - sf_window.shape[1]
-                sf_window = torch.nn.functional.pad(sf_window, (0, pad_size))
-            structure_batch = sf_window.unsqueeze(0).to(device)
-        with torch.no_grad():
-            logits = onset_module(
-                window_mel, diff_tensor, genre_tensor, structure=structure_batch
-            )
-            probs = torch.sigmoid(logits.squeeze(0))  # [W]
-        prob_sum[start:end] += probs
-        hit_count[start:end] += 1.0
+        # Average overlapping predictions
+        avg_probs = prob_sum / hit_count.clamp(min=1.0)
 
-    # Average overlapping predictions
-    avg_probs = prob_sum / hit_count.clamp(min=1.0)
+    # Peak picking with adaptive or fixed threshold
+    if adaptive_threshold and structure_features is not None:
+        adaptive_thresh = _compute_adaptive_threshold(
+            structure_features.to(device), base_threshold, threshold_range
+        )
+        # Ensure aligned length
+        if adaptive_thresh.shape[0] > avg_probs.shape[0]:
+            adaptive_thresh = adaptive_thresh[:avg_probs.shape[0]]
+        elif adaptive_thresh.shape[0] < avg_probs.shape[0]:
+            pad = avg_probs.shape[0] - adaptive_thresh.shape[0]
+            adaptive_thresh = torch.nn.functional.pad(adaptive_thresh, (0, pad), value=threshold)
 
-    frames = peak_picking(avg_probs, threshold=threshold, min_distance=min_distance)
-    return frames.tolist()
+        # Peak picking with per-frame threshold
+        above_threshold = avg_probs > adaptive_thresh
+        frames = peak_picking(
+            avg_probs * above_threshold.float(),
+            threshold=0.01,  # Already thresholded, just find peaks
+            min_distance=min_distance,
+        )
+        frames = frames.tolist()
+    else:
+        frames = peak_picking(avg_probs, threshold=threshold, min_distance=min_distance)
+        frames = frames.tolist()
+
+    # Beat grid quantization — snap to nearest musical subdivision
+    if bpm > 0:
+        frames = _quantize_to_beat_grid(
+            frames, bpm=bpm, sample_rate=sample_rate, hop_length=hop_length,
+        )
+
+    # Difficulty-scaled density curve — thin if too many for this difficulty
+    if structure_features is not None:
+        frames = _apply_density_curve(
+            frames,
+            difficulty_idx=difficulty_idx,
+            structure_features=structure_features,
+            bpm=bpm,
+            sample_rate=sample_rate,
+            hop_length=hop_length,
+            avg_probs=avg_probs.cpu(),
+        )
+
+    return frames
 
 
 def generate_note_sequence(
@@ -376,15 +724,18 @@ def generate_note_sequence(
     difficulty_idx: int,
     genre_idx: int = 0,
     beam_size: int = 8,
-    temperature: float = 1.0,
-    use_sampling: bool = False,
-    top_p: float = 0.9,
+    temperature: float = 0.8,
+    use_sampling: bool = True,
+    top_p: float = 0.85,
     max_length: int = 64,
     device: torch.device | None = None,
     prev_tokens: torch.Tensor | None = None,
     min_length: int = 3,
+    repetition_penalty: float = 1.5,
+    constraints: ConstraintState | None = None,
+    plan_vector: torch.Tensor | None = None,
 ) -> list[int]:
-    """Run Stage 2 beam search to generate tokens for a single onset.
+    """Run Stage 2 decoding to generate tokens for a single onset.
 
     Args:
         seq_module: SequenceLitModule (has audio_encoder + sequence_model).
@@ -392,13 +743,16 @@ def generate_note_sequence(
         difficulty_idx: Integer difficulty index (0-4).
         genre_idx: Integer genre index (0-10).
         beam_size: Beam search width.
-        temperature: Sampling temperature.
+        temperature: Sampling temperature (0.8 = less random than default).
         use_sampling: If True, use nucleus sampling instead of beam search.
-        top_p: Nucleus sampling top-p threshold.
+        top_p: Nucleus sampling top-p threshold (0.85 = tighter nucleus).
         max_length: Maximum token sequence length.
         device: Torch device for inference.
         prev_tokens: Optional previous onset tokens [1, K, S] for inter-onset context.
         min_length: Minimum tokens before EOS is allowed.
+        repetition_penalty: Penalize recently generated tokens (1.5 = more variety).
+        constraints: Optional ConstraintState for grammar-constrained decoding.
+        plan_vector: Optional plan vector [1, 1, d_model] from OnsetPlanner.
 
     Returns:
         List of generated tokens (without BOS/EOS).
@@ -420,6 +774,9 @@ def generate_note_sequence(
             top_p=top_p,
             prev_tokens=prev_tokens,
             min_length=min_length,
+            repetition_penalty=repetition_penalty,
+            constraints=constraints,
+            plan_vector=plan_vector,
         )
     else:
         return beam_search_decode(
@@ -432,6 +789,8 @@ def generate_note_sequence(
             temperature=temperature,
             prev_tokens=prev_tokens,
             min_length=min_length,
+            constraints=constraints,
+            plan_vector=plan_vector,
         )
 
 
@@ -442,13 +801,15 @@ def generate_level(
     difficulties: list[str] | None = None,
     onset_checkpoint: Path | str | None = None,
     sequence_checkpoint: Path | str | None = None,
+    note_pred_checkpoint: Path | str | None = None,
     lighting_checkpoint: Path | str | None = None,
     onset_threshold: float = 0.5,
     min_onset_distance: int = 5,
     beam_size: int = 8,
-    temperature: float = 1.0,
-    use_sampling: bool = False,
-    top_p: float = 0.9,
+    temperature: float = 0.8,
+    use_sampling: bool = True,
+    top_p: float = 0.85,
+    repetition_penalty: float = 1.5,
     context_frames: int = 128,
     song_name: str | None = None,
     song_author: str = "Unknown Artist",
@@ -484,6 +845,8 @@ def generate_level(
         difficulties: List of difficulty names to generate (e.g. ["Expert", "ExpertPlus"]).
         onset_checkpoint: Path to trained OnsetLitModule .ckpt, or None for random weights.
         sequence_checkpoint: Path to trained SequenceLitModule .ckpt, or None for random.
+        note_pred_checkpoint: Path to trained NotePredictionLitModule .ckpt. If provided,
+            uses structured prediction instead of autoregressive decoding for Stage 2.
         lighting_checkpoint: Path to trained LightingLitModule .ckpt, or None to skip.
         onset_threshold: Peak picking threshold for onset detection.
         min_onset_distance: Minimum frames between predicted onsets.
@@ -556,33 +919,48 @@ def generate_level(
         onset_module = _make_default_onset_module()
     onset_module = onset_module.to(resolved_device)
 
-    if sequence_checkpoint is not None:
-        logger.info("Loading sequence model from %s", sequence_checkpoint)
-        seq_module = _load_sequence_module(Path(sequence_checkpoint))
-    else:
-        logger.info("No sequence checkpoint — using untrained model")
-        seq_module = _make_default_sequence_module()
-    seq_module = seq_module.to(resolved_device)
+    # Determine Stage 2 mode: note predictor (structured) or autoregressive
+    use_note_pred = note_pred_checkpoint is not None
+    note_pred_module = None
+    seq_module = None
 
-    run_lighting = lighting_checkpoint is not None
-    if run_lighting:
-        logger.info("Loading lighting model from %s", lighting_checkpoint)
-        lighting_module = _load_lighting_module(Path(lighting_checkpoint))
-        lighting_module = lighting_module.to(resolved_device)
+    if use_note_pred:
+        logger.info("Loading note predictor from %s", note_pred_checkpoint)
+        note_pred_module = _load_note_pred_module(Path(note_pred_checkpoint))
+        note_pred_module = note_pred_module.to(resolved_device)
+        # Clamp genre_idx
+        np_genre_size = note_pred_module.note_predictor.genre_emb.num_embeddings
+        if genre_idx >= np_genre_size:
+            logger.warning(
+                "Genre '%s' (idx=%d) exceeds model's num_genres=%d — falling back to 'unknown' (0)",
+                genre, genre_idx, np_genre_size,
+            )
+            genre_idx = 0
     else:
-        lighting_module = None
-        logger.info("No lighting checkpoint — Stage 3 skipped")
+        if sequence_checkpoint is not None:
+            logger.info("Loading sequence model from %s", sequence_checkpoint)
+            seq_module = _load_sequence_module(Path(sequence_checkpoint))
+        else:
+            logger.info("No sequence checkpoint — using untrained model")
+            seq_module = _make_default_sequence_module()
+        seq_module = seq_module.to(resolved_device)
+        # Clamp genre_idx
+        seq_genre_size = seq_module.sequence_model.genre_emb.num_embeddings
+        if genre_idx >= seq_genre_size:
+            logger.warning(
+                "Genre '%s' (idx=%d) exceeds model's num_genres=%d — falling back to 'unknown' (0)",
+                genre, genre_idx, seq_genre_size,
+            )
+            genre_idx = 0
 
-    # Clamp genre_idx to model's embedding size (trained models may have num_genres=1)
-    seq_genre_size = seq_module.sequence_model.genre_emb.num_embeddings
-    if genre_idx >= seq_genre_size:
-        logger.warning(
-            "Genre '%s' (idx=%d) exceeds model's num_genres=%d — falling back to 'unknown' (0)",
-            genre, genre_idx, seq_genre_size,
+    # Lighting is now rule-based — ML checkpoint ignored
+    if lighting_checkpoint is not None:
+        logger.info(
+            "Ignoring lighting checkpoint (rule-based): %s",
+            lighting_checkpoint,
         )
-        genre_idx = 0
 
-    # --- Compute structure features ---
+    # --- Compute structure features (8 channels: 6 energy + 2 section) ---
     structure_features = compute_structure_features(
         waveform, sample_rate=sr, hop_length=hop_length, n_mels=n_mels
     )
@@ -593,22 +971,37 @@ def generate_level(
         pad = mel.shape[1] - structure_features.shape[1]
         structure_features = torch.nn.functional.pad(structure_features, (0, pad))
 
+    # Detect song sections and append section_id + section_progress channels
+    n_mel_frames = mel.shape[1]
+    sections = detect_sections(waveform, sample_rate=sr, hop_length=hop_length)
+    section_ids, section_progress = compute_section_features(
+        sections, n_frames=n_mel_frames, hop_length=hop_length, sample_rate=sr
+    )
+    section_id_norm = section_ids.float() / 5.0  # Normalize by max section type index (5)
+    structure_features = torch.cat([
+        structure_features,
+        section_id_norm.unsqueeze(0),    # [1, T]
+        section_progress.unsqueeze(0),   # [1, T]
+    ], dim=0)  # [8, T]
+
     # --- Shared audio encoding (computed once, reused for all difficulties) ---
     mel_batch = mel.unsqueeze(0).to(resolved_device)  # [1, n_mels, T]
-    structure_batch = structure_features.unsqueeze(0).to(resolved_device)  # [1, 6, T]
+    structure_batch = structure_features.unsqueeze(0).to(resolved_device)  # [1, 8, T]
+    encoder_module = note_pred_module if use_note_pred else seq_module
     with torch.no_grad():
-        full_audio_features = seq_module.audio_encoder(mel_batch, structure_features=structure_batch)
+        full_audio_features = encoder_module.audio_encoder(
+            mel_batch, structure_features=structure_batch
+        )
 
     total_frames = mel.shape[1]
     half_ctx = context_frames // 2
 
-    # Pre-compute lighting audio features if needed
-    light_audio_features = None
-    if run_lighting and lighting_module is not None:
-        with torch.no_grad():
-            light_audio_features = lighting_module.audio_encoder(
-                mel_batch, structure_features=structure_batch
-            )
+    # Check if sequence model has an onset planner
+    has_planner = (
+        seq_module is not None
+        and hasattr(seq_module, "onset_planner")
+        and seq_module.onset_planner is not None
+    )
 
     # --- Generate each difficulty ---
     all_beatmaps: dict[str, Any] = {}
@@ -633,6 +1026,12 @@ def generate_level(
             window_size=onset_window_size,
             hop=onset_hop,
             structure_features=structure_features,
+            adaptive_threshold=True,
+            base_threshold=0.25,
+            threshold_range=0.20,
+            bpm=bpm,
+            sample_rate=sample_rate,
+            hop_length=hop_length,
         )
         logger.info("Found %d onsets for %s", len(onset_frames), diff_name)
 
@@ -642,68 +1041,159 @@ def generate_level(
                 diff_name, onset_threshold,
             )
 
-        # Stage 2: Note sequence generation per onset (autoregressive over onsets)
-        beat_tokens: dict[float, list[int]] = {}
-        generated_sequences: list[list[int]] = []  # for building prev_tokens
-        prev_context_k = getattr(seq_module.sequence_model, "prev_context_k", 0)
-        max_token_len = 64
+        # Compute plan vectors via OnsetPlanner (if available)
+        plan_vectors = None
+        if has_planner and len(onset_frames) > 0:
+            onset_frame_indices = torch.tensor(onset_frames, dtype=torch.long)
+            # Clamp to valid frame range
+            onset_frame_indices = onset_frame_indices.clamp(0, full_audio_features.shape[1] - 1)
+            # Extract audio embeddings at onset frames: [1, N_onsets, d_model]
+            onset_embeddings = full_audio_features[:, onset_frame_indices, :]
+            # Extract section features at onset frames for planner conditioning
+            # structure_features[6] = normalized section_id, [7] = section_progress
+            onset_section_ids = None
+            onset_section_progress = None
+            if structure_features.shape[0] >= 8:
+                # Recover integer section IDs from normalized values
+                sec_id_norm = structure_features[6]  # [T]
+                sec_ids_int = (sec_id_norm * 5.0).round().long().clamp(0, 5)
+                onset_section_ids = sec_ids_int[onset_frame_indices].unsqueeze(0).to(
+                    resolved_device
+                )  # [1, N_onsets]
+                onset_section_progress = structure_features[7][onset_frame_indices].unsqueeze(
+                    0
+                ).to(resolved_device)  # [1, N_onsets]
+            with torch.no_grad():
+                plan_vectors = seq_module.onset_planner(
+                    onset_embeddings,
+                    section_ids=onset_section_ids,
+                    section_progress=onset_section_progress,
+                )
+            logger.info("Computed plan vectors for %d onsets", len(onset_frames))
 
-        for i, onset_frame in enumerate(onset_frames):
-            start = max(0, onset_frame - half_ctx)
-            end = min(total_frames, onset_frame + half_ctx)
-            context_features = full_audio_features[:, start:end, :]
-
-            # Build prev_tokens from previously generated onsets
-            prev_tokens_tensor = None
-            if prev_context_k > 0:
-                prev_seqs = []
-                for k in range(prev_context_k):
-                    prev_idx = i - (prev_context_k - k)
-                    if prev_idx >= 0:
-                        seq = list(generated_sequences[prev_idx])
-                        if len(seq) > max_token_len:
-                            seq = seq[:max_token_len]
-                        seq = seq + [0] * (max_token_len - len(seq))
-                    else:
-                        seq = [0] * max_token_len
-                    prev_seqs.append(seq)
-                prev_tokens_tensor = torch.tensor(
-                    [prev_seqs], dtype=torch.long, device=resolved_device
-                )  # [1, K, S]
-
-            tokens = generate_note_sequence(
-                seq_module=seq_module,
-                audio_features=context_features,
-                difficulty_idx=difficulty_idx,
-                genre_idx=genre_idx,
-                beam_size=beam_size,
-                temperature=temperature,
-                use_sampling=use_sampling,
-                top_p=top_p,
-                device=resolved_device,
-                prev_tokens=prev_tokens_tensor,
-                min_length=7,  # BOS + 1 complete NOTE event (6 tokens) minimum
+        # Stage 2: Note generation per onset
+        if use_note_pred:
+            # --- Structured prediction path (NotePredictor) ---
+            all_notes: list[ColorNote] = []
+            prev_context_k = getattr(
+                note_pred_module.note_predictor, "prev_context_k", 0
             )
 
-            generated_sequences.append(tokens)
+            for i, onset_frame in enumerate(onset_frames):
+                start = max(0, onset_frame - half_ctx)
+                end = min(total_frames, onset_frame + half_ctx)
+                context_features = full_audio_features[:, start:end, :]
 
-            if tokens:
                 beat = frame_to_beat(
                     onset_frame, bpm=bpm, sample_rate=sample_rate,
                     hop_length=hop_length,
                 )
-                beat_tokens[round(beat, 4)] = tokens + [EOS]
 
-        logger.info("Generated tokens for %d/%d onsets", len(beat_tokens), len(onset_frames))
+                notes = predict_notes_structured(
+                    note_pred_module=note_pred_module,
+                    audio_features=context_features,
+                    difficulty_idx=difficulty_idx,
+                    genre_idx=genre_idx,
+                    device=resolved_device,
+                )
+                # Set beat time on each note
+                for note in notes:
+                    note.beat = round(beat, 4)
+                all_notes.extend(notes)
 
-        if len(beat_tokens) == 0:
-            logger.warning(
-                "All token sequences empty for %s — map will have no notes.",
-                diff_name,
+            logger.info(
+                "NotePredictor generated %d notes for %d onsets",
+                len(all_notes), len(onset_frames),
             )
 
-        # Decode tokens to beatmap
-        beatmap = tokens_to_beatmap(beat_tokens)
+            # Build beatmap directly from notes
+            beatmap = DifficultyBeatmap(version="3.3.0", color_notes=all_notes)
+
+        else:
+            # --- Autoregressive token path (SequenceModel) ---
+            beat_tokens: dict[float, list[int]] = {}
+            generated_sequences: list[list[int]] = []  # for building prev_tokens
+            prev_context_k = getattr(seq_module.sequence_model, "prev_context_k", 0)
+            max_token_len = 64
+
+            # Track parity across onsets for constrained decoding
+            parity_last_dirs: dict[int, int] = {}  # color -> last direction
+
+            for i, onset_frame in enumerate(onset_frames):
+                start = max(0, onset_frame - half_ctx)
+                end = min(total_frames, onset_frame + half_ctx)
+                context_features = full_audio_features[:, start:end, :]
+
+                # Build prev_tokens from previously generated onsets
+                prev_tokens_tensor = None
+                if prev_context_k > 0:
+                    prev_seqs = []
+                    for k in range(prev_context_k):
+                        prev_idx = i - (prev_context_k - k)
+                        if prev_idx >= 0:
+                            seq = list(generated_sequences[prev_idx])
+                            if len(seq) > max_token_len:
+                                seq = seq[:max_token_len]
+                            seq = seq + [0] * (max_token_len - len(seq))
+                        else:
+                            seq = [0] * max_token_len
+                        prev_seqs.append(seq)
+                    prev_tokens_tensor = torch.tensor(
+                        [prev_seqs], dtype=torch.long, device=resolved_device
+                    )  # [1, K, S]
+
+                # Create fresh constraints for this onset, carrying over parity
+                onset_constraints = init_constraints(
+                    difficulty=diff_name,
+                    prev_last_dirs=parity_last_dirs,
+                )
+
+                # Extract per-onset plan vector if planner is active
+                onset_plan_vector = None
+                if plan_vectors is not None:
+                    onset_plan_vector = plan_vectors[:, i:i + 1, :]  # [1, 1, d_model]
+
+                tokens = generate_note_sequence(
+                    seq_module=seq_module,
+                    audio_features=context_features,
+                    difficulty_idx=difficulty_idx,
+                    genre_idx=genre_idx,
+                    beam_size=beam_size,
+                    temperature=temperature,
+                    use_sampling=use_sampling,
+                    top_p=top_p,
+                    device=resolved_device,
+                    prev_tokens=prev_tokens_tensor,
+                    min_length=7,  # BOS + 1 complete NOTE event (6 tokens) minimum
+                    repetition_penalty=repetition_penalty,
+                    constraints=onset_constraints,
+                    plan_vector=onset_plan_vector,
+                )
+
+                # Update cross-onset parity tracking from constraint state
+                parity_last_dirs.update(onset_constraints.last_dir)
+
+                generated_sequences.append(tokens)
+
+                if tokens:
+                    beat = frame_to_beat(
+                        onset_frame, bpm=bpm, sample_rate=sample_rate,
+                        hop_length=hop_length,
+                    )
+                    beat_tokens[round(beat, 4)] = tokens + [EOS]
+
+            logger.info(
+                "Generated tokens for %d/%d onsets", len(beat_tokens), len(onset_frames),
+            )
+
+            if len(beat_tokens) == 0:
+                logger.warning(
+                    "All token sequences empty for %s — map will have no notes.",
+                    diff_name,
+                )
+
+            # Decode tokens to beatmap
+            beatmap = tokens_to_beatmap(beat_tokens)
         logger.info(
             "%s (raw): %d notes, %d bombs, %d walls, %d arcs, %d chains",
             diff_name,
@@ -732,29 +1222,27 @@ def generate_level(
             len(beatmap.burst_sliders),
         )
 
-        # Stage 3: Lighting (optional, per-difficulty)
-        if run_lighting and lighting_module is not None and light_audio_features is not None:
-            beatmap = _generate_lighting_for_beatmap(
-                beatmap=beatmap,
-                lighting_module=lighting_module,
-                light_audio_features=light_audio_features,
-                beat_tokens=beat_tokens,
-                genre_idx=genre_idx,
-                bpm=bpm,
-                sample_rate=sample_rate,
-                hop_length=hop_length,
-                total_frames=total_frames,
-                half_ctx=half_ctx,
-                lighting_beats_per_bar=lighting_beats_per_bar,
-                temperature=temperature,
-                resolved_device=resolved_device,
-            )
+        # Stage 3: Rule-based lighting (replaces ML model)
+        from beatsaber_automapper.generation.lighting_rules import (
+            generate_lighting_events as gen_light,
+        )
+        basic_events, boost_events = gen_light(
+            structure_features=structure_features,
+            bpm=bpm,
+            sample_rate=sample_rate,
+            hop_length=hop_length,
+        )
+        beatmap.basic_events.extend(basic_events)
+        beatmap.color_boost_events.extend(boost_events)
+        logger.info(
+            "Lighting: %d basic events, %d boost events (rule-based)",
+            len(basic_events), len(boost_events),
+        )
 
         all_beatmaps[diff_name] = beatmap
 
     # --- Apply Chroma colors to lighting events ---
     from beatsaber_automapper.generation.chroma import add_chroma_colors
-    from beatsaber_automapper.generation.export import beatmap_to_v3_dict, build_info_dat
 
     chroma_beatmap_dicts: dict[str, Any] = {}
     for diff_name, beatmap in all_beatmaps.items():
