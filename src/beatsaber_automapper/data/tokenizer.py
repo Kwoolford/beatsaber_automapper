@@ -113,7 +113,121 @@ DUR_FRAC_OFFSET = DUR_INT_OFFSET + DUR_INT_COUNT  # 163-166
 DUR_FRAC_COUNT = 4
 _DUR_FRAC_BINS = [0.0, 0.25, 0.5, 0.75]
 
-VOCAB_SIZE = DUR_FRAC_OFFSET + DUR_FRAC_COUNT  # 167
+# CHAIN TAIL BEAT: relative offset from head beat, 16 bins at 0.25-beat steps (0.0-3.75)
+CHAIN_TAIL_BEAT_OFFSET = DUR_FRAC_OFFSET + DUR_FRAC_COUNT  # 167-182
+CHAIN_TAIL_BEAT_COUNT = 16
+_CHAIN_TAIL_BEAT_BINS = [round(i * 0.25, 2) for i in range(16)]
+
+VOCAB_SIZE = CHAIN_TAIL_BEAT_OFFSET + CHAIN_TAIL_BEAT_COUNT  # 183
+
+# Event type to structured index mapping
+# note=0, bomb=1, arc_start=2, arc_end=3, chain=4
+_EVENT_TYPE_TO_STRUCT = {
+    NOTE: 0,
+    BOMB: 1,
+    ARC_START: 2,
+    ARC_END: 3,
+    CHAIN: 4,
+}
+
+
+def tokens_to_structured(
+    token_seq: list[int], max_slots: int = 3,
+) -> dict[str, list]:
+    """Convert a token sequence to structured note prediction targets.
+
+    Parses the token grammar and extracts per-note attributes into a
+    fixed-slot format suitable for multi-head classification training.
+
+    Args:
+        token_seq: Token sequence for one onset (may include SEP, EOS, PAD).
+        max_slots: Maximum number of note slots.
+
+    Returns:
+        Dict with:
+            n_notes: int — number of note-like events (0 to max_slots)
+            slots: list of dicts, each with:
+                color: int (0=red, 1=blue, 2=none for inactive)
+                col: int (0-3)
+                row: int (0-2)
+                direction: int (0-8)
+                angle: int (0-6, index into angle bins)
+                event_type: int (0=note, 1=bomb, 2=arc_start, 3=arc_end, 4=chain)
+    """
+    events: list[dict[str, int]] = []
+    pos = 0
+    seq = [t for t in token_seq if t not in (PAD, EOS, BOS)]
+
+    while pos < len(seq) and len(events) < max_slots:
+        tok = seq[pos]
+
+        if tok == SEP:
+            pos += 1
+            continue
+
+        if tok == NOTE and pos + 5 < len(seq):
+            events.append({
+                "color": _clamp(seq[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                "col": _clamp(seq[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                "row": _clamp(seq[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                "direction": _clamp(seq[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                "angle": _clamp(seq[pos + 5] - ANGLE_OFFSET_OFFSET, 0, ANGLE_OFFSET_COUNT - 1),
+                "event_type": 0,
+            })
+            pos += 6
+        elif tok == BOMB and pos + 2 < len(seq):
+            events.append({
+                "color": 2,  # none
+                "col": _clamp(seq[pos + 1] - COL_OFFSET, 0, COL_COUNT - 1),
+                "row": _clamp(seq[pos + 2] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                "direction": 0,
+                "angle": 3,  # center (0°)
+                "event_type": 1,
+            })
+            pos += 3
+        elif tok == ARC_START and pos + 5 < len(seq):
+            events.append({
+                "color": _clamp(seq[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                "col": _clamp(seq[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                "row": _clamp(seq[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                "direction": _clamp(seq[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                "angle": 3,
+                "event_type": 2,
+            })
+            pos += 6
+        elif tok == ARC_END and pos + 6 < len(seq):
+            events.append({
+                "color": _clamp(seq[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                "col": _clamp(seq[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                "row": _clamp(seq[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                "direction": _clamp(seq[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                "angle": 3,
+                "event_type": 3,
+            })
+            pos += 7
+        elif tok == CHAIN and pos + 8 < len(seq):
+            events.append({
+                "color": _clamp(seq[pos + 1] - COLOR_OFFSET, 0, COLOR_COUNT - 1),
+                "col": _clamp(seq[pos + 2] - COL_OFFSET, 0, COL_COUNT - 1),
+                "row": _clamp(seq[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
+                "direction": _clamp(seq[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
+                "angle": 3,
+                "event_type": 4,
+            })
+            pos += 10
+        elif tok == WALL:
+            # Skip walls — they aren't note-like objects for the predictor
+            pos += 7 if pos + 6 < len(seq) else len(seq)
+        else:
+            pos += 1
+
+    # Pad to max_slots with inactive slots
+    inactive = {"color": 2, "col": 0, "row": 0, "direction": 0, "angle": 3, "event_type": 0}
+    while len(events) < max_slots:
+        events.append(inactive.copy())
+
+    return {"n_notes": min(len([e for e in events if e["color"] != 2]), max_slots), "slots": events}
+
 
 # Type priority for canonical ordering (lower = higher priority)
 _TYPE_PRIORITY = {
@@ -194,6 +308,14 @@ def _quantize_dur_frac(frac: float) -> int:
 
 def _dequantize_dur_frac(bin_idx: int) -> float:
     return _DUR_FRAC_BINS[_clamp(bin_idx, 0, DUR_FRAC_COUNT - 1)]
+
+
+def _quantize_chain_tail_beat(offset: float) -> int:
+    return _quantize_to_bin(max(0.0, offset), _CHAIN_TAIL_BEAT_BINS)
+
+
+def _dequantize_chain_tail_beat(bin_idx: int) -> float:
+    return _CHAIN_TAIL_BEAT_BINS[_clamp(bin_idx, 0, CHAIN_TAIL_BEAT_COUNT - 1)]
 
 
 # ---------------------------------------------------------------------------
@@ -294,6 +416,7 @@ class BeatmapTokenizer:
 
         for bs in beatmap.burst_sliders:
             sc = max(_SLICE_MIN, min(_SLICE_MAX, bs.slice_count))
+            tail_beat_offset = max(0.0, bs.tail_beat - bs.beat)
             tokens = [
                 CHAIN,
                 COLOR_OFFSET + bs.color,
@@ -304,6 +427,7 @@ class BeatmapTokenizer:
                 ROW_OFFSET + bs.tail_y,
                 SLICE_OFFSET + (sc - _SLICE_MIN),
                 SQUISH_OFFSET + _quantize_squish(bs.squish),
+                CHAIN_TAIL_BEAT_OFFSET + _quantize_chain_tail_beat(tail_beat_offset),
             ]
             beat_events[bs.beat].append(_TokenEvent(CHAIN, bs.x, bs.y, tokens))
 
@@ -371,7 +495,10 @@ class BeatmapTokenizer:
                             y=_clamp(tokens[pos + 3] - ROW_OFFSET, 0, ROW_COUNT - 1),
                             direction=_clamp(tokens[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
                             angle_offset=_dequantize_angle(
-                                _clamp(tokens[pos + 5] - ANGLE_OFFSET_OFFSET, 0, ANGLE_OFFSET_COUNT - 1)
+                                _clamp(
+                                    tokens[pos + 5] - ANGLE_OFFSET_OFFSET,
+                                    0, ANGLE_OFFSET_COUNT - 1,
+                                )
                             ),
                         )
                     )
@@ -435,8 +562,15 @@ class BeatmapTokenizer:
                     )
                     pos += 7
                 elif event_type == CHAIN:
-                    if remaining < 9:
+                    if remaining < 10:
                         break
+                    tail_beat_offset = _dequantize_chain_tail_beat(
+                        _clamp(
+                            tokens[pos + 9] - CHAIN_TAIL_BEAT_OFFSET,
+                            0,
+                            CHAIN_TAIL_BEAT_COUNT - 1,
+                        )
+                    )
                     burst_sliders.append(
                         BurstSlider(
                             beat=beat,
@@ -446,19 +580,22 @@ class BeatmapTokenizer:
                             direction=_clamp(tokens[pos + 4] - DIR_OFFSET, 0, DIR_COUNT - 1),
                             tail_x=_clamp(tokens[pos + 5] - COL_OFFSET, 0, COL_COUNT - 1),
                             tail_y=_clamp(tokens[pos + 6] - ROW_OFFSET, 0, ROW_COUNT - 1),
-                            tail_beat=beat,  # chains don't store separate tail beat in tokens
-                            slice_count=_clamp(tokens[pos + 7] - SLICE_OFFSET, 0, SLICE_COUNT - 1) + _SLICE_MIN,
+                            tail_beat=beat + tail_beat_offset,
+                            slice_count=(
+                                _clamp(tokens[pos + 7] - SLICE_OFFSET, 0, SLICE_COUNT - 1)
+                                + _SLICE_MIN
+                            ),
                             squish=_dequantize_squish(
                                 _clamp(tokens[pos + 8] - SQUISH_OFFSET, 0, SQUISH_COUNT - 1)
                             ),
                         )
                     )
-                    pos += 9
+                    pos += 10
                 else:
                     # Unknown token, skip
                     pos += 1
 
-        # Match arc starts with arc ends by color (FIFO per color)
+        # Match arc starts with arc ends by color (nearest-beat matching)
         sliders: list[Slider] = []
         end_by_color: dict[int, list[tuple[float, int, int, int, float, int]]] = defaultdict(list)
         for end in arc_ends:
@@ -467,24 +604,38 @@ class BeatmapTokenizer:
         for start in arc_starts:
             s_beat, s_color, s_x, s_y, s_dir, s_mu = start
             ends = end_by_color.get(s_color, [])
-            if ends:
-                e_beat, e_x, e_y, e_dir, e_mu, e_mid = ends.pop(0)
-                sliders.append(
-                    Slider(
-                        color=s_color,
-                        beat=s_beat,
-                        x=s_x,
-                        y=s_y,
-                        direction=s_dir,
-                        mu=s_mu,
-                        tail_beat=e_beat,
-                        tail_x=e_x,
-                        tail_y=e_y,
-                        tail_direction=e_dir,
-                        tail_mu=e_mu,
-                        mid_anchor_mode=e_mid,
-                    )
+            if not ends:
+                continue
+            # Find the closest ARC_END at or after the start beat
+            best_idx = 0
+            best_dist = float("inf")
+            for idx, (e_beat, e_x, e_y, _e_dir, _e_mu, _e_mid) in enumerate(ends):
+                dist = abs(e_beat - s_beat)
+                # Prefer ends at/after start, break ties by grid proximity
+                if e_beat < s_beat:
+                    dist += 1000.0  # strongly penalize ends before start
+                grid_dist = abs(e_x - s_x) + abs(e_y - s_y)
+                dist += grid_dist * 0.01  # tie-break by proximity
+                if dist < best_dist:
+                    best_dist = dist
+                    best_idx = idx
+            e_beat, e_x, e_y, e_dir, e_mu, e_mid = ends.pop(best_idx)
+            sliders.append(
+                Slider(
+                    color=s_color,
+                    beat=s_beat,
+                    x=s_x,
+                    y=s_y,
+                    direction=s_dir,
+                    mu=s_mu,
+                    tail_beat=e_beat,
+                    tail_x=e_x,
+                    tail_y=e_y,
+                    tail_direction=e_dir,
+                    tail_mu=e_mu,
+                    mid_anchor_mode=e_mid,
                 )
+            )
 
         return DifficultyBeatmap(
             version="3.3.0",

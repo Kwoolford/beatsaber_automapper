@@ -10,7 +10,10 @@ import soundfile as sf
 import torch
 
 from beatsaber_automapper.data.audio import (
+    SECTION_TYPES,
     beat_to_frame,
+    compute_section_features,
+    detect_sections,
     extract_mel_spectrogram,
     frame_to_beat,
     load_audio,
@@ -150,3 +153,110 @@ def test_beat_frame_with_offset() -> None:
     frame_with_offset = beat_to_frame(1.0, bpm=120.0, offset=0.5)
     # 0.5s offset adds ~44100*0.5/512 ≈ 43 frames
     assert frame_with_offset > frame_no_offset
+
+
+# ---------------------------------------------------------------------------
+# detect_sections / compute_section_features
+# ---------------------------------------------------------------------------
+
+
+def _make_synthetic_song(sr: int = 44100, duration: float = 30.0) -> torch.Tensor:
+    """Create a synthetic song with distinct sections for testing.
+
+    Alternates between quiet sine-wave and loud noise+sine sections
+    to simulate verse/chorus structure.
+    """
+    n_samples = int(sr * duration)
+    t = np.linspace(0, duration, n_samples, endpoint=False)
+    waveform = np.zeros(n_samples, dtype=np.float32)
+
+    section_dur = duration / 3
+    for i in range(3):
+        start = int(i * section_dur * sr)
+        end = int((i + 1) * section_dur * sr)
+        if i % 2 == 0:
+            # Quiet section (verse-like)
+            waveform[start:end] = 0.2 * np.sin(2 * np.pi * 220 * t[start:end])
+        else:
+            # Loud section (chorus-like)
+            waveform[start:end] = 0.8 * np.sin(2 * np.pi * 440 * t[start:end])
+            waveform[start:end] += 0.3 * np.random.randn(end - start).astype(np.float32)
+
+    return torch.from_numpy(waveform).unsqueeze(0)
+
+
+def test_detect_sections_returns_valid_types() -> None:
+    """All returned section types should be from SECTION_TYPES."""
+    waveform = _make_synthetic_song(duration=30.0)
+    sections = detect_sections(waveform, sample_rate=44100)
+
+    assert len(sections) >= 3
+    for section_type, start, end in sections:
+        assert section_type in SECTION_TYPES
+        assert end > start
+        assert start >= 0.0
+
+
+def test_detect_sections_covers_full_duration() -> None:
+    """Sections should cover the full song duration without gaps."""
+    duration = 30.0
+    waveform = _make_synthetic_song(duration=duration)
+    sections = detect_sections(waveform, sample_rate=44100)
+
+    # First section starts at 0
+    assert sections[0][1] == 0.0
+    # Last section ends at duration
+    assert abs(sections[-1][2] - duration) < 0.5
+    # No gaps between consecutive sections
+    for i in range(len(sections) - 1):
+        assert abs(sections[i][2] - sections[i + 1][1]) < 0.01
+
+
+def test_detect_sections_n_segments() -> None:
+    """Specifying n_segments should control the number of sections."""
+    waveform = _make_synthetic_song(duration=30.0)
+    sections = detect_sections(waveform, sample_rate=44100, n_segments=5)
+    assert len(sections) >= 3  # May merge some, but should be close to 5
+
+
+def test_compute_section_features_shapes() -> None:
+    """Section features should have correct shapes."""
+    sections = [("intro", 0.0, 5.0), ("verse", 5.0, 15.0), ("chorus", 15.0, 30.0)]
+    n_frames = 2584  # ~30s at 44100/512
+
+    section_ids, section_progress = compute_section_features(
+        sections, n_frames=n_frames, hop_length=512, sample_rate=44100
+    )
+
+    assert section_ids.shape == (n_frames,)
+    assert section_progress.shape == (n_frames,)
+    assert section_ids.dtype == torch.long
+    assert section_progress.dtype == torch.float32
+
+
+def test_compute_section_features_values() -> None:
+    """Section IDs should match SECTION_TYPES indices, progress should be 0-1."""
+    sections = [("intro", 0.0, 5.0), ("chorus", 5.0, 10.0)]
+    n_frames = 862  # ~10s
+
+    section_ids, section_progress = compute_section_features(
+        sections, n_frames=n_frames, hop_length=512, sample_rate=44100
+    )
+
+    # intro = index 0, chorus = index 2
+    assert section_ids[0].item() == SECTION_TYPES.index("intro")
+    # Midpoint of chorus section should have chorus ID
+    chorus_start_frame = int(5.0 * 44100 / 512)
+    if chorus_start_frame < n_frames:
+        assert section_ids[chorus_start_frame].item() == SECTION_TYPES.index("chorus")
+
+    # Progress should be in [0, 1]
+    assert section_progress.min() >= 0.0
+    assert section_progress.max() <= 1.0
+
+
+def test_detect_sections_short_audio() -> None:
+    """Very short audio should still return at least one section."""
+    waveform = torch.randn(1, 44100 * 3)  # 3 seconds
+    sections = detect_sections(waveform, sample_rate=44100)
+    assert len(sections) >= 1

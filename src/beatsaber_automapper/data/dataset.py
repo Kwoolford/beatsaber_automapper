@@ -24,15 +24,48 @@ from __future__ import annotations
 
 import json
 import logging
+import random
 from collections import OrderedDict
 from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, Dataset, RandomSampler
 
-from beatsaber_automapper.data.tokenizer import GENRE_MAP
+from beatsaber_automapper.data.tokenizer import (
+    ANGLE_OFFSET_COUNT,
+    ANGLE_OFFSET_OFFSET,
+    ARC_END,
+    ARC_START,
+    BOMB,
+    CHAIN,
+    COL_COUNT,
+    COL_OFFSET,
+    COLOR_COUNT,
+    COLOR_OFFSET,
+    DIR_COUNT,
+    DIR_OFFSET,
+    GENRE_MAP,
+    NOTE,
+    WALL,
+)
 
 logger = logging.getLogger(__name__)
+
+# Number of per-frame structure feature channels.
+# Channels 0-5: energy features (RMS, onset_strength, bass, mid, high, centroid)
+# Channels 6-7: section_id (normalized), section_progress
+N_STRUCTURE_FEATURES = 8
+
+
+def _pad_structure(
+    structure: torch.Tensor, target_channels: int = N_STRUCTURE_FEATURES,
+) -> torch.Tensor:
+    """Pad structure features to target channel count (backward compat for [6, T] -> [8, T])."""
+    if structure.shape[0] >= target_channels:
+        return structure[:target_channels]
+    pad = torch.zeros(target_channels - structure.shape[0], structure.shape[1])
+    return torch.cat([structure, pad], dim=0)
+
 
 DIFFICULTY_MAP: dict[str, int] = {
     "Easy": 0,
@@ -198,12 +231,13 @@ class OnsetDataset(Dataset):
         # Structure features (backward compat: zeros if not in .pt file)
         structure = data.get("structure_features", None)
         if structure is not None:
+            structure = _pad_structure(structure)
             structure_window = structure[:, start:end]
             if structure_window.shape[1] < self.window_size:
                 pad_size = self.window_size - structure_window.shape[1]
                 structure_window = torch.nn.functional.pad(structure_window, (0, pad_size))
         else:
-            structure_window = torch.zeros(6, self.window_size)
+            structure_window = torch.zeros(N_STRUCTURE_FEATURES, self.window_size)
 
         return {
             "mel": mel[:, start:end],
@@ -214,6 +248,110 @@ class OnsetDataset(Dataset):
             "genre": torch.tensor(genre_idx, dtype=torch.long),
             "structure": structure_window,
         }
+
+
+# ---------------------------------------------------------------------------
+# Mirror augmentation: flip left↔right, swap red↔blue, mirror directions
+# ---------------------------------------------------------------------------
+
+# Direction mirror map: left↔right (2↔3, 4↔5, 6↔7), up/down/any unchanged
+_DIR_MIRROR = {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4, 6: 7, 7: 6, 8: 8}
+
+# Column mirror map: 0↔3, 1↔2
+_COL_MIRROR = {0: 3, 1: 2, 2: 1, 3: 0}
+
+# Event types that have COLOR, COL, DIR fields
+_EVENTS_WITH_COLOR = frozenset({NOTE, ARC_START, ARC_END, CHAIN})
+
+
+def _mirror_token_sequence(tokens: list[int]) -> list[int]:
+    """Mirror a token sequence: flip columns, swap colors, mirror directions.
+
+    This is equivalent to reflecting the play field left↔right, which swaps
+    red/blue hands and mirrors all spatial positions and directions.
+
+    Token grammar per event type:
+        NOTE:      [NOTE] [COLOR] [COL] [ROW] [DIR] [ANGLE]
+        BOMB:      [BOMB] [COL] [ROW]
+        WALL:      [WALL] [COL] [ROW] [W] [H] [DUR_INT] [DUR_FRAC]
+        ARC_START: [ARC_START] [COLOR] [COL] [ROW] [DIR] [MU]
+        ARC_END:   [ARC_END] [COLOR] [COL] [ROW] [DIR] [MU] [MID]
+        CHAIN:     [CHAIN] [COLOR] [COL] [ROW] [DIR] [TAIL_COL] [TAIL_ROW] [SLICE] [SQUISH]
+    """
+    result = list(tokens)
+    i = 0
+    while i < len(result):
+        tok = result[i]
+        if tok == NOTE and i + 5 < len(result):
+            # Swap color: 0↔1
+            color_val = result[i + 1] - COLOR_OFFSET
+            if 0 <= color_val < COLOR_COUNT:
+                result[i + 1] = COLOR_OFFSET + (1 - color_val)
+            # Mirror column
+            col_val = result[i + 2] - COL_OFFSET
+            if 0 <= col_val < COL_COUNT:
+                result[i + 2] = COL_OFFSET + _COL_MIRROR[col_val]
+            # Mirror direction
+            dir_val = result[i + 4] - DIR_OFFSET
+            if 0 <= dir_val < DIR_COUNT:
+                result[i + 4] = DIR_OFFSET + _DIR_MIRROR[dir_val]
+            # Mirror angle offset: negate (bin index mirrors around center=3)
+            # Bins: 0=-45, 1=-30, 2=-15, 3=0, 4=15, 5=30, 6=45 → 6-idx
+            angle_val = result[i + 5] - ANGLE_OFFSET_OFFSET
+            if 0 <= angle_val < ANGLE_OFFSET_COUNT:
+                result[i + 5] = ANGLE_OFFSET_OFFSET + (ANGLE_OFFSET_COUNT - 1 - angle_val)
+            i += 6
+        elif tok == BOMB and i + 2 < len(result):
+            col_val = result[i + 1] - COL_OFFSET
+            if 0 <= col_val < COL_COUNT:
+                result[i + 1] = COL_OFFSET + _COL_MIRROR[col_val]
+            i += 3
+        elif tok == WALL and i + 6 < len(result):
+            col_val = result[i + 1] - COL_OFFSET
+            if 0 <= col_val < COL_COUNT:
+                result[i + 1] = COL_OFFSET + _COL_MIRROR[col_val]
+            i += 7
+        elif tok == ARC_START and i + 5 < len(result):
+            color_val = result[i + 1] - COLOR_OFFSET
+            if 0 <= color_val < COLOR_COUNT:
+                result[i + 1] = COLOR_OFFSET + (1 - color_val)
+            col_val = result[i + 2] - COL_OFFSET
+            if 0 <= col_val < COL_COUNT:
+                result[i + 2] = COL_OFFSET + _COL_MIRROR[col_val]
+            dir_val = result[i + 4] - DIR_OFFSET
+            if 0 <= dir_val < DIR_COUNT:
+                result[i + 4] = DIR_OFFSET + _DIR_MIRROR[dir_val]
+            i += 6
+        elif tok == ARC_END and i + 6 < len(result):
+            color_val = result[i + 1] - COLOR_OFFSET
+            if 0 <= color_val < COLOR_COUNT:
+                result[i + 1] = COLOR_OFFSET + (1 - color_val)
+            col_val = result[i + 2] - COL_OFFSET
+            if 0 <= col_val < COL_COUNT:
+                result[i + 2] = COL_OFFSET + _COL_MIRROR[col_val]
+            dir_val = result[i + 4] - DIR_OFFSET
+            if 0 <= dir_val < DIR_COUNT:
+                result[i + 4] = DIR_OFFSET + _DIR_MIRROR[dir_val]
+            i += 7
+        elif tok == CHAIN and i + 9 < len(result):
+            color_val = result[i + 1] - COLOR_OFFSET
+            if 0 <= color_val < COLOR_COUNT:
+                result[i + 1] = COLOR_OFFSET + (1 - color_val)
+            col_val = result[i + 2] - COL_OFFSET
+            if 0 <= col_val < COL_COUNT:
+                result[i + 2] = COL_OFFSET + _COL_MIRROR[col_val]
+            dir_val = result[i + 4] - DIR_OFFSET
+            if 0 <= dir_val < DIR_COUNT:
+                result[i + 4] = DIR_OFFSET + _DIR_MIRROR[dir_val]
+            # Mirror tail_col
+            tail_col = result[i + 5] - COL_OFFSET
+            if 0 <= tail_col < COL_COUNT:
+                result[i + 5] = COL_OFFSET + _COL_MIRROR[tail_col]
+            # Token at i+9 is chain_tail_beat — no mirroring needed
+            i += 10
+        else:
+            i += 1
+    return result
 
 
 class SequenceDataset(Dataset):
@@ -235,6 +373,7 @@ class SequenceDataset(Dataset):
         difficulties: list[str] | None = None,
         exclude_categories: list[str] | None = None,
         prev_context_k: int = 0,
+        mirror_augment: bool = False,
     ) -> None:
         """Initialize SequenceDataset.
 
@@ -249,11 +388,14 @@ class SequenceDataset(Dataset):
                 embedded in each .pt file. None includes all categories.
             prev_context_k: Number of previous onset token sequences to include
                 as inter-onset context (0 = disabled, 8 = recommended).
+            mirror_augment: If True, 50% of samples are randomly mirrored
+                (flip columns, swap colors, mirror directions). Only for training.
         """
         self.data_dir = Path(data_dir)
         self.context_frames = context_frames
         self.max_token_len = max_token_len
         self.prev_context_k = prev_context_k
+        self.mirror_augment = mirror_augment
         self.target_difficulties = difficulties
         self.exclude_categories = set(exclude_categories) if exclude_categories else set()
 
@@ -359,7 +501,12 @@ class SequenceDataset(Dataset):
         diff_data = data["difficulties"][diff_name]
 
         onset_frame = int(diff_data["onset_frames"][onset_idx].item())
-        token_seq = diff_data["token_sequences"][onset_idx]
+        token_seq = list(diff_data["token_sequences"][onset_idx])
+
+        # Mirror augmentation: 50% chance to flip left↔right, swap colors, mirror dirs
+        do_mirror = self.mirror_augment and random.random() < 0.5
+        if do_mirror:
+            token_seq = _mirror_token_sequence(token_seq)
 
         # Extract context window centered on onset
         n_frames = mel.shape[1]
@@ -379,12 +526,13 @@ class SequenceDataset(Dataset):
         # Structure features (backward compat: zeros if not in .pt file)
         structure = data.get("structure_features", None)
         if structure is not None:
+            structure = _pad_structure(structure)
             structure_window = structure[:, start:end]
             if structure_window.shape[1] < self.context_frames:
                 pad_size = self.context_frames - structure_window.shape[1]
                 structure_window = torch.nn.functional.pad(structure_window, (0, pad_size))
         else:
-            structure_window = torch.zeros(6, self.context_frames)
+            structure_window = torch.zeros(N_STRUCTURE_FEATURES, self.context_frames)
 
         # Pad/truncate token sequence
         if len(token_seq) > self.max_token_len:
@@ -394,7 +542,7 @@ class SequenceDataset(Dataset):
 
         result = {
             "mel": mel_window,
-            "tokens": torch.tensor(padded, dtype=torch.long).clamp(0, 166),
+            "tokens": torch.tensor(padded, dtype=torch.long).clamp(0, 182),
             "token_length": torch.tensor(token_length, dtype=torch.long),
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
             "genre": torch.tensor(genre_idx, dtype=torch.long),
@@ -409,6 +557,8 @@ class SequenceDataset(Dataset):
                 prev_idx = onset_idx - (self.prev_context_k - k)
                 if prev_idx >= 0:
                     seq = list(all_seqs[prev_idx])
+                    if do_mirror:
+                        seq = _mirror_token_sequence(seq)
                     if len(seq) > self.max_token_len:
                         seq = seq[: self.max_token_len]
                     seq = seq + [0] * (self.max_token_len - len(seq))
@@ -617,12 +767,13 @@ class LightingDataset(Dataset):
         # Structure features (backward compat: zeros if not in .pt file)
         structure = data.get("structure_features", None)
         if structure is not None:
+            structure = _pad_structure(structure)
             structure_window = structure[:, start:end]
             if structure_window.shape[1] < self.context_frames:
                 pad_size = self.context_frames - structure_window.shape[1]
                 structure_window = torch.nn.functional.pad(structure_window, (0, pad_size))
         else:
-            structure_window = torch.zeros(6, self.context_frames)
+            structure_window = torch.zeros(N_STRUCTURE_FEATURES, self.context_frames)
 
         return {
             "mel": mel_window,
@@ -639,6 +790,238 @@ def _worker_init_fn(worker_id: int) -> None:  # noqa: ARG001
     import logging
 
     logging.getLogger("torch.utils.flop_counter").setLevel(logging.ERROR)
+
+
+# ---------------------------------------------------------------------------
+# Song-level batching for onset planner training
+# ---------------------------------------------------------------------------
+
+
+class SongBatchDataset(Dataset):
+    """Dataset that yields ALL onsets for one song+difficulty as a single sample.
+
+    Used for training with the OnsetPlanner, which needs to see all onsets
+    in a song simultaneously for bidirectional context.
+
+    Each sample: {
+        mel: [n_mels, T_full],              # full song mel spectrogram
+        onset_frames: [N_onsets],            # frame positions of all onsets
+        token_sequences: [N_onsets, max_len], # token sequence per onset
+        token_lengths: [N_onsets],           # actual token lengths
+        difficulty: int,
+        genre: int,
+        structure: [6, T_full],             # optional structure features
+        n_onsets: int,                       # actual onset count
+    }
+    """
+
+    def __init__(
+        self,
+        data_dir: Path | str,
+        split: str = "train",
+        max_token_len: int = 64,
+        difficulties: list[str] | None = None,
+        exclude_categories: list[str] | None = None,
+        mirror_augment: bool = False,
+    ) -> None:
+        self.data_dir = Path(data_dir)
+        self.max_token_len = max_token_len
+        self.mirror_augment = mirror_augment
+        self.target_difficulties = difficulties
+        self.exclude_categories = set(exclude_categories) if exclude_categories else set()
+
+        # Load split info
+        splits_path = self.data_dir / "splits.json"
+        if splits_path.exists():
+            with open(splits_path) as f:
+                splits = json.load(f)
+            song_ids = set(splits.get(split, []))
+        else:
+            song_ids = None
+
+        # Load blacklist/whitelist
+        blacklist: set[str] = set()
+        blacklist_path = self.data_dir / "blacklist.json"
+        if blacklist_path.exists():
+            with open(blacklist_path) as f:
+                blacklist = set(json.load(f).keys())
+
+        whitelist: set[str] | None = None
+        whitelist_path = self.data_dir / "whitelist.json"
+        if whitelist_path.exists():
+            with open(whitelist_path) as f:
+                whitelist = set(json.load(f).keys())
+
+        # Index: (pt_path, diff_name, diff_id, genre_idx)
+        self.samples: list[tuple[Path, str, int, int]] = []
+        pt_files = sorted(self.data_dir.glob("*.pt"))
+
+        # Load frame index for fast init
+        frame_index: dict | None = None
+        frame_index_path = self.data_dir / "frame_index.json"
+        if frame_index_path.exists():
+            with open(frame_index_path) as f:
+                frame_index = json.load(f)
+
+        for pt_path in pt_files:
+            song_id = pt_path.stem
+            if song_ids is not None and song_id not in song_ids:
+                continue
+            if song_id in blacklist:
+                continue
+            if whitelist is not None and song_id not in whitelist:
+                continue
+
+            if frame_index is not None and song_id in frame_index:
+                entry = frame_index[song_id]
+                cat = entry.get("category", "vanilla")
+                if self.exclude_categories and cat in self.exclude_categories:
+                    continue
+                genre_idx = GENRE_MAP.get(entry.get("genre", "unknown"), 0)
+                diff_meta = entry.get("difficulties", {})
+                for diff_name in diff_meta:
+                    if self.target_difficulties and diff_name not in self.target_difficulties:
+                        continue
+                    n_onsets = diff_meta[diff_name].get("n_onsets", 0)
+                    if n_onsets == 0:
+                        continue
+                    diff_id = DIFFICULTY_MAP.get(diff_name, 3)
+                    self.samples.append((pt_path, diff_name, diff_id, genre_idx))
+            else:
+                data = torch.load(pt_path, weights_only=False)
+                mod_reqs = data.get("mod_requirements", {})
+                cat = mod_reqs.get("category", "vanilla")
+                if self.exclude_categories and cat in self.exclude_categories:
+                    continue
+                genre_idx = GENRE_MAP.get(mod_reqs.get("genre", "unknown"), 0)
+                for diff_name, diff_data in data.get("difficulties", {}).items():
+                    if self.target_difficulties and diff_name not in self.target_difficulties:
+                        continue
+                    n_onsets = len(diff_data.get("token_sequences", []))
+                    if n_onsets == 0:
+                        continue
+                    diff_id = DIFFICULTY_MAP.get(diff_name, 3)
+                    self.samples.append((pt_path, diff_name, diff_id, genre_idx))
+
+        self._cache: OrderedDict[str, dict] = OrderedDict()
+        self._cache_max = 50
+
+    def _load(self, pt_path: Path) -> dict:
+        key = str(pt_path)
+        if key in self._cache:
+            self._cache.move_to_end(key)
+            return self._cache[key]
+        data = torch.load(pt_path, weights_only=False)
+        self._cache[key] = data
+        if len(self._cache) > self._cache_max:
+            self._cache.popitem(last=False)
+        return data
+
+    def __len__(self) -> int:
+        return len(self.samples)
+
+    def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
+        pt_path, diff_name, diff_id, genre_idx = self.samples[idx]
+        data = self._load(pt_path)
+        mel = data["mel_spectrogram"]
+        diff_data = data["difficulties"][diff_name]
+
+        onset_frames = diff_data["onset_frames"]
+        token_sequences = diff_data["token_sequences"]
+        n_onsets = len(token_sequences)
+
+        # Pad/truncate all token sequences to max_token_len
+        padded_tokens = []
+        token_lengths = []
+        do_mirror = self.mirror_augment and random.random() < 0.5
+        for seq in token_sequences:
+            seq = list(seq)
+            if do_mirror:
+                seq = _mirror_token_sequence(seq)
+            token_lengths.append(min(len(seq), self.max_token_len))
+            if len(seq) >= self.max_token_len:
+                seq = seq[: self.max_token_len]
+            else:
+                seq = seq + [0] * (self.max_token_len - len(seq))
+            padded_tokens.append(seq)
+
+        # Structure features
+        structure = data.get("structure_features", torch.zeros(N_STRUCTURE_FEATURES, mel.shape[1]))
+        structure = _pad_structure(structure)
+
+        result = {
+            "mel": mel,
+            "onset_frames": onset_frames[:n_onsets].long(),
+            "token_sequences": torch.tensor(padded_tokens, dtype=torch.long).clamp(0, 182),
+            "token_lengths": torch.tensor(token_lengths, dtype=torch.long),
+            "difficulty": torch.tensor(diff_id, dtype=torch.long),
+            "genre": torch.tensor(genre_idx, dtype=torch.long),
+            "structure": structure,
+            "n_onsets": torch.tensor(n_onsets, dtype=torch.long),
+        }
+        return result
+
+
+def song_batch_collate(batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.Tensor | list]:
+    """Collate function for SongBatchDataset.
+
+    Since each sample is a full song with variable onset counts,
+    this collates by padding to the maximum onset count in the batch.
+    Typically batch_size=1 for song-level training.
+    """
+    if len(batch) == 1:
+        # Common case: batch_size=1 for song-level training
+        sample = batch[0]
+        return {
+            "mel": sample["mel"].unsqueeze(0),
+            "onset_frames": sample["onset_frames"].unsqueeze(0),
+            "token_sequences": sample["token_sequences"].unsqueeze(0),
+            "token_lengths": sample["token_lengths"].unsqueeze(0),
+            "difficulty": sample["difficulty"].unsqueeze(0),
+            "genre": sample["genre"].unsqueeze(0),
+            "structure": sample["structure"].unsqueeze(0),
+            "n_onsets": sample["n_onsets"].unsqueeze(0),
+        }
+
+    # Multi-song batching: pad to max dimensions
+    max_onsets = max(s["n_onsets"].item() for s in batch)
+    max_frames = max(s["mel"].shape[1] for s in batch)
+    n_mels = batch[0]["mel"].shape[0]
+    max_token_len = batch[0]["token_sequences"].shape[1]
+    n_structure = batch[0]["structure"].shape[0]
+    b = len(batch)
+
+    mel_batch = torch.zeros(b, n_mels, max_frames)
+    onset_batch = torch.zeros(b, max_onsets, dtype=torch.long)
+    token_batch = torch.zeros(b, max_onsets, max_token_len, dtype=torch.long)
+    length_batch = torch.zeros(b, max_onsets, dtype=torch.long)
+    diff_batch = torch.zeros(b, dtype=torch.long)
+    genre_batch = torch.zeros(b, dtype=torch.long)
+    structure_batch = torch.zeros(b, n_structure, max_frames)
+    n_onsets_batch = torch.zeros(b, dtype=torch.long)
+
+    for i, s in enumerate(batch):
+        n = s["n_onsets"].item()
+        t = s["mel"].shape[1]
+        mel_batch[i, :, :t] = s["mel"]
+        onset_batch[i, :n] = s["onset_frames"][:n]
+        token_batch[i, :n] = s["token_sequences"][:n]
+        length_batch[i, :n] = s["token_lengths"][:n]
+        diff_batch[i] = s["difficulty"]
+        genre_batch[i] = s["genre"]
+        structure_batch[i, :, :t] = s["structure"]
+        n_onsets_batch[i] = s["n_onsets"]
+
+    return {
+        "mel": mel_batch,
+        "onset_frames": onset_batch,
+        "token_sequences": token_batch,
+        "token_lengths": length_batch,
+        "difficulty": diff_batch,
+        "genre": genre_batch,
+        "structure": structure_batch,
+        "n_onsets": n_onsets_batch,
+    }
 
 
 def create_dataloader(

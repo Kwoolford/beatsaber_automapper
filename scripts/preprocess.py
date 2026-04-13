@@ -20,8 +20,10 @@ import argparse
 import hashlib
 import json
 import logging
+import multiprocessing
 import tempfile
 import zipfile
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import torch
@@ -30,7 +32,9 @@ from tqdm import tqdm
 from beatsaber_automapper.data.audio import (
     beat_to_frame,
     beat_to_frame_variable_bpm,
+    compute_section_features,
     compute_structure_features,
+    detect_sections,
     extract_mel_spectrogram,
     load_audio,
 )
@@ -62,6 +66,12 @@ def main() -> None:
         help="Force re-preprocessing of all maps (ignores existing .pt files)",
     )
     parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="Number of parallel worker processes (default: 1, sequential)",
+    )
+    parser.add_argument(
         "--exclude-categories",
         nargs="+",
         metavar="CATEGORY",
@@ -88,6 +98,7 @@ def main() -> None:
         sigma=args.sigma,
         exclude_categories=args.exclude_categories or None,
         force=args.force,
+        workers=args.workers,
     )
 
 
@@ -102,6 +113,7 @@ def preprocess_all(
     sigma: float = 3.0,
     exclude_categories: list[str] | None = None,
     force: bool = False,
+    workers: int = 1,
 ) -> list[Path]:
     """Preprocess all map zips in input_dir into .pt files.
 
@@ -119,6 +131,8 @@ def preprocess_all(
         sigma: Gaussian smoothing sigma for onset labels.
         exclude_categories: Category names to skip (e.g. ["noodle",
             "mapping_extensions"]). None means include all categories.
+        force: If True, re-preprocess even if .pt file already exists.
+        workers: Number of parallel worker processes (1 = sequential).
 
     Returns:
         List of paths to generated .pt files.
@@ -145,40 +159,65 @@ def preprocess_all(
         logger.warning("No .zip files found in %s", input_dir)
         return []
 
-    logger.info("Found %d zip files to process", len(zip_files))
-    results: list[Path] = []
+    # Filter out excluded categories up front
+    work_items: list[tuple[Path, dict]] = []
     skipped_category = 0
-
-    for zip_path in tqdm(zip_files, desc="Preprocessing", unit="map"):
+    for zip_path in zip_files:
         map_id = zip_path.stem
         manifest_entry = manifest.get(map_id, {})
         category = manifest_entry.get("category", "unknown")
-
-        # Skip excluded categories before any expensive processing
         if exclude_set and category in exclude_set:
             skipped_category += 1
-            logger.debug("Skipping %s (category=%s)", map_id, category)
             continue
-
-        try:
-            pt_path = preprocess_single(
-                zip_path,
-                output_dir,
-                manifest_entry=manifest_entry,
-                sample_rate=sample_rate,
-                n_mels=n_mels,
-                n_fft=n_fft,
-                hop_length=hop_length,
-                sigma=sigma,
-                force=force,
-            )
-            if pt_path is not None:
-                results.append(pt_path)
-        except Exception as e:
-            logger.warning("Failed to process %s: %s", zip_path.name, e)
+        work_items.append((zip_path, manifest_entry))
 
     if skipped_category:
         logger.info("Skipped %d maps due to excluded categories", skipped_category)
+
+    logger.info("Processing %d maps with %d worker(s)", len(work_items), workers)
+
+    shared_kwargs = {
+        "output_dir": output_dir,
+        "sample_rate": sample_rate,
+        "n_mels": n_mels,
+        "n_fft": n_fft,
+        "hop_length": hop_length,
+        "sigma": sigma,
+        "force": force,
+    }
+
+    results: list[Path] = []
+
+    if workers <= 1:
+        # Sequential processing
+        for zip_path, manifest_entry in tqdm(work_items, desc="Preprocessing", unit="map"):
+            try:
+                pt_path = preprocess_single(
+                    zip_path, manifest_entry=manifest_entry, **shared_kwargs
+                )
+                if pt_path is not None:
+                    results.append(pt_path)
+            except Exception as e:
+                logger.warning("Failed to process %s: %s", zip_path.name, e)
+    else:
+        # Parallel processing with ProcessPoolExecutor
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {
+                executor.submit(
+                    _preprocess_worker, zip_path, manifest_entry, shared_kwargs
+                ): zip_path
+                for zip_path, manifest_entry in work_items
+            }
+            with tqdm(total=len(futures), desc="Preprocessing", unit="map") as pbar:
+                for future in as_completed(futures):
+                    zip_path = futures[future]
+                    try:
+                        pt_path = future.result()
+                        if pt_path is not None:
+                            results.append(pt_path)
+                    except Exception as e:
+                        logger.warning("Failed to process %s: %s", zip_path.name, e)
+                    pbar.update(1)
 
     # Generate train/val/test splits
     song_ids = [p.stem for p in results]
@@ -187,6 +226,13 @@ def preprocess_all(
 
     logger.info("Preprocessed %d/%d maps", len(results), len(zip_files))
     return results
+
+
+def _preprocess_worker(
+    zip_path: Path, manifest_entry: dict, kwargs: dict
+) -> Path | None:
+    """Worker function for parallel preprocessing."""
+    return preprocess_single(zip_path, manifest_entry=manifest_entry, **kwargs)
 
 
 def preprocess_single(
@@ -284,6 +330,21 @@ def preprocess_single(
         elif structure_features.shape[1] < n_frames:
             pad = n_frames - structure_features.shape[1]
             structure_features = torch.nn.functional.pad(structure_features, (0, pad))
+
+        # Detect song sections and compute per-frame section features
+        sections = detect_sections(waveform, sample_rate=sr, hop_length=hop_length)
+        section_ids, section_progress = compute_section_features(
+            sections, n_frames=n_frames, hop_length=hop_length, sample_rate=sr
+        )
+        # Expand structure_features from [6, T] to [8, T] with section channels
+        # Channel 6: section_id (normalized to 0-1 range)
+        # Channel 7: section_progress (already 0-1)
+        section_id_norm = section_ids.float() / 5.0  # Normalize by max section type index (5)
+        structure_features = torch.cat([
+            structure_features,
+            section_id_norm.unsqueeze(0),       # [1, T]
+            section_progress.unsqueeze(0),      # [1, T]
+        ], dim=0)  # [8, T]
 
         # Process each difficulty — Standard characteristic only
         difficulties: dict[str, dict] = {}
@@ -475,4 +536,5 @@ def _find_file_in_zip(zf: zipfile.ZipFile, target: str) -> str | None:
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()

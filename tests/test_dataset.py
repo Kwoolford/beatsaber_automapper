@@ -387,3 +387,59 @@ def test_onset_dataset_unknown_genre_defaults_to_zero() -> None:
         sample = ds[0]
 
         assert sample["genre"].item() == 0  # GENRE_MAP["unknown"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Mirror augmentation
+# ---------------------------------------------------------------------------
+
+
+def test_mirror_token_sequence_note() -> None:
+    """Mirror augmentation should swap colors, flip columns, and mirror directions."""
+    from beatsaber_automapper.data.dataset import _mirror_token_sequence
+    from beatsaber_automapper.data.tokenizer import (
+        ANGLE_OFFSET_OFFSET,
+        COL_OFFSET,
+        COLOR_OFFSET,
+        DIR_OFFSET,
+        EOS,
+        NOTE,
+    )
+
+    # NOTE, red(0), col=0, row=1, dir=2(left), angle=0(-45)
+    tokens = [NOTE, COLOR_OFFSET + 0, COL_OFFSET + 0, 16 + 1, DIR_OFFSET + 2,
+              ANGLE_OFFSET_OFFSET + 0, EOS]
+    mirrored = _mirror_token_sequence(tokens)
+
+    # Color swaps: red(0) -> blue(1)
+    assert mirrored[1] == COLOR_OFFSET + 1
+    # Col mirrors: 0 -> 3
+    assert mirrored[2] == COL_OFFSET + 3
+    # Dir mirrors: left(2) -> right(3)
+    assert mirrored[4] == DIR_OFFSET + 3
+    # Angle mirrors: bin 0 (-45) -> bin 6 (+45)
+    assert mirrored[5] == ANGLE_OFFSET_OFFSET + 6
+
+
+def test_mirror_is_involution() -> None:
+    """Mirroring twice should return the original sequence."""
+    from beatsaber_automapper.data.dataset import _mirror_token_sequence
+    from beatsaber_automapper.data.tokenizer import (
+        ANGLE_OFFSET_OFFSET,
+        COL_OFFSET,
+        COLOR_OFFSET,
+        DIR_OFFSET,
+        EOS,
+        NOTE,
+        SEP,
+    )
+
+    tokens = [
+        NOTE, COLOR_OFFSET + 0, COL_OFFSET + 1, 16 + 2, DIR_OFFSET + 4,
+        ANGLE_OFFSET_OFFSET + 2,
+        SEP,
+        NOTE, COLOR_OFFSET + 1, COL_OFFSET + 3, 16 + 0, DIR_OFFSET + 7,
+        ANGLE_OFFSET_OFFSET + 5,
+        EOS,
+    ]
+    assert _mirror_token_sequence(_mirror_token_sequence(tokens)) == tokens

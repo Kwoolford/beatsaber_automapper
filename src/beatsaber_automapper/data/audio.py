@@ -226,17 +226,17 @@ def compute_structure_features(
     onset_norm = onset_env / (onset_env.max() + 1e-8)
 
     # 3-5. Sub-band energy from mel spectrogram
-    S = librosa.feature.melspectrogram(
+    mel_spec = librosa.feature.melspectrogram(
         y=y, sr=sample_rate, n_mels=n_mels, hop_length=hop_length
     )
-    S_db = librosa.power_to_db(S, ref=np.max)  # dB scale, max=0
-    S_01 = np.clip((S_db + 80) / 80, 0, 1)  # rough normalization to [0, 1]
+    mel_db = librosa.power_to_db(mel_spec, ref=np.max)  # dB scale, max=0
+    mel_norm = np.clip((mel_db + 80) / 80, 0, 1)  # rough normalization to [0, 1]
 
     bass_cutoff = n_mels // 4      # ~0-1kHz
     mid_cutoff = n_mels * 5 // 8   # ~1-4kHz
-    bass = S_01[:bass_cutoff].mean(axis=0)
-    mid = S_01[bass_cutoff:mid_cutoff].mean(axis=0)
-    high = S_01[mid_cutoff:].mean(axis=0)
+    bass = mel_norm[:bass_cutoff].mean(axis=0)
+    mid = mel_norm[bass_cutoff:mid_cutoff].mean(axis=0)
+    high = mel_norm[mid_cutoff:].mean(axis=0)
 
     # 6. Spectral centroid (normalized by Nyquist)
     centroid = librosa.feature.spectral_centroid(
@@ -260,6 +260,196 @@ def compute_structure_features(
     )
 
     return torch.from_numpy(features.astype(np.float32))
+
+
+# ---------------------------------------------------------------------------
+# Song structure segmentation
+# ---------------------------------------------------------------------------
+
+# Section type labels used by detect_sections()
+SECTION_TYPES = ("intro", "verse", "chorus", "bridge", "drop", "outro")
+
+
+def detect_sections(
+    waveform: torch.Tensor,
+    sample_rate: int = 44100,
+    hop_length: int = 512,
+    n_segments: int | None = None,
+) -> list[tuple[str, float, float]]:
+    """Detect song sections via self-similarity and agglomerative clustering.
+
+    Uses chroma and MFCC features to build a self-similarity matrix, then
+    applies agglomerative clustering to group frames into sections. Section
+    types are heuristically assigned based on energy profile and position.
+
+    Args:
+        waveform: Audio tensor [1, samples] or [samples].
+        sample_rate: Sample rate of the waveform.
+        hop_length: Hop length for feature extraction.
+        n_segments: Number of sections to detect. If None, auto-estimated
+            based on song duration (roughly 1 section per 20 seconds, clamped 3-12).
+
+    Returns:
+        List of (section_type, start_sec, end_sec) tuples sorted by start time.
+        Section types are from SECTION_TYPES.
+    """
+    import numpy as np
+
+    try:
+        import librosa
+        from sklearn.cluster import AgglomerativeClustering
+    except ImportError:
+        logger.warning("librosa/sklearn not installed — returning single 'verse' section")
+        duration = waveform.shape[-1] / sample_rate
+        return [("verse", 0.0, duration)]
+
+    y = waveform.squeeze().numpy().astype(np.float32)
+    duration = len(y) / sample_rate
+
+    # Auto-estimate number of segments
+    if n_segments is None:
+        n_segments = max(3, min(12, int(duration / 20)))
+
+    # Extract features for self-similarity: chroma + MFCC
+    # Use a coarser hop for segmentation (faster, smoother)
+    seg_hop = hop_length * 4
+    chroma = librosa.feature.chroma_cqt(y=y, sr=sample_rate, hop_length=seg_hop)
+    mfcc = librosa.feature.mfcc(y=y, sr=sample_rate, hop_length=seg_hop, n_mfcc=13)
+
+    # Stack and normalize features
+    features = np.vstack([chroma, mfcc])  # [25, T_seg]
+    # L2 normalize each frame
+    norms = np.linalg.norm(features, axis=0, keepdims=True) + 1e-8
+    features = features / norms
+
+    n_seg_frames = features.shape[1]
+    if n_seg_frames < n_segments:
+        # Too short for meaningful segmentation
+        return [("verse", 0.0, duration)]
+
+    # Build self-similarity matrix (cosine similarity)
+    sim = features.T @ features  # [T_seg, T_seg]
+
+    # Convert similarity to distance for clustering
+    distance = 1.0 - np.clip(sim, -1, 1)
+    np.fill_diagonal(distance, 0.0)
+
+    # Agglomerative clustering with connectivity constraint (temporal order)
+    from scipy.sparse import csr_matrix
+
+    # Only allow adjacent frames to merge (enforces temporal contiguity)
+    connectivity = np.zeros((n_seg_frames, n_seg_frames), dtype=np.float32)
+    for i in range(n_seg_frames - 1):
+        connectivity[i, i + 1] = 1
+        connectivity[i + 1, i] = 1
+    connectivity_sparse = csr_matrix(connectivity)
+
+    clustering = AgglomerativeClustering(
+        n_clusters=n_segments,
+        metric="precomputed",
+        linkage="average",
+        connectivity=connectivity_sparse,
+    )
+    labels = clustering.fit_predict(distance)
+
+    # Convert frame-level labels to time ranges
+    sections: list[tuple[int, float, float]] = []  # (cluster_id, start_sec, end_sec)
+    current_label = labels[0]
+    start_frame = 0
+
+    for i in range(1, len(labels)):
+        if labels[i] != current_label:
+            start_sec = start_frame * seg_hop / sample_rate
+            end_sec = i * seg_hop / sample_rate
+            sections.append((int(current_label), start_sec, end_sec))
+            current_label = labels[i]
+            start_frame = i
+
+    # Final section
+    start_sec = start_frame * seg_hop / sample_rate
+    sections.append((int(current_label), start_sec, duration))
+
+    # Assign section types heuristically based on energy and position
+    rms = librosa.feature.rms(y=y, hop_length=seg_hop)[0]
+    rms_norm = rms / (rms.max() + 1e-8)
+
+    # Compute mean energy per cluster
+    cluster_energies: dict[int, float] = {}
+    for cluster_id in set(labels):
+        mask = labels == cluster_id
+        cluster_energies[cluster_id] = float(rms_norm[mask].mean())
+
+    # Sort clusters by energy
+    sorted_clusters = sorted(cluster_energies.items(), key=lambda x: x[1], reverse=True)
+    energy_rank: dict[int, int] = {c: rank for rank, (c, _) in enumerate(sorted_clusters)}
+
+    typed_sections: list[tuple[str, float, float]] = []
+    for i, (cluster_id, s_start, s_end) in enumerate(sections):
+        rank = energy_rank[cluster_id]
+        is_first = i == 0
+        is_last = i == len(sections) - 1
+        relative_pos = (s_start + s_end) / 2 / duration  # 0-1
+
+        if is_first and rank >= len(sorted_clusters) // 2:
+            section_type = "intro"
+        elif is_last and rank >= len(sorted_clusters) // 2:
+            section_type = "outro"
+        elif rank == 0:
+            # Highest energy cluster
+            section_type = "drop" if relative_pos > 0.3 else "chorus"
+        elif rank <= len(sorted_clusters) // 3:
+            section_type = "chorus"
+        elif rank >= len(sorted_clusters) * 2 // 3:
+            section_type = "bridge" if 0.4 < relative_pos < 0.8 else "verse"
+        else:
+            section_type = "verse"
+
+        typed_sections.append((section_type, s_start, s_end))
+
+    return typed_sections
+
+
+def compute_section_features(
+    sections: list[tuple[str, float, float]],
+    n_frames: int,
+    hop_length: int = 512,
+    sample_rate: int = 44100,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Convert section boundaries to per-frame feature tensors.
+
+    Args:
+        sections: List of (section_type, start_sec, end_sec) from detect_sections().
+        n_frames: Number of audio frames (matching mel spectrogram length).
+        hop_length: Hop length used for mel spectrogram.
+        sample_rate: Audio sample rate.
+
+    Returns:
+        Tuple of:
+            section_ids: [n_frames] int tensor — index into SECTION_TYPES (0-5)
+            section_progress: [n_frames] float tensor — progress within section (0.0-1.0)
+    """
+    type_to_idx = {name: idx for idx, name in enumerate(SECTION_TYPES)}
+
+    section_ids = torch.zeros(n_frames, dtype=torch.long)
+    section_progress = torch.zeros(n_frames, dtype=torch.float32)
+
+    for section_type, start_sec, end_sec in sections:
+        start_frame = int(start_sec * sample_rate / hop_length)
+        end_frame = int(end_sec * sample_rate / hop_length)
+        start_frame = max(0, min(start_frame, n_frames))
+        end_frame = max(0, min(end_frame, n_frames))
+
+        if end_frame <= start_frame:
+            continue
+
+        type_idx = type_to_idx.get(section_type, 1)  # default to "verse"
+        section_ids[start_frame:end_frame] = type_idx
+
+        # Linear progress 0.0 -> 1.0 within each section
+        length = end_frame - start_frame
+        section_progress[start_frame:end_frame] = torch.linspace(0.0, 1.0, length)
+
+    return section_ids, section_progress
 
 
 def convert_to_ogg(input_path: Path | str, output_path: Path | str) -> Path:

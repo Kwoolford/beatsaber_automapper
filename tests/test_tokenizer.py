@@ -183,6 +183,42 @@ def test_round_trip_slider() -> None:
     assert s.mid_anchor_mode == 0
 
 
+def test_overlapping_same_color_arcs() -> None:
+    """Two overlapping same-color arcs should both round-trip correctly."""
+    tok = BeatmapTokenizer()
+    bm = _make_beatmap(
+        sliders=[
+            Slider(
+                color=0, beat=1.0, x=1, y=0, direction=1, mu=1.0,
+                tail_beat=3.0, tail_x=2, tail_y=1, tail_direction=0,
+                tail_mu=1.0, mid_anchor_mode=0,
+            ),
+            Slider(
+                color=0, beat=2.0, x=0, y=1, direction=3, mu=0.75,
+                tail_beat=4.0, tail_x=3, tail_y=2, tail_direction=2,
+                tail_mu=0.75, mid_anchor_mode=0,
+            ),
+        ]
+    )
+    encoded = tok.encode_beatmap(bm)
+    decoded = tok.decode_beatmap(encoded)
+    assert len(decoded.sliders) == 2
+
+    # Sort by beat for comparison
+    decoded.sliders.sort(key=lambda s: s.beat)
+    s0, s1 = decoded.sliders
+
+    assert s0.beat == 1.0
+    assert s0.tail_beat == 3.0
+    assert s0.x == 1
+    assert s0.tail_x == 2
+
+    assert s1.beat == 2.0
+    assert s1.tail_beat == 4.0
+    assert s1.x == 0
+    assert s1.tail_x == 3
+
+
 def test_round_trip_burst_slider() -> None:
     tok = BeatmapTokenizer()
     bm = _make_beatmap(
@@ -217,6 +253,36 @@ def test_round_trip_burst_slider() -> None:
     assert bs.tail_y == 1
     assert bs.slice_count == 5
     assert bs.squish == 0.5
+    assert abs(bs.tail_beat - 21.0) < 0.26  # quantized to 0.25-beat bins
+
+
+def test_chain_tail_beat_round_trip() -> None:
+    """Chain tail_beat is preserved through encode/decode within quantization tolerance."""
+    tok = BeatmapTokenizer()
+    for offset in [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 3.75]:
+        bm = _make_beatmap(
+            burst_sliders=[
+                BurstSlider(
+                    color=0,
+                    beat=10.0,
+                    x=1,
+                    y=0,
+                    direction=1,
+                    tail_beat=10.0 + offset,
+                    tail_x=2,
+                    tail_y=1,
+                    slice_count=4,
+                    squish=0.3,
+                )
+            ]
+        )
+        encoded = tok.encode_beatmap(bm)
+        decoded = tok.decode_beatmap(encoded)
+        bs = decoded.burst_sliders[0]
+        actual_offset = bs.tail_beat - bs.beat
+        assert abs(actual_offset - offset) < 0.26, (
+            f"tail_beat offset {offset} -> {actual_offset} (error > 0.25)"
+        )
 
 
 # ---------------------------------------------------------------------------
