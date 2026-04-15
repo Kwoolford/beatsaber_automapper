@@ -52,7 +52,11 @@ checkpoints/
 .pytest_cache/
 
 # Claude Code local settings (machine-specific)
-.claude/settings.local.json
+.claude/
+
+# Auto-researcher: per-run artifacts + local leaderboard
+experiments/runs/
+experiments/leaderboard.jsonl
 
 # Scratch files
 test.py

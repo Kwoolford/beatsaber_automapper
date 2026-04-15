@@ -10,20 +10,32 @@ uv venv --python 3.12
 uv pip install --pre torch torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
 uv sync
 
-# Download training data
-bsa-download --quota vanilla:10000 --quota chroma:2000 --quota noodle:1000
+# Download training data (mapper-cohort sweep — V5 default workflow)
+python scripts/download_cohorts.py
 
-# Preprocess
-bsa-preprocess --input data/raw --output data/processed
+# Preprocess one cohort
+python scripts/preprocess.py --cohort joetastic --workers 8
 
-# Train all three stages
-bsa-train stage=onset  data_dir=data/processed
-bsa-train stage=sequence data_dir=data/processed
-bsa-train stage=lighting data_dir=data/processed
+# Train a single cohort
+python scripts/train.py stage=sequence cohort=joetastic
 
-# Generate a level
+# Run the auto-researcher over a queue of experiments
+python scripts/auto_research.py experiments/queue/initial.yaml
+python scripts/leaderboard.py
+
+# Generate a level from the best checkpoint
 bsa-generate song.mp3 --difficulty Expert --output level.zip
 ```
+
+## V5 — Style-Cohort Training
+
+V5 replaces the averaged single-model approach with per-mapper cohorts plus an
+auto-researcher harness. Rationale and full plan in [`TODO.md`](TODO.md).
+
+- **Cohorts.** 18 mappers grouped into 9 style buckets (`data/reference/mappers.json`). Each mapper's full catalog is downloaded and preprocessed independently under `data/cohorts/{mapper}/`.
+- **Auto-researcher.** `scripts/auto_research.py` reads a YAML queue, trains a small model per spec with a wall-clock cap, generates a fixed reference song, and scores the output with a playability + style-closeness composite. Results land in `experiments/leaderboard.jsonl`.
+- **Composite score.** Weighted mix of parity / collision / note-density / wall-sanity (60%) and direction-KL / NPS-gap / parity-gap / color-gap against the cohort reference (40%). See `src/beatsaber_automapper/research/metrics.py`.
+- **Iteration target.** 10+ experiments per overnight run; the initial queue (`experiments/queue/initial.yaml`) sweeps 7 single-mapper cohorts and 3 bucket blends in ~10h.
 
 ## ML Pipeline Architecture
 
@@ -239,8 +251,10 @@ beatsaber_automapper/
 │   ├── training/                # Lightning modules for each stage
 │   ├── generation/              # Inference pipeline, beam search, export
 │   └── evaluation/              # Metrics (onset F1, token accuracy)
-├── scripts/                     # CLI entry points
-└── tests/                       # pytest test suite (213 tests)
+│   └── research/                # Auto-researcher: spec, runner, metrics, leaderboard
+├── scripts/                     # CLI entry points (download_cohorts, auto_research, ...)
+├── experiments/                 # Queue YAMLs, per-run artifacts, leaderboard.jsonl
+└── tests/                       # pytest test suite (241 tests)
 ```
 
 ## Tech Stack

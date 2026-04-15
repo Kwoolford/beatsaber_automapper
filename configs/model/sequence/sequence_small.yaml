@@ -1,0 +1,58 @@
+# @package model.sequence
+# Fast-iteration preset for auto-researcher experiments.
+# Target: <60 min training on a single-mapper cohort (~100 maps).
+# NOTE: d_model must match the audio encoder (512) because sequence model
+# concatenates audio features into cross-attention memory. Speed savings come
+# from fewer decoder layers + narrower feedforward, not from reduced d_model.
+vocab_size: 183
+d_model: 512
+nhead: 8
+num_layers: 4
+dim_feedforward: 1024
+num_difficulties: 5
+num_genres: 1
+dropout: 0.1
+
+conditioning_dropout: 0.2
+
+# Training
+learning_rate: 0.0002  # Higher LR for smaller model / shorter runs
+weight_decay: 0.01
+max_seq_length: 64
+label_smoothing: 0.1
+rhythm_weight: 3.0
+eos_weight: 1.0
+freeze_encoder: false
+warmup_steps: 500  # Shorter warmup for short runs
+lr_min_ratio: 0.01
+token_dropout: 0.1
+rare_event_weight: 1.0  # Neutral — v15 showed reweighting backfires
+bomb_weight: 1.0
+
+# Dataset
+context_frames: 256
+prev_context_k: 8
+
+# Auxiliary losses — neutral defaults; experiments override.
+flow_loss_alpha: 0.25
+ergo_loss_alpha: 0.15
+follow_through_alpha: 0.0  # Off by default; enable per-experiment
+intra_onset_parity_alpha: 0.0
+
+# Planner disabled for speed
+use_planner: false
+
+# Augmentation
+mirror_augment: true
+
+# Cohort-scoped training — experiments set difficulty per cohort
+difficulties:
+  - Expert
+  - ExpertPlus
+
+# Inference defaults (used by scripts/generate.py)
+beam_size: 4
+temperature: 0.9
+top_p: 0.9
+min_length: 7
+repetition_penalty: 1.3

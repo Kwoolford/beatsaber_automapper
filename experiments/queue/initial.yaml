@@ -1,0 +1,63 @@
+# Initial experiment queue — V5 overnight sweep.
+#
+# Goal: broad sweep across distinct-style cohorts + three style buckets to
+# surface which single-mapper catalogs and bucket blends are most learnable
+# at small-model scale. First full run of the auto-researcher harness.
+#
+# Budget: ~10 experiments × 60 min wall-clock cap ≈ 10h overnight window.
+#
+# Run:
+#     python scripts/auto_research.py experiments/queue/initial.yaml
+
+defaults:
+  stage: sequence
+  model_preset: sequence_small
+  max_epochs: 12
+  max_wall_clock_min: 60
+  batch_size: 256
+  learning_rate: 0.0002
+  max_samples_per_epoch: 50000
+  seed: 42
+
+experiments:
+  # ---- Single-mapper cohorts (style-first bets) ----
+  - name: joetastic_baseline
+    cohort: joetastic
+    notes: "Largest anime/pop catalog (1692 maps) — flow baseline"
+
+  - name: rustic_baseline
+    cohort: rustic
+    notes: "Legendary rock/electronic (40 maps) — small but canonical"
+
+  - name: helloimdaan_speed
+    cohort: helloimdaan
+    notes: "Speed outlier — high-NPS learnability test"
+
+  - name: emilia_rock
+    cohort: emilia
+    notes: "Rock/metal high-energy (209 maps)"
+
+  - name: cerret_tech
+    cohort: cerret
+    notes: "Ranked tech/acc reference (142 maps) — angle-language test"
+
+  - name: etan_variety
+    cohort: etan
+    notes: "Mid-volume variety (76 maps) — flow cohort cross-check"
+
+  - name: bennydabeast_pop
+    cohort: bennydabeast
+    notes: "Dance/pop groove (21 maps) — small-data robustness check"
+
+  # ---- Bucket blends (does averaging within a style bucket help?) ----
+  - name: anime_jpop_flow_bucket
+    bucket: anime_jpop_flow
+    notes: "5-mapper flow blend — does bucketing beat single-mapper?"
+
+  - name: fast_rock_metal_bucket
+    bucket: fast_rock_metal
+    notes: "Physical-mapping blend (rustic/Benny/Emilia/fatbeanzoop)"
+
+  - name: acc_ranked_flowy_bucket
+    bucket: acc_ranked_flowy
+    notes: "Ranked-clean blend — parity baseline target"

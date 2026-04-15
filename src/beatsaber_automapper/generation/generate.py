@@ -63,7 +63,14 @@ def _load_onset_module(
     if not checkpoint_path.exists():
         raise FileNotFoundError(f"Onset checkpoint not found: {checkpoint_path}")
     try:
-        module = OnsetLitModule.load_from_checkpoint(str(checkpoint_path))
+        import torch as _torch
+        ckpt = _torch.load(str(checkpoint_path), map_location="cpu", weights_only=False)
+        sd = ckpt.get("state_dict", {})
+        w = sd.get("audio_encoder.structure_proj.weight")
+        kwargs = {}
+        if w is not None:
+            kwargs["n_structure_features"] = int(w.shape[1])
+        module = OnsetLitModule.load_from_checkpoint(str(checkpoint_path), **kwargs)
     except Exception as e:
         raise RuntimeError(f"Failed to load onset checkpoint {checkpoint_path}: {e}") from e
     module.eval()
@@ -1015,6 +1022,15 @@ def generate_level(
 
         # Stage 1: Onset prediction (per-difficulty — model outputs different densities)
         # Uses sliding-window inference to match training window size
+        # Slice structure_features to the channel count the onset encoder was trained on
+        # (older checkpoints use 6 channels; newer ones use 8).
+        onset_struct = structure_features
+        try:
+            onset_struct_ch = onset_module.audio_encoder.structure_proj.weight.shape[1]
+            if onset_struct_ch != structure_features.shape[0]:
+                onset_struct = structure_features[:onset_struct_ch]
+        except AttributeError:
+            pass
         onset_frames = predict_onsets(
             onset_module=onset_module,
             mel=mel,
@@ -1025,7 +1041,7 @@ def generate_level(
             device=resolved_device,
             window_size=onset_window_size,
             hop=onset_hop,
-            structure_features=structure_features,
+            structure_features=onset_struct,
             adaptive_threshold=True,
             base_threshold=0.25,
             threshold_range=0.20,

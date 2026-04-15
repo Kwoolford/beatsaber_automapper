@@ -1,0 +1,19 @@
+# Smoke-test queue — verify the full auto-researcher pipeline on a small cohort.
+#
+# 2 epochs, 5k samples/epoch — finishes in ~3-5 min. Used to catch plumbing bugs
+# before committing to the real initial.yaml queue.
+
+defaults:
+  stage: sequence
+  model_preset: sequence_small
+  max_epochs: 2
+  max_wall_clock_min: 15
+  batch_size: 128
+  learning_rate: 0.0002
+  max_samples_per_epoch: 5000
+  seed: 42
+
+experiments:
+  - name: helloimdaan_smoke
+    cohort: helloimdaan
+    notes: "Smoke: pipeline shakedown on helloimdaan (74 maps)."

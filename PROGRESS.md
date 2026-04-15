@@ -1,9 +1,44 @@
 # Beat Saber Automapper — Progress History
 
 > **For current work, active TODOs, and implementation plan, see [`TODO.md`](TODO.md)**
-> **For detailed architecture analysis, see [`docs/architecture_v3_analysis.md`](docs/architecture_v3_analysis.md)**
+> **For latest architecture analysis, see [`docs/architecture_v4_analysis.md`](docs/architecture_v4_analysis.md)**
 
 This file is a historical record of what was done, what worked, and what didn't.
+
+---
+
+## V4 Architecture Work + Kick-off (Apr 13, 2026, late)
+
+**Trigger:** EDA on first v14 generation (`reference_20260413_v14_seq.zip`) revealed:
+- 50% pre-postproc parity violations (`fix_parity` corrected 686/1370 notes)
+- ~40% of final directions are diagonal 45° — traced to `_choose_flow_direction` postproc bias
+- Physically impossible follow-through patterns (e.g., bottom-mid up-right → top-left down-right = 2D teleport, parity-valid)
+- Zero arcs, chains, or bombs emitted
+- Mode collapse: 35/216 unique (col,row,dir,color) combos; top pattern = 9.5% of notes
+
+**Root causes identified (see `docs/architecture_v4_analysis.md` for full analysis):**
+1. No "follow-through" signal anywhere — flow loss only checks parity, not grid-position alignment with swing dir
+2. Flow loss alpha=0.25 too weak vs. CE loss (~1.0 magnitude)
+3. No intra-onset parity check (chords can have both notes forehand)
+4. `_choose_flow_direction` in postproc is diagonal-biased and rewrites ~50% of notes
+5. Rare events (arc/chain/bomb) undertrained — token_dropout=0.05 + 13-epoch early stop
+
+**Code changes applied (v4 → v15 run):**
+- Added `_compute_follow_through_loss()` — differentiable cosine-similarity penalty on direction vs. movement vector
+- Added `_compute_intra_onset_parity_loss()` — penalizes same-parity chord notes
+- Flow loss alpha 0.25 → 0.40
+- New rare-event CE weights: ARC/CHAIN = 9.0x, BOMB = 6.0x (was 3.0x)
+- Expert-only training (ExpertPlus deferred)
+
+Tests passing: 240/241 (one pre-existing flaky test in `test_generate.py` unrelated to v4).
+Ruff clean.
+
+### v15 training config
+- `stage=sequence`, `use_planner=true`, `token_dropout=0.10`
+- `batch_size=256`, `num_workers=16`, `max_samples_per_epoch=500000`
+- `early_stopping_patience=15`
+- Expected runtime: ~15h at ~10 min/epoch → ~90 epochs possible before early-stop
+- Difficulty filter: `Expert` only (~850K train / ~100K val samples)
 
 ---
 

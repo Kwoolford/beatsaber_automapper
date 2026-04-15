@@ -51,9 +51,24 @@ logger = logging.getLogger(__name__)
 def main() -> None:
     """Entry point for the bsa-preprocess CLI command."""
     parser = argparse.ArgumentParser(description="Preprocess Beat Saber maps into tensors")
-    parser.add_argument("--input", type=Path, default=Path("data/raw"), help="Raw data directory")
+    parser.add_argument("--input", type=Path, default=None, help="Raw data directory")
     parser.add_argument(
-        "--output", type=Path, default=Path("data/processed"), help="Output directory"
+        "--output", type=Path, default=None, help="Output directory"
+    )
+    parser.add_argument(
+        "--cohort",
+        default=None,
+        help=(
+            "Preprocess a single cohort by slug. Shorthand for "
+            "--input data/cohorts/{slug}/raw --output data/cohorts/{slug}/processed. "
+            "Overrides --input/--output."
+        ),
+    )
+    parser.add_argument(
+        "--cohort-root",
+        type=Path,
+        default=Path("data/cohorts"),
+        help="Base directory for cohorts (default: data/cohorts)",
     )
     parser.add_argument("--sample-rate", type=int, default=44100, help="Target sample rate")
     parser.add_argument("--n-mels", type=int, default=80, help="Number of mel bands")
@@ -87,6 +102,17 @@ def main() -> None:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s: %(message)s"
     )
+
+    if args.cohort is not None:
+        cohort_dir = args.cohort_root / args.cohort
+        args.input = cohort_dir / "raw"
+        args.output = cohort_dir / "processed"
+        logger.info("Cohort mode: %s → %s", args.input, args.output)
+    else:
+        if args.input is None:
+            args.input = Path("data/raw")
+        if args.output is None:
+            args.output = Path("data/processed")
 
     preprocess_all(
         input_dir=args.input,

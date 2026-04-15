@@ -26,10 +26,12 @@ from beatsaber_automapper.data.tokenizer import (
     CHAIN,
     COL_OFFSET,
     COLOR_OFFSET,
+    DIR_COUNT,
     DIR_OFFSET,
     EOS,
     NOTE,
     PAD,
+    ROW_OFFSET,
     SEP,
     WALL,
 )
@@ -45,30 +47,36 @@ _RHYTHM_TOKENS = frozenset({EOS, SEP, NOTE, BOMB, WALL, ARC_START, ARC_END, CHAI
 
 
 def _build_token_weights(
-    vocab_size: int, rhythm_weight: float = 3.0, eos_weight: float = 1.0,
+    vocab_size: int,
+    rhythm_weight: float = 3.0,
+    eos_weight: float = 1.0,
+    rare_event_weight: float = 1.0,
+    bomb_weight: float = 1.0,
 ) -> torch.Tensor:
-    """Build per-token loss weights with higher weight on rhythm tokens.
+    """Build per-token loss weights with higher weight on rhythm + rare tokens.
 
     Args:
         vocab_size: Size of token vocabulary.
         rhythm_weight: Weight multiplier for timing-sensitive tokens.
-        eos_weight: Weight for EOS token. 1.0 is appropriate since training data
-            has no empty onsets (preprocessing filters them), and min_length at
-            inference prevents premature EOS.
+        eos_weight: Weight for EOS token.
+        rare_event_weight: Extra multiplier for ARC_START/ARC_END/CHAIN (V4).
+        bomb_weight: Extra multiplier for BOMB (V4 — slightly less than arcs/chains).
 
     Returns:
-        Weight tensor [vocab_size] with 1.0 for most tokens,
-        rhythm_weight for timing-sensitive tokens, and eos_weight for EOS.
+        Weight tensor [vocab_size].
     """
     weights = torch.ones(vocab_size)
     for token_id in _RHYTHM_TOKENS:
         if 0 <= token_id < vocab_size:
             weights[token_id] = rhythm_weight
-    # EOS gets its own weight (default 1.0). Training data has no empty onsets,
-    # and min_length at inference prevents premature EOS.
+    # V4: up-weight rare event types so the model actually learns to emit them
+    for token_id in (ARC_START, ARC_END, CHAIN):
+        if 0 <= token_id < vocab_size:
+            weights[token_id] = rhythm_weight * rare_event_weight
+    if 0 <= BOMB < vocab_size:
+        weights[BOMB] = rhythm_weight * bomb_weight
     if 0 <= EOS < vocab_size:
         weights[EOS] = eos_weight
-    # PAD should be ignored entirely (via ignore_index), but set to 0 for safety
     weights[PAD] = 0.0
     return weights
 
@@ -78,6 +86,20 @@ def _build_token_weights(
 # based on hand movement, so we group by swing direction)
 _FOREHAND_DIRS = frozenset({1, 6, 7})  # down, down-left, down-right
 _BACKHAND_DIRS = frozenset({0, 4, 5})  # up, up-left, up-right
+
+# 9-direction unit vectors (x_right_positive, y_up_positive). Index = direction id.
+# 0=up, 1=down, 2=left, 3=right, 4=up-left, 5=up-right, 6=down-left, 7=down-right, 8=any
+_DIR_VECTORS = torch.tensor([
+    [0.0,  1.0],   # 0 up
+    [0.0, -1.0],   # 1 down
+    [-1.0, 0.0],   # 2 left
+    [1.0,  0.0],   # 3 right
+    [-0.707,  0.707],  # 4 up-left
+    [0.707,   0.707],  # 5 up-right
+    [-0.707, -0.707],  # 6 down-left
+    [0.707,  -0.707],  # 7 down-right
+    [0.0,  0.0],   # 8 any/dot — neutral
+], dtype=torch.float32)
 
 
 def _compute_flow_loss(
@@ -277,6 +299,196 @@ def _compute_ergo_loss(
     return ergo_sum / count
 
 
+def _extract_notes_with_position(tokens: list[int]) -> list[tuple[int, int, int, int, int]]:
+    """Extract NOTE events as (token_pos, color, col, row, dir) tuples.
+
+    Scans a token list and returns one entry per NOTE event found, with
+    the token position of the direction slot (for indexing logits) and
+    the physical (color, col, row, direction) values.
+
+    Args:
+        tokens: Flat list of token IDs.
+
+    Returns:
+        List of (dir_token_pos, color, col, row, direction) tuples.
+    """
+    out: list[tuple[int, int, int, int, int]] = []
+    i = 0
+    n = len(tokens)
+    while i < n:
+        if tokens[i] == NOTE and i + 4 < n:
+            color = tokens[i + 1] - COLOR_OFFSET
+            col = tokens[i + 2] - COL_OFFSET
+            row = tokens[i + 3] - ROW_OFFSET
+            direction = tokens[i + 4] - DIR_OFFSET
+            if 0 <= color <= 1 and 0 <= col <= 3 and 0 <= row <= 2 and 0 <= direction <= 8:
+                out.append((i + 4, color, col, row, direction))
+            i += 6
+        else:
+            i += 1
+    return out
+
+
+def _compute_follow_through_loss(
+    logits: torch.Tensor,
+    target: torch.Tensor,
+    prev_tokens: torch.Tensor | None,
+    time_gap: torch.Tensor | None,
+) -> torch.Tensor:
+    """Differentiable penalty on swing direction vs. movement-vector alignment.
+
+    The saber's swing at the current note should be roughly aligned with the
+    direction of travel from the previous same-color note to the current one.
+    Large misalignment = 2D teleport / unplayable follow-through.
+
+    For each consecutive same-color note pair (prev → curr) within a distance
+    of >= 0.5 grid units:
+
+        movement = normalize(curr_pos - prev_pos)
+        alignment[d] = movement . dir_vec[d]  for each direction d
+        loss contribution = sum_d prob[d] * (1 - alignment[d]) / 2
+
+    Alignment is in [-1, 1]; (1 - alignment)/2 is in [0, 1] (1 = opposite dirs).
+    Soft direction probabilities give gradient flow.
+
+    Applies both:
+    - Cross-onset: last prev-onset note of each color → first same-color note of target
+    - Intra-onset: consecutive same-color notes inside target
+
+    Args:
+        logits: Model output logits [B, S, V].
+        target: Target token sequence [B, S].
+        prev_tokens: Previous onset tokens [B, K, S] or None.
+        time_gap: Seconds since previous onset [B] or None.
+
+    Returns:
+        Differentiable scalar loss (average misalignment, in [0, 1]).
+    """
+    b, s, v = logits.shape
+    device = logits.device
+    dir_vecs = _DIR_VECTORS.to(device)  # [9, 2]
+
+    total = torch.tensor(0.0, device=device)
+    count = 0
+
+    for i in range(b):
+        target_list = target[i].tolist()
+        target_notes = _extract_notes_with_position(target_list)
+
+        # Build last-note-per-color from the immediately previous onset
+        prev_last_by_color: dict[int, tuple[int, int, int]] = {}
+        use_prev = (
+            prev_tokens is not None
+            and time_gap is not None
+            and time_gap[i].item() <= 3.0
+        )
+        if use_prev:
+            last_prev = prev_tokens[i, -1].tolist()
+            for _, c, x, y, d in _extract_notes_with_position(last_prev):
+                prev_last_by_color[c] = (x, y, d)
+
+        # Track most recent note per color as we walk through target
+        curr_last_by_color: dict[int, tuple[int, int, int]] = dict(prev_last_by_color)
+
+        for dir_pos, color, col, row, _ in target_notes:
+            prev_pos = curr_last_by_color.get(color)
+            curr_last_by_color[color] = (col, row, 0)  # dir updated below implicitly
+
+            if prev_pos is None:
+                continue
+            px, py, _ = prev_pos
+            dx = float(col - px)
+            dy = float(row - py)
+            dist = (dx * dx + dy * dy) ** 0.5
+            if dist < 0.5:
+                # Same position or tiny movement — no follow-through penalty (any dir OK)
+                continue
+
+            # Normalized movement vector
+            inv = 1.0 / dist
+            move = torch.tensor([dx * inv, dy * inv], device=device, dtype=dir_vecs.dtype)
+
+            # Alignment scores per direction: cosine similarity in [-1, 1]
+            alignment = dir_vecs @ move  # [9]
+            # Map to loss per direction: 0 (aligned) → 1 (opposite)
+            dir_penalty = (1.0 - alignment) * 0.5  # [9]
+            # Neutral/dot gets a fixed mild penalty (encourage directional choices)
+            dir_penalty = dir_penalty.clone()
+            dir_penalty[8] = 0.5
+
+            if dir_pos >= s:
+                continue
+            dir_probs = torch.softmax(logits[i, dir_pos, :], dim=-1)
+            # Weight penalties by probability mass on each direction token
+            weighted = sum(
+                dir_probs[DIR_OFFSET + d] * dir_penalty[d] for d in range(DIR_COUNT)
+            )
+            total = total + weighted
+            count += 1
+
+    if count == 0:
+        return torch.tensor(0.0, device=device, requires_grad=False)
+    return total / count
+
+
+def _compute_intra_onset_parity_loss(
+    logits: torch.Tensor,
+    target: torch.Tensor,
+) -> torch.Tensor:
+    """Penalize same-parity consecutive same-color notes within a single onset.
+
+    The inter-onset flow loss already handles parity across onsets. This loss
+    closes the gap for chord-like onsets with multiple same-color notes.
+
+    Args:
+        logits: Model output logits [B, S, V].
+        target: Target token sequence [B, S].
+
+    Returns:
+        Differentiable scalar loss.
+    """
+    b, s, v = logits.shape
+    device = logits.device
+    forehand_ids = [DIR_OFFSET + d for d in (1, 6, 7)]
+    backhand_ids = [DIR_OFFSET + d for d in (0, 4, 5)]
+
+    total = torch.tensor(0.0, device=device)
+    count = 0
+
+    for i in range(b):
+        target_list = target[i].tolist()
+        target_notes = _extract_notes_with_position(target_list)
+
+        last_parity_by_color: dict[int, str] = {}
+        for dir_pos, color, _, _, direction in target_notes:
+            if dir_pos >= s:
+                continue
+            dir_probs = torch.softmax(logits[i, dir_pos, :], dim=-1)
+            last = last_parity_by_color.get(color)
+
+            if last == "F":
+                same_ids = forehand_ids
+            elif last == "B":
+                same_ids = backhand_ids
+            else:
+                same_ids = None
+
+            if same_ids is not None:
+                same_prob = sum(dir_probs[tid] for tid in same_ids)
+                total = total + same_prob
+                count += 1
+
+            if direction in _FOREHAND_DIRS:
+                last_parity_by_color[color] = "F"
+            elif direction in _BACKHAND_DIRS:
+                last_parity_by_color[color] = "B"
+            # Neutral directions don't update parity
+
+    if count == 0:
+        return torch.tensor(0.0, device=device, requires_grad=False)
+    return total / count
+
+
 def _find_first_direction_position(tokens: torch.Tensor) -> int | None:
     """Find the sequence position of the first direction token.
 
@@ -370,6 +582,8 @@ class SequenceLitModule(lightning.LightningModule):
         label_smoothing: float = 0.1,
         rhythm_weight: float = 3.0,
         eos_weight: float = 0.3,
+        rare_event_weight: float = 1.0,  # V4: extra multiplier for ARC/CHAIN/BOMB
+        bomb_weight: float = 1.0,
         learning_rate: float = 1e-4,
         weight_decay: float = 0.01,
         warmup_steps: int = 2000,
@@ -380,6 +594,10 @@ class SequenceLitModule(lightning.LightningModule):
         flow_loss_alpha: float = 0.0,
         # Ergonomic auxiliary loss (color-side preference)
         ergo_loss_alpha: float = 0.0,
+        # Follow-through loss (V4: grid-position vs. swing-direction alignment)
+        follow_through_alpha: float = 0.0,
+        # Intra-onset parity (V4: same-color notes within an onset should alternate)
+        intra_onset_parity_alpha: float = 0.0,
         # Onset planner
         use_planner: bool = False,
         planner_layers: int = 4,
@@ -429,7 +647,13 @@ class SequenceLitModule(lightning.LightningModule):
                 param.requires_grad = False
 
         # Build per-token loss weights with rhythm emphasis + EOS downweighting
-        token_weights = _build_token_weights(vocab_size, rhythm_weight, eos_weight=eos_weight)
+        token_weights = _build_token_weights(
+            vocab_size,
+            rhythm_weight,
+            eos_weight=eos_weight,
+            rare_event_weight=rare_event_weight,
+            bomb_weight=bomb_weight,
+        )
         self.register_buffer("token_weights", token_weights)
 
         self.loss_fn = nn.CrossEntropyLoss(
@@ -542,6 +766,21 @@ class SequenceLitModule(lightning.LightningModule):
             ergo_loss = _compute_ergo_loss(logits, target)
             loss = loss + ergo_alpha * ergo_loss
             self.log("train_ergo_loss", ergo_loss, prog_bar=False)
+
+        # V4: follow-through loss (grid-position vs. swing-dir alignment)
+        ft_alpha = self.hparams.follow_through_alpha
+        if ft_alpha > 0:
+            time_gap = batch.get("time_gap", None)
+            ft_loss = _compute_follow_through_loss(logits, target, prev_tokens, time_gap)
+            loss = loss + ft_alpha * ft_loss
+            self.log("train_follow_through_loss", ft_loss, prog_bar=False)
+
+        # V4: intra-onset parity (same-color notes in chord must alternate)
+        iop_alpha = self.hparams.intra_onset_parity_alpha
+        if iop_alpha > 0:
+            iop_loss = _compute_intra_onset_parity_loss(logits, target)
+            loss = loss + iop_alpha * iop_loss
+            self.log("train_intra_onset_parity_loss", iop_loss, prog_bar=False)
 
         self.log("train_loss", loss, prog_bar=True)
         return loss

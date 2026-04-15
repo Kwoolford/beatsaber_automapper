@@ -1,333 +1,253 @@
-# Beat Saber Automapper — Active TODO
+# Beat Saber Automapper — V5 Plan (Style-First Architecture)
 
-**Last updated:** 2026-04-13
-**Current focus:** Evaluate v14 output quality; tune if needed
-**Detailed analysis:** `docs/architecture_v3_analysis.md`
-**Historical progress:** `PROGRESS.md`
+**Last updated:** 2026-04-14
+**Status:** V4 (v15 run) DEPRECATED. Committing to V5 — style-cohort training + auto-researcher + trajectory output.
+**North star:** A player plays a generated map and says *"who mapped this?"* — not *"is this AI?"*
 
 ---
 
-## Where We Are
+## Why We Pivoted
 
-### Latest Training Results
+V1–V4 all shared the same fatal premise: one averaged model, one token-CE loss, one big mashed-together dataset. Every iteration hit the same ceiling because:
 
-| Stage | Best Metric | Checkpoint | Status |
-|-------|------------|------------|--------|
-| Onset | val_f1 = **0.732** | `version_0/onset-epoch=05-val_f1=0.732.ckpt` | GOOD — keep |
-| Sequence | val_loss = **1.090**, token_acc = **75.7%** | `version_14/sequence-epoch=13-val_loss=1.090.ckpt` | Phase 6 retrain — needs eval |
-| Lighting | N/A | Rule-based (`generation/lighting_rules.py`) | Working |
+1. **Averaging kills style.** Training on 14k maps from thousands of mappers produces output that satisfies no mapper. There's no "correct" forehand/backhand direction when averaged over conflicting conventions.
+2. **Token CE is spatially local.** It optimizes per-token probability; it does not optimize the *motion* a player performs. Models find loopholes (diagonal spam, wall spam in v15) that lower CE while producing unplayable motion.
+3. **8–15h iteration is too slow.** We cannot steer an architecture at that cadence. Every failed run is a week lost.
 
-Previous baseline: v6 hit val_loss=1.055 at epoch 55 on old data with no planner. v14 stopped at epoch 13 (patience=5) with planner + reprocessed data.
+V5 fixes all three.
 
-### What's Wrong with Generated Maps
+---
 
-The model has high token accuracy but generates **unplayable maps**:
+## The Three Bets
 
-| Issue | Severity | Detail |
-|-------|----------|--------|
-| Note clumping (4-6 notes/beat) | CRITICAL | 40+ beats have 4-6 simultaneous notes |
-| Same-color multi-notes | CRITICAL | 32.6% of beats have 2+ same-color notes — unswingable |
-| No swing flow/parity | CRITICAL | 301 parity violations in 823 notes (36.6%) |
-| Grid position chaos | HIGH | Red notes on both sides, hand-crossing |
-| All v3 features stripped | HIGH | Post-processing removes ALL arcs/chains/bombs (1,927 objects) |
-| Direction 8 overuse | MEDIUM | 14.9% "any" direction — too many dot notes |
+### Bet 1 — Trajectory/Flow output (physics-first objective)
 
-### Root Causes
+Replace token-CE with a loss that *sees motion*. Represent a map as a continuous saber-trajectory field over time — or at minimum, optimize a direct playability objective (differentiable parity + follow-through + collision) alongside event emission. Diffusion or flow-matching head over a short temporal window.
 
-1. **Token-level CE ≠ sequence quality**: 78.3% per-token accuracy → only 2.6% chance of correct 14-token sequence (two notes)
-2. **Flow loss is non-functional**: `_compute_flow_loss()` uses `.detach()` on predictions — **zero gradient signal** to the model. The parity loss has never affected training.
-3. **No constraints in generation**: Nothing prevents 6 notes at one beat, same-color duplicates, or grid collisions during inference
-4. **Post-processing is destructive**: Strips all learned v3 features, randomly reassigns directions/positions
-5. **Mean-pooling prev context**: Destroys structural information from previous onsets
+Why this matters: the model will never generate flowing maps if the loss cannot distinguish flowing output from non-flowing output. It currently cannot.
+
+### Bet 2 — Single-mapper cohorts (style-first data)
+
+Train on one mapper's catalog at a time. Joetastic model. Rustic model. Emilia model. A player loading the "Joetastic" variant should feel Joetastic's choices: his phrasing, his accent placement, his comfort level with parity resets.
+
+Why this matters: style is the product, not a nice-to-have. Averaged mappers will always lose to real ones. Committing to a style makes the model *something* rather than *nothing*.
+
+### Bet 3 — Auto-researcher harness (fast iteration)
+
+A loop that: (1) reads an experiment spec (cohort + hyperparams), (2) trains a small model for 30–60 min on a small cohort, (3) generates test maps, (4) runs automated playability EDA, (5) writes results to a leaderboard. Enables 10–20 experiments/day instead of 1/week.
+
+Why this matters: Bets 1 and 2 are both bets — we don't know which mapper transfers best, which trajectory formulation converges, which bucket blend works. Without a harness we're guessing. With a harness we're iterating.
+
+**Build order:** Bet 3 first. It makes 1 and 2 cheap.
+
+---
+
+## Cohort Structure (from `data/reference/mappers.json`)
+
+**18 mappers, 9 style buckets.** See `data/reference/mappers.json` for the full schema.
+
+| Bucket | Mappers | Use |
+|--------|---------|-----|
+| `anime_jpop_flow` | Joetastic, ETAN, Emilia, Alice, Nolanimations | Highest-volume style; try first |
+| `acc_ranked_flowy` | cerret, Aquaflee, Skeelie, hexagonial, olaf, Alice | Ranked-clean reference for parity metrics |
+| `fast_rock_metal` | rustic, BennyDaBeast, Emilia, fatbeanzoop | Physical-mapping test |
+| `dance_pop_kpop` | Joetastic, ETAN, BennyDaBeast, ryger | Groove-style test |
+| `tech_gimmick` | cerret, Skeelie, hexagonial, helloimdaan, oddloop, uninstaller, Aquaflee | Hard-mode — does model learn angle language? |
+| `vibro_speed` | helloimdaan, oddloop, fatbeanzoop, uninstaller | Edge-case robustness |
+| `cinematic_variety` | rustic, ETAN, Nolanimations, muffn | Musical-structure test |
+| `meme_variety_experimental` | oddloop, ryger, muffn, uninstaller | Non-generic pattern exposure |
+| `slow_lofi_chill` | olaf, ryger | Low-density restraint |
+
+---
+
+## First-Run Blockers (2026-04-14)
+
+Everything required before a single spec from `experiments/queue/initial.yaml` can execute. ~6h of work, all non-blocking on the running download.
+
+| # | Task | File(s) | Status |
+|---|------|---------|--------|
+| B1 | Cohort-aware preprocessing | `scripts/preprocess.py` — add `--cohort <slug>`, root swap | [x] |
+| B2 | Dataset cohort filter | `src/beatsaber_automapper/data/dataset.py` — already scans `data_dir`; cohort/bucket routed via `data_dir` swap | [x] |
+| B3 | Bucket manifest builder | `scripts/build_bucket_manifests.py` — hardlinked bucket dirs + combined splits/frame_index | [x] |
+| B4 | Hydra wiring for cohort/bucket | `scripts/train.py` + `configs/train.yaml` — top-level `cohort=` / `bucket=` overrides `data_dir` | [x] |
+| B5 | Cohort reference stats | `scripts/compute_cohort_reference.py` — mean NPS, direction histogram, parity baseline, color balance | [x] |
+| B6 | `output_dir` override validation | Lightning uses `default_root_dir` = `output_dir`; runner `rglob`s for ckpt; **Hydra model-group override fixed** via `configs/model/sequence/` subdir | [x] |
+| B7 | Shared onset ckpt wiring | `scripts/auto_research.py` default: `outputs/.../version_0/.../onset-epoch=05-val_f1=0.732.ckpt`. No per-cohort onset training. | [x] |
+
+**All first-run blockers resolved.** Ready to execute initial queue once downloads complete + preprocessing runs.
+
+## Polish Before Scaling (deferred, not blocking first runs)
+
+| # | Task | Why |
+|---|------|-----|
+| P1 | Auto-detect test audio duration | Done in `runner.py::_audio_duration_sec` — `--test-duration-sec` is now optional | [x] |
+| P2 | Seed reaches Lightning Trainer | `configs/train.yaml` exposes `seed`; `scripts/train.py` calls `seed_everything`; runner emits `seed={spec.seed}` | [x] |
+| P3 | Per-cohort EDA dashboard | `scripts/cohort_eda.py` — renders all `reference.json` files as a sortable comparative table | [x] |
+| P4 | Crash recovery — OOM vs other | Runner currently treats any nonzero rc as failure | [ ] |
+| P5 | Composite-score weight calibration | Current weights (0.4/0.2/0.1/0.3) are guesses | [ ] |
+
+## Architecture Changes Needed
+
+| Phase | Change | Defer until |
+|-------|--------|-------------|
+| V5-1 MVP | **None.** Current `SequenceModel` works for cohort training at smaller size. | — |
+| V5-2 | Optional `mapper_id` embedding (additive conditioning alongside difficulty/genre), ~30 lines in `sequence_model.py` | After harness shows which cohort is most learnable |
+| V5-3 | Trajectory/flow-matching head (Bet 1) — new output + loss + decoder path | After V5-2 proves (or disproves) that token-CE can hit style transfer |
+
+**Not changing:** `AudioEncoder`, `OnsetModel`, tokenizer, `beatmap.py`, postprocessing.
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Constrained Inference — IMPLEMENTED (2026-03-08)
+### Phase V5-0: Cohort Data Infrastructure (days 1–3)
 
-**Goal:** Make current model produce playable maps by fixing inference and post-processing.
+**Goal:** Every mapper's full catalog downloaded, preprocessed, and addressable as a cohort.
 
-#### 1A. Grammar-Constrained Decoding (`generation/beam_search.py`) — DONE
+- [ ] **0.1** Validate all `beatsaver_id` values against BeatSaver API (`/users/id/{id}`). Mark mismatches in `mappers.json`.
+- [ ] **0.2** Add `scripts/download_cohorts.py`: reads `mappers.json`, downloads each mapper's full catalog via `/maps/uploader/{id}/{page}` to `data/cohorts/{mapper_name}/raw/{map_id}.zip`. Rate-limit 5 req/s, exponential backoff on 429. Persistent manifest per cohort.
+- [ ] **0.3** Extend `scripts/preprocess.py` with `--cohort <name>` flag. Output → `data/cohorts/{mapper_name}/processed/`.
+- [ ] **0.4** Build bucket index: `data/cohorts/_buckets/{bucket_id}.json` listing member .pt files for all mappers in that bucket. Used by dataset filter.
+- [ ] **0.5** Extend `BeatSaberDataset` with `cohort` / `bucket` filter. Reuse existing frame_index format.
+- [ ] **0.6** Sanity EDA per cohort: notes/sec, parity violations, direction distribution, NPS histogram. Confirm each cohort is self-consistent before training.
 
-Added `ConstraintState` class and constraint system to both nucleus sampling and beam search:
-
-- **Grammar enforcement**: State machine tracks position in event token grammar (EVENT_TYPE → COLOR → COL → ROW → DIR → ANGLE → SEP/EOS). Only valid token ranges allowed at each position.
-- **Max notes per beat**: Expert=2 (1/color), ExpertPlus=3 (2/color). Forces EOS after limit.
-- **No same-color duplicates**: Tracks color counts, masks maxed-out colors.
-- **Parity enforcement**: Tracks last direction per color across onsets. After forehand, masks forehand directions (allows backhand + neutral). After backhand, masks backhand directions.
-- **No grid collisions**: Tracks (col, row) positions used, masks occupied rows for the current column.
-- **Color separation bias**: Soft logit boost (+2) for preferred side (red→cols 0-1, blue→cols 2-3), penalty (-1) for wrong side.
-- **Cross-onset parity**: `last_dir` persists across onsets via `generate_level()` tracking.
-
-Key classes: `ConstraintState`, `init_constraints()`, `apply_constraints()`, `update_constraints()`
-
-#### 1B. Fix Post-Processing (`generation/postprocess.py`) — DONE
-
-- **Replaced `strip_non_note_objects()` with `cap_non_note_objects()`**: Keeps bombs, arcs, chains at reasonable densities instead of stripping all.
-- **Added `enforce_max_notes_per_beat()`**: Caps notes per beat with ergonomic selection (prefers notes on preferred color side).
-- **Added `enforce_color_separation()`**: Moves red notes from right cols to left, blue from left to right (collision-aware).
-- **Improved `fix_parity()`**: Picks ergonomic direction based on grid position (left cols → diagonal-left, right cols → diagonal-right) instead of random.
-- **Removed destructive steps**: `diversify_directions()`, `expand_grid_coverage()`, `deduplicate_patterns()` no longer called (constrained decoding handles these).
-
-#### 1C. Temperature & Inference Tuning — DONE
-
-- Temperature: 0.95 → **0.8** (less random)
-- Top-p: 0.92 → **0.85** (tighter nucleus)
-- Repetition penalty: 1.2 → **1.5** (more variety)
-- Updated in `generate.py` defaults, CLI defaults, and `generate_level()` defaults
-
-#### 1D. Quick Validation
-
-After Phase 1 changes:
-1. Generate Expert + ExpertPlus maps for `data/reference/so_tired_rock.mp3`
-2. Run analysis script: count notes/beat, parity violations, color balance, grid coverage
-3. Load in ArcViewer — visual inspection
-4. Compare before/after snapshots
+**DoD:** `python scripts/download_cohorts.py` completes. `data/cohorts/joetastic/processed/` exists with >100 .pt files. A training batch can be built from a single cohort.
 
 ---
 
-### Phase 2: Structured Prediction Model — MODELS IMPLEMENTED (2026-03-09)
+### Phase V5-1: Auto-Researcher Harness (days 3–7)
 
-**Goal:** Replace autoregressive token generation with multi-head direct prediction.
+**Goal:** Run 10+ short experiments in an afternoon. Answer: which mappers are learnable? At what model size? With what loss?
 
-> For detailed architecture diagrams and rationale, see `docs/architecture_v3_analysis.md` § "Change 1"
+- [ ] **1.1** `experiments/spec.yaml` schema: `{cohort, bucket, model_size, max_epochs, loss_weights, seed}`.
+- [ ] **1.2** `scripts/auto_research.py`: reads a queue of specs, trains each for a capped wall-clock (30–60 min), generates a fixed test song, runs playability EDA, appends results to `experiments/leaderboard.jsonl`.
+- [ ] **1.3** Reuse `evaluation/playability.py` (6 checks). Add: style-closeness (direction histogram KL vs cohort reference, NPS match, parity-violation-rate gap vs cohort baseline).
+- [ ] **1.4** Small-model preset in `configs/model/sequence_small.yaml` (d_model=256, 4 layers). Target: <60 min training on single-mapper cohort.
+- [ ] **1.5** Shared test song: `data/reference/so_tired_rock.mp3`. Every experiment generates against it so outputs are directly comparable.
+- [ ] **1.6** `scripts/leaderboard.py`: renders `experiments/leaderboard.jsonl` as a table, sorted by composite score.
 
-#### 2A. New Model: `NotePredictor` (`models/note_predictor.py`) — DONE
-
-Per-onset, predict a fixed-size output in ONE forward pass (not autoregressive):
-
-```python
-class NotePredictor(nn.Module):
-    """Predicts note placement for a single onset.
-
-    Input: audio_features [B, T, d_model] + difficulty_emb + plan_vector
-    Output (per slot, up to max_notes=3):
-        n_notes:    [B, 4]  — softmax over {0, 1, 2, 3}
-        color:      [B, 3, 3]  — per-slot softmax {red, blue, none}
-        col:        [B, 3, 4]  — per-slot softmax {0, 1, 2, 3}
-        row:        [B, 3, 3]  — per-slot softmax {0, 1, 2}
-        direction:  [B, 3, 9]  — per-slot softmax {0..8}
-        angle:      [B, 3, 7]  — per-slot softmax {-45..+45}
-        event_type: [B, 3, 4]  — per-slot softmax {note, bomb, arc_start, chain}
-    """
-```
-
-Key design decisions:
-- **3 slots max** — covers 99%+ of training data (only 4% have 3+ notes/onset)
-- **Independent heads** — no cascading token errors
-- **Constraint masks applied before softmax** — hard physical constraints
-- Slots sorted by canonical order (left-to-right, bottom-to-top) for consistency
-
-#### 2B. Multi-Task Loss — DONE (in `training/note_module.py`)
-
-```python
-loss = (
-    w_n * CE(n_notes_pred, n_notes_target)
-    + w_color * CE(color_pred, color_target)
-    + w_pos * (CE(col_pred, col_target) + CE(row_pred, row_target))
-    + w_dir * CE(dir_pred, dir_target)
-    + w_angle * CE(angle_pred, angle_target)
-    + w_type * CE(type_pred, type_target)
-    + lambda_parity * parity_penalty(dir_pred, prev_dir)
-    + lambda_ergo * ergonomic_penalty(col_pred, color_pred)
-    + lambda_collision * collision_penalty(col_pred, row_pred)
-)
-```
-
-Where:
-- `parity_penalty`: **differentiable** soft parity check using direction logits (NOT detached argmax)
-- `ergonomic_penalty`: penalize red notes in cols 2-3, blue notes in cols 0-1
-- `collision_penalty`: penalize multiple slots predicting same (col, row)
-
-#### 2C. Training Data Adapter — DONE (`tokenizer.tokens_to_structured()`)
-
-Convert existing `token_sequences` to structured format:
-
-```python
-def tokens_to_structured(token_seq: list[int]) -> dict:
-    """Convert [NOTE, COLOR, COL, ROW, DIR, ANGLE, SEP, ...] to structured dict.
-    Returns: {n_notes: int, slots: [{color, col, row, dir, angle, type}, ...]}
-    """
-```
-
-This runs at dataset load time (no reprocessing of .pt files needed).
-
-#### 2D. Lightning Module (`training/note_module.py`) — DONE
-
-- Same pattern as `SequenceLitModule` but with multi-head outputs
-- Reuse existing `AudioEncoder` (proven working)
-- Log per-attribute accuracy alongside total loss
-- Validate with playability metrics (parity violations, collision rate)
+**DoD:** `python scripts/auto_research.py experiments/queue/initial.yaml` runs five experiments end-to-end and writes a ranked leaderboard.
 
 ---
 
-### Phase 3: Bidirectional Onset Planner (1-2 weeks)
+### Phase V5-2: Single-Mapper Cohort Validation (days 7–10)
 
-**Goal:** Give the model song-level context for planning note density and patterns.
+**Goal:** Prove style transfer. One generated map that a BS community member can identify as "{mapper}-style."
 
-> See `docs/architecture_v3_analysis.md` § "Change 2" for full details
+- [ ] **2.1** From V5-1 leaderboard, pick the top 3 mappers by style-closeness. Run full-size training on each (4–8 hours each).
+- [ ] **2.2** Generate 3 test maps per mapper (different genres from test pool) → `data/generated/cohort_eval/`.
+- [ ] **2.3** Blind human evaluation: share with community mapper if possible; at minimum, self-eval against the mapper's real catalog.
+- [ ] **2.4** Document wins/losses per mapper in `docs/cohort_results.md`.
 
-#### 3A. Onset Planner Model (`models/onset_planner.py`)
-
-```
-Pass 1 (runs ONCE per song):
-  Input: per-onset audio embeddings [N, d_model] (from audio encoder)
-  Model: Bidirectional Transformer encoder (4-6 layers)
-  Output: per-onset plan vectors [N, d_model]
-
-  Learns:
-  - Note density planning (more in chorus, less in verse)
-  - Pattern repetition (similar audio → similar plans)
-  - Build-up/drop dynamics
-```
-
-#### 3B. Song Structure Segmentation (`data/audio.py`)
-
-Add `segment_song()` using librosa's self-similarity matrix:
-
-```python
-def segment_song(waveform, sr, bpm) -> list[Section]:
-    """Returns: [(start_beat, end_beat, section_type, section_id), ...]
-    section_type: intro=0, verse=1, chorus=2, bridge=3, drop=4, outro=5
-    """
-    # 1. Compute beat-synchronous chromagram
-    # 2. Build self-similarity matrix (recurrence_matrix)
-    # 3. Compute novelty curve from SSM diagonal
-    # 4. Peak-pick section boundaries
-    # 5. Cluster sections by similarity
-```
-
-Each onset gets: `section_type_emb + section_position (0.0-1.0) + section_energy`
-
-#### 3C. Copy Mechanism for Repeated Sections
-
-When the planner detects a section similar to a previously generated one:
-- Cross-attend to the note patterns from the first occurrence
-- Apply small perturbations (keeps consistency, adds variety)
-- This is how human mappers work: "chorus 2 = chorus 1 with slight variation"
+**DoD:** At least one mapper cohort produces output that is distinctly stylistic (not the averaged-mapper output v14 generated).
 
 ---
 
-### Phase 4: Playability Reward (1 week)
+### Phase V5-3: Trajectory Output (weeks 2–4)
 
-**Goal:** Add a training signal that directly optimizes for playability.
+**Goal:** Loss function that sees motion, not just tokens.
 
-> See `docs/architecture_v3_analysis.md` § "Change 4" for full details
+Approaches to prototype in V5-1 harness before committing:
 
-#### 4A. PlayabilityScorer Model
+- [ ] **3.1** **Option A — Soft-trajectory auxiliary loss:** Keep token output. Add a differentiable saber-trajectory simulator (piecewise cubic) over the generated window. Loss = cosine-distance between predicted trajectory and ground-truth trajectory derived from the real map. Should reduce follow-through violations to near zero if trained long enough.
+- [ ] **3.2** **Option B — Flow-matching head:** Replace token emission with a diffusion/flow-matching head predicting `(hand_pos, hand_vel, swing_intent)` at each onset frame, decoded back to v3 events post-hoc. Harder; higher ceiling.
+- [ ] **3.3** **Option C — Hybrid:** Token output for event type + flow head for continuous params (direction, angle). Simpler than B; more signal than A.
 
-Train a small classifier to distinguish good maps from bad:
-- Positive: High-rated maps from BeatSaver (>90% upvote, ScoreSaber-ranked)
-- Negative: Same maps with random perturbations (swap colors, flip directions, move positions)
-- Architecture: Small Transformer or MLP over note sequence features
-- Output: scalar 0-1 (0 = unplayable, 1 = perfect flow)
+Pick one based on harness results.
 
-#### 4B. Differentiable Rule-Based Scoring (alternative to learned scorer)
-
-```python
-def playability_score(note_sequence, prev_notes):
-    score = 1.0
-    score -= parity_violation_rate(note_sequence)      # 0-1
-    score -= collision_rate(note_sequence)              # 0-1
-    score -= hand_crossing_rate(note_sequence)          # 0-1
-    score -= 0.5 * direction_monotony(note_sequence)   # 0-1
-    return max(0, score)
-```
-
-Use as auxiliary loss: `total_loss = main_loss + beta * (1 - playability_score)`
+**DoD:** A training run produces maps with <5% parity violations *pre*-postprocessing (vs v14's 50%).
 
 ---
 
-### Phase 5: Data Quality (ongoing, parallel to other phases)
+### Phase V5-4: Style Mixing / Bucket Conditioning (week 3+)
 
-#### 5A. Curated Training Set
+**Goal:** One model conditioned on `mapper_id` that can produce any of the cohorts on demand.
 
-Build a **gold standard** of 500-1000 maps:
-1. Start with ScoreSaber-ranked maps
-2. Filter to mappers with 10+ ranked maps
-3. Run BS Parity Checker — keep maps with <5% violations
-4. Run BS Map Check — keep maps with zero errors
-5. Store as `data/processed/whitelist.json`
-
-#### 5B. Data Augmentation (future)
-
-Currently NO augmentation on tokens. Consider:
-- Random canonical reordering (breaks left-to-right bias)
-- Mirror augmentation (flip left ↔ right, swap red ↔ blue)
-- Time stretch (adjust note density proportionally)
+- [ ] **4.1** Mapper embedding (18-class) + bucket embedding (9-class) as conditioning inputs.
+- [ ] **4.2** Train on all cohorts with conditioning dropout (CFG-style). Enables both single-mapper and blended output.
+- [ ] **4.3** Test style-interpolation: "70% Joetastic, 30% rustic" via embedding blend.
 
 ---
 
-## Bug Fixes Needed
+## Explicitly Deprecated (Do Not Revisit)
 
-| Bug | File | Priority |
-|-----|------|----------|
-| ~~Flow loss is detached (no gradients)~~ | `training/seq_module.py` | ~~P0~~ FIXED — uses soft probs now |
-| ~~`_build_token_weights` default eos_weight=0.3 confusing~~ | `training/seq_module.py` | ~~P2~~ FIXED — default aligned to 1.0 |
-| ~~`playability.py` has NotImplementedError~~ | `evaluation/playability.py` | ~~P2~~ FIXED — implemented 6 checks |
-| ~~Genre always "unknown" (num_genres=1)~~ | `configs/model/*.yaml` | ~~P3~~ WONTFIX — num_genres=1 works fine, plumbing kept for future |
+| Thing | Why it's dead |
+|-------|--------------|
+| V4 v15 training run | Catastrophic output (1 note + 1572 walls) — rare-event CE reweighting + Expert-only shrinkage collapsed the model |
+| "One model for all mappers" | Averaging produces nothing; committed to style-cohort approach |
+| Token-CE as sole objective | Loss is not motion-aware; model finds loopholes. Replaced by trajectory loss in Bet 1 |
+| Constrained decoding as a bandaid | Keep the code — still useful — but stop treating inference patches as fixes for a mis-trained model |
+
+v14 checkpoint is preserved as potential warm-start for cohort fine-tuning. Not discarded.
 
 ---
 
-## File Map (key files for V3 work)
+## File Map (V5)
+
+### To Create
+| File | Purpose |
+|------|---------|
+| `data/reference/mappers.json` | Cohort source-of-truth (EXISTS) |
+| `scripts/download_cohorts.py` | Per-mapper catalog downloader |
+| `scripts/auto_research.py` | Experiment runner |
+| `scripts/leaderboard.py` | Results viewer |
+| `configs/model/sequence_small.yaml` | Fast-iteration model preset |
+| `experiments/spec.yaml` | Experiment schema |
+| `experiments/queue/initial.yaml` | First batch of specs |
+| `experiments/leaderboard.jsonl` | Results log |
+| `docs/cohort_results.md` | Per-mapper wins/losses |
 
 ### To Modify
 | File | Change |
 |------|--------|
-| `generation/beam_search.py` | Add constrained decoding (Phase 1A) |
-| `generation/postprocess.py` | Fix destructive post-processing (Phase 1B) |
-| `generation/generate.py` | Wire constraints, tune temperature (Phase 1C) |
-| `training/seq_module.py` | Fix detached flow loss (Bug fix) |
-| `data/dataset.py` | Add structured prediction adapter (Phase 2C) |
-| `data/audio.py` | Add `segment_song()` (Phase 3B) |
+| `src/beatsaber_automapper/data/dataset.py` | Add `cohort` / `bucket` filter |
+| `scripts/preprocess.py` | Add `--cohort` flag |
+| `src/beatsaber_automapper/evaluation/playability.py` | Add style-closeness metrics |
 
-### Created (Phase 2)
-| File | Purpose |
-|------|---------|
-| `models/note_predictor.py` | Structured prediction model — DONE |
-| `training/note_module.py` | Lightning module for NotePredictor — DONE |
-| `configs/model/note_pred.yaml` | Hydra config for note predictor — DONE |
-| `evaluation/playability.py` | Playability checker (6 checks) — DONE |
-
-### To Create (Phase 3+)
-| File | Purpose |
-|------|---------|
-| `models/onset_planner.py` | Bidirectional onset planner (Phase 3A) |
-
-### Reference (don't modify unless needed)
+### To Reference (keep working)
 | File | What it does |
 |------|-------------|
-| `models/audio_encoder.py` | CNN + Transformer encoder — working, keep |
-| `models/onset_model.py` | TCN + Transformer onset detection — working, keep |
-| `models/sequence_model.py` | Current autoregressive model — will be superseded by NotePredictor |
-| `data/tokenizer.py` | Token vocabulary — sound design, keep |
-| `generation/lighting_rules.py` | Rule-based lighting — working, keep |
-| `generation/chroma.py` | Chroma RGB post-processing — working, keep |
+| `models/audio_encoder.py` | Audio encoder — still valid |
+| `models/onset_model.py` | Onset detection — still valid |
+| `models/sequence_model.py` | Keep; train on cohorts |
+| `generation/beam_search.py` | Constrained decoding — keep |
+| `generation/postprocess.py` | Playability pass — keep |
 
 ---
 
-## Commands Reference
+## Commands (V5)
 
 ```bash
-# Generate with current model
-python scripts/generate.py data/reference/so_tired_rock.mp3 \
-    --onset-ckpt outputs/beatsaber_automapper/version_0/checkpoints/onset-epoch=07-val_f1=0.726.ckpt \
-    --seq-ckpt outputs/beatsaber_automapper/version_6/checkpoints/sequence-epoch=55-val_loss=1.055.ckpt \
-    --difficulty Expert --output data/generated/test.zip
+# Validate mappers.json against BeatSaver API
+python scripts/download_cohorts.py --validate-only
 
-# Train note predictor (Phase 2 — structured prediction)
-python scripts/train.py stage=note_pred data_dir=data/processed output_dir=outputs \
-    max_epochs=80 data.dataset.batch_size=512 data.dataset.num_workers=8 \
-    early_stopping_patience=20
+# Download all cohorts (full catalogs)
+python scripts/download_cohorts.py
 
-# Train sequence model (Phase 1 — autoregressive, legacy)
-python scripts/train.py stage=sequence data_dir=data/processed output_dir=outputs \
-    max_epochs=100 data.dataset.batch_size=192 data.dataset.num_workers=8
+# Preprocess a single cohort
+python scripts/preprocess.py --cohort joetastic --workers 8
 
-# Run tests
-.venv/Scripts/pytest tests/
+# Run a small experiment on one cohort
+python scripts/train.py stage=sequence \
+    data.cohort=joetastic \
+    model.sequence.d_model=256 model.sequence.num_layers=4 \
+    max_epochs=15 max_samples_per_epoch=50000
 
-# Lint
-.venv/Scripts/ruff check .
+# Run the auto-researcher on a queue
+python scripts/auto_research.py experiments/queue/initial.yaml
+
+# View leaderboard
+python scripts/leaderboard.py
 ```
+
+---
+
+## Success Criteria
+
+V5 is working when:
+
+1. **Infrastructure:** All 18 cohorts downloaded, preprocessed, individually trainable.
+2. **Iteration speed:** 10+ experiments/day achievable.
+3. **Style transfer:** At least one single-mapper model produces output a human can identify as that mapper's style.
+4. **Motion quality:** Parity violation rate <5% pre-postprocess on generated maps (vs ~50% in v14).
+5. **Portfolio-ready:** Demo shows side-by-side generation in 3 distinct mapper styles from the same input song.

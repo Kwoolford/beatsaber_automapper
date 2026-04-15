@@ -202,6 +202,10 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         freeze_encoder=sc.get("freeze_encoder", False),
         flow_loss_alpha=sc.get("flow_loss_alpha", 0.0),
         ergo_loss_alpha=sc.get("ergo_loss_alpha", 0.0),
+        follow_through_alpha=sc.get("follow_through_alpha", 0.0),
+        intra_onset_parity_alpha=sc.get("intra_onset_parity_alpha", 0.0),
+        rare_event_weight=sc.get("rare_event_weight", 1.0),
+        bomb_weight=sc.get("bomb_weight", 1.0),
         # Onset planner
         use_planner=sc.get("use_planner", False),
         planner_layers=sc.get("planner_layers", 4),
@@ -431,8 +435,25 @@ def main(cfg: DictConfig) -> None:
             ctypes.windll.kernel32.SetPriorityClass(handle, 0x4000)  # BELOW_NORMAL
             logger.info("Process priority set to BELOW_NORMAL (gaming mode)")
 
+    seed = cfg.get("seed", None)
+    if seed is not None:
+        lightning.seed_everything(int(seed), workers=True)
+        logger.info("Seeded Lightning with seed=%s", seed)
+
     stage = cfg.stage
     ckpt_path = cfg.get("ckpt_path", None)
+
+    # Cohort / bucket routing — overrides data_dir when set.
+    cohort = cfg.get("cohort", None)
+    bucket = cfg.get("bucket", None)
+    if cohort and bucket:
+        raise ValueError("cohort and bucket are mutually exclusive")
+    if cohort:
+        cfg.data_dir = str(Path(cfg.cohort_root) / cohort / "processed")
+        logger.info("Cohort mode: cohort=%s data_dir=%s", cohort, cfg.data_dir)
+    elif bucket:
+        cfg.data_dir = str(Path(cfg.cohort_root) / "_buckets" / bucket)
+        logger.info("Bucket mode: bucket=%s data_dir=%s", bucket, cfg.data_dir)
     logger.info("Training stage: %s", stage)
     if ckpt_path:
         logger.info("Resuming from checkpoint: %s", ckpt_path)

@@ -1,8 +1,9 @@
 # Top-level Hydra training configuration
 defaults:
+  - _self_
   - model/audio_encoder
   - model/onset
-  - model/sequence
+  - model/sequence: sequence
   - model/lighting
   - model/note_pred
   - data/default
@@ -45,6 +46,17 @@ logger:
 # Paths (resolved relative to the project root, not Hydra's run dir)
 data_dir: data/processed
 output_dir: outputs
+
+# Seed for reproducibility (null = nondeterministic). Set by auto-researcher per spec.
+seed: null
+
+# Cohort-scoped training (V5 auto-researcher). When set, overrides data_dir.
+#   cohort=joetastic         → data_dir=data/cohorts/joetastic/processed
+#   bucket=anime_jpop_flow   → data_dir=data/cohorts/_buckets/anime_jpop_flow
+# At most one of cohort/bucket may be set.
+cohort: null
+bucket: null
+cohort_root: data/cohorts
 
 # Keep CWD at the project root so relative paths (data_dir, output_dir) work correctly
 hydra:
