@@ -722,6 +722,11 @@ def predict_onsets(
             avg_probs=avg_probs.cpu(),
         )
 
+    # Beat-grid snapping can round a tail-end peak past total_frames. Clamp
+    # and dedupe so every returned index is a valid frame into the mel.
+    if frames:
+        last = total_frames - 1
+        frames = sorted({min(max(f, 0), last) for f in frames})
     return frames
 
 
