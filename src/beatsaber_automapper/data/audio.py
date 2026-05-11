@@ -316,8 +316,9 @@ def detect_sections(
     chroma = librosa.feature.chroma_cqt(y=y, sr=sample_rate, hop_length=seg_hop)
     mfcc = librosa.feature.mfcc(y=y, sr=sample_rate, hop_length=seg_hop, n_mfcc=13)
 
-    # Stack and normalize features
-    features = np.vstack([chroma, mfcc])  # [25, T_seg]
+    # Truncate to minimum frame count (chroma/mfcc may differ by 1 frame on short audio)
+    t_min = min(chroma.shape[1], mfcc.shape[1])
+    features = np.vstack([chroma[:, :t_min], mfcc[:, :t_min]])  # [25, T_seg]
     # L2 normalize each frame
     norms = np.linalg.norm(features, axis=0, keepdims=True) + 1e-8
     features = features / norms
