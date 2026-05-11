@@ -7,8 +7,9 @@ This is the source-of-truth document for the beatsaber_automapper project. Read 
 | Document | Purpose | When to Read |
 |----------|---------|-------------|
 | `TODO.md` | **Active work plan, implementation phases, bug fixes** | Always — this is what we're working on |
-| `docs/architecture_v3_analysis.md` | Deep architecture analysis, literature review, design rationale | When you need details on WHY we're making changes |
-| `PROGRESS.md` | Historical record of what was done, what worked, what didn't | When you need context on past decisions |
+| `docs/architecture_v6_plan.md` | Current architecture (V6): per-hand swing-event tokenization + saber-state proprioception + phrase-aware loss | When you need details on WHY we're making changes |
+| `PROGRESS.md` | Historical record of what was done, what worked, what didn't (V3/V4/V5 + V5→V6 pivot) | When you need context on past decisions |
+| `docs/archive/architecture_v3_analysis.md`, `architecture_v4_analysis.md` | Archived prior-version analyses | Reference only |
 
 ## Architecture Diagram — Keep Updated
 
@@ -17,11 +18,16 @@ This is the source-of-truth document for the beatsaber_automapper project. Read 
 1. The ASCII diagram in `README.md` (the `## ML Pipeline Architecture` section)
 2. The `## Architecture` section below in this file
 
-Current conditioning inputs per stage:
+Current conditioning inputs per stage (V6):
 - **All stages:** difficulty (5-class embedding) + genre (11-class embedding) + song structure features (8-dim per-frame projection: 6 energy features + section_id + section_progress), all additive to audio encoder output.
-- **Stage 2 additionally:** previous K=8 onset token sequences (mean-pooled, projected, concatenated to cross-attention memory) + optional OnsetPlanner plan vectors (bidirectional song-level context with section conditioning).
-- **Stage 3 additionally:** structural slot embedding (4-position cycling) for event grammar.
+- **Stage 2 additionally (V6):**
+  - **Saber state** (12-dim physical state — left + right hand position, last-swing direction unit vector, beats since last swing, parity sign): `Linear(12, d_model)`, added to decoder input at every step. Replaces mean-pooled `prev_context_k`.
+  - **Phrase embedding** (16-bar audio window pooled around the current time): `Linear(d_model, d_model)`, additive at every decode position.
+  - **Mapper-id embedding** (when training on cohorts): conditioning on the style cohort.
+- **Stage 3 additionally:** structural slot embedding (4-position cycling) for event grammar (rule-based in V5+).
 - **Post-processing:** Chroma RGB lighting colors derived from song energy profile.
+
+Stage 2 token grammar (V6) is a single ordered **swing-event** stream: `[HAND][Δt][KIND][GRID_X][GRID_Y][DIR][ANGLE]`. `HAND ∈ {LEFT, RIGHT, NONE}` (NONE = bomb/wall). The chord-at-timestamp grammar from V3–V5 (`data/tokenizer.py::BeatmapTokenizer`) is preserved for legacy evaluation only.
 
 BPM is auto-detected via `detect_bpm()` in `data/audio.py` when not provided by the user.
 
@@ -30,19 +36,21 @@ BPM is auto-detected via `detect_bpm()` in `data/audio.py` when not provided by 
 An open-source AI system that generates high-quality Beat Saber levels from audio files. Given a song, the system produces a playable .zip level package containing notes, arcs, chains, bombs, obstacles, and a synchronized light show — targeting the v3 Beat Saber map format.
 
 Repository: https://github.com/Kwoolford/beatsaber_automapper
-Platform: Windows (native), Python 3.12, PyTorch (nightly for RTX 5090 sm_120 support)
-GPU: NVIDIA RTX 5090 (32GB VRAM, Blackwell/sm_120, CUDA 13.1 driver, CUDA Toolkit 12.9)
+Platform: Linux (native), Python 3.12, PyTorch (nightly for RTX 5090 sm_120 support)
+GPU: NVIDIA RTX 5090 (32GB VRAM, Blackwell/sm_120, CUDA 13.2 driver, CUDA Toolkit 12.8)
 
-## Environment Setup (Verified Working)
+## Environment Setup (Verified Working on Linux)
 
-```powershell
+```bash
 # Python 3.12 via uv (system Python is separate)
-uv python install 3.12
 uv venv --python 3.12
-.venv\Scripts\activate
+source .venv/bin/activate
 
 # PyTorch nightly with CUDA 12.8 (sm_120 support)
 uv pip install --pre torch torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128
+
+# Install project + dev dependencies
+uv pip install -e ".[dev]"
 
 # Verify GPU
 python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_capability())"
@@ -94,26 +102,26 @@ Audio File (.mp3/.ogg/.wav)
 - Training: Binary cross-entropy with Gaussian-smoothed ("fuzzy") labels around true onsets
 - Inference: Windowed prediction (1024-frame windows with overlap averaging) -> peak picking with configurable threshold
 
-### Stage 2: Note Sequence Generation
-- Task: Given onset timestamps + audio + previous onset context, generate the full note configuration at each onset
-- Architecture: Transformer decoder (8 layers, 8 heads, d_model=512) with:
-  - Causal self-attention over note token sequence (autoregressive)
-  - Cross-attention to audio encoder output + previous K=8 onset context vectors
-  - Difficulty + genre conditioning via learned embeddings (additive)
-  - Inter-onset context: previous 8 onset token sequences are mean-pooled, projected, and concatenated to cross-attention memory alongside audio features
-- Audio context: 256 frames (~3 seconds) per onset — balances musical context vs O(T²) encoder cost
-- Training: Teacher forcing with cross-entropy loss (rhythm tokens 3x, EOS normal weight) + flow-aware auxiliary loss (parity violation penalty, alpha=0.1). Epoch subsampling (500K random samples/epoch from 17M total) keeps epochs at ~15 min.
-- Inference: Beam search or nucleus sampling with min_length=7 (requires at least 1 complete note before EOS)
+### Stage 2: Note Sequence Generation (V6 — Swing-Event Stream)
+- **Task:** Given the audio + saber state + phrase embedding, autoregressively emit a single ordered stream of per-hand swing events covering the song.
+- **Output grammar:** one event per cut. `[HAND][Δt][KIND][GRID_X][GRID_Y][DIR][ANGLE]`. `HAND ∈ {LEFT, RIGHT, NONE}` (NONE = bomb / wall, which ride the same timeline but don't update saber state).
+- **Architecture:** Transformer decoder (8 layers, 8 heads, d_model=512) with:
+  - Causal self-attention over the swing-event token stream (autoregressive).
+  - Cross-attention to audio encoder output.
+  - Difficulty + genre + (cohort) mapper-id conditioning via learned embeddings (additive).
+  - **Saber-state proprioception:** `Linear(12, d_model)` over `(L_pos, L_dir, L_dt, L_parity, R_pos, R_dir, R_dt, R_parity)`, additive to decoder input. Maintained incrementally during AR decoding.
+  - **Phrase embedding:** mean-pooled 16-bar audio window projected via `Linear(d_model, d_model)`, additive at every decode position.
+- **Why per-hand events instead of per-onset chords:** parity becomes a structural property of the data (alternation enforced by construction), follow-through becomes a clean geometric loss between consecutive same-hand events, chain/arc tails self-connect via the next same-hand event, and the vocabulary shrinks from 183 → ~70.
+- **Training losses (V6):**
+  - Token cross-entropy with rhythm-token weighting.
+  - Phrase-energy KL loss between predicted swing density per 4-bar window and audio RMS per 4-bar window.
+  - Optional: style-discriminator loss `−λ log p_D(this_mapper | swing_window)` once D reaches F1 ≥ 0.6.
+  - **Removed in V6 (do not re-add):** `_compute_flow_loss`, `_compute_intra_onset_parity_loss`, `_compute_follow_through_loss`, `_compute_ergo_loss`. These were bandaids on the chord representation and the new representation makes them either structural or naturally derivable.
+- **Inference:** swing-event beam search; saber state recomputed per step and passed alongside decoder cache.
 
-### Stage 3: Lighting Generation
-- Task: Given audio features + generated note sequence, produce lighting events
-- Architecture: Transformer decoder (4 layers, 8 heads) with:
-  - Structural slot embedding (4-position cycling: event_type -> ET -> VAL -> BRIGHT)
-  - Cross-attention to audio encoder output (with structure features)
-  - Note context via mean-pooled note token embeddings (additive)
-- Training: CrossEntropyLoss with label_smoothing=0.1
-- Inference: Constrained nucleus sampling (state machine enforces valid event grammar)
-- Post-processing: Chroma RGB colors added from song energy profile (6 curated palettes)
+### Stage 3: Lighting Generation (Rule-Based, V5)
+- **V5 uses rule-based lighting** — no ML model trained. The ML lighting model and training module were removed.
+- Rule-based engine in `generation/lighting_rules.py`: energy-driven event placement, chroma RGB colors from song structure (6 curated palettes in `generation/chroma.py`)
 
 ### Audio Encoder (Shared)
 - Input: Raw audio -> mono 44.1kHz -> Mel spectrogram (80 bands, 1024 FFT, 512 hop, ~10ms/frame)
@@ -122,28 +130,30 @@ Audio File (.mp3/.ogg/.wav)
 - Output: One embedding vector per ~10ms audio frame, enriched with song energy information
 - This is a task-specific encoder (NOT a pretrained speech model) — we need low-level rhythmic features
 
-### Token Vocabulary (Stage 2)
+### Token Vocabulary (Stage 2 — V6 Swing-Event Grammar)
 
-Each note event is tokenized as a sequence of tokens:
+Stage 2 emits one **swing event** per cut, ordered globally by time. The model never sees a "chord at a timestamp" — chords just look like two swing events with `Δt=0`. Locked grammar lives in `docs/swing_event_grammar.md`.
 
 ```
-[EVENT_TYPE] [COLOR] [ROW] [COLUMN] [DIRECTION] [ANGLE_OFFSET]
+SwingEvent := [HAND] [Δt_bin] [KIND] [GRID_X] [GRID_Y] [DIR] [ANGLE]
 ```
 
-Event types include:
-- NOTE: Standard directional note
-- BOMB: Avoid zone (no color/direction)
-- WALL: Obstacle (has width, height, duration instead of direction)
-- ARC_START: Beginning of a slider/arc (includes curvature multiplier)
-- ARC_END: End of a slider/arc
-- CHAIN: Burst slider (includes slice count, squish factor)
-- SEP: Separator between events at the same timestamp
-- EOS: End of sequence for this timestamp
+Token fields:
+- **HAND:** `LEFT` (red saber), `RIGHT` (blue saber), `NONE` (bomb or wall — does not update saber state).
+- **Δt_bin:** beats since the previous event in the stream, quantized (default 1/16-beat resolution with log-spaced bins for the long tail).
+- **KIND:** `NOTE`, `ARC_HEAD`, `ARC_TAIL`, `CHAIN_HEAD`, `CHAIN_TAIL`, `BOMB`, `WALL`.
+- **GRID_X:** column 0–3 (left to right). For walls: column of top-left corner.
+- **GRID_Y:** row 0–2 (bottom to top). For walls: row of top-left corner.
+- **DIR:** 0=up, 1=down, 2=left, 3=right, 4=up-left, 5=up-right, 6=down-left, 7=down-right, 8=any.
+- **ANGLE:** quantized angle offset bin (15° steps).
 
-Multiple notes at the same timestamp use SEP tokens between them, canonical ordering: left-to-right, bottom-to-top.
+**Chain / arc tails self-connect:** a `CHAIN_HEAD` is matched to the next `CHAIN_TAIL` event with the same `HAND`; same rule for `ARC_HEAD` / `ARC_TAIL`. No explicit head/tail pairing tokens are needed.
 
-Grid coordinates: x=0-3 (columns, left to right), y=0-2 (rows, bottom to top)
-Directions: 0=up, 1=down, 2=left, 3=right, 4=up-left, 5=up-right, 6=down-left, 7=down-right, 8=any
+**Parity is structural, not learned:** consecutive same-hand events alternate forehand/backhand by construction of how the data is generated. The model never sees parity-violating training examples, so there is no need for a parity loss.
+
+Special tokens: `PAD`, `BOS`, `EOS`. Total vocab size: ~70 (down from V5's 183).
+
+The legacy chord-grammar tokenizer (`data/tokenizer.py::BeatmapTokenizer`) is retained for backward-compatible evaluation and for decoding pre-V6 checkpoints, but is not used in V6 Stage 2 training or generation.
 
 ### Difficulty Conditioning
 Both Stage 1 and Stage 2 receive a difficulty embedding. A single trained model can generate all difficulty levels. The difficulty affects:
@@ -296,13 +306,12 @@ These are browser-based tools that require NO installation. Use them to evaluate
 | ruff | Linting + formatting | Latest |
 | pytest | Testing | Latest |
 
-### RTX 5090 / sm_120 Notes
+### RTX 5090 / sm_120 Notes (Linux)
 - Stable PyTorch does NOT support sm_120 as of early 2026
 - Use nightly: `uv pip install --pre torch torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128`
-- Verified working: torch 2.11.0.dev+cu128 on Python 3.12, CUDA driver 13.1, toolkit 12.9
+- Verified working: torch 2.12.0.dev+cu128 on Python 3.12, CUDA driver 13.2, toolkit 12.8
 - Always verify: `python -c "import torch; print(torch.cuda.get_device_capability())"` should return `(12, 0)`
 - 32GB VRAM allows batch_size=64+ for our model sizes
-- TORCH_CUDA_ARCH_LIST="12.0" may be needed if building extensions from source
 
 ### No Pretrained Weights Required
 This project trains all models from scratch on Beat Saber map data. There are no external pretrained weights to download. The audio encoder, onset model, sequence model, and lighting model are all trained end-to-end on our curated dataset.
@@ -339,14 +348,13 @@ beatsaber_automapper/
 │       │   ├── __init__.py
 │       │   ├── audio_encoder.py # CNN + Transformer encoder (shared)
 │       │   ├── onset_model.py   # Stage 1: onset prediction
+│       │   ├── onset_planner.py # Song-level bidirectional onset context
 │       │   ├── sequence_model.py # Stage 2: note sequence generation
-│       │   ├── lighting_model.py # Stage 3: lighting generation
 │       │   └── components.py    # Shared building blocks (attention, positional encoding, etc.)
 │       ├── training/
 │       │   ├── __init__.py
 │       │   ├── onset_module.py  # Lightning module for Stage 1
-│       │   ├── seq_module.py    # Lightning module for Stage 2
-│       │   └── light_module.py  # Lightning module for Stage 3
+│       │   └── seq_module.py    # Lightning module for Stage 2
 │       ├── generation/
 │       │   ├── __init__.py
 │       │   ├── generate.py      # End-to-end inference pipeline
@@ -484,7 +492,7 @@ README, pretrained weights on HuggingFace, Gradio/Streamlit web demo, example ou
 
 6. **Difficulty as conditioning** — One model serves all difficulties. More training data, better generalization, and the user just passes a flag.
 
-7. **Windows native** — RTX 5090 CUDA via WSL is unreliable. Training runs directly on Windows with PyTorch nightly cu128.
+7. **Linux native** — Moved from Windows to Linux (May 2026). RTX 5090 CUDA works natively on Linux with PyTorch nightly cu128. All 241 tests pass.
 
 ## Useful References
 

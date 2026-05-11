@@ -1,171 +1,157 @@
-# Beat Saber Automapper — V5 Plan (Style-First Architecture)
+# Beat Saber Automapper — V6 Plan (Swing-First Architecture)
 
-**Last updated:** 2026-04-14
-**Status:** V4 (v15 run) DEPRECATED. Committing to V5 — style-cohort training + auto-researcher + trajectory output.
+**Last updated:** 2026-05-11
+**Status:** V5 (cohort + harness) infrastructure preserved. V5 modeling axis DEPRECATED. Committing to V6 — per-hand swing-event tokenization + saber-state proprioception + phrase-aware loss.
 **North star:** A player plays a generated map and says *"who mapped this?"* — not *"is this AI?"*
+
+**Full rationale and architecture analysis:** [`docs/architecture_v6_plan.md`](docs/architecture_v6_plan.md)
 
 ---
 
-## Why We Pivoted
+## Why We Pivoted (Again)
 
-V1–V4 all shared the same fatal premise: one averaged model, one token-CE loss, one big mashed-together dataset. Every iteration hit the same ceiling because:
+V5 fixed two of three axes:
+- **Data axis:** single-mapper cohorts → kept. Already correct.
+- **Iteration axis:** auto-researcher harness → kept. Already correct.
+- **Modeling axis:** chord-token CE + bandaid aux losses → **wrong representation.**
 
-1. **Averaging kills style.** Training on 14k maps from thousands of mappers produces output that satisfies no mapper. There's no "correct" forehand/backhand direction when averaged over conflicting conventions.
-2. **Token CE is spatially local.** It optimizes per-token probability; it does not optimize the *motion* a player performs. Models find loopholes (diagonal spam, wall spam in v15) that lower CE while producing unplayable motion.
-3. **8–15h iteration is too slow.** We cannot steer an architecture at that cadence. Every failed run is a week lost.
+A thorough re-review by Opus 4.7 on 2026-05-10 identified three blindspots in the V5 modeling stack:
 
-V5 fixes all three.
+1. **Output representation hides physics.** A map is two interleaved hand trajectories, not a sequence of chords. The chord-at-timestamp tokenizer forces the model to re-learn saber kinematics through statistical regularity, with the aux losses (`flow`, `intra_onset_parity`, `follow_through`, `ergo`) acting as bandaids on the representation.
+2. **No body / no proprioception.** `prev_context_k=8` previous onsets mean-pooled to a single vector destroys ordering and grid information. The model has no idea where its sabers physically are.
+3. **Loss is local; mapping is phrasing.** CE + parity / follow-through optimize per-token correctness. There is no signal that says "this 4-bar window should feel like the song's 4-bar window" or "this is a Joetastic-style accent."
+
+V6 fixes all three with three coordinated bets.
 
 ---
 
 ## The Three Bets
 
-### Bet 1 — Trajectory/Flow output (physics-first objective)
+### Bet 1 — Per-hand swing-event tokenization
 
-Replace token-CE with a loss that *sees motion*. Represent a map as a continuous saber-trajectory field over time — or at minimum, optimize a direct playability objective (differentiable parity + follow-through + collision) alongside event emission. Diffusion or flow-matching head over a short temporal window.
+Replace the chord grammar with a single ordered stream of swing events, one per hand-cut:
 
-Why this matters: the model will never generate flowing maps if the loss cannot distinguish flowing output from non-flowing output. It currently cannot.
+```
+SwingEvent := [HAND] [Δt_bin] [KIND] [GRID_X] [GRID_Y] [DIR] [ANGLE]
+```
 
-### Bet 2 — Single-mapper cohorts (style-first data)
+- `HAND`: LEFT (red) / RIGHT (blue) / NONE (bomb or wall)
+- `KIND`: NOTE / ARC_HEAD / ARC_TAIL / CHAIN_HEAD / CHAIN_TAIL / BOMB / WALL
 
-Train on one mapper's catalog at a time. Joetastic model. Rustic model. Emilia model. A player loading the "Joetastic" variant should feel Joetastic's choices: his phrasing, his accent placement, his comfort level with parity resets.
+**Unlocks:** parity becomes structural (alternation enforced by data), follow-through becomes a clean geometric loss between consecutive same-hand events, chain/arc tails self-connect, vocab shrinks from 183 → ~70. **All current aux losses get deleted, not migrated.**
 
-Why this matters: style is the product, not a nice-to-have. Averaged mappers will always lose to real ones. Committing to a style makes the model *something* rather than *nothing*.
+### Bet 2 — Saber-state conditioning
 
-### Bet 3 — Auto-researcher harness (fast iteration)
+Pass an explicit 12-dim physical state at every decode step:
+`(L_x, L_y, L_dx, L_dy, L_dt, L_parity, R_x, R_y, R_dx, R_dy, R_dt, R_parity)`. Computed from ground-truth past swings at training; maintained incrementally during AR decoding at inference. Projected via `Linear(12 → d_model)`, additive to decoder input. Replaces (or augments) the mean-pooled `prev_context_k` blob.
 
-A loop that: (1) reads an experiment spec (cohort + hyperparams), (2) trains a small model for 30–60 min on a small cohort, (3) generates test maps, (4) runs automated playability EDA, (5) writes results to a leaderboard. Enables 10–20 experiments/day instead of 1/week.
+### Bet 3 — Phrase conditioning + style discriminator
 
-Why this matters: Bets 1 and 2 are both bets — we don't know which mapper transfers best, which trajectory formulation converges, which bucket blend works. Without a harness we're guessing. With a harness we're iterating.
-
-**Build order:** Bet 3 first. It makes 1 and 2 cheap.
-
----
-
-## Cohort Structure (from `data/reference/mappers.json`)
-
-**18 mappers, 9 style buckets.** See `data/reference/mappers.json` for the full schema.
-
-| Bucket | Mappers | Use |
-|--------|---------|-----|
-| `anime_jpop_flow` | Joetastic, ETAN, Emilia, Alice, Nolanimations | Highest-volume style; try first |
-| `acc_ranked_flowy` | cerret, Aquaflee, Skeelie, hexagonial, olaf, Alice | Ranked-clean reference for parity metrics |
-| `fast_rock_metal` | rustic, BennyDaBeast, Emilia, fatbeanzoop | Physical-mapping test |
-| `dance_pop_kpop` | Joetastic, ETAN, BennyDaBeast, ryger | Groove-style test |
-| `tech_gimmick` | cerret, Skeelie, hexagonial, helloimdaan, oddloop, uninstaller, Aquaflee | Hard-mode — does model learn angle language? |
-| `vibro_speed` | helloimdaan, oddloop, fatbeanzoop, uninstaller | Edge-case robustness |
-| `cinematic_variety` | rustic, ETAN, Nolanimations, muffn | Musical-structure test |
-| `meme_variety_experimental` | oddloop, ryger, muffn, uninstaller | Non-generic pattern exposure |
-| `slow_lofi_chill` | olaf, ryger | Low-density restraint |
+- **Phrase embedding.** Mean-pool a 16-bar audio window around the current time, project to `d_model`, add as conditioning at each decode position.
+- **Phrase-energy aux loss.** KL between predicted swing density per 4-bar window and audio RMS per 4-bar window.
+- **Style discriminator.** Train `D(audio_window, swing_window) → mapper_id` on all 18 cohorts. Once F1 ≥ 0.6, add `−λ · log p_D(this_mapper)` as auxiliary loss in sequence training. Learned style-closeness signal.
 
 ---
 
-## First-Run Blockers (2026-04-14)
+## What Survives From V5 (no change required)
 
-Everything required before a single spec from `experiments/queue/initial.yaml` can execute. ~6h of work, all non-blocking on the running download.
-
-| # | Task | File(s) | Status |
-|---|------|---------|--------|
-| B1 | Cohort-aware preprocessing | `scripts/preprocess.py` — add `--cohort <slug>`, root swap | [x] |
-| B2 | Dataset cohort filter | `src/beatsaber_automapper/data/dataset.py` — already scans `data_dir`; cohort/bucket routed via `data_dir` swap | [x] |
-| B3 | Bucket manifest builder | `scripts/build_bucket_manifests.py` — hardlinked bucket dirs + combined splits/frame_index | [x] |
-| B4 | Hydra wiring for cohort/bucket | `scripts/train.py` + `configs/train.yaml` — top-level `cohort=` / `bucket=` overrides `data_dir` | [x] |
-| B5 | Cohort reference stats | `scripts/compute_cohort_reference.py` — mean NPS, direction histogram, parity baseline, color balance | [x] |
-| B6 | `output_dir` override validation | Lightning uses `default_root_dir` = `output_dir`; runner `rglob`s for ckpt; **Hydra model-group override fixed** via `configs/model/sequence/` subdir | [x] |
-| B7 | Shared onset ckpt wiring | `scripts/auto_research.py` default: `outputs/.../version_0/.../onset-epoch=05-val_f1=0.732.ckpt`. No per-cohort onset training. | [x] |
-
-**All first-run blockers resolved.** Ready to execute initial queue once downloads complete + preprocessing runs.
-
-## Polish Before Scaling (deferred, not blocking first runs)
-
-| # | Task | Why |
-|---|------|-----|
-| P1 | Auto-detect test audio duration | Done in `runner.py::_audio_duration_sec` — `--test-duration-sec` is now optional | [x] |
-| P2 | Seed reaches Lightning Trainer | `configs/train.yaml` exposes `seed`; `scripts/train.py` calls `seed_everything`; runner emits `seed={spec.seed}` | [x] |
-| P3 | Per-cohort EDA dashboard | `scripts/cohort_eda.py` — renders all `reference.json` files as a sortable comparative table | [x] |
-| P4 | Crash recovery — OOM vs other | Runner currently treats any nonzero rc as failure | [ ] |
-| P5 | Composite-score weight calibration | Current weights (0.4/0.2/0.1/0.3) are guesses | [ ] |
-
-## Architecture Changes Needed
-
-| Phase | Change | Defer until |
-|-------|--------|-------------|
-| V5-1 MVP | **None.** Current `SequenceModel` works for cohort training at smaller size. | — |
-| V5-2 | Optional `mapper_id` embedding (additive conditioning alongside difficulty/genre), ~30 lines in `sequence_model.py` | After harness shows which cohort is most learnable |
-| V5-3 | Trajectory/flow-matching head (Bet 1) — new output + loss + decoder path | After V5-2 proves (or disproves) that token-CE can hit style transfer |
-
-**Not changing:** `AudioEncoder`, `OnsetModel`, tokenizer, `beatmap.py`, postprocessing.
+| Component | Status |
+|-----------|--------|
+| `data/cohorts/{mapper}/` directory structure | Unchanged |
+| `scripts/download_cohorts.py` | Unchanged |
+| `scripts/auto_research.py` | Spec format extended (V6 model presets); core loop unchanged |
+| `experiments/leaderboard.jsonl` | Unchanged; V5 and V6 rows directly comparable on composite score |
+| `data/reference/mappers.json` | Unchanged — same 18 mappers, 9 buckets |
+| `models/audio_encoder.py` | Unchanged |
+| `models/onset_model.py` (Stage 1) | Unchanged |
+| `generation/lighting_rules.py` (Stage 3) | Unchanged |
+| `evaluation/playability.py` (as evaluation, not training loss) | Unchanged |
 
 ---
 
-## Implementation Plan
+## Phase Plan
 
-### Phase V5-0: Cohort Data Infrastructure (days 1–3)
+Build order is **representation-first**. Bets 2 and 3 are cheap *after* Bet 1; doing them in any other order means redoing them after the tokenizer change.
 
-**Goal:** Every mapper's full catalog downloaded, preprocessed, and addressable as a cohort.
+### Phase V6-0 — Spec + round-trip (1 day)
 
-- [ ] **0.1** Validate all `beatsaver_id` values against BeatSaver API (`/users/id/{id}`). Mark mismatches in `mappers.json`.
-- [ ] **0.2** Add `scripts/download_cohorts.py`: reads `mappers.json`, downloads each mapper's full catalog via `/maps/uploader/{id}/{page}` to `data/cohorts/{mapper_name}/raw/{map_id}.zip`. Rate-limit 5 req/s, exponential backoff on 429. Persistent manifest per cohort.
-- [ ] **0.3** Extend `scripts/preprocess.py` with `--cohort <name>` flag. Output → `data/cohorts/{mapper_name}/processed/`.
-- [ ] **0.4** Build bucket index: `data/cohorts/_buckets/{bucket_id}.json` listing member .pt files for all mappers in that bucket. Used by dataset filter.
-- [ ] **0.5** Extend `BeatSaberDataset` with `cohort` / `bucket` filter. Reuse existing frame_index format.
-- [ ] **0.6** Sanity EDA per cohort: notes/sec, parity violations, direction distribution, NPS histogram. Confirm each cohort is self-consistent before training.
+- [ ] **0.1** Write `docs/swing_event_grammar.md`: token table, ordering rules, walls/bombs handling, chain/arc tail matching policy.
+- [ ] **0.2** Implement `data/swing_tokenizer.py::SwingEventTokenizer` with `encode_beatmap` and `decode_beatmap`.
+- [ ] **0.3** Round-trip test on full Joetastic catalog. Target ≥ 99.5% maps round-trip cleanly (within Δt + angle quantization).
+- [ ] **0.4** Lock vocabulary constants: vocab size, Δt resolution, ANGLE resolution.
 
-**DoD:** `python scripts/download_cohorts.py` completes. `data/cohorts/joetastic/processed/` exists with >100 .pt files. A training batch can be built from a single cohort.
+**DoD:** Round-trip test passes; new tokenizer + tests committed.
 
----
+### Phase V6-1 — Saber state extractor (1 day)
 
-### Phase V5-1: Auto-Researcher Harness (days 3–7)
+- [ ] **1.1** `data/saber_state.py::compute_saber_states(swing_events) -> Tensor[N, 12]`. Pure, deterministic, parity-resets on >3-beat gaps.
+- [ ] **1.2** Property tests: state at N depends only on swings 0..N−1; long-gap reset works; left/right independent.
+- [ ] **1.3** Sanity histogram on Joetastic cohort — distributions look healthy.
 
-**Goal:** Run 10+ short experiments in an afternoon. Answer: which mappers are learnable? At what model size? With what loss?
+**DoD:** Saber state computed for every Joetastic map; histograms look reasonable.
 
-- [ ] **1.1** `experiments/spec.yaml` schema: `{cohort, bucket, model_size, max_epochs, loss_weights, seed}`.
-- [ ] **1.2** `scripts/auto_research.py`: reads a queue of specs, trains each for a capped wall-clock (30–60 min), generates a fixed test song, runs playability EDA, appends results to `experiments/leaderboard.jsonl`.
-- [ ] **1.3** Reuse `evaluation/playability.py` (6 checks). Add: style-closeness (direction histogram KL vs cohort reference, NPS match, parity-violation-rate gap vs cohort baseline).
-- [ ] **1.4** Small-model preset in `configs/model/sequence_small.yaml` (d_model=256, 4 layers). Target: <60 min training on single-mapper cohort.
-- [ ] **1.5** Shared test song: `data/reference/so_tired_rock.mp3`. Every experiment generates against it so outputs are directly comparable.
-- [ ] **1.6** `scripts/leaderboard.py`: renders `experiments/leaderboard.jsonl` as a table, sorted by composite score.
+### Phase V6-2 — Dataset migration (2 days)
 
-**DoD:** `python scripts/auto_research.py experiments/queue/initial.yaml` runs five experiments end-to-end and writes a ranked leaderboard.
+- [ ] **2.1** Add `SwingSequenceDataset` (or `format=swing` flag on existing). Emits `tokens`, `saber_state`, `mapper_id`, `phrase_window_offset`.
+- [ ] **2.2** Update `collate_fn` for variable-length swing streams.
+- [ ] **2.3** Re-preprocess Joetastic → `data/cohorts/joetastic/processed_v6/`. Keep V5 `processed/` for fallback.
+- [ ] **2.4** Smoke test: batch → `SwingEventTokenizer.decode` → valid `DifficultyBeatmap`.
 
----
+**DoD:** Joetastic V6-preprocessed; DataLoader produces correctly-shaped batches; round-trip from batch passes.
 
-### Phase V5-2: Single-Mapper Cohort Validation (days 7–10)
+### Phase V6-3 — Model rewiring (2 days)
 
-**Goal:** Prove style transfer. One generated map that a BS community member can identify as "{mapper}-style."
+- [ ] **3.1** Add `saber_state_proj = Linear(12, d_model)`; additive to decoder input.
+- [ ] **3.2** Add `phrase_proj = Linear(d_model, d_model)`; phrase embedding pooled from 16-bar audio window, additive per decode position.
+- [ ] **3.3** New vocab size (~70) wired through model + tokenizer + configs.
+- [ ] **3.4** **Delete** from `seq_module.py`: `_compute_flow_loss`, `_compute_intra_onset_parity_loss`, `_compute_follow_through_loss`, `_compute_ergo_loss`, plus their `*_alpha` hyperparams.
+- [ ] **3.5** Update `decode_step_cached` to consume new vocab + saber-state input (recomputed per step at inference).
+- [ ] **3.6** Configs: `configs/model/sequence/sequence_swing_small.yaml` (d_model=256, 4 layers) and `sequence_swing_full.yaml` (d_model=512, 8 layers).
 
-- [ ] **2.1** From V5-1 leaderboard, pick the top 3 mappers by style-closeness. Run full-size training on each (4–8 hours each).
-- [ ] **2.2** Generate 3 test maps per mapper (different genres from test pool) → `data/generated/cohort_eval/`.
-- [ ] **2.3** Blind human evaluation: share with community mapper if possible; at minimum, self-eval against the mapper's real catalog.
-- [ ] **2.4** Document wins/losses per mapper in `docs/cohort_results.md`.
+**DoD:** Model trains 1 epoch on Joetastic V6 without errors; val_loss is measurable.
 
-**DoD:** At least one mapper cohort produces output that is distinctly stylistic (not the averaged-mapper output v14 generated).
+### Phase V6-4 — Phrase-energy auxiliary loss (1 day)
 
----
+- [x] **4.1** Compute predicted swing rate per 4-bar window from emission probabilities.
+- [x] **4.2** Compute ground-truth audio RMS per 4-bar window.
+- [x] **4.3** KL divergence between the two; weight via `phrase_energy_alpha` (default 0.1).
+- [x] **4.4** Log `train_phrase_energy_loss`; verify it actually decreases on a real run.
 
-### Phase V5-3: Trajectory Output (weeks 2–4)
+**DoD:** Loss is differentiable, decreases on Joetastic training, does not NaN. ✓ Implemented in `seq_module._compute_phrase_energy_loss`. Activated when `phrase_energy_alpha > 0` and `structure` is in batch.
 
-**Goal:** Loss function that sees motion, not just tokens.
+### Phase V6-5 — Style discriminator (2 days)
 
-Approaches to prototype in V5-1 harness before committing:
+- [ ] **5.1** `training/style_discriminator.py`: small transformer (`d_model=128`, 2 layers) over `(audio_window_emb, swing_window_tokens) → mapper_id` across all 18 cohorts.
+- [ ] **5.2** Pretrain to F1 ≥ 0.6 on held-out swing windows. Checkpoint saved.
+- [ ] **5.3** Plug into `seq_module.py` as `−λ · log p_D(this_mapper | generated_window)`. Frozen D, stop-gradient through D.
+- [ ] **5.4** Calibrate `style_disc_alpha` (default 0.2) so its gradient magnitude is comparable to CE.
 
-- [ ] **3.1** **Option A — Soft-trajectory auxiliary loss:** Keep token output. Add a differentiable saber-trajectory simulator (piecewise cubic) over the generated window. Loss = cosine-distance between predicted trajectory and ground-truth trajectory derived from the real map. Should reduce follow-through violations to near zero if trained long enough.
-- [ ] **3.2** **Option B — Flow-matching head:** Replace token emission with a diffusion/flow-matching head predicting `(hand_pos, hand_vel, swing_intent)` at each onset frame, decoded back to v3 events post-hoc. Harder; higher ceiling.
-- [ ] **3.3** **Option C — Hybrid:** Token output for event type + flow head for continuous params (direction, angle). Simpler than B; more signal than A.
+**DoD:** Discriminator-augmented sequence run completes; style-closeness composite on leaderboard improves vs CE-only baseline.
 
-Pick one based on harness results.
+### Phase V6-6 — Inference + postprocess cleanup (1 day)
 
-**DoD:** A training run produces maps with <5% parity violations *pre*-postprocessing (vs v14's 50%).
+- [x] **6.1** V6 grammar-constrained nucleus sampler in `generation/beam_search_v6.py`. Grammar state machine enforces token grammar; saber state updated per event and passed to model.
+- [x] **6.2** `generation/generate.py::generate_swing_level` — full V6 end-to-end pipeline (audio → swing-event stream → beatmap → postprocess → lighting → .zip). `postprocess_beatmap` no longer calls `fix_parity` or `convert_dot_notes`.
+- [ ] **6.3** End-to-end: `bsa-generate so_tired_rock.mp3 --difficulty Expert --cohort joetastic`. Verify .zip loads in ArcViewer. (Requires trained checkpoint — blocked on data download.)
 
----
+**DoD:** `test_generate_swing_level_creates_zip` passes ✓. Full ArcViewer test pending trained model.
 
-### Phase V5-4: Style Mixing / Bucket Conditioning (week 3+)
+### Phase V6-7 — Harness re-validation (1 day)
 
-**Goal:** One model conditioned on `mapper_id` that can produce any of the cohorts on demand.
+- [x] **7.1** `scripts/train.py` updated: `dataset_format=swing` flag switches between `SequenceDataset` (V5) and `SwingSequenceDataset` (V6). `collate_fn` plumbed through `create_dataloader`.
+- [x] **7.2** `experiments/queue/v6_pilot.yaml` created: Joetastic / Rustic / Helloimdaan @ `sequence_swing_small` preset, 90 min each.
+- [ ] **7.3** Run overnight. Compare V6 leaderboard rows to V5 rows on the same cohorts. (Requires data download + preprocessing.)
 
-- [ ] **4.1** Mapper embedding (18-class) + bucket embedding (9-class) as conditioning inputs.
-- [ ] **4.2** Train on all cohorts with conditioning dropout (CFG-style). Enables both single-mapper and blended output.
-- [ ] **4.3** Test style-interpolation: "70% Joetastic, 30% rustic" via embedding blend.
+**DoD:** Queue file exists; train.py accepts `dataset_format=swing` ✓. Overnight run pending data.
+
+### Phase V6-8 — Deep training + human eval (1–2 weeks)
+
+- [ ] **8.1** From V6-7 leaderboard, pick top-2 cohorts. Full-size training (d_model=512, 8 layers), 6–10h each.
+- [ ] **8.2** Generate 3 test maps per winning cohort across 3 different test songs.
+- [ ] **8.3** Self-eval against the real catalog side-by-side in ArcViewer. Document wins/losses in `docs/v6_results.md`.
+- [ ] **8.4** If possible: blind community-mapper review of generated maps.
+
+**DoD:** At least one cohort produces output a human can identify as that mapper's style.
 
 ---
 
@@ -173,81 +159,103 @@ Pick one based on harness results.
 
 | Thing | Why it's dead |
 |-------|--------------|
-| V4 v15 training run | Catastrophic output (1 note + 1572 walls) — rare-event CE reweighting + Expert-only shrinkage collapsed the model |
-| "One model for all mappers" | Averaging produces nothing; committed to style-cohort approach |
-| Token-CE as sole objective | Loss is not motion-aware; model finds loopholes. Replaced by trajectory loss in Bet 1 |
-| Constrained decoding as a bandaid | Keep the code — still useful — but stop treating inference patches as fixes for a mis-trained model |
+| Chord-at-timestamp tokenization (`data/tokenizer.py::BeatmapTokenizer`) | Hides physics, generates aux-loss debt. Replaced by `SwingEventTokenizer`. |
+| `_compute_flow_loss` | Parity is structural under swing-events. |
+| `_compute_intra_onset_parity_loss` | Same as above. |
+| `_compute_follow_through_loss` | Replaced by geometric loss between consecutive same-hand swings (if needed). |
+| `_compute_ergo_loss` | Color-side preference is now structural via HAND tokens. |
+| Mean-pooled `prev_context_k` blob | Replaced by saber-state vector + per-hand swing window. |
+| Diagonal-biased `_choose_flow_direction` postproc | Model emits direction directly. |
+| `fix_parity`, `convert_dot_notes` rewrite passes | Same. |
+| V5 overnight sweep (`experiments/queue/initial.yaml`) | Held; would have trained the wrong representation. Will re-run as `v6_pilot.yaml` after V6-6. |
 
-v14 checkpoint is preserved as potential warm-start for cohort fine-tuning. Not discarded.
+The original `BeatmapTokenizer` stays in the repo as a legacy round-trip and evaluation aid, but is no longer used by Stage 2 training.
 
 ---
 
-## File Map (V5)
+## File Map (V6)
 
 ### To Create
 | File | Purpose |
 |------|---------|
-| `data/reference/mappers.json` | Cohort source-of-truth (EXISTS) |
-| `scripts/download_cohorts.py` | Per-mapper catalog downloader |
-| `scripts/auto_research.py` | Experiment runner |
-| `scripts/leaderboard.py` | Results viewer |
-| `configs/model/sequence_small.yaml` | Fast-iteration model preset |
-| `experiments/spec.yaml` | Experiment schema |
-| `experiments/queue/initial.yaml` | First batch of specs |
-| `experiments/leaderboard.jsonl` | Results log |
-| `docs/cohort_results.md` | Per-mapper wins/losses |
+| `docs/architecture_v6_plan.md` | Full V6 rationale + phase plan (EXISTS) |
+| `docs/swing_event_grammar.md` | Locked-down token table + ordering rules |
+| `src/beatsaber_automapper/data/swing_tokenizer.py` | New per-hand swing-event tokenizer |
+| `src/beatsaber_automapper/data/saber_state.py` | Saber-state extractor (12-dim per swing) |
+| `src/beatsaber_automapper/models/phrase_encoder.py` | 16-bar phrase-window pooler |
+| `src/beatsaber_automapper/training/style_discriminator.py` | Mapper classifier + pretraining loop |
+| `configs/model/sequence/sequence_swing_small.yaml` | V6 small preset |
+| `configs/model/sequence/sequence_swing_full.yaml` | V6 full preset |
+| `experiments/queue/v6_pilot.yaml` | First V6 sweep (3 cohorts × 90 min) |
+| `docs/v6_results.md` | Per-cohort wins/losses |
 
 ### To Modify
 | File | Change |
 |------|--------|
-| `src/beatsaber_automapper/data/dataset.py` | Add `cohort` / `bucket` filter |
-| `scripts/preprocess.py` | Add `--cohort` flag |
-| `src/beatsaber_automapper/evaluation/playability.py` | Add style-closeness metrics |
+| `src/beatsaber_automapper/data/dataset.py` | Add swing-event format, emit saber-state + mapper_id |
+| `src/beatsaber_automapper/models/sequence_model.py` | New vocab, saber-state projection, phrase projection |
+| `src/beatsaber_automapper/training/seq_module.py` | **Delete** flow / parity / follow-through / ergo losses. Add phrase-energy + style-discriminator losses. |
+| `src/beatsaber_automapper/generation/beam_search.py` | Swing-event grammar mask; saber-state maintained per step |
+| `src/beatsaber_automapper/generation/postprocess.py` | Drop parity/dot/diagonal rewriters; keep structural rules |
+| `scripts/preprocess.py` | `--format swing` flag (defaults to v6 going forward) |
+| `scripts/auto_research.py` | Accept V6 model presets |
+| `CLAUDE.md` | Architecture section updated to V6 (DONE) |
+| `README.md` | ML pipeline diagram + conditioning table updated to V6 (DONE) |
 
-### To Reference (keep working)
+### To Reference (keep working, no changes)
 | File | What it does |
 |------|-------------|
-| `models/audio_encoder.py` | Audio encoder — still valid |
-| `models/onset_model.py` | Onset detection — still valid |
-| `models/sequence_model.py` | Keep; train on cohorts |
-| `generation/beam_search.py` | Constrained decoding — keep |
-| `generation/postprocess.py` | Playability pass — keep |
+| `models/audio_encoder.py` | Shared audio encoder — still correct |
+| `models/onset_model.py` | Stage 1 — still correct |
+| `models/onset_planner.py` | Optional; saber-state subsumes most of its role. Keep wiring, expect to disable in V6 small preset. |
+| `generation/lighting_rules.py` | Rule-based Stage 3 — still good enough |
+| `generation/chroma.py` | Chroma palettes — still good |
+| `evaluation/playability.py` | Still the evaluator (heuristic checks); not used as training loss |
 
 ---
 
-## Commands (V5)
+## Commands (V6)
 
 ```bash
-# Validate mappers.json against BeatSaver API
-python scripts/download_cohorts.py --validate-only
+# Preprocess Joetastic cohort under V6 swing-event format
+python scripts/preprocess.py --cohort joetastic --format swing --workers 8
 
-# Download all cohorts (full catalogs)
-python scripts/download_cohorts.py
-
-# Preprocess a single cohort
-python scripts/preprocess.py --cohort joetastic --workers 8
-
-# Run a small experiment on one cohort
+# Train V6 small model on Joetastic
 python scripts/train.py stage=sequence \
+    model=sequence/sequence_swing_small \
     data.cohort=joetastic \
-    model.sequence.d_model=256 model.sequence.num_layers=4 \
-    max_epochs=15 max_samples_per_epoch=50000
+    seq_module.phrase_energy_alpha=0.1 \
+    seq_module.style_disc_alpha=0.0 \
+    max_epochs=30 max_samples_per_epoch=50000
 
-# Run the auto-researcher on a queue
-python scripts/auto_research.py experiments/queue/initial.yaml
+# Run V6 pilot sweep
+python scripts/auto_research.py experiments/queue/v6_pilot.yaml
 
-# View leaderboard
-python scripts/leaderboard.py
+# Generate end-to-end with V6 model
+bsa-generate song.mp3 --difficulty Expert --cohort joetastic
 ```
 
 ---
 
 ## Success Criteria
 
-V5 is working when:
+V6 is working when:
 
-1. **Infrastructure:** All 18 cohorts downloaded, preprocessed, individually trainable.
-2. **Iteration speed:** 10+ experiments/day achievable.
-3. **Style transfer:** At least one single-mapper model produces output a human can identify as that mapper's style.
-4. **Motion quality:** Parity violation rate <5% pre-postprocess on generated maps (vs ~50% in v14).
-5. **Portfolio-ready:** Demo shows side-by-side generation in 3 distinct mapper styles from the same input song.
+1. **Round-trip fidelity:** swing-event tokenizer round-trips ≥ 99.5% of cohort maps.
+2. **Structural correctness (pre-postproc):** parity violations < 5%; zero impossible follow-throughs; dot-direction usage ≤ cohort baseline ± 5%.
+3. **Style transfer:** at least one cohort's V6 output is identifiable as that mapper's style by a human.
+4. **Iteration speed:** harness still hits ≥ 10 experiments / overnight on V6 small preset.
+5. **Loss-stack simplicity:** `seq_module.py` is *smaller* after V6 than before V5. (If aux-loss code is growing again we're doing it wrong.)
+
+---
+
+## Risk Register (summary; full version in `docs/architecture_v6_plan.md`)
+
+| Risk | Mitigation |
+|------|------------|
+| Swing-event grammar can't represent some v3 construction | Round-trip test on full Joetastic catalog before committing. |
+| Δt quantization loses musically-meaningful timing | Pick bin resolution from histogram of real inter-swing intervals. |
+| Saber state too low-dim to capture intent | Add `swing_velocity_estimate` or last-K same-hand swings. |
+| Style discriminator fails to learn | V6-5 is gated; ship V6 without it if F1 < 0.6. |
+| V6 worse than V5 on cohorts | Harness surfaces this within 90 min. Hold and debug before deeper runs. |
+| Removing aux losses regresses parity | Structural alternation guarantees parity. If violated, encoder is buggy — fix encoder, don't re-add loss. |
