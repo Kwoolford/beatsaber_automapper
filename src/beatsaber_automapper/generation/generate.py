@@ -18,7 +18,6 @@ import numpy as np
 import torch
 
 from beatsaber_automapper.data.audio import (
-    beat_to_frame,
     compute_section_features,
     compute_structure_features,
     detect_bpm,
@@ -27,7 +26,6 @@ from beatsaber_automapper.data.audio import (
     frame_to_beat,
     load_audio,
 )
-from beatsaber_automapper.data.beatmap import ColorNote, DifficultyBeatmap
 from beatsaber_automapper.data.tokenizer import DIFFICULTY_MAP, GENRE_MAP
 from beatsaber_automapper.generation.beam_search import (
     ConstraintState,
@@ -131,263 +129,6 @@ def _make_default_sequence_module() -> Any:
     module = SequenceLitModule()
     module.eval()
     return module
-
-
-def _load_lighting_module(checkpoint_path: Path) -> Any:
-    """Load a trained LightingLitModule from a Lightning checkpoint.
-
-    Args:
-        checkpoint_path: Path to a .ckpt file saved by LightingLitModule.
-
-    Returns:
-        Loaded LightingLitModule in eval mode.
-
-    Raises:
-        FileNotFoundError: If checkpoint file does not exist.
-        RuntimeError: If checkpoint is incompatible or corrupted.
-    """
-    from beatsaber_automapper.training.light_module import LightingLitModule
-
-    checkpoint_path = Path(checkpoint_path)
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Lighting checkpoint not found: {checkpoint_path}")
-    try:
-        module = LightingLitModule.load_from_checkpoint(str(checkpoint_path))
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to load lighting checkpoint {checkpoint_path}: {e}"
-        ) from e
-    module.eval()
-    return module
-
-
-def _make_default_lighting_module() -> Any:
-    """Create a default (untrained) LightingLitModule for testing.
-
-    Returns:
-        LightingLitModule with default hyperparameters in eval mode.
-    """
-    from beatsaber_automapper.training.light_module import LightingLitModule
-
-    module = LightingLitModule()
-    module.eval()
-    return module
-
-
-def _load_note_pred_module(checkpoint_path: Path) -> Any:
-    """Load a trained NotePredictionLitModule from a Lightning checkpoint."""
-    from beatsaber_automapper.training.note_module import NotePredictionLitModule
-
-    checkpoint_path = Path(checkpoint_path)
-    if not checkpoint_path.exists():
-        raise FileNotFoundError(f"Note predictor checkpoint not found: {checkpoint_path}")
-    try:
-        module = NotePredictionLitModule.load_from_checkpoint(str(checkpoint_path))
-    except Exception as e:
-        raise RuntimeError(
-            f"Failed to load note predictor checkpoint {checkpoint_path}: {e}"
-        ) from e
-    module.eval()
-    return module
-
-
-# Angle offset index -> degree offset mapping
-_ANGLE_OFFSETS = [-45, -30, -15, 0, 15, 30, 45]
-
-
-def predict_notes_structured(
-    note_pred_module: Any,
-    audio_features: torch.Tensor,
-    difficulty_idx: int,
-    genre_idx: int = 0,
-    device: torch.device | None = None,
-    prev_tokens: torch.Tensor | None = None,
-) -> list[ColorNote]:
-    """Run NotePredictor to generate notes for a single onset.
-
-    Converts the multi-head structured predictions into ColorNote objects.
-
-    Args:
-        note_pred_module: NotePredictionLitModule with audio_encoder + note_predictor.
-        audio_features: Audio context features [1, T, d_model].
-        difficulty_idx: Difficulty index (0-4).
-        genre_idx: Genre index (0-10).
-        device: Torch device.
-        prev_tokens: Optional previous onset tokens [1, K, S].
-
-    Returns:
-        List of ColorNote objects for this onset (0-3 notes).
-    """
-    if device is None:
-        device = next(note_pred_module.parameters()).device
-
-    diff_tensor = torch.tensor([difficulty_idx], device=device)
-    genre_tensor = torch.tensor([genre_idx], device=device)
-
-    with torch.no_grad():
-        preds = note_pred_module.note_predictor(
-            audio_features=audio_features,
-            difficulty=diff_tensor,
-            genre=genre_tensor,
-            prev_tokens=prev_tokens,
-        )
-
-    # Decode predictions — use per-slot color to determine active slots
-    # (n_notes head may be unreliable; color==2 means "none"/inactive)
-    colors = preds["color"].argmax(dim=-1).squeeze(0)     # [3]
-    cols = preds["col"].argmax(dim=-1).squeeze(0)          # [3]
-    rows = preds["row"].argmax(dim=-1).squeeze(0)          # [3]
-    dirs = preds["direction"].argmax(dim=-1).squeeze(0)    # [3]
-    angles = preds["angle"].argmax(dim=-1).squeeze(0)      # [3]
-
-    notes = []
-    used_positions: set[tuple[int, int]] = set()
-    for slot in range(3):
-        color = colors[slot].item()
-        if color >= 2:  # "none" = inactive slot
-            continue
-        col = cols[slot].item()
-        row = rows[slot].item()
-        # Skip grid collisions
-        pos = (col, row)
-        if pos in used_positions:
-            continue
-        used_positions.add(pos)
-
-        direction = dirs[slot].item()
-        angle_idx = angles[slot].item()
-        angle_offset = _ANGLE_OFFSETS[angle_idx] if angle_idx < len(_ANGLE_OFFSETS) else 0
-
-        notes.append(ColorNote(
-            beat=0.0,  # Will be set by the caller
-            x=col,
-            y=row,
-            color=color,
-            direction=direction,
-            angle_offset=angle_offset,
-        ))
-
-    return notes
-
-
-def generate_lighting_events(
-    lighting_module: Any,
-    audio_features: torch.Tensor,
-    note_tokens_tensor: torch.Tensor,
-    genre_tensor: torch.Tensor,
-    beam_size: int = 4,
-    temperature: float = 1.0,
-    max_length: int = 32,
-    device: torch.device | None = None,
-    top_p: float = 0.9,
-) -> list[int]:
-    """Run Stage 3 constrained nucleus sampling to generate lighting tokens for one beat.
-
-    Uses a state machine to enforce valid lighting event structure:
-    LIGHT_BASIC(4) must be followed by ET(6-20), VAL(21-28), BRIGHT(29-32).
-    After a complete event, only SEP(2), EOS(1), or a new event type marker is allowed.
-
-    Args:
-        lighting_module: LightingLitModule (has audio_encoder + lighting_model).
-        audio_features: Context audio features [1, T, d_model].
-        note_tokens_tensor: Note tokens for context beat [1, N].
-        genre_tensor: Genre index tensor [1].
-        beam_size: Unused (kept for API compatibility).
-        temperature: Sampling temperature.
-        max_length: Maximum lighting token sequence length.
-        device: Torch device.
-        top_p: Nucleus sampling probability threshold.
-
-    Returns:
-        List of generated lighting tokens (without BOS/EOS).
-    """
-    from beatsaber_automapper.data.tokenizer import (
-        LIGHT_BASIC,
-        LIGHT_BOOST,
-        LIGHT_BOS,
-        LIGHT_BRIGHT_OFFSET,
-        LIGHT_EOS,
-        LIGHT_ET_OFFSET,
-        LIGHT_ONOFF_OFFSET,
-        LIGHT_SEP,
-        LIGHT_VAL_OFFSET,
-        LIGHT_VOCAB_SIZE,
-    )
-
-    if device is None:
-        device = next(lighting_module.parameters()).device
-
-    tokens = [LIGHT_BOS]
-    model = lighting_module.lighting_model
-
-    # State machine for constrained decoding
-    # States: "start" -> waiting for event type marker
-    #         "et"    -> expecting ET token (6-20)
-    #         "val"   -> expecting VAL token (21-28)
-    #         "bright"-> expecting BRIGHT token (29-32)
-    #         "onoff" -> expecting ONOFF token (33-34)
-    state = "start"
-
-    for _ in range(max_length):
-        token_tensor = torch.tensor([tokens], dtype=torch.long, device=device)
-        with torch.no_grad():
-            logits = model.decode_step(
-                token_tensor, audio_features, note_tokens_tensor, genre_tensor
-            )  # [1, V]
-        logits = logits.squeeze(0) / temperature
-
-        # Apply structural constraints via logit masking
-        mask = torch.full((LIGHT_VOCAB_SIZE,), float("-inf"), device=device)
-        if state == "start":
-            # Allow: LIGHT_BASIC(4), LIGHT_BOOST(5), EOS(1)
-            mask[LIGHT_BASIC] = 0.0
-            mask[LIGHT_BOOST] = 0.0
-            mask[LIGHT_EOS] = 0.0
-        elif state == "et":
-            # Allow: ET tokens (6-20)
-            mask[LIGHT_ET_OFFSET : LIGHT_ET_OFFSET + 15] = 0.0
-        elif state == "val":
-            # Allow: VAL tokens (21-28)
-            mask[LIGHT_VAL_OFFSET : LIGHT_VAL_OFFSET + 8] = 0.0
-        elif state == "bright":
-            # Allow: BRIGHT tokens (29-32)
-            mask[LIGHT_BRIGHT_OFFSET : LIGHT_BRIGHT_OFFSET + 4] = 0.0
-        elif state == "onoff":
-            # Allow: ONOFF tokens (33-34)
-            mask[LIGHT_ONOFF_OFFSET : LIGHT_ONOFF_OFFSET + 2] = 0.0
-
-        logits = logits + mask
-
-        # Nucleus sampling
-        probs = torch.softmax(logits, dim=-1)
-        sorted_probs, sorted_indices = torch.sort(probs, descending=True)
-        cumulative = torch.cumsum(sorted_probs, dim=-1)
-        # Remove tokens with cumulative > top_p (keep at least 1)
-        remove_mask = cumulative - sorted_probs > top_p
-        sorted_probs[remove_mask] = 0.0
-        sorted_probs = sorted_probs / sorted_probs.sum()
-        idx = torch.multinomial(sorted_probs, 1).item()
-        next_token = int(sorted_indices[idx].item())
-
-        if next_token == LIGHT_EOS:
-            break
-        tokens.append(next_token)
-
-        # Update state machine — check special tokens first, then state transitions
-        if next_token == LIGHT_SEP:
-            state = "start"
-        elif next_token == LIGHT_BASIC:
-            state = "et"
-        elif next_token == LIGHT_BOOST:
-            state = "onoff"
-        elif state == "et":
-            state = "val"
-        elif state == "val":
-            state = "bright"
-        elif state in ("bright", "onoff"):
-            state = "start"  # event complete, expect SEP/EOS/new event
-
-    return tokens[1:]  # strip BOS
 
 
 # Target NPS ranges by difficulty (from training data analysis)
@@ -813,8 +554,6 @@ def generate_level(
     difficulties: list[str] | None = None,
     onset_checkpoint: Path | str | None = None,
     sequence_checkpoint: Path | str | None = None,
-    note_pred_checkpoint: Path | str | None = None,
-    lighting_checkpoint: Path | str | None = None,
     onset_threshold: float = 0.5,
     min_onset_distance: int = 5,
     beam_size: int = 8,
@@ -857,9 +596,6 @@ def generate_level(
         difficulties: List of difficulty names to generate (e.g. ["Expert", "ExpertPlus"]).
         onset_checkpoint: Path to trained OnsetLitModule .ckpt, or None for random weights.
         sequence_checkpoint: Path to trained SequenceLitModule .ckpt, or None for random.
-        note_pred_checkpoint: Path to trained NotePredictionLitModule .ckpt. If provided,
-            uses structured prediction instead of autoregressive decoding for Stage 2.
-        lighting_checkpoint: Path to trained LightingLitModule .ckpt, or None to skip.
         onset_threshold: Peak picking threshold for onset detection.
         min_onset_distance: Minimum frames between predicted onsets.
         beam_size: Beam search width for sequence generation.
@@ -931,46 +667,20 @@ def generate_level(
         onset_module = _make_default_onset_module()
     onset_module = onset_module.to(resolved_device)
 
-    # Determine Stage 2 mode: note predictor (structured) or autoregressive
-    use_note_pred = note_pred_checkpoint is not None
-    note_pred_module = None
-    seq_module = None
-
-    if use_note_pred:
-        logger.info("Loading note predictor from %s", note_pred_checkpoint)
-        note_pred_module = _load_note_pred_module(Path(note_pred_checkpoint))
-        note_pred_module = note_pred_module.to(resolved_device)
-        # Clamp genre_idx
-        np_genre_size = note_pred_module.note_predictor.genre_emb.num_embeddings
-        if genre_idx >= np_genre_size:
-            logger.warning(
-                "Genre '%s' (idx=%d) exceeds model's num_genres=%d — falling back to 'unknown' (0)",
-                genre, genre_idx, np_genre_size,
-            )
-            genre_idx = 0
+    if sequence_checkpoint is not None:
+        logger.info("Loading sequence model from %s", sequence_checkpoint)
+        seq_module = _load_sequence_module(Path(sequence_checkpoint))
     else:
-        if sequence_checkpoint is not None:
-            logger.info("Loading sequence model from %s", sequence_checkpoint)
-            seq_module = _load_sequence_module(Path(sequence_checkpoint))
-        else:
-            logger.info("No sequence checkpoint — using untrained model")
-            seq_module = _make_default_sequence_module()
-        seq_module = seq_module.to(resolved_device)
-        # Clamp genre_idx
-        seq_genre_size = seq_module.sequence_model.genre_emb.num_embeddings
-        if genre_idx >= seq_genre_size:
-            logger.warning(
-                "Genre '%s' (idx=%d) exceeds model's num_genres=%d — falling back to 'unknown' (0)",
-                genre, genre_idx, seq_genre_size,
-            )
-            genre_idx = 0
-
-    # Lighting is now rule-based — ML checkpoint ignored
-    if lighting_checkpoint is not None:
-        logger.info(
-            "Ignoring lighting checkpoint (rule-based): %s",
-            lighting_checkpoint,
+        logger.info("No sequence checkpoint — using untrained model")
+        seq_module = _make_default_sequence_module()
+    seq_module = seq_module.to(resolved_device)
+    seq_genre_size = seq_module.sequence_model.genre_emb.num_embeddings
+    if genre_idx >= seq_genre_size:
+        logger.warning(
+            "Genre '%s' (idx=%d) exceeds model's num_genres=%d — falling back to 'unknown' (0)",
+            genre, genre_idx, seq_genre_size,
         )
+        genre_idx = 0
 
     # --- Compute structure features (8 channels: 6 energy + 2 section) ---
     structure_features = compute_structure_features(
@@ -999,9 +709,8 @@ def generate_level(
     # --- Shared audio encoding (computed once, reused for all difficulties) ---
     mel_batch = mel.unsqueeze(0).to(resolved_device)  # [1, n_mels, T]
     structure_batch = structure_features.unsqueeze(0).to(resolved_device)  # [1, 8, T]
-    encoder_module = note_pred_module if use_note_pred else seq_module
     with torch.no_grad():
-        full_audio_features = encoder_module.audio_encoder(
+        full_audio_features = seq_module.audio_encoder(
             mel_batch, structure_features=structure_batch
         )
 
@@ -1092,129 +801,90 @@ def generate_level(
                 )
             logger.info("Computed plan vectors for %d onsets", len(onset_frames))
 
-        # Stage 2: Note generation per onset
-        if use_note_pred:
-            # --- Structured prediction path (NotePredictor) ---
-            all_notes: list[ColorNote] = []
-            prev_context_k = getattr(
-                note_pred_module.note_predictor, "prev_context_k", 0
+        # Stage 2: Autoregressive token generation
+        beat_tokens: dict[float, list[int]] = {}
+        generated_sequences: list[list[int]] = []  # for building prev_tokens
+        prev_context_k = getattr(seq_module.sequence_model, "prev_context_k", 0)
+        max_token_len = 64
+
+        # Track parity across onsets for constrained decoding
+        parity_last_dirs: dict[int, int] = {}  # color -> last direction
+
+        for i, onset_frame in enumerate(onset_frames):
+            start = max(0, onset_frame - half_ctx)
+            end = min(total_frames, onset_frame + half_ctx)
+            context_features = full_audio_features[:, start:end, :]
+
+            # Build prev_tokens from previously generated onsets
+            prev_tokens_tensor = None
+            if prev_context_k > 0:
+                prev_seqs = []
+                for k in range(prev_context_k):
+                    prev_idx = i - (prev_context_k - k)
+                    if prev_idx >= 0:
+                        seq = list(generated_sequences[prev_idx])
+                        if len(seq) > max_token_len:
+                            seq = seq[:max_token_len]
+                        seq = seq + [0] * (max_token_len - len(seq))
+                    else:
+                        seq = [0] * max_token_len
+                    prev_seqs.append(seq)
+                prev_tokens_tensor = torch.tensor(
+                    [prev_seqs], dtype=torch.long, device=resolved_device
+                )  # [1, K, S]
+
+            # Create fresh constraints for this onset, carrying over parity
+            onset_constraints = init_constraints(
+                difficulty=diff_name,
+                prev_last_dirs=parity_last_dirs,
             )
 
-            for i, onset_frame in enumerate(onset_frames):
-                start = max(0, onset_frame - half_ctx)
-                end = min(total_frames, onset_frame + half_ctx)
-                context_features = full_audio_features[:, start:end, :]
+            # Extract per-onset plan vector if planner is active
+            onset_plan_vector = None
+            if plan_vectors is not None:
+                onset_plan_vector = plan_vectors[:, i:i + 1, :]  # [1, 1, d_model]
 
+            tokens = generate_note_sequence(
+                seq_module=seq_module,
+                audio_features=context_features,
+                difficulty_idx=difficulty_idx,
+                genre_idx=genre_idx,
+                beam_size=beam_size,
+                temperature=temperature,
+                use_sampling=use_sampling,
+                top_p=top_p,
+                device=resolved_device,
+                prev_tokens=prev_tokens_tensor,
+                min_length=7,  # BOS + 1 complete NOTE event (6 tokens) minimum
+                repetition_penalty=repetition_penalty,
+                constraints=onset_constraints,
+                plan_vector=onset_plan_vector,
+            )
+
+            # Update cross-onset parity tracking from constraint state
+            parity_last_dirs.update(onset_constraints.last_dir)
+
+            generated_sequences.append(tokens)
+
+            if tokens:
                 beat = frame_to_beat(
                     onset_frame, bpm=bpm, sample_rate=sample_rate,
                     hop_length=hop_length,
                 )
+                beat_tokens[round(beat, 4)] = tokens + [EOS]
 
-                notes = predict_notes_structured(
-                    note_pred_module=note_pred_module,
-                    audio_features=context_features,
-                    difficulty_idx=difficulty_idx,
-                    genre_idx=genre_idx,
-                    device=resolved_device,
-                )
-                # Set beat time on each note
-                for note in notes:
-                    note.beat = round(beat, 4)
-                all_notes.extend(notes)
+        logger.info(
+            "Generated tokens for %d/%d onsets", len(beat_tokens), len(onset_frames),
+        )
 
-            logger.info(
-                "NotePredictor generated %d notes for %d onsets",
-                len(all_notes), len(onset_frames),
+        if len(beat_tokens) == 0:
+            logger.warning(
+                "All token sequences empty for %s — map will have no notes.",
+                diff_name,
             )
 
-            # Build beatmap directly from notes
-            beatmap = DifficultyBeatmap(version="3.3.0", color_notes=all_notes)
-
-        else:
-            # --- Autoregressive token path (SequenceModel) ---
-            beat_tokens: dict[float, list[int]] = {}
-            generated_sequences: list[list[int]] = []  # for building prev_tokens
-            prev_context_k = getattr(seq_module.sequence_model, "prev_context_k", 0)
-            max_token_len = 64
-
-            # Track parity across onsets for constrained decoding
-            parity_last_dirs: dict[int, int] = {}  # color -> last direction
-
-            for i, onset_frame in enumerate(onset_frames):
-                start = max(0, onset_frame - half_ctx)
-                end = min(total_frames, onset_frame + half_ctx)
-                context_features = full_audio_features[:, start:end, :]
-
-                # Build prev_tokens from previously generated onsets
-                prev_tokens_tensor = None
-                if prev_context_k > 0:
-                    prev_seqs = []
-                    for k in range(prev_context_k):
-                        prev_idx = i - (prev_context_k - k)
-                        if prev_idx >= 0:
-                            seq = list(generated_sequences[prev_idx])
-                            if len(seq) > max_token_len:
-                                seq = seq[:max_token_len]
-                            seq = seq + [0] * (max_token_len - len(seq))
-                        else:
-                            seq = [0] * max_token_len
-                        prev_seqs.append(seq)
-                    prev_tokens_tensor = torch.tensor(
-                        [prev_seqs], dtype=torch.long, device=resolved_device
-                    )  # [1, K, S]
-
-                # Create fresh constraints for this onset, carrying over parity
-                onset_constraints = init_constraints(
-                    difficulty=diff_name,
-                    prev_last_dirs=parity_last_dirs,
-                )
-
-                # Extract per-onset plan vector if planner is active
-                onset_plan_vector = None
-                if plan_vectors is not None:
-                    onset_plan_vector = plan_vectors[:, i:i + 1, :]  # [1, 1, d_model]
-
-                tokens = generate_note_sequence(
-                    seq_module=seq_module,
-                    audio_features=context_features,
-                    difficulty_idx=difficulty_idx,
-                    genre_idx=genre_idx,
-                    beam_size=beam_size,
-                    temperature=temperature,
-                    use_sampling=use_sampling,
-                    top_p=top_p,
-                    device=resolved_device,
-                    prev_tokens=prev_tokens_tensor,
-                    min_length=7,  # BOS + 1 complete NOTE event (6 tokens) minimum
-                    repetition_penalty=repetition_penalty,
-                    constraints=onset_constraints,
-                    plan_vector=onset_plan_vector,
-                )
-
-                # Update cross-onset parity tracking from constraint state
-                parity_last_dirs.update(onset_constraints.last_dir)
-
-                generated_sequences.append(tokens)
-
-                if tokens:
-                    beat = frame_to_beat(
-                        onset_frame, bpm=bpm, sample_rate=sample_rate,
-                        hop_length=hop_length,
-                    )
-                    beat_tokens[round(beat, 4)] = tokens + [EOS]
-
-            logger.info(
-                "Generated tokens for %d/%d onsets", len(beat_tokens), len(onset_frames),
-            )
-
-            if len(beat_tokens) == 0:
-                logger.warning(
-                    "All token sequences empty for %s — map will have no notes.",
-                    diff_name,
-                )
-
-            # Decode tokens to beatmap
-            beatmap = tokens_to_beatmap(beat_tokens)
+        # Decode tokens to beatmap
+        beatmap = tokens_to_beatmap(beat_tokens)
         logger.info(
             "%s (raw): %d notes, %d bombs, %d walls, %d arcs, %d chains",
             diff_name,
@@ -1300,85 +970,251 @@ def generate_level(
     return output_path
 
 
-def _generate_lighting_for_beatmap(
-    beatmap: Any,
-    lighting_module: Any,
-    light_audio_features: torch.Tensor,
-    beat_tokens: dict[float, list[int]],
-    genre_idx: int,
-    bpm: float,
-    sample_rate: int,
-    hop_length: int,
-    total_frames: int,
-    half_ctx: int,
-    lighting_beats_per_bar: int,
-    temperature: float,
-    resolved_device: torch.device,
-) -> Any:
-    """Generate lighting events and attach them to a beatmap."""
-    from beatsaber_automapper.data.tokenizer import LIGHT_EOS, LightingTokenizer
+# ---------------------------------------------------------------------------
+# V6 generation pipeline
+# ---------------------------------------------------------------------------
 
-    light_tokenizer = LightingTokenizer()
-    note_token_lookup: dict[float, list[int]] = dict(beat_tokens)
 
-    song_duration_beats = frame_to_beat(
-        total_frames, bpm=bpm, sample_rate=sample_rate, hop_length=hop_length
+def generate_swing_level(
+    audio_path: Path | str,
+    output_path: Path | str,
+    difficulty: str = "Expert",
+    sequence_checkpoint: Path | str | None = None,
+    onset_checkpoint: Path | str | None = None,
+    temperature: float = 0.9,
+    top_p: float = 0.9,
+    max_events: int = 800,
+    context_frames: int = 256,
+    phrase_frames: int = 1024,
+    song_name: str | None = None,
+    song_author: str = "Unknown Artist",
+    bpm: float | None = None,
+    genre: str = "unknown",
+    mapper_id: int = 0,
+    device: str | None = None,
+    n_mels: int = 80,
+    n_fft: int = 1024,
+    hop_length: int = 512,
+    sample_rate: int = 44100,
+    lighting_beats_per_bar: int = 2,
+) -> Path:
+    """Generate a complete Beat Saber level using the V6 swing-event model.
+
+    Uses a single grammar-constrained nucleus sampling pass to generate the
+    full per-hand swing-event stream for the song, rather than the V5
+    per-onset approach.
+
+    Args:
+        audio_path: Input audio file (.mp3, .ogg, .wav).
+        output_path: Output .zip path.
+        difficulty: Difficulty name (Easy/Normal/Hard/Expert/ExpertPlus).
+        sequence_checkpoint: Path to a V6 SequenceLitModule checkpoint.
+            None = random untrained weights (useful for testing).
+        onset_checkpoint: Path to an OnsetLitModule checkpoint (still used for
+            BPM timing hints). None = skip onset model.
+        temperature: Sampling temperature.
+        top_p: Nucleus sampling top-p threshold.
+        max_events: Maximum number of swing events to generate.
+        context_frames: Audio context frames per generation window.
+        phrase_frames: Wide audio context frames for phrase embedding.
+        song_name: Song name override. Defaults to the audio filename stem.
+        song_author: Song author name.
+        bpm: BPM override. Auto-detected if None.
+        genre: Genre string for conditioning.
+        mapper_id: Cohort mapper index (0 = unknown/generic).
+        device: Torch device string. Defaults to "cuda" if available.
+        n_mels: Mel band count.
+        n_fft: FFT size.
+        hop_length: Mel hop length.
+        sample_rate: Target sample rate.
+        lighting_beats_per_bar: Lighting density (beats per light event).
+
+    Returns:
+        Path to the generated .zip file.
+    """
+    from beatsaber_automapper.data.swing_tokenizer import SwingEventTokenizer
+    from beatsaber_automapper.data.tokenizer import DIFFICULTY_MAP, GENRE_MAP
+    from beatsaber_automapper.generation.beam_search_v6 import nucleus_sampling_v6
+
+    audio_path = Path(audio_path)
+    output_path = Path(output_path)
+    if song_name is None:
+        song_name = audio_path.stem
+
+    if device is None:
+        device_obj = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device_obj = torch.device(device)
+
+    logger.info(
+        "V6 generate_swing_level: %s → %s (device=%s)",
+        audio_path.name, output_path.name, device_obj,
     )
-    beat_step = 1.0 / max(1, lighting_beats_per_bar)
-    light_beats = [
-        round(b * beat_step, 4)
-        for b in range(int(song_duration_beats / beat_step) + 1)
-    ]
 
-    light_beat_tokens: dict[float, list[int]] = {}
-    max_note_len = 64
-    genre_tensor = torch.tensor([genre_idx], dtype=torch.long, device=resolved_device)
+    # --- Audio preprocessing ---
+    waveform, sr = load_audio(audio_path, target_sr=sample_rate)
+    mel = extract_mel_spectrogram(waveform, sr, n_mels=n_mels, n_fft=n_fft, hop_length=hop_length)
 
-    sorted_note_beats = sorted(note_token_lookup.keys()) if note_token_lookup else []
+    if bpm is None:
+        bpm = detect_bpm(waveform, sr)
+    logger.info("BPM: %.1f", bpm)
 
-    for lbeat in light_beats:
-        if sorted_note_beats:
-            nearest_note_beat = min(sorted_note_beats, key=lambda b: abs(b - lbeat))
-            note_toks = note_token_lookup[nearest_note_beat]
-        else:
-            note_toks = []
-
-        if len(note_toks) > max_note_len:
-            note_toks = note_toks[:max_note_len]
-        note_padded = note_toks + [0] * (max_note_len - len(note_toks))
-        note_tensor = torch.tensor(
-            [note_padded], dtype=torch.long, device=resolved_device
+    structure_features = compute_structure_features(
+        waveform=waveform, sample_rate=sr, hop_length=hop_length, n_mels=n_mels,
+    )
+    n_mel_frames = mel.shape[1]
+    # Align to mel length
+    if structure_features.shape[1] > n_mel_frames:
+        structure_features = structure_features[:, :n_mel_frames]
+    elif structure_features.shape[1] < n_mel_frames:
+        structure_features = torch.nn.functional.pad(
+            structure_features, (0, n_mel_frames - structure_features.shape[1])
         )
+    sections = detect_sections(waveform, sample_rate=sr, hop_length=hop_length)
+    section_ids, section_progress = compute_section_features(
+        sections, n_frames=n_mel_frames, hop_length=hop_length, sample_rate=sr,
+    )
+    structure_features = torch.cat([
+        structure_features,
+        section_ids.float().unsqueeze(0) / 5.0,
+        section_progress.unsqueeze(0),
+    ], dim=0)  # [8, T]
 
-        lframe = beat_to_frame(
-            lbeat, bpm=bpm, sample_rate=sample_rate, hop_length=hop_length
+    song_duration_secs = waveform.shape[-1] / sr
+
+    # --- Load / build models ---
+    if sequence_checkpoint is not None:
+        seq_module = _load_sequence_module(Path(sequence_checkpoint))
+    else:
+        seq_module = _make_default_sequence_module()
+    seq_module = seq_module.to(device_obj).eval()
+
+    # --- Encode audio in a sliding window ---
+    # Encode context_frames-wide windows and use the middle portion as audio features
+    n_frames = mel.shape[1]
+    mel_tensor = mel.unsqueeze(0).to(device_obj)
+    struct_tensor = (
+        structure_features.unsqueeze(0).to(device_obj)
+        if structure_features is not None else None
+    )
+
+    # Use centre window for a simple single-pass generation (adequate for short songs)
+    # For production: use overlapping windows and merge. TODO: V6-6b
+    center = n_frames // 2
+    half = context_frames // 2
+    mel_start = max(0, center - half)
+    mel_end = min(n_frames, mel_start + context_frames)
+    mel_window = mel_tensor[:, :, mel_start:mel_end]
+    if mel_window.shape[2] < context_frames:
+        mel_window = torch.nn.functional.pad(mel_window, (0, context_frames - mel_window.shape[2]))
+
+    if struct_tensor is not None:
+        struct_window = struct_tensor[:, :, mel_start:mel_end]
+        if struct_window.shape[2] < context_frames:
+            pad = context_frames - struct_window.shape[2]
+            struct_window = torch.nn.functional.pad(struct_window, (0, pad))
+    else:
+        struct_window = None
+
+    with torch.no_grad():
+        audio_features = seq_module.audio_encoder(mel_window, structure_features=struct_window)
+
+        # Phrase embedding: mean-pool a wide audio context
+        phrase_start = max(0, center - phrase_frames // 2)
+        phrase_end = min(n_frames, phrase_start + phrase_frames)
+        phrase_mel = mel_tensor[:, :, phrase_start:phrase_end]
+        if phrase_mel.shape[2] < phrase_frames:
+            phrase_mel = torch.nn.functional.pad(
+                phrase_mel, (0, phrase_frames - phrase_mel.shape[2])
+            )
+        phrase_struct = (
+            struct_tensor[:, :, phrase_start:phrase_end] if struct_tensor is not None else None
         )
-        lframe = max(0, min(total_frames - 1, lframe))
-        lstart = max(0, lframe - half_ctx)
-        lend = min(total_frames, lframe + half_ctx)
-        light_ctx = light_audio_features[:, lstart:lend, :]
+        if phrase_struct is not None and phrase_struct.shape[2] < phrase_frames:
+            phrase_struct = torch.nn.functional.pad(
+                phrase_struct, (0, phrase_frames - phrase_struct.shape[2])
+            )
 
-        ltokens = generate_lighting_events(
-            lighting_module=lighting_module,
-            audio_features=light_ctx,
-            note_tokens_tensor=note_tensor,
-            genre_tensor=genre_tensor,
-            temperature=temperature,
-            max_length=32,
-            device=resolved_device,
-        )
+        phrase_audio = seq_module.audio_encoder(phrase_mel, structure_features=phrase_struct)
+        phrase_emb = phrase_audio.mean(dim=1)  # [1, d_model]
 
-        if ltokens:
-            light_beat_tokens[lbeat] = ltokens + [LIGHT_EOS]
+    diff_idx = DIFFICULTY_MAP.get(difficulty, 3)
+    genre_idx = GENRE_MAP.get(genre, 0)
+    diff_tensor = torch.tensor([diff_idx], device=device_obj)
+    genre_tensor = torch.tensor([genre_idx], device=device_obj)
+    mapper_tensor = torch.tensor([mapper_id], device=device_obj)
 
-    basic_events, color_boost_events = light_tokenizer.decode_lighting(
-        light_beat_tokens
+    logger.info("Generating swing sequence (max_events=%d)…", max_events)
+    tokens = nucleus_sampling_v6(
+        model=seq_module.sequence_model,
+        audio_features=audio_features,
+        difficulty=diff_tensor,
+        genre=genre_tensor,
+        max_events=max_events,
+        temperature=temperature,
+        top_p=top_p,
+        device=device_obj,
+        mapper_id=mapper_tensor if seq_module.sequence_model.num_mappers > 0 else None,
+        phrase_emb=phrase_emb,
+    )
+    logger.info("Generated %d tokens", len(tokens))
+
+    # --- Decode to beatmap ---
+    swing_tok = SwingEventTokenizer()
+    beatmap = swing_tok.decode_beatmap(tokens)
+    logger.info(
+        "Decoded: %d notes, %d arcs, %d chains, %d bombs",
+        len(beatmap.color_notes), len(beatmap.sliders),
+        len(beatmap.burst_sliders), len(beatmap.bomb_notes),
+    )
+
+    # --- Postprocess ---
+    beatmap = postprocess_beatmap(beatmap, difficulty=difficulty, bpm=bpm,
+                                  song_duration_secs=song_duration_secs)
+
+    # --- Lighting (rule-based) ---
+    from beatsaber_automapper.generation.lighting_rules import (
+        generate_lighting_events as _gen_light,
+    )
+    basic_events, boost_events = _gen_light(
+        structure_features=structure_features,
+        bpm=bpm,
+        sample_rate=sample_rate,
+        hop_length=hop_length,
     )
     beatmap.basic_events.extend(basic_events)
-    beatmap.color_boost_events.extend(color_boost_events)
-    logger.info(
-        "Lighting: %d basic events, %d boost events",
-        len(basic_events),
-        len(color_boost_events),
+    beatmap.color_boost_events.extend(boost_events)
+
+    # --- Export ---
+    diff_name = difficulty
+    all_beatmaps = {diff_name: beatmap}
+
+    chroma_beatmap_dicts = {}
+    if beatmap.basic_events:
+        from beatsaber_automapper.generation.chroma import add_chroma_colors
+        plain_events = [
+            {"b": e.beat, "et": e.event_type, "i": e.value, "f": e.float_value}
+            for e in beatmap.basic_events
+        ]
+        chroma_events = add_chroma_colors(
+            events=plain_events,
+            structure_features=structure_features,
+            bpm=bpm,
+            sample_rate=sample_rate,
+            hop_length=hop_length,
+            genre=genre,
+        )
+        chroma_beatmap_dicts[diff_name] = chroma_events
+    else:
+        chroma_beatmap_dicts[diff_name] = None
+
+    output_path = package_level(
+        beatmaps=all_beatmaps,
+        audio_path=audio_path,
+        output_path=output_path,
+        song_name=song_name,
+        song_author=song_author,
+        bpm=bpm,
+        chroma_events=chroma_beatmap_dicts,
     )
-    return beatmap
+    return output_path
