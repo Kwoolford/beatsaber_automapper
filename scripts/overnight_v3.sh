@@ -102,17 +102,13 @@ HEOF
 
 find_last_checkpoint() {
     local stage="$1"
-    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper"
+    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper/$stage"
     if [ -d "$ckpt_dir" ]; then
         for vdir in $(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V -r); do
             local ckpt_subdir="$vdir/checkpoints"
-            if [ -d "$ckpt_subdir" ]; then
-                if ls "$ckpt_subdir"/${stage}-*.ckpt 1>/dev/null 2>&1; then
-                    if [ -f "$ckpt_subdir/last.ckpt" ]; then
-                        echo "$ckpt_subdir/last.ckpt"
-                        return 0
-                    fi
-                fi
+            if [ -d "$ckpt_subdir" ] && [ -f "$ckpt_subdir/last.ckpt" ]; then
+                echo "$ckpt_subdir/last.ckpt"
+                return 0
             fi
         done
     fi
@@ -121,12 +117,11 @@ find_last_checkpoint() {
 
 find_best_checkpoint() {
     local stage="$1"
-    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper"
+    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper/$stage"
     if [ -d "$ckpt_dir" ]; then
         for vdir in $(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V -r); do
             local ckpt_subdir="$vdir/checkpoints"
             if [ -d "$ckpt_subdir" ]; then
-                # Find best checkpoint (not last.ckpt) for the stage
                 local best=$(ls "$ckpt_subdir"/${stage}-*.ckpt 2>/dev/null | grep -v last.ckpt | sort -V -r | head -1)
                 if [ -n "$best" ]; then
                     echo "$best"
@@ -237,8 +232,8 @@ if [ "$GENERATE_BASELINE" = true ]; then
     SEQ_CKPT=$(find_best_checkpoint sequence)
 
     BASELINE_AUDIO="data/baseline/so_tired_rock.mp3"
-    BASELINE_OUTPUT="data/generated/smoke_test_2_baseline.zip"
-    mkdir -p "data/generated"
+    BASELINE_OUTPUT="data/generated/smoke_test_v5/smoke_test_baseline.zip"
+    mkdir -p "data/generated/smoke_test_v5"
 
     if [ -f "$BASELINE_AUDIO" ] && [ -n "$ONSET_CKPT" ] && [ -n "$SEQ_CKPT" ]; then
         log "Onset checkpoint: $ONSET_CKPT"

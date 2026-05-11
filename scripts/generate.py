@@ -51,19 +51,14 @@ def main() -> None:
         help="Path to trained SequenceLitModule checkpoint (.ckpt)",
     )
     parser.add_argument(
-        "--note-pred-ckpt",
-        type=Path,
+        "--run-tag",
         default=None,
-        dest="note_pred_ckpt",
-        help="Path to trained NotePredictionLitModule checkpoint (.ckpt). "
-             "If provided, uses structured prediction instead of autoregressive decoding.",
-    )
-    parser.add_argument(
-        "--lighting-ckpt",
-        type=Path,
-        default=None,
-        dest="lighting_ckpt",
-        help="Path to trained LightingLitModule checkpoint (.ckpt). Skipped if not provided.",
+        dest="run_tag",
+        help=(
+            "Subdirectory tag for the output when --output is not specified. "
+            "Map is written to data/generated/{run_tag}/{song_name}.zip. "
+            "Example: --run-tag v5_joetastic_ep12"
+        ),
     )
     parser.add_argument(
         "--bpm",
@@ -169,7 +164,14 @@ def main() -> None:
     if not audio_path.exists():
         parser.error(f"Audio file not found: {audio_path}")
 
-    output_path = args.output or audio_path.with_suffix(".zip")
+    if args.output:
+        output_path = args.output
+    elif args.run_tag:
+        out_dir = Path("data/generated") / args.run_tag
+        out_dir.mkdir(parents=True, exist_ok=True)
+        output_path = out_dir / f"{audio_path.stem}.zip"
+    else:
+        output_path = audio_path.with_suffix(".zip")
 
     from beatsaber_automapper.generation.generate import generate_level
 
@@ -179,8 +181,6 @@ def main() -> None:
         difficulties=args.difficulty,
         onset_checkpoint=args.onset_ckpt,
         sequence_checkpoint=args.seq_ckpt,
-        note_pred_checkpoint=args.note_pred_ckpt,
-        lighting_checkpoint=args.lighting_ckpt,
         onset_threshold=args.onset_threshold,
         min_onset_distance=args.min_onset_distance,
         beam_size=args.beam_size,

@@ -36,7 +36,7 @@ PARITY_URL = "https://galaxymaster2.github.io/bs-parity/"
 
 def _find_checkpoints() -> dict[str, Path | None]:
     """Scan outputs/ for the best checkpoint per stage."""
-    best: dict[str, Path | None] = {"onset": None, "sequence": None, "lighting": None}
+    best: dict[str, Path | None] = {"onset": None, "sequence": None}
 
     if not CHECKPOINTS_DIR.exists():
         return best
@@ -44,25 +44,16 @@ def _find_checkpoints() -> dict[str, Path | None]:
     for ckpt in CHECKPOINTS_DIR.rglob("*.ckpt"):
         name = ckpt.stem.lower()
         if name == "last":
-            # Use last.ckpt as fallback — check sibling ckpts for stage
             siblings = list(ckpt.parent.glob("*.ckpt"))
             for sib in siblings:
-                if sib.stem.startswith("onset"):
-                    if best["onset"] is None:
-                        best["onset"] = ckpt
-                elif sib.stem.startswith("sequence"):
-                    if best["sequence"] is None:
-                        best["sequence"] = ckpt
-                elif sib.stem.startswith("lighting"):
-                    if best["lighting"] is None:
-                        best["lighting"] = ckpt
+                if sib.stem.startswith("onset") and best["onset"] is None:
+                    best["onset"] = ckpt
+                elif sib.stem.startswith("sequence") and best["sequence"] is None:
+                    best["sequence"] = ckpt
         elif name.startswith("onset"):
-            # Pick the one with highest val_f1
             best["onset"] = _pick_better(best["onset"], ckpt, "onset")
         elif name.startswith("sequence"):
             best["sequence"] = _pick_better(best["sequence"], ckpt, "sequence")
-        elif name.startswith("lighting"):
-            best["lighting"] = _pick_better(best["lighting"], ckpt, "lighting")
 
     return best
 
@@ -121,12 +112,17 @@ def generate_map(
     # Import here to avoid slow startup
     from beatsaber_automapper.generation.generate import generate_level
 
-    OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
+    # Version the output directory by the sequence checkpoint name so maps are
+    # grouped by which model produced them (e.g. data/generated/seq_ep12_loss0.42/).
+    seq_ckpt = ckpts["sequence"]
+    run_tag = seq_ckpt.stem if seq_ckpt else "untrained"
+    out_dir = OUTPUTS_DIR / run_tag
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     # Determine output name
     name = song_name.strip() if song_name.strip() else audio_path.stem
     safe_name = "".join(c if c.isalnum() or c in " -_" else "" for c in name)
-    output_path = OUTPUTS_DIR / f"{safe_name}.zip"
+    output_path = out_dir / f"{safe_name}.zip"
 
     progress(0.3, desc="Running onset detection (Stage 1)...")
 
@@ -137,7 +133,6 @@ def generate_map(
             difficulties=difficulties,
             onset_checkpoint=ckpts["onset"],
             sequence_checkpoint=ckpts["sequence"],
-            lighting_checkpoint=ckpts["lighting"],
             onset_threshold=onset_threshold,
             temperature=temperature,
             beam_size=beam_size,
@@ -176,7 +171,7 @@ def build_ui() -> gr.Blocks:
     # Check for available checkpoints at startup
     ckpts = _find_checkpoints()
     ckpt_info = []
-    for stage in ("onset", "sequence", "lighting"):
+    for stage in ("onset", "sequence"):
         if ckpts[stage]:
             ckpt_info.append(f"  {stage}: {ckpts[stage].name}")
         else:

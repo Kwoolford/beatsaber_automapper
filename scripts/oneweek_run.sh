@@ -65,7 +65,7 @@ HEOF
 
 find_best_checkpoint() {
     local stage="$1"
-    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper"
+    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper/$stage"
     if [ -d "$ckpt_dir" ]; then
         for vdir in $(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V -r); do
             local ckpt_subdir="$vdir/checkpoints"
@@ -83,17 +83,13 @@ find_best_checkpoint() {
 
 find_last_checkpoint() {
     local stage="$1"
-    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper"
+    local ckpt_dir="$OUTPUT_DIR/beatsaber_automapper/$stage"
     if [ -d "$ckpt_dir" ]; then
         for vdir in $(ls -d "$ckpt_dir"/version_* 2>/dev/null | sort -V -r); do
             local ckpt_subdir="$vdir/checkpoints"
-            if [ -d "$ckpt_subdir" ]; then
-                if ls "$ckpt_subdir"/${stage}-*.ckpt 1>/dev/null 2>&1; then
-                    if [ -f "$ckpt_subdir/last.ckpt" ]; then
-                        echo "$ckpt_subdir/last.ckpt"
-                        return 0
-                    fi
-                fi
+            if [ -d "$ckpt_subdir" ] && [ -f "$ckpt_subdir/last.ckpt" ]; then
+                echo "$ckpt_subdir/last.ckpt"
+                return 0
             fi
         done
     fi
@@ -200,12 +196,13 @@ if [ -f "$BASELINE_AUDIO" ] && [ -n "$SEQ_CKPT" ]; then
     log "Onset: $ONSET_CKPT"
     log "Sequence: $SEQ_CKPT"
 
-    mkdir -p data/generated
+    RUN_TAG="1week_$(basename "$SEQ_CKPT" .ckpt)"
+    mkdir -p "data/generated/$RUN_TAG"
 
     # Generate Expert
     python scripts/generate.py \
         "$BASELINE_AUDIO" \
-        --output "data/generated/1week_expert.zip" \
+        --output "data/generated/$RUN_TAG/so_tired_expert.zip" \
         --onset-ckpt "$ONSET_CKPT" \
         --seq-ckpt "$SEQ_CKPT" \
         --difficulty Expert \
@@ -215,14 +212,14 @@ if [ -f "$BASELINE_AUDIO" ] && [ -n "$SEQ_CKPT" ]; then
     # Generate ExpertPlus
     python scripts/generate.py \
         "$BASELINE_AUDIO" \
-        --output "data/generated/1week_expertplus.zip" \
+        --output "data/generated/$RUN_TAG/so_tired_expertplus.zip" \
         --onset-ckpt "$ONSET_CKPT" \
         --seq-ckpt "$SEQ_CKPT" \
         --difficulty ExpertPlus \
         --genre rock \
         2>&1 | tee -a "$LOG_FILE"
 
-    log "Baseline maps generated in data/generated/"
+    log "Baseline maps generated in data/generated/$RUN_TAG/"
 else
     log "Skipping baseline generation"
     [ ! -f "$BASELINE_AUDIO" ] && log "  Missing: $BASELINE_AUDIO"
