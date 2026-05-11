@@ -1,0 +1,47 @@
+# @package model.sequence
+# V6 full-size preset (swing-event grammar) for deep training runs.
+vocab_size: 118
+d_model: 512
+nhead: 8
+num_layers: 8
+dim_feedforward: 2048
+num_difficulties: 5
+num_genres: 11
+num_mappers: 0          # Set to 18 for multi-cohort mapper conditioning
+saber_state_dim: 12
+dropout: 0.1
+conditioning_dropout: 0.1
+
+bos_token_id: 1
+
+# Training
+learning_rate: 0.0001
+weight_decay: 0.01
+warmup_steps: 2000
+lr_min_ratio: 0.01
+label_smoothing: 0.1
+rhythm_weight: 3.0
+eos_weight: 1.0
+token_dropout: 0.1
+freeze_encoder: false
+
+# V6 aux losses
+phrase_energy_alpha: 0.0   # Enabled in V6-4
+
+# Dataset
+window_events: 128
+window_hop: 64
+max_swing_len: 512
+context_frames: 256
+phrase_frames: 1024
+
+prev_context_k: 0
+mirror_augment: true
+
+difficulties:
+  - Expert
+  - ExpertPlus
+
+beam_size: 4
+temperature: 0.9
+top_p: 0.9

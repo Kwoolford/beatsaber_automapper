@@ -1,0 +1,55 @@
+# @package model.sequence
+# V6 fast-iteration preset (swing-event grammar).
+# Target: <60 min training on a single-mapper cohort.
+# vocab_size: 118 (locked swing-event grammar — do not change without re-preprocess)
+vocab_size: 118
+d_model: 512
+nhead: 8
+num_layers: 4
+dim_feedforward: 1024
+num_difficulties: 5
+num_genres: 11
+num_mappers: 0          # Set to 18 when training with mapper_id conditioning
+saber_state_dim: 12
+dropout: 0.1
+conditioning_dropout: 0.2
+
+# V6 BOS token (swing_tokenizer.BOS = 1)
+bos_token_id: 1
+
+# Training
+learning_rate: 0.0002
+weight_decay: 0.01
+warmup_steps: 500
+lr_min_ratio: 0.01
+label_smoothing: 0.1
+rhythm_weight: 3.0
+eos_weight: 1.0
+token_dropout: 0.1
+freeze_encoder: false
+
+# V6 aux losses
+phrase_energy_alpha: 0.0   # Enabled in V6-4
+
+# Dataset
+window_events: 128
+window_hop: 64
+max_swing_len: 512
+context_frames: 256
+phrase_frames: 1024
+
+# Planner disabled (saber_state replaces it)
+prev_context_k: 0
+
+# Augmentation
+mirror_augment: true
+
+# Difficulties
+difficulties:
+  - Expert
+  - ExpertPlus
+
+# Inference defaults
+beam_size: 4
+temperature: 0.9
+top_p: 0.9
