@@ -23,13 +23,12 @@ from lightning.pytorch.callbacks import (
 from omegaconf import DictConfig
 
 from beatsaber_automapper.data.dataset import (
-    LightingDataset,
     OnsetDataset,
     SequenceDataset,
+    SwingSequenceDataset,
     create_dataloader,
+    swing_collate_fn,
 )
-from beatsaber_automapper.training.light_module import LightingLitModule
-from beatsaber_automapper.training.note_module import NotePredictionLitModule
 from beatsaber_automapper.training.onset_module import OnsetLitModule
 from beatsaber_automapper.training.seq_module import SequenceLitModule
 
@@ -141,12 +140,12 @@ def _build_onset(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.
         _HeartbeatCallback(cfg.output_dir, "onset"),
     ]
 
-    # Logger
+    # Logger — stage subdir keeps onset and sequence checkpoints separate
     if cfg.logger.name == "wandb":
         tb_logger = lightning.pytorch.loggers.WandbLogger(project=cfg.logger.project)
     else:
         tb_logger = lightning.pytorch.loggers.TensorBoardLogger(
-            save_dir=cfg.output_dir, name=cfg.logger.project
+            save_dir=cfg.output_dir, name=f"{cfg.logger.project}/onset"
         )
 
     trainer = lightning.Trainer(
@@ -232,165 +231,12 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         _HeartbeatCallback(cfg.output_dir, "sequence"),
     ]
 
-    # Logger
+    # Logger — stage subdir keeps onset and sequence checkpoints separate
     if cfg.logger.name == "wandb":
         tb_logger = lightning.pytorch.loggers.WandbLogger(project=cfg.logger.project)
     else:
         tb_logger = lightning.pytorch.loggers.TensorBoardLogger(
-            save_dir=cfg.output_dir, name=cfg.logger.project
-        )
-
-    trainer = lightning.Trainer(
-        max_epochs=cfg.max_epochs,
-        accelerator=cfg.accelerator,
-        devices=cfg.devices,
-        precision=cfg.precision,
-        gradient_clip_val=1.0,
-        accumulate_grad_batches=cfg.get("accumulate_grad_batches", 1),
-        callbacks=callbacks,
-        logger=tb_logger,
-        default_root_dir=cfg.output_dir,
-        enable_model_summary=False,
-        num_sanity_val_steps=0,
-    )
-
-    return module, trainer
-
-
-def _build_note_pred(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.Trainer]:
-    """Build note predictor training components from Hydra config."""
-    ac = cfg.model.audio_encoder
-    sc = cfg.model.sequence  # Reuses sequence config for shared params
-
-    np_cfg = cfg.model.get("note_pred", {})
-
-    module = NotePredictionLitModule(
-        n_mels=ac.n_mels,
-        encoder_d_model=ac.d_model,
-        encoder_nhead=ac.nhead,
-        encoder_num_layers=ac.num_layers,
-        encoder_dim_feedforward=ac.dim_feedforward,
-        encoder_dropout=ac.dropout,
-        pred_nhead=np_cfg.get("nhead", 8),
-        pred_num_pool_layers=np_cfg.get("num_pool_layers", 2),
-        pred_dim_feedforward=np_cfg.get("dim_feedforward", 2048),
-        pred_num_difficulties=sc.get("num_difficulties", 5),
-        pred_num_genres=sc.get("num_genres", 1),
-        pred_dropout=np_cfg.get("dropout", 0.1),
-        conditioning_dropout=sc.get("conditioning_dropout", 0.0),
-        prev_context_k=sc.get("prev_context_k", 0),
-        vocab_size=sc.get("vocab_size", 183),
-        label_smoothing=sc.get("label_smoothing", 0.1),
-        learning_rate=sc.get("learning_rate", cfg.optimizer.learning_rate),
-        weight_decay=cfg.optimizer.weight_decay,
-        warmup_steps=sc.get("warmup_steps", cfg.scheduler.warmup_steps),
-        lr_min_ratio=sc.get("lr_min_ratio", 0.01),
-        freeze_encoder=sc.get("freeze_encoder", False),
-        w_n_notes=np_cfg.get("w_n_notes", 2.0),
-        w_color=np_cfg.get("w_color", 1.0),
-        w_pos=np_cfg.get("w_pos", 1.0),
-        w_dir=np_cfg.get("w_dir", 2.0),
-        w_angle=np_cfg.get("w_angle", 0.5),
-        w_type=np_cfg.get("w_type", 1.0),
-        lambda_parity=np_cfg.get("lambda_parity", 0.1),
-        lambda_ergo=np_cfg.get("lambda_ergo", 0.1),
-        lambda_collision=np_cfg.get("lambda_collision", 0.2),
-        n_structure_features=ac.get("n_structure_features", 8),
-    )
-
-    callbacks = [
-        ModelCheckpoint(
-            monitor="val_loss",
-            mode="min",
-            save_top_k=cfg.checkpoint.save_top_k,
-            save_last=cfg.checkpoint.save_last,
-            filename="note_pred-{epoch:02d}-{val_loss:.3f}",
-        ),
-        EarlyStopping(
-            monitor="val_loss",
-            mode="min",
-            patience=cfg.get("early_stopping_patience", 15),
-        ),
-        LearningRateMonitor(logging_interval="step"),
-        _GarbageCollectCallback(),
-        _HeartbeatCallback(cfg.output_dir, "note_pred"),
-    ]
-
-    if cfg.logger.name == "wandb":
-        tb_logger = lightning.pytorch.loggers.WandbLogger(project=cfg.logger.project)
-    else:
-        tb_logger = lightning.pytorch.loggers.TensorBoardLogger(
-            save_dir=cfg.output_dir, name=cfg.logger.project
-        )
-
-    trainer = lightning.Trainer(
-        max_epochs=cfg.max_epochs,
-        accelerator=cfg.accelerator,
-        devices=cfg.devices,
-        precision=cfg.precision,
-        gradient_clip_val=1.0,
-        accumulate_grad_batches=cfg.get("accumulate_grad_batches", 1),
-        callbacks=callbacks,
-        logger=tb_logger,
-        default_root_dir=cfg.output_dir,
-        enable_model_summary=False,
-        num_sanity_val_steps=0,
-    )
-
-    return module, trainer
-
-
-def _build_lighting(cfg: DictConfig) -> tuple[lightning.LightningModule, lightning.Trainer]:
-    """Build lighting training components from Hydra config."""
-    ac = cfg.model.audio_encoder
-    lc = cfg.model.lighting
-
-    module = LightingLitModule(
-        n_mels=ac.n_mels,
-        encoder_d_model=ac.d_model,
-        encoder_nhead=ac.nhead,
-        encoder_num_layers=ac.num_layers,
-        encoder_dim_feedforward=ac.dim_feedforward,
-        encoder_dropout=ac.dropout,
-        light_vocab_size=lc.get("light_vocab_size", 35),
-        note_vocab_size=lc.get("note_vocab_size", 183),
-        light_d_model=lc.d_model,
-        light_nhead=lc.nhead,
-        light_num_layers=lc.num_layers,
-        light_dim_feedforward=lc.dim_feedforward,
-        light_num_genres=lc.get("num_genres", 11),
-        light_dropout=lc.dropout,
-        label_smoothing=lc.get("label_smoothing", 0.1),
-        learning_rate=cfg.optimizer.learning_rate,
-        weight_decay=cfg.optimizer.weight_decay,
-        warmup_steps=cfg.scheduler.warmup_steps,
-        freeze_encoder=lc.get("freeze_encoder", False),
-        n_structure_features=ac.get("n_structure_features", 8),
-    )
-
-    callbacks = [
-        ModelCheckpoint(
-            monitor="val_loss",
-            mode="min",
-            save_top_k=cfg.checkpoint.save_top_k,
-            save_last=cfg.checkpoint.save_last,
-            filename="lighting-{epoch:02d}-{val_loss:.3f}",
-        ),
-        EarlyStopping(
-            monitor="val_loss",
-            mode="min",
-            patience=cfg.get("early_stopping_patience", 15),
-        ),
-        LearningRateMonitor(logging_interval="step"),
-        _GarbageCollectCallback(),
-        _HeartbeatCallback(cfg.output_dir, "lighting"),
-    ]
-
-    if cfg.logger.name == "wandb":
-        tb_logger = lightning.pytorch.loggers.WandbLogger(project=cfg.logger.project)
-    else:
-        tb_logger = lightning.pytorch.loggers.TensorBoardLogger(
-            save_dir=cfg.output_dir, name=cfg.logger.project
+            save_dir=cfg.output_dir, name=f"{cfg.logger.project}/sequence"
         )
 
     trainer = lightning.Trainer(
@@ -511,34 +357,58 @@ def main(cfg: DictConfig) -> None:
             seq_diffs = list(seq_diffs)
             logger.info("Filtering to difficulties: %s", seq_diffs)
 
-        prev_context_k = sc.get("prev_context_k", 0)
         mirror_augment = sc.get("mirror_augment", False)
-        train_ds = SequenceDataset(
-            data_dir,
-            split="train",
-            context_frames=sc.get("context_frames", 128),
-            max_token_len=sc.get("max_seq_length", 64),
-            difficulties=seq_diffs,
-            prev_context_k=prev_context_k,
-            mirror_augment=mirror_augment,
-        )
-        val_ds = SequenceDataset(
-            data_dir,
-            split="val",
-            context_frames=sc.get("context_frames", 128),
-            max_token_len=sc.get("max_seq_length", 64),
-            difficulties=seq_diffs,
-            prev_context_k=prev_context_k,
-            mirror_augment=False,  # Never augment validation
-        )
+        # dataset_format: "swing" = V6 SwingSequenceDataset; anything else = V5 SequenceDataset
+        dataset_format = cfg.get("dataset_format", "v5")
+        mapper_id = cfg.get("mapper_id", 0)
 
-        # Epoch subsampling: 17M samples would take ~8hrs/epoch at batch=192.
-        # Cap at max_samples_per_epoch so each epoch sees a random subset.
-        # Default 500K = ~2,600 steps at batch=192 = ~15 min/epoch.
-        # Full dataset is seen across ~34 epochs (17M/500K).
-        # Epoch subsampling: 17M sequence samples would take ~8hrs/epoch at batch=192.
-        # Default 500K = ~2,600 steps at batch=192 = ~15 min/epoch.
-        # Set max_samples_per_epoch=null to disable (full epochs).
+        if dataset_format == "swing":
+            logger.info("Using V6 SwingSequenceDataset (dataset_format=swing)")
+            train_ds = SwingSequenceDataset(
+                data_dir,
+                split="train",
+                window_events=sc.get("window_events", 128),
+                window_hop=sc.get("window_hop", 64),
+                max_swing_len=sc.get("max_swing_len", 512),
+                context_frames=sc.get("context_frames", 256),
+                phrase_frames=sc.get("phrase_frames", 1024),
+                difficulties=seq_diffs,
+                mapper_id=mapper_id,
+                mirror_augment=mirror_augment,
+            )
+            val_ds = SwingSequenceDataset(
+                data_dir,
+                split="val",
+                window_events=sc.get("window_events", 128),
+                window_hop=sc.get("window_hop", 64),
+                max_swing_len=sc.get("max_swing_len", 512),
+                context_frames=sc.get("context_frames", 256),
+                phrase_frames=sc.get("phrase_frames", 1024),
+                difficulties=seq_diffs,
+                mapper_id=mapper_id,
+                mirror_augment=False,
+            )
+        else:
+            prev_context_k = sc.get("prev_context_k", 0)
+            train_ds = SequenceDataset(
+                data_dir,
+                split="train",
+                context_frames=sc.get("context_frames", 128),
+                max_token_len=sc.get("max_seq_length", 64),
+                difficulties=seq_diffs,
+                prev_context_k=prev_context_k,
+                mirror_augment=mirror_augment,
+            )
+            val_ds = SequenceDataset(
+                data_dir,
+                split="val",
+                context_frames=sc.get("context_frames", 128),
+                max_token_len=sc.get("max_seq_length", 64),
+                difficulties=seq_diffs,
+                prev_context_k=prev_context_k,
+                mirror_augment=False,
+            )
+
         max_samples = cfg.get("max_samples_per_epoch", 500_000)
         logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))
         if max_samples is not None and max_samples < len(train_ds):
@@ -547,6 +417,7 @@ def main(cfg: DictConfig) -> None:
         elif max_samples is None:
             logger.info("Epoch subsampling disabled (max_samples_per_epoch=null) — full epochs")
 
+        collate = swing_collate_fn if dataset_format == "swing" else None
         train_dl = create_dataloader(
             train_ds,
             batch_size=ds_cfg.batch_size,
@@ -554,6 +425,7 @@ def main(cfg: DictConfig) -> None:
             num_workers=ds_cfg.num_workers,
             pin_memory=ds_cfg.pin_memory,
             max_samples_per_epoch=max_samples,
+            collate_fn=collate,
         )
         val_dl = create_dataloader(
             val_ds,
@@ -561,116 +433,12 @@ def main(cfg: DictConfig) -> None:
             shuffle=False,
             num_workers=ds_cfg.num_workers,
             pin_memory=ds_cfg.pin_memory,
-        )
-
-        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
-    elif stage == "note_pred":
-        module, trainer = _build_note_pred(cfg)
-
-        data_dir = Path(cfg.data_dir)
-        ds_cfg = cfg.data.dataset
-        sc = cfg.model.sequence
-
-        seq_diffs = sc.get("difficulties", None)
-        if seq_diffs is not None:
-            seq_diffs = list(seq_diffs)
-            logger.info("Filtering to difficulties: %s", seq_diffs)
-
-        prev_context_k = sc.get("prev_context_k", 0)
-        train_ds = SequenceDataset(
-            data_dir,
-            split="train",
-            context_frames=sc.get("context_frames", 128),
-            max_token_len=sc.get("max_seq_length", 64),
-            difficulties=seq_diffs,
-            prev_context_k=prev_context_k,
-        )
-        val_ds = SequenceDataset(
-            data_dir,
-            split="val",
-            context_frames=sc.get("context_frames", 128),
-            max_token_len=sc.get("max_seq_length", 64),
-            difficulties=seq_diffs,
-            prev_context_k=prev_context_k,
-        )
-
-        max_samples = cfg.get("max_samples_per_epoch", 500_000)
-        logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))
-        if max_samples is not None and max_samples < len(train_ds):
-            logger.info("Epoch subsampling: %d/%d per epoch", max_samples, len(train_ds))
-
-        train_dl = create_dataloader(
-            train_ds,
-            batch_size=ds_cfg.batch_size,
-            shuffle=True,
-            num_workers=ds_cfg.num_workers,
-            pin_memory=ds_cfg.pin_memory,
-            max_samples_per_epoch=max_samples,
-        )
-        val_dl = create_dataloader(
-            val_ds,
-            batch_size=ds_cfg.batch_size,
-            shuffle=False,
-            num_workers=ds_cfg.num_workers,
-            pin_memory=ds_cfg.pin_memory,
-        )
-
-        trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
-    elif stage == "lighting":
-        module, trainer = _build_lighting(cfg)
-
-        data_dir = Path(cfg.data_dir)
-        ds_cfg = cfg.data.dataset
-        lc = cfg.model.lighting
-
-        train_ds = LightingDataset(
-            data_dir,
-            split="train",
-            context_frames=lc.get("context_frames", 128),
-            max_note_len=lc.get("max_note_len", 64),
-            max_light_len=lc.get("max_light_len", 32),
-        )
-        val_ds = LightingDataset(
-            data_dir,
-            split="val",
-            context_frames=lc.get("context_frames", 128),
-            max_note_len=lc.get("max_note_len", 64),
-            max_light_len=lc.get("max_light_len", 32),
-        )
-
-        # Epoch subsampling: 48M lighting samples would take days per epoch.
-        # Default 500K = ~1,950 steps at batch=256 = ~10 min/epoch.
-        # Set max_samples_per_epoch=null to disable (full epochs).
-        max_samples = cfg.get("max_samples_per_epoch", 500_000)
-        logger.info("Train samples: %d, Val samples: %d", len(train_ds), len(val_ds))
-        if max_samples is not None and max_samples < len(train_ds):
-            logger.info("Epoch subsampling: %d/%d per epoch (full coverage in ~%d epochs)",
-                        max_samples, len(train_ds), len(train_ds) // max_samples)
-        elif max_samples is None:
-            logger.info("Epoch subsampling disabled (max_samples_per_epoch=null) — full epochs")
-
-        train_dl = create_dataloader(
-            train_ds,
-            batch_size=ds_cfg.batch_size,
-            shuffle=True,
-            num_workers=ds_cfg.num_workers,
-            pin_memory=ds_cfg.pin_memory,
-            max_samples_per_epoch=max_samples,
-        )
-        val_dl = create_dataloader(
-            val_ds,
-            batch_size=ds_cfg.batch_size,
-            shuffle=False,
-            num_workers=ds_cfg.num_workers,
-            pin_memory=ds_cfg.pin_memory,
+            collate_fn=collate,
         )
 
         trainer.fit(module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
     else:
-        raise ValueError(
-            f"Unknown stage: {stage}. "
-            "Must be one of: onset, sequence, note_pred, lighting"
-        )
+        raise ValueError(f"Unknown stage: {stage!r}. Must be one of: onset, sequence")
 
 
 if __name__ == "__main__":

@@ -91,6 +91,10 @@ def _build_train_cmd(spec: ExperimentSpec, run_dir: Path, project_root: Path) ->
     if spec.bucket:
         base.append(f"bucket={spec.bucket}")
     base.append(f"seed={spec.seed}")
+    # Auto-detect V6 swing-event format from the preset name. Any preset whose
+    # filename starts with "sequence_swing" uses the V6 SwingSequenceDataset.
+    if spec.stage == "sequence" and spec.model_preset.startswith("sequence_swing"):
+        base.append("dataset_format=swing")
     for k, v in spec.loss_weights.items():
         base.append(f"model.{spec.stage}.{k}={v}")
     base.append(f"model.{spec.stage}.learning_rate={spec.learning_rate}")

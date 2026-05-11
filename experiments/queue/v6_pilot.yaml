@@ -1,0 +1,61 @@
+# V6 pilot experiment queue — first overnight sweep with swing-event architecture.
+#
+# Goal: validate that the V6 representation (per-hand swing events + saber state)
+# produces better style transfer than V5 token-CE on the same three cohorts.
+#
+# Three cohorts chosen for maximum style diversity:
+#   - joetastic: largest anime/pop flow catalog (1692 maps) — flow baseline
+#   - rustic: legendary rock/electronic (40 maps) — small but canonical
+#   - helloimdaan: speed/vibro outlier — high-NPS learnability test
+#
+# Budget: 3 experiments × 90 min wall-clock ≈ 4.5h overnight.
+# Leaderboard rows land in experiments/leaderboard.jsonl.
+# Compare against V5 rows for the same cohorts from initial.yaml.
+#
+# Pre-requisites:
+#   1. Cohort data downloaded:
+#      python scripts/download_cohorts.py --only joetastic rustic helloimdaan
+#   2. Cohorts preprocessed with swing format:
+#      python scripts/preprocess.py --cohort joetastic --format swing --workers 8
+#      python scripts/preprocess.py --cohort rustic --format swing --workers 8
+#      python scripts/preprocess.py --cohort helloimdaan --format swing --workers 8
+#   3. OR: convert existing processed/ data:
+#      python scripts/convert_to_swing.py --data-dir data/processed --limit 500
+#
+# Run:
+#     python scripts/auto_research.py experiments/queue/v6_pilot.yaml
+#
+# After run, compare:
+#     python scripts/leaderboard.py --compare initial v6_pilot
+
+defaults:
+  stage: sequence
+  model_preset: sequence_swing_small
+  max_epochs: 20
+  max_wall_clock_min: 90
+  batch_size: 128            # smaller than V5 because V6 windows are larger
+  learning_rate: 0.0002
+  max_samples_per_epoch: 50000
+  seed: 42
+
+# dataset_format=swing is auto-set by runner.py when model_preset starts with
+# "sequence_swing". No manual override needed.
+
+experiments:
+  - name: joetastic_v6_baseline
+    cohort: joetastic
+    loss_weights:
+      phrase_energy_alpha: 0.1
+    notes: "V6 flow baseline — largest anime/pop catalog (1692 maps)"
+
+  - name: rustic_v6_baseline
+    cohort: rustic
+    loss_weights:
+      phrase_energy_alpha: 0.1
+    notes: "V6 rock/electronic — small but canonical (40 maps)"
+
+  - name: helloimdaan_v6_speed
+    cohort: helloimdaan
+    loss_weights:
+      phrase_energy_alpha: 0.0   # disable phrase loss for speed maps (very dense)
+    notes: "V6 speed outlier — high-NPS learnability test"
