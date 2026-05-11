@@ -2,44 +2,44 @@
 
 from __future__ import annotations
 
-import torch
 import pytest
+import torch
 
 from beatsaber_automapper.data.swing_tokenizer import (
+    ANGLE_BASE,
     ARC_HEAD,
-    ARC_TAIL,
     BOMB,
     BOS,
     CHAIN_HEAD,
     CHAIN_TAIL,
+    DIR_BASE,
     DT_BASE,
     EOS,
     HAND_LEFT,
     HAND_NONE,
     HAND_RIGHT,
-    KIND_BASE,
+    MU_BASE,
     NOTE,
     PAD,
+    SLICE_BASE,
+    SQUISH_BASE,
     VOCAB_SIZE,
     X_BASE,
     Y_BASE,
-    DIR_BASE,
-    ANGLE_BASE,
-    MU_BASE,
-    SLICE_BASE,
-    SQUISH_BASE,
 )
 from beatsaber_automapper.generation.beam_search_v6 import (
-    _GrammarState,
-    _Phase,
+    SamplingResult,
     _build_mask,
+    _emit_event,
+    _GrammarState,
     _nucleus_sample,
+    _Phase,
     _record_field,
     _transition,
     nucleus_sampling_v6,
+    sample_swing_events,
 )
 from beatsaber_automapper.models.sequence_model import SequenceModel
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -321,7 +321,6 @@ class TestNucleusSamplingV6:
         assert isinstance(bm, DifficultyBeatmap)
 
     def test_max_events_respected(self, small_model, audio_features, diff, genre):
-        from beatsaber_automapper.data.swing_tokenizer import SwingEventTokenizer
 
         tokens = nucleus_sampling_v6(
             small_model, audio_features, diff, genre,
@@ -337,10 +336,127 @@ class TestNucleusSamplingV6:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Sampler v2: sample_swing_events (events + resumable state)
+# ---------------------------------------------------------------------------
+
+
+class TestSampleSwingEvents:
+    def test_returns_sampling_result(self, small_model, audio_features, diff, genre):
+        result = sample_swing_events(
+            small_model, audio_features, diff, genre,
+            max_events=4, max_tokens=64,
+        )
+        assert isinstance(result, SamplingResult)
+        assert isinstance(result.tokens, list)
+        assert isinstance(result.events, list)
+        assert isinstance(result.final_state, _GrammarState)
+
+    def test_events_have_absolute_beats(self, small_model, audio_features, diff, genre):
+        result = sample_swing_events(
+            small_model, audio_features, diff, genre,
+            max_events=8, max_tokens=128,
+        )
+        if result.events:
+            # Beats should be monotonically non-decreasing
+            beats = [e.beat for e in result.events]
+            assert beats == sorted(beats)
+            # First event's beat = its Δt from 0 (>= 0)
+            assert beats[0] >= 0.0
+
+    def test_resume_continues_absolute_beat(self, small_model, audio_features, diff, genre):
+        # First window
+        r1 = sample_swing_events(
+            small_model, audio_features, diff, genre,
+            max_events=4, max_tokens=64,
+        )
+        first_end_beat = r1.final_state.current_beat
+
+        # Resume from the final state
+        r2 = sample_swing_events(
+            small_model, audio_features, diff, genre,
+            max_events=4, max_tokens=64,
+            initial_state=r1.final_state,
+        )
+        if r2.events:
+            # Resumed events start at or after the previous window's end
+            assert r2.events[0].beat >= first_end_beat - 0.1
+
+    def test_stop_at_beat_caps_generation(self, small_model, audio_features, diff, genre):
+        cap = 5.0
+        result = sample_swing_events(
+            small_model, audio_features, diff, genre,
+            max_events=128, max_tokens=1024,
+            stop_at_beat=cap,
+        )
+        # Final state's current_beat may exceed cap slightly (the event that
+        # crossed the threshold completes), but should not be far past it.
+        assert result.final_state.current_beat <= cap + 64.0  # max Δt bin
+
+    def test_event_count_matches_returned_tokens(self, small_model, audio_features, diff, genre):
+        """Every completed event should contribute its 5–7 tokens to the stream."""
+        result = sample_swing_events(
+            small_model, audio_features, diff, genre,
+            max_events=8, max_tokens=128, temperature=1.0, top_p=1.0,
+        )
+        # Count HAND tokens in result.tokens; should equal len(events)
+        from beatsaber_automapper.data.swing_tokenizer import HAND_LEFT, HAND_NONE, HAND_RIGHT
+        n_hand = sum(1 for t in result.tokens if t in (HAND_LEFT, HAND_RIGHT, HAND_NONE))
+        # Events list contains only COMPLETED events; HAND count includes events
+        # whose body got truncated by max_tokens. Equal or one extra HAND in tokens.
+        assert n_hand >= len(result.events)
+
+
+def test_emit_event_snapshot():
+    """_emit_event captures the in-progress event from grammar state."""
+    s = _GrammarState()
+    s.current_hand = HAND_LEFT
+    s.current_kind = NOTE
+    s.current_beat = 4.5
+    s.last_x = 2
+    s.last_y = 1
+    s.last_dir = 5
+    s.last_field_d = 3
+    evt = _emit_event(s)
+    assert evt.beat == 4.5
+    assert evt.hand == HAND_LEFT
+    assert evt.kind == NOTE
+    assert evt.x == 2 and evt.y == 1
+    assert evt.direction == 5
+    assert evt.field_d == 3
+
+
+def test_emit_event_bomb_clears_dir():
+    s = _GrammarState()
+    s.current_kind = BOMB
+    s.last_dir = 7  # should be ignored for bombs
+    evt = _emit_event(s)
+    assert evt.direction == 0
+
+
+def test_clone_for_resume_preserves_state():
+    s = _GrammarState()
+    s.phase = _Phase.EXPECT_FIELD_D  # mid-event
+    s.current_beat = 12.5
+    s.saber[0] = 0.7
+    s.last_beat[HAND_LEFT] = 11.0
+    cloned = s.clone_for_resume()
+    # Phase resets to EXPECT_HAND
+    assert cloned.phase == _Phase.EXPECT_HAND
+    # Body state preserved
+    assert cloned.current_beat == 12.5
+    assert cloned.saber[0] == 0.7
+    assert cloned.last_beat[HAND_LEFT] == 11.0
+    # Independent storage
+    cloned.saber[0] = 0.0
+    assert s.saber[0] == 0.7
+
+
 def test_generate_swing_level_creates_zip(tmp_path):
     """End-to-end V6 level generation smoke test."""
     import wave
     import zipfile
+
     from beatsaber_automapper.generation.generate import generate_swing_level
 
     wav = tmp_path / "song.wav"

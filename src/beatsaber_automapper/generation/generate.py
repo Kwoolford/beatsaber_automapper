@@ -131,6 +131,134 @@ def _make_default_sequence_module() -> Any:
     return module
 
 
+# ---------------------------------------------------------------------------
+# V6 windowed inference helpers
+# ---------------------------------------------------------------------------
+
+_FRAMES_PER_SEC = 44100 / 512  # at sr=44100, hop=512
+
+
+def _mel_window(
+    full: torch.Tensor, center_frame: int, width: int, n_frames: int,
+) -> torch.Tensor:
+    """Extract a width-frame window of mel/structure centred on center_frame.
+
+    Pads at the right edge if the song is shorter than the desired width.
+    full shape: [B, C, T]; returns [B, C, width].
+    """
+    half = width // 2
+    start = max(0, center_frame - half)
+    end = start + width
+    if end > n_frames:
+        end = n_frames
+        start = max(0, end - width)
+    win = full[:, :, start:end]
+    if win.shape[2] < width:
+        win = torch.nn.functional.pad(win, (0, width - win.shape[2]))
+    return win
+
+
+def _compute_window_beats(context_frames: int, bpm: float) -> float:
+    """How many beats fit comfortably inside an audio context window.
+
+    Uses 60% of the context as the active region, leaving 20% buffer at each
+    edge — this way every event in the window has at least ~0.3 seconds of
+    audio context to either side.
+    """
+    seconds_per_window = context_frames / _FRAMES_PER_SEC
+    beats_per_window = seconds_per_window * (bpm / 60.0)
+    return max(1.0, beats_per_window * 0.6)
+
+
+def _events_to_beatmap(events: list) -> Any:
+    """Build a DifficultyBeatmap from a list of _SwingEvent objects.
+
+    Matches ARC_HEAD/CHAIN_HEAD to their respective TAIL events by HAND FIFO,
+    same policy as SwingEventTokenizer.decode_beatmap. Unmatched heads/tails
+    are dropped.
+    """
+    from beatsaber_automapper.data.beatmap import (
+        BombNote,
+        BurstSlider,
+        ColorNote,
+        DifficultyBeatmap,
+        Slider,
+    )
+    from beatsaber_automapper.data.swing_tokenizer import (
+        _ANGLE_BINS,
+        _MU_BINS,
+        _SLICE_MIN,
+        _SQUISH_BINS,
+        ARC_HEAD,
+        ARC_TAIL,
+        BOMB,
+        CHAIN_HEAD,
+        CHAIN_TAIL,
+        HAND_LEFT,
+        HAND_RIGHT,
+        NOTE,
+    )
+
+    def _color_from_hand(h: int) -> int:
+        return 0 if h == HAND_LEFT else 1
+
+    color_notes: list = []
+    bomb_notes: list = []
+    sliders: list = []
+    burst_sliders: list = []
+    arc_heads: dict = {HAND_LEFT: [], HAND_RIGHT: []}
+    chain_heads: dict = {HAND_LEFT: [], HAND_RIGHT: []}
+
+    # Events come from the sampler in time order already; sort by beat as a safety net.
+    for evt in sorted(events, key=lambda e: e.beat):
+        if evt.kind == NOTE and evt.hand in (HAND_LEFT, HAND_RIGHT):
+            color_notes.append(ColorNote(
+                beat=evt.beat,
+                x=evt.x, y=evt.y,
+                color=_color_from_hand(evt.hand),
+                direction=evt.direction,
+                angle_offset=int(_ANGLE_BINS[evt.field_d]),
+            ))
+        elif evt.kind == BOMB:
+            bomb_notes.append(BombNote(beat=evt.beat, x=evt.x, y=evt.y))
+        elif evt.kind == ARC_HEAD and evt.hand in (HAND_LEFT, HAND_RIGHT):
+            arc_heads[evt.hand].append(
+                (evt.beat, evt.x, evt.y, evt.direction, _MU_BINS[evt.field_d])
+            )
+        elif evt.kind == ARC_TAIL and evt.hand in (HAND_LEFT, HAND_RIGHT):
+            if arc_heads[evt.hand]:
+                hb, hx, hy, hdir, hmu = arc_heads[evt.hand].pop(0)
+                sliders.append(Slider(
+                    color=_color_from_hand(evt.hand),
+                    beat=hb, x=hx, y=hy, direction=hdir, mu=hmu,
+                    tail_beat=evt.beat, tail_x=evt.x, tail_y=evt.y,
+                    tail_direction=evt.direction, tail_mu=_MU_BINS[evt.field_d],
+                    mid_anchor_mode=0,
+                ))
+        elif evt.kind == CHAIN_HEAD and evt.hand in (HAND_LEFT, HAND_RIGHT):
+            chain_heads[evt.hand].append(
+                (evt.beat, evt.x, evt.y, evt.direction, evt.field_d + _SLICE_MIN)
+            )
+        elif evt.kind == CHAIN_TAIL and evt.hand in (HAND_LEFT, HAND_RIGHT):
+            if chain_heads[evt.hand]:
+                hb, hx, hy, hdir, hsc = chain_heads[evt.hand].pop(0)
+                burst_sliders.append(BurstSlider(
+                    color=_color_from_hand(evt.hand),
+                    beat=hb, x=hx, y=hy, direction=hdir,
+                    tail_beat=evt.beat, tail_x=evt.x, tail_y=evt.y,
+                    slice_count=hsc, squish=_SQUISH_BINS[evt.field_d],
+                ))
+
+    return DifficultyBeatmap(
+        version="3.3.0",
+        color_notes=color_notes,
+        bomb_notes=bomb_notes,
+        obstacles=[],
+        sliders=sliders,
+        burst_sliders=burst_sliders,
+    )
+
+
 # Target NPS ranges by difficulty (from training data analysis)
 _NPS_RANGES: dict[int, tuple[float, float]] = {
     0: (1.0, 3.0),   # Easy
@@ -1032,9 +1160,7 @@ def generate_swing_level(
     Returns:
         Path to the generated .zip file.
     """
-    from beatsaber_automapper.data.swing_tokenizer import SwingEventTokenizer
     from beatsaber_automapper.data.tokenizer import DIFFICULTY_MAP, GENRE_MAP
-    from beatsaber_automapper.generation.beam_search_v6 import nucleus_sampling_v6
 
     audio_path = Path(audio_path)
     output_path = Path(output_path)
@@ -1089,8 +1215,9 @@ def generate_swing_level(
         seq_module = _make_default_sequence_module()
     seq_module = seq_module.to(device_obj).eval()
 
-    # --- Encode audio in a sliding window ---
-    # Encode context_frames-wide windows and use the middle portion as audio features
+    # --- Windowed full-song inference ---
+    # Hop through the song in fixed beat-windows; re-encode audio per window.
+    # Saber state and song-absolute current_beat carry across window boundaries.
     n_frames = mel.shape[1]
     mel_tensor = mel.unsqueeze(0).to(device_obj)
     struct_tensor = (
@@ -1098,70 +1225,89 @@ def generate_swing_level(
         if structure_features is not None else None
     )
 
-    # Use centre window for a simple single-pass generation (adequate for short songs)
-    # For production: use overlapping windows and merge. TODO: V6-6b
-    center = n_frames // 2
-    half = context_frames // 2
-    mel_start = max(0, center - half)
-    mel_end = min(n_frames, mel_start + context_frames)
-    mel_window = mel_tensor[:, :, mel_start:mel_end]
-    if mel_window.shape[2] < context_frames:
-        mel_window = torch.nn.functional.pad(mel_window, (0, context_frames - mel_window.shape[2]))
-
-    if struct_tensor is not None:
-        struct_window = struct_tensor[:, :, mel_start:mel_end]
-        if struct_window.shape[2] < context_frames:
-            pad = context_frames - struct_window.shape[2]
-            struct_window = torch.nn.functional.pad(struct_window, (0, pad))
-    else:
-        struct_window = None
-
-    with torch.no_grad():
-        audio_features = seq_module.audio_encoder(mel_window, structure_features=struct_window)
-
-        # Phrase embedding: mean-pool a wide audio context
-        phrase_start = max(0, center - phrase_frames // 2)
-        phrase_end = min(n_frames, phrase_start + phrase_frames)
-        phrase_mel = mel_tensor[:, :, phrase_start:phrase_end]
-        if phrase_mel.shape[2] < phrase_frames:
-            phrase_mel = torch.nn.functional.pad(
-                phrase_mel, (0, phrase_frames - phrase_mel.shape[2])
-            )
-        phrase_struct = (
-            struct_tensor[:, :, phrase_start:phrase_end] if struct_tensor is not None else None
-        )
-        if phrase_struct is not None and phrase_struct.shape[2] < phrase_frames:
-            phrase_struct = torch.nn.functional.pad(
-                phrase_struct, (0, phrase_frames - phrase_struct.shape[2])
-            )
-
-        phrase_audio = seq_module.audio_encoder(phrase_mel, structure_features=phrase_struct)
-        phrase_emb = phrase_audio.mean(dim=1)  # [1, d_model]
-
+    duration_beats = song_duration_secs * (bpm / 60.0)
+    # context_frames ≈ 256 covers ~3 sec ≈ 6 beats at 120 BPM. Use a 4-beat
+    # window so each window's events stay inside the audio context. Tunable.
+    window_beats = float(_compute_window_beats(context_frames, bpm))
     diff_idx = DIFFICULTY_MAP.get(difficulty, 3)
     genre_idx = GENRE_MAP.get(genre, 0)
     diff_tensor = torch.tensor([diff_idx], device=device_obj)
     genre_tensor = torch.tensor([genre_idx], device=device_obj)
     mapper_tensor = torch.tensor([mapper_id], device=device_obj)
+    use_mapper = (seq_module.sequence_model.num_mappers or 0) > 0
 
-    logger.info("Generating swing sequence (max_events=%d)…", max_events)
-    tokens = nucleus_sampling_v6(
-        model=seq_module.sequence_model,
-        audio_features=audio_features,
-        difficulty=diff_tensor,
-        genre=genre_tensor,
-        max_events=max_events,
-        temperature=temperature,
-        top_p=top_p,
-        device=device_obj,
-        mapper_id=mapper_tensor if seq_module.sequence_model.num_mappers > 0 else None,
-        phrase_emb=phrase_emb,
+    from beatsaber_automapper.generation.beam_search_v6 import sample_swing_events
+
+    all_events = []
+    resume_state = None
+    window_start_beat = 0.0
+
+    logger.info(
+        "V6 windowed inference: duration=%.1f beats, window=%.1f beats, max_events=%d",
+        duration_beats, window_beats, max_events,
     )
-    logger.info("Generated %d tokens", len(tokens))
 
-    # --- Decode to beatmap ---
-    swing_tok = SwingEventTokenizer()
-    beatmap = swing_tok.decode_beatmap(tokens)
+    while window_start_beat < duration_beats and len(all_events) < max_events:
+        window_end_beat = min(window_start_beat + window_beats, duration_beats)
+        center_beat = (window_start_beat + window_end_beat) / 2.0
+        center_frame = int(center_beat * _FRAMES_PER_SEC * 60.0 / bpm)
+
+        mel_window = _mel_window(mel_tensor, center_frame, context_frames, n_frames)
+        struct_window = (
+            _mel_window(struct_tensor, center_frame, context_frames, n_frames)
+            if struct_tensor is not None else None
+        )
+        phrase_window_mel = _mel_window(mel_tensor, center_frame, phrase_frames, n_frames)
+        phrase_window_struct = (
+            _mel_window(struct_tensor, center_frame, phrase_frames, n_frames)
+            if struct_tensor is not None else None
+        )
+
+        with torch.no_grad():
+            audio_features = seq_module.audio_encoder(
+                mel_window, structure_features=struct_window,
+            )
+            phrase_audio = seq_module.audio_encoder(
+                phrase_window_mel, structure_features=phrase_window_struct,
+            )
+            phrase_emb = phrase_audio.mean(dim=1)
+
+        # Per-window budget: leave headroom but cap to avoid runaway
+        remaining = max_events - len(all_events)
+        per_window_cap = min(remaining, 256)
+
+        result = sample_swing_events(
+            model=seq_module.sequence_model,
+            audio_features=audio_features,
+            difficulty=diff_tensor,
+            genre=genre_tensor,
+            max_events=per_window_cap,
+            max_tokens=per_window_cap * 8,
+            temperature=temperature,
+            top_p=top_p,
+            device=device_obj,
+            mapper_id=mapper_tensor if use_mapper else None,
+            phrase_emb=phrase_emb,
+            initial_state=resume_state,
+            stop_at_beat=window_end_beat,
+        )
+
+        # Keep events whose absolute beat falls within this window's range
+        kept = [e for e in result.events if window_start_beat <= e.beat <= window_end_beat]
+        all_events.extend(kept)
+        resume_state = result.final_state
+
+        logger.debug(
+            "  window [%.2f, %.2f]: kept %d/%d events (total %d)",
+            window_start_beat, window_end_beat, len(kept), len(result.events), len(all_events),
+        )
+
+        window_start_beat += window_beats
+
+    logger.info("Generated %d events across full song", len(all_events))
+
+    # Convert events directly to a DifficultyBeatmap
+    beatmap = _events_to_beatmap(all_events)
     logger.info(
         "Decoded: %d notes, %d arcs, %d chains, %d bombs",
         len(beatmap.color_notes), len(beatmap.sliders),
