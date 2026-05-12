@@ -1243,8 +1243,11 @@ class SwingSequenceDataset(Dataset):
 
         # Expand saber_state from per-event to per-token: each token in event_i carries
         # the state BEFORE event_i. Tokens before the first HAND (BOS) get state[0].
-        # Tokens after the last event (EOS/PAD) get the state of the last event.
-        # Shape: [max_swing_len, 12] aligned with the (BOS-shifted) decoder input.
+        # Tokens after the last event (PAD) get the state of the last event.
+        # Shape: [max_swing_len, 12] aligned with `tokens` (the full window including BOS).
+        # seq_module._prepare_teacher_forcing slices tokens[:, :-1] as decoder_input,
+        # and saber_state[:, :-1] is used in the forward pass — the index alignment
+        # is preserved because both are sliced the same way.
         saber_state_per_token = torch.zeros(self.max_swing_len, 12)
         event_idx = -1
         n_events = window_states.shape[0]
@@ -1337,8 +1340,13 @@ class SwingSequenceDataset(Dataset):
         # Hand mirror: LEFT↔RIGHT
         hand_mirror = {HAND_LEFT: HAND_RIGHT, HAND_RIGHT: HAND_LEFT, HAND_NONE: HAND_NONE}
 
+        # The first event in a window anchors at BOS time (Δt = 0); subsequent
+        # events are spaced relative to their predecessor. Anchoring at 0 here
+        # avoids encoding the event's absolute song position into the first Δt
+        # token — that pattern poisoned earlier checkpoints into emitting
+        # huge Δt jumps after every BOS during inference.
         tokens: list[int] = [BOS]
-        prev_beat = 0.0
+        prev_beat = events[0].beat if events else 0.0
         for evt in events:
             dt = max(0.0, evt.beat - prev_beat)
             dt_bin = _nearest_bin(dt, _DT_BINS)

@@ -85,13 +85,12 @@ def _compute_phrase_energy_loss(
     )  # [B, n_bins]
 
     # Audio energy curve: for mel input use mean across bands; for structure
-    # features use channel 0 (RMS). Mel has many bands; structure typically has 6-8.
-    if audio_signal.shape[1] >= 64:
-        # Looks like a mel spectrogram (n_mels typically 80) — pool across mel bands
+    # features use channel 0 (RMS). Structure has N_STRUCTURE_FEATURES=8 channels;
+    # mel has n_mels (default 80). Use a threshold that's safe for any n_mels >= 16.
+    if audio_signal.shape[1] > 8:
         energy = audio_signal.mean(dim=1)  # [B, T]
     else:
-        # Structure feature tensor — channel 0 = RMS
-        energy = audio_signal[:, 0, :]
+        energy = audio_signal[:, 0, :]  # structure: channel 0 = RMS
 
     seg_t = max(1, t // n_bins)
     audio_segs = torch.stack(
@@ -246,14 +245,16 @@ class SequenceLitModule(lightning.LightningModule):
     def _prepare_teacher_forcing(
         self, tokens: torch.Tensor,
     ) -> tuple[torch.Tensor, torch.Tensor]:
-        """Prepend BOS to create decoder input; original tokens are the target."""
-        b, s = tokens.shape
-        bos = torch.full(
-            (b, 1), self.hparams.bos_token_id,
-            dtype=tokens.dtype, device=tokens.device,
-        )
-        decoder_input = torch.cat([bos, tokens[:, :-1]], dim=1)
-        return decoder_input, tokens
+        """Split a BOS-prefixed sequence into decoder input and target.
+
+        Dataset tokens are [BOS, t0, t1, ..., tN, PAD...].  Standard LM shift:
+          decoder_input = tokens[:, :-1]  = [BOS, t0, t1, ..., tN]
+          target        = tokens[:, 1:]   = [t0,  t1, ..., tN, PAD]
+
+        The old implementation prepended an extra BOS, producing double-BOS at
+        position 0 and shifting saber_state out of alignment with decoder_input.
+        """
+        return tokens[:, :-1], tokens[:, 1:]
 
     def forward(
         self,
@@ -299,6 +300,11 @@ class SequenceLitModule(lightning.LightningModule):
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         decoder_input, target = self._prepare_teacher_forcing(batch["tokens"])
 
+        # saber_state is [B, max_swing_len, 12]; slice to match decoder_input length.
+        saber_state = batch.get("saber_state")
+        if saber_state is not None:
+            saber_state = saber_state[:, :-1, :]
+
         # Token dropout: replace random input tokens to reduce exposure bias
         if self.hparams.token_dropout > 0 and self.training:
             mask = torch.rand_like(decoder_input.float()) < self.hparams.token_dropout
@@ -315,7 +321,7 @@ class SequenceLitModule(lightning.LightningModule):
             batch["difficulty"],
             batch["genre"],
             structure=batch.get("structure"),
-            saber_state=batch.get("saber_state"),
+            saber_state=saber_state,
             phrase_mel=batch.get("phrase_mel"),
             mapper_id=batch.get("mapper_id"),
         )
@@ -338,13 +344,16 @@ class SequenceLitModule(lightning.LightningModule):
 
     def validation_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> None:
         decoder_input, target = self._prepare_teacher_forcing(batch["tokens"])
+        saber_state = batch.get("saber_state")
+        if saber_state is not None:
+            saber_state = saber_state[:, :-1, :]
         logits = self(
             batch["mel"],
             decoder_input,
             batch["difficulty"],
             batch["genre"],
             structure=batch.get("structure"),
-            saber_state=batch.get("saber_state"),
+            saber_state=saber_state,
             phrase_mel=batch.get("phrase_mel"),
             mapper_id=batch.get("mapper_id"),
         )

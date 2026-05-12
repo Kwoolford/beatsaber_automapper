@@ -130,29 +130,32 @@ class TestFreezeEncoder:
 
 
 class TestTeacherForcing:
-    """Test BOS prepend logic."""
+    """Test standard LM teacher-forcing split.
+
+    Dataset tokens are [BOS, t0, t1, ..., tN, PAD...].
+    decoder_input = tokens[:-1] = [BOS, t0, ..., tN]
+    target        = tokens[1:]  = [t0,  t1, ..., PAD]
+    """
 
     def test_prepare_teacher_forcing(self, module):
-        # V6 tokens: BOS=1, EOS=2, then event tokens starting at 3+
-        tokens = torch.tensor([[HAND_LEFT, 10, NOTE, 44, 48, 51, 60, EOS]])
+        # Real token format: starts with BOS, ends with EOS
+        tokens = torch.tensor([[BOS, HAND_LEFT, 10, NOTE, 44, 48, 51, 60, EOS]])
         dec_input, target = module._prepare_teacher_forcing(tokens)
 
-        assert dec_input.shape == tokens.shape
-        assert target.shape == tokens.shape
-        assert dec_input[0, 0].item() == BOS
-        assert torch.equal(dec_input[0, 1:], tokens[0, :-1])
-        assert torch.equal(target, tokens)
+        assert dec_input.shape == (1, tokens.shape[1] - 1)
+        assert target.shape == (1, tokens.shape[1] - 1)
+        assert dec_input[0, 0].item() == BOS          # decoder input starts with BOS
+        assert torch.equal(target[0], tokens[0, 1:])  # target is left-shifted by 1
 
-    def test_target_equals_original_tokens(self, module):
-        tokens = torch.randint(3, VOCAB_SIZE, (2, 12))
+    def test_target_is_left_shifted(self, module):
+        tokens = torch.tensor([[BOS, HAND_LEFT, 10, NOTE, 44, 48, 51, 60, EOS]])
         dec_input, target = module._prepare_teacher_forcing(tokens)
-        assert torch.equal(target, tokens)
+        assert torch.equal(target[0], tokens[0, 1:])
 
-    def test_decoder_input_shifted_right(self, module):
-        tokens = torch.tensor([[HAND_LEFT, 10, NOTE, 44, 48, 51, 60, EOS]])
+    def test_decoder_input_is_tokens_without_last(self, module):
+        tokens = torch.tensor([[BOS, HAND_LEFT, 10, NOTE, 44, 48, 51, 60, EOS]])
         dec_input, _ = module._prepare_teacher_forcing(tokens)
-        # All positions after BOS should equal tokens[:-1]
-        assert torch.equal(dec_input[0, 1:], tokens[0, :-1])
+        assert torch.equal(dec_input[0], tokens[0, :-1])
 
 
 class TestMapperConditioning:

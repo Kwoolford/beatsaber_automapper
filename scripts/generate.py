@@ -152,6 +152,27 @@ def main() -> None:
         action="store_true",
         help="Enable verbose logging",
     )
+    parser.add_argument(
+        "--v6",
+        action="store_true",
+        dest="use_v6",
+        help="Use V6 swing-event generator (single grammar-constrained AR pass). "
+             "Onset model is not needed in this mode.",
+    )
+    parser.add_argument(
+        "--max-events",
+        type=int,
+        default=800,
+        dest="max_events",
+        help="V6 only: max swing events to generate (cap on song length).",
+    )
+    parser.add_argument(
+        "--mapper-id",
+        type=int,
+        default=0,
+        dest="mapper_id",
+        help="V6 only: cohort/mapper conditioning index (0 = unknown).",
+    )
 
     args = parser.parse_args()
 
@@ -173,27 +194,49 @@ def main() -> None:
     else:
         output_path = audio_path.with_suffix(".zip")
 
-    from beatsaber_automapper.generation.generate import generate_level
+    if args.use_v6:
+        if len(args.difficulty) > 1:
+            parser.error("--v6 mode generates one difficulty at a time")
+        from beatsaber_automapper.generation.generate import generate_swing_level
 
-    result = generate_level(
-        audio_path=audio_path,
-        output_path=output_path,
-        difficulties=args.difficulty,
-        onset_checkpoint=args.onset_ckpt,
-        sequence_checkpoint=args.seq_ckpt,
-        onset_threshold=args.onset_threshold,
-        min_onset_distance=args.min_onset_distance,
-        beam_size=args.beam_size,
-        temperature=args.temperature,
-        use_sampling=args.nucleus_sampling,
-        top_p=args.top_p,
-        repetition_penalty=args.repetition_penalty,
-        song_name=args.song_name,
-        song_author=args.song_author,
-        bpm=args.bpm,
-        genre=args.genre,
-        device=args.device,
-    )
+        result = generate_swing_level(
+            audio_path=audio_path,
+            output_path=output_path,
+            difficulty=args.difficulty[0],
+            sequence_checkpoint=args.seq_ckpt,
+            onset_checkpoint=args.onset_ckpt,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            max_events=args.max_events,
+            song_name=args.song_name,
+            song_author=args.song_author,
+            bpm=args.bpm,
+            genre=args.genre,
+            mapper_id=args.mapper_id,
+            device=args.device,
+        )
+    else:
+        from beatsaber_automapper.generation.generate import generate_level
+
+        result = generate_level(
+            audio_path=audio_path,
+            output_path=output_path,
+            difficulties=args.difficulty,
+            onset_checkpoint=args.onset_ckpt,
+            sequence_checkpoint=args.seq_ckpt,
+            onset_threshold=args.onset_threshold,
+            min_onset_distance=args.min_onset_distance,
+            beam_size=args.beam_size,
+            temperature=args.temperature,
+            use_sampling=args.nucleus_sampling,
+            top_p=args.top_p,
+            repetition_penalty=args.repetition_penalty,
+            song_name=args.song_name,
+            song_author=args.song_author,
+            bpm=args.bpm,
+            genre=args.genre,
+            device=args.device,
+        )
 
     print(f"Generated level: {result}")
 

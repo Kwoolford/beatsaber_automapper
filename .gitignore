@@ -44,6 +44,12 @@ checkpoints/
 # Generated levels
 *.zip
 
+# Audio test fixtures (large, local-only)
+*.mp3
+*.ogg
+*.wav
+*.flac
+
 # Misc
 .env
 *.log

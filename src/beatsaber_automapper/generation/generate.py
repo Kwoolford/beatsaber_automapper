@@ -1247,9 +1247,13 @@ def generate_swing_level(
         duration_beats, window_beats, max_events,
     )
 
+    # The model's grammar state owns the song-absolute beat clock: each Δt token
+    # advances `current_beat`, and events are timestamped with that value. We let
+    # the model decide how far each window covers and advance the audio context
+    # window from the resume state's beat after each pass. This is robust to
+    # silent intros (large initial Δt) and lets the model self-pace.
     while window_start_beat < duration_beats and len(all_events) < max_events:
-        window_end_beat = min(window_start_beat + window_beats, duration_beats)
-        center_beat = (window_start_beat + window_end_beat) / 2.0
+        center_beat = window_start_beat + window_beats / 2.0
         center_frame = int(center_beat * _FRAMES_PER_SEC * 60.0 / bpm)
 
         mel_window = _mel_window(mel_tensor, center_frame, context_frames, n_frames)
@@ -1276,6 +1280,11 @@ def generate_swing_level(
         remaining = max_events - len(all_events)
         per_window_cap = min(remaining, 256)
 
+        # Stop sampling once the model crosses 1.5 window-widths past the audio
+        # centre (so each pass covers ~one window of beats; rest comes from
+        # subsequent windows with re-centred audio context).
+        stop_beat = window_start_beat + 1.5 * window_beats
+
         result = sample_swing_events(
             model=seq_module.sequence_model,
             audio_features=audio_features,
@@ -1289,20 +1298,24 @@ def generate_swing_level(
             mapper_id=mapper_tensor if use_mapper else None,
             phrase_emb=phrase_emb,
             initial_state=resume_state,
-            stop_at_beat=window_end_beat,
+            stop_at_beat=stop_beat,
         )
 
-        # Keep events whose absolute beat falls within this window's range
-        kept = [e for e in result.events if window_start_beat <= e.beat <= window_end_beat]
-        all_events.extend(kept)
+        all_events.extend(result.events)
         resume_state = result.final_state
 
-        logger.debug(
-            "  window [%.2f, %.2f]: kept %d/%d events (total %d)",
-            window_start_beat, window_end_beat, len(kept), len(result.events), len(all_events),
+        next_beat = result.final_state.current_beat
+        logger.info(
+            "  window @beat=%.2f → emitted %d events, model advanced to beat %.2f",
+            window_start_beat, len(result.events), next_beat,
         )
 
-        window_start_beat += window_beats
+        # Advance to where the model actually is, never backwards
+        if next_beat <= window_start_beat:
+            # Model emitted EOS or got stuck — advance manually so we don't loop
+            window_start_beat += window_beats
+        else:
+            window_start_beat = next_beat
 
     logger.info("Generated %d events across full song", len(all_events))
 

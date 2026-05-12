@@ -184,14 +184,15 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         seq_dim_feedforward=sc.dim_feedforward,
         seq_num_difficulties=sc.num_difficulties,
         seq_num_genres=sc.get("num_genres", 11),
+        seq_num_mappers=sc.get("num_mappers", 0),
         seq_dropout=sc.dropout,
-        # Inter-onset context
-        prev_context_k=sc.get("prev_context_k", 0),
-        # Conditioning dropout for CFG
+        # V6 conditioning
+        bos_token_id=sc.get("bos_token_id", 1),
         conditioning_dropout=sc.get("conditioning_dropout", 0.0),
+        # Training loss params
         label_smoothing=sc.get("label_smoothing", 0.1),
         rhythm_weight=sc.get("rhythm_weight", 3.0),
-        eos_weight=sc.get("eos_weight", 0.3),
+        eos_weight=sc.get("eos_weight", 1.0),
         # Per-stage LR/schedule overrides (fall back to global optimizer config)
         learning_rate=sc.get("learning_rate", cfg.optimizer.learning_rate),
         weight_decay=cfg.optimizer.weight_decay,
@@ -199,17 +200,12 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         lr_min_ratio=sc.get("lr_min_ratio", 0.01),
         token_dropout=sc.get("token_dropout", 0.0),
         freeze_encoder=sc.get("freeze_encoder", False),
-        flow_loss_alpha=sc.get("flow_loss_alpha", 0.0),
-        ergo_loss_alpha=sc.get("ergo_loss_alpha", 0.0),
-        follow_through_alpha=sc.get("follow_through_alpha", 0.0),
-        intra_onset_parity_alpha=sc.get("intra_onset_parity_alpha", 0.0),
-        rare_event_weight=sc.get("rare_event_weight", 1.0),
-        bomb_weight=sc.get("bomb_weight", 1.0),
-        # Onset planner
-        use_planner=sc.get("use_planner", False),
-        planner_layers=sc.get("planner_layers", 4),
-        planner_heads=sc.get("planner_heads", 8),
+        # V6 aux losses
+        phrase_energy_alpha=sc.get("phrase_energy_alpha", 0.0),
+        # Structure features
         n_structure_features=ac.get("n_structure_features", 8),
+        # Legacy V5 compat
+        prev_context_k=sc.get("prev_context_k", 0),
     )
 
     # Callbacks
@@ -251,6 +247,7 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         default_root_dir=cfg.output_dir,
         enable_model_summary=False,
         num_sanity_val_steps=0,
+        limit_val_batches=cfg.get("limit_val_batches", 1.0),
     )
 
     return module, trainer

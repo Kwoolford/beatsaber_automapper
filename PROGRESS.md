@@ -7,6 +7,44 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## V6 Bug Audit + Training Run (May 12, 2026)
+
+### First V6 training run — completed, results invalidated by encoding bugs
+
+30-epoch run on the full processed pool (5320 maps, Expert/ExpertPlus, batch_size=32) using `sequence_swing_small` preset:
+- val_loss: 1.31 → **0.947**, val_token_acc: 69% → **86.8%**, no crash, 4m22s/epoch, ~14.5/32 GB VRAM.
+- `phrase_energy_loss` was flat (mean ≈ 0.09) the entire run — did not decrease. V6-4 DoD "verify it actually decreases" is **not met**.
+
+**Run invalidated by three encoding bugs found during generation testing:**
+
+#### Bug 1 — First-Δt absolute-position encoding (dataset.py)
+`SwingSequenceDataset._events_to_tokens` started each sliding window with `prev_beat = 0.0`. The first event in every training window therefore had its Δt encoded as its **absolute song position** (e.g., 88 beats), not "0 from window start". The model learned `p(Δt=64 beats | BOS, HAND) ≈ 0.90` — confirmed by logit inspection on the checkpoint. Fixed: `prev_beat = events[0].beat` so first Δt = 0.
+
+#### Bug 2 — Double-BOS teacher forcing (seq_module.py)
+`_prepare_teacher_forcing` prepended an extra BOS to `tokens` which already start with BOS (dataset always inserts BOS at position 0). This made `decoder_input = [BOS_extra, BOS, t0, t1, ...]` and `target = [BOS, t0, t1, ...]`. Consequences:
+- Train/inference distribution mismatch: at inference step 1 the model sees `[BOS]`; at training step 1 it saw `[BOS_extra, BOS_orig]`.
+- Saber-state alignment was off by one (saber_state was not shifted to match the shifted decoder_input).
+
+Fixed: standard LM shift — `decoder_input = tokens[:, :-1]`, `target = tokens[:, 1:]`. Saber-state slice updated in training_step and validation_step to `saber_state[:, :-1, :]`.
+
+#### Bug 3 — Per-window beat-range filter (generate.py)
+`generate_swing_level` filtered generated events to `window_start_beat ≤ e.beat ≤ window_end_beat` and advanced `window_start_beat` by a fixed 3.7 beats. With the buggy Δt encoding, every event fell outside the filter; with a corrected model, the filter would still be fragile. Fixed: window cursor advances from `result.final_state.current_beat`; filter removed.
+
+### Fixes shipped
+- `data/dataset.py` — first-Δt anchor fix
+- `training/seq_module.py` — standard LM teacher-forcing shift + saber_state slice
+- `training/seq_module.py` — phrase_energy threshold `>= 64` → `> 8`
+- `tests/test_seq_module.py` — updated teacher-forcing tests for correct semantics
+- `generation/generate.py` — windowed inference cursor fix
+- `scripts/generate.py` — `--v6` flag wired to `generate_swing_level`
+- `scripts/train.py` — dropped V5 dead kwargs, added V6 params
+- `configs/train.yaml` — `limit_val_batches` knob
+- `.gitignore` — `*.mp3 *.ogg *.wav *.flac`
+
+**Next step:** retrain from scratch. The checkpoint at `outputs/.../sequence-epoch=29-val_loss=0.947.ckpt` is not usable — Δt distribution is poisoned.
+
+---
+
 ## V6 Implementation — Phases 4, 6, 7 (May 11, 2026)
 
 **Completed:** V6-4 (phrase-energy loss), V6-6 (inference pipeline), V6-7 (harness wiring).

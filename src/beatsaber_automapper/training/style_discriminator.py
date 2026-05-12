@@ -18,10 +18,13 @@ for the integer case and ``probs @ emb_table`` for the soft case.
 
 from __future__ import annotations
 
+import lightning
 import torch
 import torch.nn as nn
+import torch.nn.functional as F  # noqa: N812
 
 from beatsaber_automapper.data.swing_tokenizer import PAD, VOCAB_SIZE
+from beatsaber_automapper.models.audio_encoder import AudioEncoder
 from beatsaber_automapper.models.components import SinusoidalPositionalEncoding
 
 
@@ -172,3 +175,97 @@ class StyleDiscriminator(nn.Module):
         idx = target_mapper.unsqueeze(-1)  # [B, 1]
         target_lp = log_probs.gather(1, idx).squeeze(-1)  # [B]
         return target_lp.mean()
+
+
+# ---------------------------------------------------------------------------
+# Lightning module: pretraining wrapper that bundles the audio encoder
+# ---------------------------------------------------------------------------
+
+
+class StyleDiscriminatorLitModule(lightning.LightningModule):
+    """Lightning wrapper that pretrains StyleDiscriminator + its audio encoder.
+
+    The bundle (audio encoder + discriminator) is what gets frozen and loaded
+    during V6-5 sequence training, so the audio side stays consistent
+    between discriminator pretraining and downstream usage.
+    """
+
+    def __init__(
+        self,
+        vocab_size: int = VOCAB_SIZE,
+        num_mappers: int = 18,
+        n_mels: int = 80,
+        audio_d_model: int = 256,
+        audio_nhead: int = 8,
+        audio_num_layers: int = 3,
+        audio_dim_feedforward: int = 1024,
+        disc_d_model: int = 128,
+        disc_nhead: int = 4,
+        disc_num_layers: int = 2,
+        disc_dim_feedforward: int = 256,
+        dropout: float = 0.1,
+        learning_rate: float = 3e-4,
+        weight_decay: float = 0.01,
+        class_weights: list[float] | None = None,
+    ) -> None:
+        super().__init__()
+        self.save_hyperparameters()
+
+        self.audio_encoder = AudioEncoder(
+            n_mels=n_mels,
+            d_model=audio_d_model,
+            nhead=audio_nhead,
+            num_layers=audio_num_layers,
+            dim_feedforward=audio_dim_feedforward,
+            dropout=dropout,
+        )
+        self.discriminator = StyleDiscriminator(
+            vocab_size=vocab_size,
+            num_mappers=num_mappers,
+            audio_d_model=audio_d_model,
+            d_model=disc_d_model,
+            nhead=disc_nhead,
+            num_layers=disc_num_layers,
+            dim_feedforward=disc_dim_feedforward,
+            dropout=dropout,
+        )
+
+        if class_weights is not None:
+            self.register_buffer(
+                "cls_weights", torch.tensor(class_weights, dtype=torch.float32),
+            )
+        else:
+            self.cls_weights = None
+
+    def forward(
+        self,
+        mel: torch.Tensor,
+        swing_input: torch.Tensor,
+        padding_mask: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        audio_features = self.audio_encoder(mel)
+        audio_emb = audio_features.mean(dim=1)
+        return self.discriminator(audio_emb, swing_input, padding_mask)
+
+    def _step(self, batch: dict, stage: str) -> torch.Tensor:
+        logits = self(batch["phrase_mel"], batch["tokens"])
+        target = batch["mapper_id"].long()
+        weight = self.cls_weights if self.cls_weights is not None else None
+        loss = F.cross_entropy(logits, target, weight=weight)
+        acc = (logits.argmax(dim=-1) == target).float().mean()
+        self.log(f"{stage}_loss", loss, prog_bar=True)
+        self.log(f"{stage}_acc", acc, prog_bar=True)
+        return loss
+
+    def training_step(self, batch: dict, batch_idx: int) -> torch.Tensor:
+        return self._step(batch, "train")
+
+    def validation_step(self, batch: dict, batch_idx: int) -> None:
+        self._step(batch, "val")
+
+    def configure_optimizers(self) -> torch.optim.Optimizer:
+        return torch.optim.AdamW(
+            self.parameters(),
+            lr=self.hparams.learning_rate,
+            weight_decay=self.hparams.weight_decay,
+        )

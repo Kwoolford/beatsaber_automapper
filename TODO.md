@@ -1,7 +1,7 @@
 # Beat Saber Automapper — V6 Plan (Swing-First Architecture)
 
-**Last updated:** 2026-05-11
-**Status:** V5 (cohort + harness) infrastructure preserved. V5 modeling axis DEPRECATED. Committing to V6 — per-hand swing-event tokenization + saber-state proprioception + phrase-aware loss.
+**Last updated:** 2026-05-12
+**Status:** V6 architecture fully implemented. Three encoding bugs found during generation testing and fixed (see PROGRESS.md). Retrain required before generation is usable.
 **North star:** A player plays a generated map and says *"who mapped this?"* — not *"is this AI?"*
 
 **Full rationale and architecture analysis:** [`docs/architecture_v6_plan.md`](docs/architecture_v6_plan.md)
@@ -115,9 +115,9 @@ Build order is **representation-first**. Bets 2 and 3 are cheap *after* Bet 1; d
 - [x] **4.1** Compute predicted swing rate per 4-bar window from emission probabilities.
 - [x] **4.2** Compute ground-truth audio RMS per 4-bar window.
 - [x] **4.3** KL divergence between the two; weight via `phrase_energy_alpha` (default 0.1).
-- [x] **4.4** Log `train_phrase_energy_loss`; verify it actually decreases on a real run.
+- [ ] **4.4** Log `train_phrase_energy_loss`; verify it actually decreases on a real run.
 
-**DoD:** Loss is differentiable, decreases on Joetastic training, does not NaN. ✓ Implemented in `seq_module._compute_phrase_energy_loss`. Activated when `phrase_energy_alpha > 0` and `structure` is in batch.
+**DoD:** Loss is differentiable ✓. **"Verify it decreases" NOT yet met**: first training run showed phrase_energy_loss flat at ~0.09 across all 30 epochs. Three causes fixed before retrain: (1) double-BOS teacher forcing bug, (2) first-Δt absolute-encoding bug. Will re-verify on next run.
 
 ### Phase V6-5 — Style discriminator (2 days)
 
@@ -132,17 +132,19 @@ Build order is **representation-first**. Bets 2 and 3 are cheap *after* Bet 1; d
 
 - [x] **6.1** V6 grammar-constrained nucleus sampler in `generation/beam_search_v6.py`. Grammar state machine enforces token grammar; saber state updated per event and passed to model.
 - [x] **6.2** `generation/generate.py::generate_swing_level` — full V6 end-to-end pipeline (audio → swing-event stream → beatmap → postprocess → lighting → .zip). `postprocess_beatmap` no longer calls `fix_parity` or `convert_dot_notes`.
-- [ ] **6.3** End-to-end: `bsa-generate so_tired_rock.mp3 --difficulty Expert --cohort joetastic`. Verify .zip loads in ArcViewer. (Requires trained checkpoint — blocked on data download.)
+- [x] **6.2b** `scripts/generate.py` — `--v6` CLI flag routes to `generate_swing_level`. `--max-events` and `--mapper-id` flags added. Windowed inference cursor fixed (advances from model's `current_beat`, no per-window beat-range filter).
+- [ ] **6.3** End-to-end: `python scripts/generate.py "data/test_songs/SO TIRED ROCK - NUEKI.mp3" --v6 --seq-ckpt <ckpt> --difficulty Expert --genre rock`. Verify .zip loads in ArcViewer. **Blocked on retrain** (current ckpt poisoned by encoding bugs).
 
-**DoD:** `test_generate_swing_level_creates_zip` passes ✓. Full ArcViewer test pending trained model.
+**DoD:** `test_generate_swing_level_creates_zip` passes ✓. Full ArcViewer test pending clean retrain.
 
 ### Phase V6-7 — Harness re-validation (1 day)
 
-- [x] **7.1** `scripts/train.py` updated: `dataset_format=swing` flag switches between `SequenceDataset` (V5) and `SwingSequenceDataset` (V6). `collate_fn` plumbed through `create_dataloader`.
+- [x] **7.1** `scripts/train.py` updated: `dataset_format=swing` flag, `limit_val_batches` knob, V6 SequenceLitModule params wired, V5 dead kwargs removed.
 - [x] **7.2** `experiments/queue/v6_pilot.yaml` created: Joetastic / Rustic / Helloimdaan @ `sequence_swing_small` preset, 90 min each.
-- [ ] **7.3** Run overnight. Compare V6 leaderboard rows to V5 rows on the same cohorts. (Requires data download + preprocessing.)
+- [x] **7.3** First 30-epoch global run completed (all 5320 maps, Expert/ExpertPlus). val_loss 1.31→0.947, val_token_acc 69%→87%, no crash. **Checkpoint invalidated** — three encoding bugs found and fixed; retrain needed.
+- [ ] **7.4** Retrain with fixed encoding. Verify Δt distribution is reasonable (median ~0.5 beats, not 64). Verify phrase_energy_loss decreases. Compare leaderboard rows.
 
-**DoD:** Queue file exists; train.py accepts `dataset_format=swing` ✓. Overnight run pending data.
+**DoD pending retrain.** Infrastructure ✓.
 
 ### Phase V6-8 — Deep training + human eval (1–2 weeks)
 
