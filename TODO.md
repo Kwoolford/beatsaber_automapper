@@ -289,32 +289,84 @@ a realistic intermediate; F1 ≥ 0.80 remains the DoD.
 
 **DoD:** `val_f1_avg_tol` ≥ 0.80 (with ±1-slot tolerance). Exact-slot F1 is a secondary diagnostic.
 
-### V7-4/5 — Stage 2: Layout Dataset + Generator ✅ CODE DONE / ⏳ AWAITING STAGE 1 (2026-05-15)
-- [x] `data/layout_dataset.py` — per-onset samples: local/section/song MERT + saber state + spatial tokens
-- [x] `models/layout_model.py` — causal transformer decoder, MERT conditioning at 3 levels, no Δt/HAND
-- [x] `training/layout_module.py` — CE loss over spatial tokens, val token accuracy metric
-- [x] `scripts/train_layout.py` — training script
-- [x] **Bug fix (2026-05-19): saber-state off-by-one** in `LayoutDataset.__getitem__`. Was
-      `compute_saber_states(all_events[:evt_idx])[-1]` — state BEFORE the *previous* event,
-      not the current one. Now uses `compute_saber_states(all_events)[evt_idx]` directly.
-- [x] **Perf fix (2026-05-19): O(n²) decode** — `decode_events` + `compute_saber_states` were
-      called per-`__getitem__`. Now cached per (song, difficulty) in `_evt_cache`.
-- [ ] **Run training** (blocked on Stage 1 checkpoint)
+### V7-4/5 — Stage 2: Layout Generator 🔧 REDESIGN IN PROGRESS (2026-05-21)
 
-#### Known architectural limitation (audit, 2026-05-19)
+#### Reevaluation (2026-05-21)
 
-Stage 2 currently generates each onset's 5-token spatial sequence **independently**, with
-the only cross-note state being the 12-dim saber state (which only carries the LAST event
-per hand). This caps musical "flow" between adjacent notes within a phrase. PhraseIndex
-hard-retrieval mitigates this for repeated phrases, but novel phrases get note-level
-independence. Candidate fixes (deferred — schedule after first end-to-end run):
+With Run 3 Stage 1 producing trustworthy onset schedules (and diagnostics confirming
+the model places notes in audio-coherent positions), Stage 2 is now the bottleneck.
+Re-audited the design:
 
-1. Pass a short window of recent spatial events (last K=4-8) as additional cross-attn memory
-2. Switch to phrase-level autoregression: the decoder unrolls all notes in a 4-bar window in
-   one teacher-forced pass instead of one note at a time
+**The current per-note design is structurally limited.** Each onset generates its
+own 5-token sequence in isolation. The only cross-note information is a 12-dim
+hand-engineered saber-state vector (`saber_state.py`) summarising the LAST event
+per hand. Concretely this means the model:
 
-For tonight: train Stage 2 as-designed; the multi-tier MERT conditioning already gives it
-song/section/phrase context that V6 lacked. Re-evaluate flow after first ArcViewer review.
+- Cannot see the actual prior-note tokens (only their hand-designed summary)
+- Cannot plan ahead (set up a position for a future note)
+- Cannot learn multi-note motifs (zig-zag setups, 4-note runs, build-and-release)
+- Has parity (red/blue alternation) baked in as a scalar field, not learned
+
+The 12-dim saber state IS the "borderline force red/blue alternation" bandaid we
+flagged. The V6 inference path adds explicit constrained-decoding parity tracking
+on top (`generate.py:938`); the V7 path doesn't, but still relies on the conditioning.
+
+#### V7-5b redesign: phrase-level autoregression
+
+Replace per-note generation with per-phrase generation. Each phrase (16 beats =
+~64 slots) becomes one training sample. The decoder emits the spatial tokens for
+ALL notes in the phrase as a single sequence, autoregressive within the phrase.
+
+```
+Encoder: phrase MERT  [T_phrase, 768] + slot position embedding → encoder_out
+Decoder: layout tokens [BOS, n0_KIND, n0_X, n0_Y, n0_DIR, n0_FIELD_D,
+                              n1_KIND, n1_X, n1_Y, n1_DIR, n1_FIELD_D, ...,
+                              EOS]
+         + per-token slot embedding (which onset)
+         + per-token hand embedding (left/right)
+         + per-token phase embedding (KIND/X/Y/DIR/FIELD_D position in note)
+         + global difficulty + genre conditioning
+         → causal self-attention + cross-attention to encoder_out
+         → output_proj over vocab
+```
+
+Saber state is dropped entirely. Position, direction, and parity become emergent
+properties the decoder learns from its own prior-token attention within the phrase.
+
+#### Files affected (V7-5b)
+
+- `data/layout_dataset.py`           — REPLACE: per-phrase samples
+- `models/layout_model.py`           — REPLACE: encoder-decoder transformer
+- `training/layout_module.py`        — REPLACE: CE+mask over phrase token sequence
+- `scripts/train_layout.py`          — UPDATE: new sample shape, longer max_len
+- `generation/generate.py::generate_v7_level` — UPDATE inference path (deferred to
+  follow-up commit; training is the gating step for tonight)
+- `tests/test_layout_phrase.py`      — NEW: dataset + model unit tests
+
+#### Trade-offs taken
+
+- **Cross-phrase continuity is dropped** (user-confirmed). The first note of each
+  new phrase sees no token history from the previous phrase. Bet: 16-beat phrase
+  boundaries are far enough apart that local discontinuity is acceptable.
+  Mitigation if it shows in eval: condition first decoder step on last K tokens
+  of the previous phrase.
+- **Sample count drops from ~50× per song to ~6× per song** (phrases instead of
+  onsets). Each sample is much richer (~100-160 tokens vs 5-7), so total token
+  volume is similar.
+- **Inference is one decode per phrase instead of per-note state-passing.** Simpler.
+  PhraseIndex retrieval still bypasses the decoder for high-similarity phrases.
+
+#### Status
+
+- [x] Re-audit + plan (2026-05-21)
+- [x] Fix v3 decorative bomb leak (`fix(beatmap): filter decorative (fake)` — commit d7017d0)
+- [ ] Implement `LayoutPhraseDataset` (per-phrase samples)
+- [ ] Implement `LayoutPhraseModel` (encoder-decoder w/ token-history attention)
+- [ ] Implement `LayoutPhraseLitModule` (CE loss + token-acc metric)
+- [ ] Update `train_layout.py`
+- [ ] Smoke test on tiny subset
+- [ ] Launch overnight training
+- [ ] Follow-up: update `generate_v7_level` to use new model architecture
 
 **DoD pending:** val_token_acc ≥ 0.85. Run after Stage 1 converges:
 ```bash

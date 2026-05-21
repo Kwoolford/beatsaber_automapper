@@ -7,6 +7,67 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## V7-3 Run 3 Diagnostic + Stage 2 Reevaluation (2026-05-21)
+
+### Run 3 result and post-hoc diagnostics
+
+Run 3 finished at `val_f1_avg_tol = 0.588` (target was 0.65). On the surface,
+another short of target. Three new diagnostics on the val checkpoint changed the
+interpretation:
+
+1. **Audio-onset coherence**: predicted positives have median onset-strength
+   percentile rank 0.51 within their song; labels are at 0.53. **The model is
+   placing notes in audio-supported positions just like mappers do.** Top-30%
+   fraction is 0.30 predicted vs 0.32 label (random baseline 0.30) — model and
+   labels both moderately concentrate on high-onset slots, indistinguishably.
+2. **Per-phrase density correlation with onset strength**: predicted-count vs
+   onset-strength Spearman = 0.40, identical to label-count vs onset-strength
+   (0.40). At the phrase level, the model is just as audio-coherent as the labels.
+3. **Calibration ECE = 0.224** with a clear monotonic over-confidence pattern:
+   when the model says "92% sure", the actual single-mapper agreement rate is
+   48%. This is the smoking gun for the subjectivity ceiling. The model is
+   approximating the population mean of mapper placements; F1 against any single
+   mapper is bounded by inter-mapper agreement.
+
+**Conclusion: Stage 1 is fine.** The F1 we were chasing is the wrong number for
+the task. The remaining 0.18 ECE gap is fixable by post-hoc temperature scaling.
+
+Eval implementation: `scripts/eval_beat_checkpoint.py`; outputs under
+`logs/beat_eval/run3_full/`.
+
+### Multi-mapper soft-label retrain — blocked on data
+
+Probed the dataset for songs with multiple mappers (would have let us build
+fraction-of-mappers-place-a-note soft targets). Of 5264 unique audios in
+`data/processed/`, only 48 (0.9%) have ≥2 mappers and only 4 have ≥3. Not
+enough statistical basis. Deferred — would need a Beat Saver backfill pass to
+become viable.
+
+### Stage 2 reevaluation
+
+With Stage 1 trustworthy, the bottleneck moves to Stage 2 layout generation.
+Re-audited and found the architecture is per-note: each onset generates its
+spatial tokens with only a 12-dim hand-engineered saber state to summarise
+prior notes. The saber state's parity field is the "borderline force red/blue
+alternation" bandaid. The V6 inference path adds explicit constrained-decoding
+parity tracking on top (`generate.py:938`).
+
+Decided to redesign Stage 2 as **phrase-level autoregression**: each phrase
+(~16 beats / 64 slots) becomes one training sample, the decoder emits ALL
+spatial tokens for the phrase as a single causal sequence with cross-attention
+to phrase MERT, and the 12-dim saber state is dropped entirely. Position,
+direction, and parity become emergent from the decoder's prior-token self-
+attention. Full plan in `TODO.md § V7-4/5`.
+
+Side fix: `parse_difficulty_dat_json` v3 path was not filtering decorative
+(fake) bombs. The v2 path filtered `_customData._fake`; v3 had no equivalent.
+Added a shared `_is_fake` helper checking `customData.fake`, top-level `fake`,
+and `_fake`, applied to all v3 object collections. Stage 1 not affected;
+Stage 2 would have learned to emit decorative bomb art as gameplay otherwise.
+Three new parser tests; 22/22 pass.
+
+---
+
 ## V7-3 Run 2 Post-Mortem + Run 3 Audit (2026-05-20)
 
 **Run 2 result** (overnight 2026-05-19 → 2026-05-20): `val_f1_avg = 0.442`, best at epoch 0,
