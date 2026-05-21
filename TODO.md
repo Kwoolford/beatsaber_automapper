@@ -282,6 +282,10 @@ a realistic intermediate; F1 ≥ 0.80 remains the DoD.
 - [ ] **Threshold sweep** after Run 3 converges
 - [ ] Follow-up: backfill `mapper` field into V7 `.pt` files to enable cohort conditioning
 - [ ] Follow-up: ablation of density-regression target if Run 3 still saturates
+- [ ] Follow-up: inference call site in `generation/generate.py::generate_v7_level`
+      currently calls `beat_module(drum_t)` only — needs `mix_t` and `diff_t` passed
+      so inference matches Run 3 training conditioning. Deferred from the Run 3
+      commit to keep scope tight; file had unrelated uncommitted edits.
 
 **DoD:** `val_f1_avg_tol` ≥ 0.80 (with ±1-slot tolerance). Exact-slot F1 is a secondary diagnostic.
 

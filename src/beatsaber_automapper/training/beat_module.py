@@ -16,6 +16,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torchmetrics.classification import BinaryF1Score, BinaryPrecision, BinaryRecall
 
+from beatsaber_automapper.evaluation.onset_metrics import OnsetToleranceF1
 from beatsaber_automapper.models.beat_classifier import BeatClassifier
 
 logger = logging.getLogger(__name__)
@@ -37,6 +38,9 @@ class BeatLitModule(lightning.LightningModule):
         pos_weight:      Positive class weight for BCE. None = auto from data.
                          Set manually if auto-estimate is unavailable.
         threshold:       Decision threshold for F1/P/R metrics (default 0.5).
+        tolerance_slots: ±slot match window for the tolerance F1 metric
+                         (val_f1_avg_tol). 0 = exact-slot; 1 ≈ ±125 ms at
+                         BPM=120, subdiv=4.
     """
 
     def __init__(
@@ -55,6 +59,7 @@ class BeatLitModule(lightning.LightningModule):
         # Measured positive rate on Expert+ data is 21.8% → 78.2/21.8 ≈ 3.6.
         pos_weight: float = 3.6,
         threshold: float = 0.5,
+        tolerance_slots: int = 1,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -81,15 +86,18 @@ class BeatLitModule(lightning.LightningModule):
             "prec_right":     BinaryPrecision(threshold=threshold),
             "recall_left":    BinaryRecall(threshold=threshold),
             "recall_right":   BinaryRecall(threshold=threshold),
+            "f1_tol_left":    OnsetToleranceF1(threshold=threshold, tolerance=tolerance_slots),
+            "f1_tol_right":   OnsetToleranceF1(threshold=threshold, tolerance=tolerance_slots),
         })
 
     def forward(
         self,
         drum_features: torch.Tensor,
         mix_features:  torch.Tensor | None = None,
+        difficulty:    torch.Tensor | None = None,
         slot_offset:   int = 0,
     ) -> torch.Tensor:
-        return self.model(drum_features, mix_features, slot_offset)
+        return self.model(drum_features, mix_features, difficulty, slot_offset)
 
     def _loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """Weighted BCE summed across left + right hands."""
@@ -125,11 +133,12 @@ class BeatLitModule(lightning.LightningModule):
     def training_step(self, batch: dict, batch_idx: int) -> torch.Tensor:
         drum = batch["drum_features"]                        # [B, W, 768]
         mix  = batch.get("mix_features")                     # [B, W, 768] or None
+        diff = batch.get("difficulty")                       # [B] long or None
         labels = torch.stack(
             [batch["left_labels"], batch["right_labels"]], dim=-1
         ).long()                                             # [B, W, 2]
 
-        logits = self(drum, mix, self._slot_offset(batch))
+        logits = self(drum, mix, diff, self._slot_offset(batch))
         loss   = self._loss(logits, labels)
         self.log("train_loss", loss, prog_bar=True)
         return loss
@@ -137,21 +146,27 @@ class BeatLitModule(lightning.LightningModule):
     def validation_step(self, batch: dict, batch_idx: int) -> None:
         drum = batch["drum_features"]
         mix  = batch.get("mix_features")
+        diff = batch.get("difficulty")
         labels = torch.stack(
             [batch["left_labels"], batch["right_labels"]], dim=-1
         ).long()
 
-        logits = self(drum, mix, self._slot_offset(batch))
+        logits = self(drum, mix, diff, self._slot_offset(batch))
         loss   = self._loss(logits, labels)
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 
         probs = torch.sigmoid(logits)   # [B, W, 2]
-        B, W, _ = probs.shape
 
-        flat_pred_l  = probs[..., 0].reshape(-1)
-        flat_pred_r  = probs[..., 1].reshape(-1)
-        flat_label_l = labels[..., 0].reshape(-1)
-        flat_label_r = labels[..., 1].reshape(-1)
+        # 2D views per hand for the tolerance metric (which is per-sample).
+        probs_l_2d  = probs[..., 0]
+        probs_r_2d  = probs[..., 1]
+        labels_l_2d = labels[..., 0]
+        labels_r_2d = labels[..., 1]
+
+        flat_pred_l  = probs_l_2d.reshape(-1)
+        flat_pred_r  = probs_r_2d.reshape(-1)
+        flat_label_l = labels_l_2d.reshape(-1)
+        flat_label_r = labels_r_2d.reshape(-1)
 
         self._val_metrics["f1_left"](flat_pred_l,     flat_label_l)
         self._val_metrics["f1_right"](flat_pred_r,    flat_label_r)
@@ -159,6 +174,8 @@ class BeatLitModule(lightning.LightningModule):
         self._val_metrics["prec_right"](flat_pred_r,  flat_label_r)
         self._val_metrics["recall_left"](flat_pred_l, flat_label_l)
         self._val_metrics["recall_right"](flat_pred_r,flat_label_r)
+        self._val_metrics["f1_tol_left"](probs_l_2d,   labels_l_2d)
+        self._val_metrics["f1_tol_right"](probs_r_2d,  labels_r_2d)
 
     def on_validation_epoch_end(self) -> None:
         f1_l = self._val_metrics["f1_left"].compute()
@@ -167,6 +184,12 @@ class BeatLitModule(lightning.LightningModule):
         self.log("val_f1_left",  f1_l,    prog_bar=True)
         self.log("val_f1_right", f1_r,    prog_bar=True)
         self.log("val_f1_avg",   avg_f1,  prog_bar=True)
+        f1_tol_l = self._val_metrics["f1_tol_left"].compute()
+        f1_tol_r = self._val_metrics["f1_tol_right"].compute()
+        avg_f1_tol = (f1_tol_l + f1_tol_r) / 2.0
+        self.log("val_f1_tol_left",  f1_tol_l,   prog_bar=True)
+        self.log("val_f1_tol_right", f1_tol_r,   prog_bar=True)
+        self.log("val_f1_avg_tol",   avg_f1_tol, prog_bar=True)
         self.log("val_precision_left",  self._val_metrics["prec_left"].compute())
         self.log("val_precision_right", self._val_metrics["prec_right"].compute())
         self.log("val_recall_left",     self._val_metrics["recall_left"].compute())

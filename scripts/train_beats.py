@@ -54,6 +54,11 @@ def main() -> None:
     parser.add_argument("--patience",       type=int,   default=8,
                         help="EarlyStopping patience on val_f1_avg")
     parser.add_argument("--difficulties",   nargs="+",  default=["Expert", "ExpertPlus"])
+    parser.add_argument("--tolerance-slots", type=int,  default=1,
+                        help="±slot match window for val_f1_avg_tol (1 ≈ ±125 ms @ 120 BPM)")
+    parser.add_argument("--monitor",        default="val_f1_avg_tol",
+                        help="Metric to monitor for checkpointing/early-stopping "
+                             "(default: tolerance F1)")
     parser.add_argument("--device",         default="auto")
     args = parser.parse_args()
 
@@ -119,19 +124,20 @@ def main() -> None:
         pos_weight=args.pos_weight,
         warmup_steps=500,
         max_len=args.window_size + 32,
+        tolerance_slots=args.tolerance_slots,
     )
 
     tb_logger = TensorBoardLogger("logs", name="beat_classifier")
 
     callbacks = [
         ModelCheckpoint(
-            monitor="val_f1_avg",
+            monitor=args.monitor,
             mode="max",
             save_top_k=3,
             save_last=True,
-            filename="beat-{epoch:02d}-f1={val_f1_avg:.3f}",
+            filename="beat-{epoch:02d}-{" + args.monitor + ":.3f}",
         ),
-        EarlyStopping(monitor="val_f1_avg", mode="max", patience=args.patience, verbose=True),
+        EarlyStopping(monitor=args.monitor, mode="max", patience=args.patience, verbose=True),
     ]
 
     trainer = lightning.Trainer(
@@ -150,7 +156,7 @@ def main() -> None:
 
     best = callbacks[0].best_model_path
     log.info("Best checkpoint: %s", best)
-    log.info("Best val_f1_avg: %.3f", callbacks[0].best_model_score)
+    log.info("Best %s: %.3f", args.monitor, callbacks[0].best_model_score)
 
 
 if __name__ == "__main__":

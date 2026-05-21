@@ -7,17 +7,22 @@ Architecture:
   Inputs:
     drum_features [B, W, 768]  beat-aligned drum MERT
     mix_features  [B, W, 768]  beat-aligned mix (melody) MERT  (optional)
+    difficulty    [B]          per-sample difficulty ID         (optional)
   Proj:
     Linear(drum, d_model) + Linear(mix, d_model)               (sum-fused)
     + LayerNorm
     + position embedding (window-relative)
     + phase embedding (slot-within-bar, modulo 16 at subdiv=4)
+    + difficulty embedding (broadcast across the window)
   Attn:    n_layers × full-window self-attention (32 beats)
   Head:    Linear(d_model, 2) → [left_logit, right_logit] per slot
 
 The mix path lets the model learn which drum hits a human mapper "chooses" —
 different genres/instruments yield different mapping styles. The phase
-embedding gives the model an explicit downbeat signal.
+embedding gives the model an explicit downbeat signal. The difficulty
+embedding lets the model distinguish Expert (~3 notes/bar) from ExpertPlus
+(~6 notes/bar) when both are pooled in the training set — without it, the
+same drum hit carries contradictory labels across difficulties.
 """
 
 from __future__ import annotations
@@ -29,6 +34,10 @@ import torch.nn as nn
 # Beat-grid phase: 16 slots per bar (4 beats × 4 subdiv). The phase embedding
 # captures the cyclic 1-and-2-and-3-and-4-and structure that mappers respect.
 PHASE_MOD = 16
+
+# Difficulty embedding rows. Matches DIFFICULTY_MAP in data/dataset.py:
+# Easy=0, Normal=1, Hard=2, Expert=3, ExpertPlus=4.
+N_DIFFICULTIES = 5
 
 
 class BeatClassifier(nn.Module):
@@ -53,10 +62,12 @@ class BeatClassifier(nn.Module):
         n_layers: int = 2,
         max_len: int = 512,
         dropout: float = 0.1,
+        n_difficulties: int = N_DIFFICULTIES,
     ) -> None:
         super().__init__()
         self.d_model = d_model
         self.use_mix = mix_dim > 0
+        self.use_diff = n_difficulties > 0
 
         self.drum_proj = nn.Linear(mert_dim, d_model)
         self.mix_proj  = nn.Linear(mix_dim, d_model) if self.use_mix else None
@@ -65,6 +76,7 @@ class BeatClassifier(nn.Module):
 
         self.pos_emb   = nn.Embedding(max_len, d_model)
         self.phase_emb = nn.Embedding(PHASE_MOD, d_model)
+        self.diff_emb  = nn.Embedding(n_difficulties, d_model) if self.use_diff else None
 
         encoder_layer = nn.TransformerEncoderLayer(
             d_model=d_model,
@@ -87,6 +99,10 @@ class BeatClassifier(nn.Module):
         if self.mix_proj is not None:
             nn.init.xavier_uniform_(self.mix_proj.weight)
             nn.init.zeros_(self.mix_proj.bias)
+        if self.diff_emb is not None:
+            # Start at zero so the first epoch behaves identically to a no-diff baseline
+            # and the embedding has to *earn* signal during training.
+            nn.init.zeros_(self.diff_emb.weight)
         nn.init.xavier_uniform_(self.head.weight)
         nn.init.zeros_(self.head.bias)
 
@@ -94,6 +110,7 @@ class BeatClassifier(nn.Module):
         self,
         drum_features: torch.Tensor,
         mix_features:  torch.Tensor | None = None,
+        difficulty:    torch.Tensor | int | None = None,
         slot_offset:   int = 0,
     ) -> torch.Tensor:
         """Forward pass.
@@ -101,6 +118,9 @@ class BeatClassifier(nn.Module):
         Args:
             drum_features: [B, W, mert_dim] beat-aligned drum MERT.
             mix_features:  [B, W, mix_dim]  beat-aligned mix MERT (optional).
+            difficulty:    [B] long tensor of difficulty IDs, or a scalar int
+                           (broadcast to the whole batch). Per-sample so a
+                           mixed-difficulty batch is handled correctly.
             slot_offset:   Absolute slot index of the first slot in the window.
                            Used to compute the within-bar phase embedding so
                            the phase signal is consistent across windows.
@@ -122,6 +142,11 @@ class BeatClassifier(nn.Module):
         phase = (positions + slot_offset) % PHASE_MOD
         x = x + self.phase_emb(phase).unsqueeze(0)
 
+        if self.use_diff and difficulty is not None:
+            if isinstance(difficulty, int):
+                difficulty = torch.full((B,), difficulty, dtype=torch.long, device=device)
+            x = x + self.diff_emb(difficulty).unsqueeze(1)  # [B, 1, d_model] → broadcast over W
+
         x = self.transformer(x)
         x = self.norm(x)
         return self.head(x)
@@ -130,7 +155,8 @@ class BeatClassifier(nn.Module):
         self,
         drum_features: torch.Tensor,
         mix_features:  torch.Tensor | None = None,
+        difficulty:    torch.Tensor | int | None = None,
         slot_offset:   int = 0,
     ) -> torch.Tensor:
         """Convenience wrapper: return sigmoid probabilities [B, W, 2]."""
-        return torch.sigmoid(self(drum_features, mix_features, slot_offset))
+        return torch.sigmoid(self(drum_features, mix_features, difficulty, slot_offset))
