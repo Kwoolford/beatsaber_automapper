@@ -1,14 +1,20 @@
-"""V7-5: Stage 2 LayoutModel — spatial token generator.
+"""V7-5b: Phrase-level Layout model.
 
-Predicts the spatial token sequence [KIND, X, Y, DIR, FIELD_D] for a single note
-given MERT conditioning from three levels (local beat, section, full song),
-saber-state conditioning, and optional retrieval context.
+Encoder-decoder transformer that generates the spatial token sequence for ALL
+notes in a phrase as one causal pass. Saber state is gone — position, direction,
+and parity are emergent properties of the decoder's prior-token self-attention.
 
-No HAND tokens (given by Stage 1 beat schedule).
-No Δt tokens (given by Stage 1 beat schedule).
+Per-token metadata embeddings (slot-in-phrase, hand, role) tell the decoder
+"this token is the X coordinate of the LEFT note at slot 12" — replacing the
+hand-engineered saber-state summary that the previous design needed.
 
-The token vocabulary is the full swing-event vocab (118 tokens), but the grammar
-only produces spatial tokens (KIND → X → Y → [DIR → FIELD_D | SQUISH | done]).
+Encoder:
+    phrase_mert [B, P, 768] + slot pos emb → encoder_out [B, P, d_model]
+
+Decoder:
+    token emb + slot emb + hand emb + role emb + (diff + genre once)
+    → causal self-attn + cross-attn to encoder_out
+    → output_proj [B, S, vocab]
 """
 
 from __future__ import annotations
@@ -18,199 +24,266 @@ import math
 import torch
 import torch.nn as nn
 
-# Re-use the swing vocab constants for the spatial subset
-from beatsaber_automapper.data.swing_tokenizer import VOCAB_SIZE
+from beatsaber_automapper.data.layout_dataset import (
+    HAND_SPECIAL_IDX,
+    LAYOUT_PAD,
+    LAYOUT_VOCAB_SIZE,
+    MAX_PHRASE_SLOTS,
+    N_HANDS_EMB,
+    N_ROLES,
+)
 
-LAYOUT_PAD = 0
-LAYOUT_BOS = 1
-LAYOUT_EOS = 2
+# Re-export so generation paths can import from one place.
+__all__ = ["LayoutPhraseModel", "LAYOUT_PAD"]
 
-MERT_DIM = 768    # MERT-v1-95M output dimension
-SABER_DIM = 12    # saber state dimension
+MERT_DIM = 768
 
 
-class LayoutModel(nn.Module):
-    """Autoregressive spatial token generator conditioned on MERT features.
-
-    Architecture:
-      - Conditioning: concat([local_mert, song_emb, section_emb]) → Linear → d_model
-                      + Linear(saber_state, d_model)
-                      + Linear(phrase_feat, d_model)
-                      → summed as a single conditioning vector
-      - Embedding: token_emb(vocab_size, d_model)
-      - Cross-attention to conditioning (single-vector memory)
-      - Causal transformer decoder (n_layers layers)
-      - Output: Linear(d_model, vocab_size)
-
-    The conditioning vector is treated as a "memory" of length 1 for cross-attention.
+class LayoutPhraseModel(nn.Module):
+    """Phrase-level autoregressive layout generator.
 
     Args:
-        vocab_size:    Full vocab size (118 — spatial subset is a grammar constraint).
-        d_model:       Transformer hidden dimension.
-        n_heads:       Attention heads (must divide d_model).
-        n_layers:      Decoder layers.
-        dim_feedforward: FFN inner dimension.
-        max_len:       Max sequence length (for positional encoding).
-        dropout:       Dropout rate.
+        vocab_size:        Layout token vocab size (118 — same IDs as swing vocab).
+        d_model:           Transformer hidden dim.
+        n_heads:           Attention heads.
+        n_enc_layers:      Encoder layers.
+        n_dec_layers:      Decoder layers.
+        dim_feedforward:   FFN inner dim.
+        max_layout_len:    Max decoder seq length.
+        max_phrase_slots:  Max encoder seq length (phrase length cap).
+        num_difficulties:  Difficulty embedding size.
+        num_genres:        Genre embedding size.
+        dropout:           Dropout rate.
     """
 
     def __init__(
         self,
-        vocab_size: int = VOCAB_SIZE,
-        d_model: int = 512,
-        n_heads: int = 8,
-        n_layers: int = 4,
-        dim_feedforward: int = 2048,
-        max_len: int = 64,
-        dropout: float = 0.1,
+        vocab_size:       int = LAYOUT_VOCAB_SIZE,
+        d_model:          int = 384,
+        n_heads:          int = 6,
+        n_enc_layers:     int = 3,
+        n_dec_layers:     int = 4,
+        dim_feedforward:  int = 1536,
+        max_layout_len:   int = 384,
+        max_phrase_slots: int = MAX_PHRASE_SLOTS,
         num_difficulties: int = 5,
-        num_genres: int = 11,
+        num_genres:       int = 11,
+        dropout:          float = 0.1,
     ) -> None:
         super().__init__()
+        self.d_model         = d_model
+        self.max_layout_len  = max_layout_len
+        self.max_phrase_slots = max_phrase_slots
+        # Special-slot sentinel index matches the dataset's convention: the last
+        # row of slot_emb. Tied to max_phrase_slots so dataset and model agree.
+        self.special_slot_idx = max_phrase_slots
 
-        # MERT conditioning: 3 levels → d_model
-        self.mert_proj = nn.Linear(MERT_DIM * 3, d_model)
-
-        # Saber state → d_model
-        self.saber_proj = nn.Linear(SABER_DIM, d_model)
-
-        # Phrase fingerprint → d_model
-        self.phrase_proj = nn.Linear(MERT_DIM, d_model)
-
-        # Difficulty + genre embeddings
-        self.diff_emb  = nn.Embedding(num_difficulties, d_model // 4)
-        self.genre_emb = nn.Embedding(num_genres,       d_model // 4)
-        self.cond_fuse = nn.Linear(d_model + d_model // 2, d_model)
-
-        # Token embedding + positional
-        self.token_emb = nn.Embedding(vocab_size, d_model, padding_idx=LAYOUT_PAD)
-        self.pos_emb   = nn.Embedding(max_len, d_model)
-
-        # Causal transformer decoder
-        decoder_layer = nn.TransformerDecoderLayer(
-            d_model=d_model,
-            nhead=n_heads,
-            dim_feedforward=dim_feedforward,
-            dropout=dropout,
-            batch_first=True,
-            norm_first=True,
+        # ---- Encoder side ----
+        self.enc_proj    = nn.Linear(MERT_DIM, d_model)
+        self.enc_pos_emb = nn.Embedding(max_phrase_slots, d_model)
+        self.enc_norm    = nn.LayerNorm(d_model)
+        enc_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=n_heads, dim_feedforward=dim_feedforward,
+            dropout=dropout, batch_first=True, norm_first=True,
         )
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_layers=n_layers)
+        self.encoder = nn.TransformerEncoder(enc_layer, num_layers=n_enc_layers)
 
-        self.norm   = nn.LayerNorm(d_model)
-        self.output = nn.Linear(d_model, vocab_size)
+        # ---- Decoder side ----
+        # Token embedding (padding_idx=0 → LAYOUT_PAD never contributes a gradient)
+        self.tok_emb  = nn.Embedding(vocab_size, d_model, padding_idx=LAYOUT_PAD)
+        # +1 row on slot_emb for the SPECIAL_SLOT_IDX sentinel (BOS / EOS / PAD)
+        self.slot_emb = nn.Embedding(max_phrase_slots + 1, d_model)
+        self.hand_emb = nn.Embedding(N_HANDS_EMB, d_model)
+        self.role_emb = nn.Embedding(N_ROLES,     d_model)
+        self.dec_pos_emb = nn.Embedding(max_layout_len, d_model)
+        self.dec_in_norm = nn.LayerNorm(d_model)
 
-        self._max_len = max_len
+        # Global conditioning (difficulty + genre) → added once to every decoder pos
+        self.diff_emb  = nn.Embedding(num_difficulties, d_model)
+        self.genre_emb = nn.Embedding(num_genres,       d_model)
+
+        dec_layer = nn.TransformerDecoderLayer(
+            d_model=d_model, nhead=n_heads, dim_feedforward=dim_feedforward,
+            dropout=dropout, batch_first=True, norm_first=True,
+        )
+        self.decoder = nn.TransformerDecoder(dec_layer, num_layers=n_dec_layers)
+
+        self.out_norm = nn.LayerNorm(d_model)
+        self.out_proj = nn.Linear(d_model, vocab_size)
+
         self._init_weights()
 
     def _init_weights(self) -> None:
-        for module in self.modules():
-            if isinstance(module, nn.Linear):
-                nn.init.xavier_uniform_(module.weight)
-                if module.bias is not None:
-                    nn.init.zeros_(module.bias)
+        for m in self.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
-    def _build_conditioning(
+    # ------------------------------------------------------------------
+    def encode(
         self,
-        local_mert:  torch.Tensor,   # [B, 768]
-        song_emb:    torch.Tensor,   # [B, 768]
-        section_emb: torch.Tensor,   # [B, 768]
-        saber_state: torch.Tensor,   # [B, 12]
-        phrase_feat: torch.Tensor,   # [B, 768]
-        difficulty:  torch.Tensor,   # [B]
-        genre:       torch.Tensor,   # [B]
-    ) -> torch.Tensor:               # [B, 1, d_model]
-        """Build a single conditioning vector per sample."""
-        mert_cond  = self.mert_proj(torch.cat([local_mert, song_emb, section_emb], dim=-1))
-        saber_cond = self.saber_proj(saber_state)
-        phrase_cond = self.phrase_proj(phrase_feat)
+        phrase_mert: torch.Tensor,    # [B, P, 768]
+        phrase_mask: torch.Tensor,    # [B, P]   bool: True = real
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Encode phrase MERT to a context memory.
 
-        diff_e  = self.diff_emb(difficulty)
-        genre_e = self.genre_emb(genre)
-
-        combined = mert_cond + saber_cond + phrase_cond
-        combined = self.cond_fuse(
-            torch.cat([combined, diff_e, genre_e], dim=-1)
-        )
-        return combined.unsqueeze(1)   # [B, 1, d_model] — memory for cross-attn
+        Returns:
+            memory          [B, P, d_model]
+            memory_kp_mask  [B, P]   True where the encoder position is PADDING
+                                     (PyTorch convention for `memory_key_padding_mask`).
+        """
+        B, P, _ = phrase_mert.shape
+        device  = phrase_mert.device
+        pos = torch.arange(P, device=device)
+        x = self.enc_proj(phrase_mert) + self.enc_pos_emb(pos).unsqueeze(0)
+        x = self.enc_norm(x)
+        # PyTorch wants the mask to mark PADDING with True.
+        kp_mask = ~phrase_mask
+        memory = self.encoder(x, src_key_padding_mask=kp_mask)
+        return memory, kp_mask
 
     def forward(
         self,
-        decoder_input:  torch.Tensor,   # [B, S] token IDs (teacher-forced)
-        local_mert:     torch.Tensor,   # [B, 768]
-        song_emb:       torch.Tensor,   # [B, 768]
-        section_emb:    torch.Tensor,   # [B, 768]
-        saber_state:    torch.Tensor,   # [B, 12]
-        phrase_feat:    torch.Tensor,   # [B, 768]
-        difficulty:     torch.Tensor,   # [B]
-        genre:          torch.Tensor,   # [B]
-    ) -> torch.Tensor:                  # [B, S, vocab_size]
-        """Teacher-forced forward pass for training."""
-        B, S = decoder_input.shape
-        memory = self._build_conditioning(
-            local_mert, song_emb, section_emb, saber_state, phrase_feat,
-            difficulty, genre,
-        )  # [B, 1, d_model]
+        layout_tokens: torch.Tensor,   # [B, S]
+        token_slot:    torch.Tensor,   # [B, S]
+        token_hand:    torch.Tensor,   # [B, S]
+        token_role:    torch.Tensor,   # [B, S]
+        phrase_mert:   torch.Tensor,   # [B, P, 768]
+        phrase_mask:   torch.Tensor,   # [B, P]
+        difficulty:    torch.Tensor,   # [B]
+        genre:         torch.Tensor,   # [B]
+    ) -> torch.Tensor:                  # [B, S, vocab]
+        """Teacher-forced training forward.
 
-        positions = torch.arange(S, device=decoder_input.device)
-        x = self.token_emb(decoder_input)               # [B, S, d_model]
-        x = x + self.pos_emb(positions).unsqueeze(0)
-
-        # Causal mask
-        causal_mask = nn.Transformer.generate_square_subsequent_mask(S, device=x.device)
-
-        x = self.decoder(x, memory, tgt_mask=causal_mask, tgt_is_causal=True)
-        x = self.norm(x)
-        return self.output(x)   # [B, S, vocab_size]
-
-    @torch.no_grad()
-    def generate(
-        self,
-        local_mert:  torch.Tensor,  # [1, 768]
-        song_emb:    torch.Tensor,  # [1, 768]
-        section_emb: torch.Tensor,  # [1, 768]
-        saber_state: torch.Tensor,  # [1, 12]
-        phrase_feat: torch.Tensor,  # [1, 768]
-        difficulty:  torch.Tensor,  # [1]
-        genre:       torch.Tensor,  # [1]
-        temperature: float = 0.9,
-        top_p:       float = 0.9,
-        max_new_tokens: int = 8,
-    ) -> list[int]:
-        """Autoregressive generation for a single note at inference time.
-
-        Returns the generated token IDs (spatial tokens only, no BOS/EOS/PAD).
+        `layout_tokens` is the input sequence (BOS, ...) — the target sequence
+        is the shift-by-one of this (handled in the LightningModule).
         """
-        memory = self._build_conditioning(
-            local_mert, song_emb, section_emb, saber_state, phrase_feat,
-            difficulty, genre,
+        memory, mem_kp = self.encode(phrase_mert, phrase_mask)
+
+        B, S = layout_tokens.shape
+        device = layout_tokens.device
+        pos = torch.arange(S, device=device)
+
+        x = (self.tok_emb(layout_tokens)
+             + self.slot_emb(token_slot)
+             + self.hand_emb(token_hand)
+             + self.role_emb(token_role)
+             + self.dec_pos_emb(pos).unsqueeze(0))
+
+        # Global conditioning added once (broadcasts over the sequence dim)
+        cond = (self.diff_emb(difficulty) + self.genre_emb(genre)).unsqueeze(1)  # [B,1,d]
+        x = x + cond
+        x = self.dec_in_norm(x)
+
+        # Causal mask. The decoder shouldn't peek at future tokens.
+        causal = nn.Transformer.generate_square_subsequent_mask(S, device=device)
+
+        # Decoder-side padding mask: don't waste attention on PAD positions.
+        # (Loss is masked separately by IGNORE_INDEX in the target tensor.)
+        tgt_kp = layout_tokens == LAYOUT_PAD
+
+        y = self.decoder(
+            tgt=x,
+            memory=memory,
+            tgt_mask=causal,
+            tgt_is_causal=True,
+            tgt_key_padding_mask=tgt_kp,
+            memory_key_padding_mask=mem_kp,
+        )
+        y = self.out_norm(y)
+        return self.out_proj(y)
+
+    # ------------------------------------------------------------------
+    @torch.no_grad()
+    def generate_phrase(
+        self,
+        phrase_mert: torch.Tensor,         # [1, P, 768]
+        phrase_mask: torch.Tensor,         # [1, P]
+        onset_schedule: list[tuple[int, int]],   # [(slot_in_phrase, hand_idx), ...]
+        difficulty: torch.Tensor,          # [1]
+        genre: torch.Tensor,               # [1]
+        temperature: float = 0.9,
+        top_p: float = 0.9,
+    ) -> list[int]:
+        """Greedy/nucleus-sampled phrase generation.
+
+        Walks the onset schedule emitted by Stage 1; for each onset it samples
+        a variable-length spatial token sequence (KIND → X → Y → [DIR] → [FIELD_D])
+        with the per-token role/slot/hand metadata set externally per step.
+
+        Returns the flat token sequence (no BOS/EOS/PAD).
+        """
+        from beatsaber_automapper.data.layout_dataset import (
+            LAYOUT_BOS, LAYOUT_EOS,
+            ROLE_KIND, ROLE_X, ROLE_Y, ROLE_DIR, ROLE_FIELD_D, ROLE_SPECIAL,
+        )
+        from beatsaber_automapper.data.swing_tokenizer import (
+            BOMB, CHAIN_TAIL, KIND_BASE, KIND_COUNT,
         )
 
-        tokens = [LAYOUT_BOS]
-        for _ in range(max_new_tokens):
-            inp = torch.tensor([tokens], device=local_mert.device)
-            S   = inp.shape[1]
-            pos = torch.arange(S, device=inp.device)
-            x   = self.token_emb(inp) + self.pos_emb(pos).unsqueeze(0)
-            mask = nn.Transformer.generate_square_subsequent_mask(S, device=x.device)
-            x   = self.decoder(x, memory, tgt_mask=mask, tgt_is_causal=True)
-            x   = self.norm(x)
-            logits = self.output(x)[:, -1, :].squeeze(0)   # [vocab]
+        device = phrase_mert.device
+        memory, mem_kp = self.encode(phrase_mert, phrase_mask)
 
+        # Running token / metadata buffers — appended per step.
+        toks   = [LAYOUT_BOS]
+        slots  = [self.special_slot_idx]
+        hands  = [HAND_SPECIAL_IDX]
+        roles  = [ROLE_SPECIAL]
+
+        def _step(role: int, slot: int, hand: int) -> int:
+            slots.append(slot)
+            hands.append(hand)
+            roles.append(role)
+            # Forward-once with current buffers and sample the new token.
+            S = len(toks) + 1
+            x = (self.tok_emb(torch.tensor([toks + [LAYOUT_PAD]], device=device))
+                 + self.slot_emb(torch.tensor([slots], device=device))
+                 + self.hand_emb(torch.tensor([hands], device=device))
+                 + self.role_emb(torch.tensor([roles], device=device))
+                 + self.dec_pos_emb(torch.arange(S, device=device)).unsqueeze(0))
+            cond = (self.diff_emb(difficulty) + self.genre_emb(genre)).unsqueeze(1)
+            x = x + cond
+            x = self.dec_in_norm(x)
+            causal = nn.Transformer.generate_square_subsequent_mask(S, device=device)
+            y = self.decoder(
+                tgt=x, memory=memory, tgt_mask=causal, tgt_is_causal=True,
+                memory_key_padding_mask=mem_kp,
+            )
+            y = self.out_norm(y)
+            logits = self.out_proj(y)[:, -1, :].squeeze(0)
             tok = _nucleus_sample(logits, temperature, top_p)
-            if tok in (LAYOUT_EOS, LAYOUT_PAD):
-                break
-            tokens.append(tok)
+            toks.append(int(tok))
+            return int(tok)
 
-        return tokens[1:]   # strip BOS
+        for slot_in_phrase, hand_idx in onset_schedule:
+            kind_tok = _step(ROLE_KIND, slot_in_phrase, hand_idx)
+            # Clamp into the KIND range if the sample wandered out (rare with low temp)
+            if not (KIND_BASE <= kind_tok < KIND_BASE + KIND_COUNT):
+                kind_tok = KIND_BASE  # fall back to NOTE
+                toks[-1] = kind_tok
+
+            _step(ROLE_X, slot_in_phrase, hand_idx)
+            _step(ROLE_Y, slot_in_phrase, hand_idx)
+
+            if kind_tok == BOMB:
+                continue
+            if kind_tok == CHAIN_TAIL:
+                _step(ROLE_FIELD_D, slot_in_phrase, hand_idx)
+                continue
+            _step(ROLE_DIR,     slot_in_phrase, hand_idx)
+            _step(ROLE_FIELD_D, slot_in_phrase, hand_idx)
+
+        # Strip BOS, no explicit EOS appended (caller knows the schedule).
+        return toks[1:]
 
 
 def _nucleus_sample(logits: torch.Tensor, temperature: float, top_p: float) -> int:
     logits = logits / max(temperature, 1e-6)
-    probs  = torch.softmax(logits, dim=-1)
-    sorted_probs, sorted_idx = torch.sort(probs, descending=True)
-    cumulative = torch.cumsum(sorted_probs, dim=0)
-    nucleus = sorted_idx[cumulative - sorted_probs <= top_p]
-    if len(nucleus) == 0:
-        nucleus = sorted_idx[:1]
-    return int(nucleus[torch.randint(len(nucleus), (1,))].item())
+    probs = torch.softmax(logits, dim=-1)
+    sorted_p, sorted_i = torch.sort(probs, descending=True)
+    cumulative = torch.cumsum(sorted_p, dim=0)
+    keep = sorted_i[cumulative - sorted_p <= top_p]
+    if len(keep) == 0:
+        keep = sorted_i[:1]
+    return int(keep[torch.randint(len(keep), (1,))].item())

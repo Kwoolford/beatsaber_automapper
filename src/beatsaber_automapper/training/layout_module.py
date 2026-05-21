@@ -1,99 +1,86 @@
-"""V7-5: Lightning module for Stage 2 LayoutModel training.
+"""V7-5b: Lightning module for phrase-level Stage 2 training.
 
-Cross-entropy loss over spatial tokens only (KIND, X, Y, DIR, FIELD_D).
-The HAND and Δt tokens are absent — timing is provided externally by Stage 1.
+CE loss over the next-token target sequence (PAD positions masked via
+IGNORE_INDEX in the target tensor). Logs token accuracy and role-specific
+accuracy so we can see *which kind of token* the model is bad at (KIND? DIR?
+FIELD_D?) rather than just an aggregate number.
 """
 
 from __future__ import annotations
 
-import math
 import logging
+import math
 
 import lightning
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from beatsaber_automapper.models.layout_model import LayoutModel, LAYOUT_PAD
+from beatsaber_automapper.data.layout_dataset import (
+    IGNORE_INDEX, LAYOUT_PAD, LAYOUT_VOCAB_SIZE,
+    N_ROLES, ROLE_DIR, ROLE_FIELD_D, ROLE_KIND, ROLE_X, ROLE_Y,
+)
+from beatsaber_automapper.models.layout_model import LayoutPhraseModel
 
 logger = logging.getLogger(__name__)
 
 
-class LayoutLitModule(lightning.LightningModule):
-    """Lightning module for Stage 2 spatial layout generation.
+class LayoutPhraseLitModule(lightning.LightningModule):
+    """Lightning module for phrase-level layout training.
 
     Args:
-        vocab_size:      Full swing-event vocab size (118).
-        d_model:         Transformer hidden size.
-        n_heads:         Attention heads.
-        n_layers:        Decoder layers.
-        dim_feedforward: FFN width.
-        max_len:         Max sequence length.
-        dropout:         Dropout.
-        num_difficulties: Number of difficulty levels.
-        num_genres:       Number of genre classes.
-        learning_rate:   Peak LR.
-        weight_decay:    AdamW weight decay.
-        warmup_steps:    LR warmup steps.
-        label_smoothing: CE label smoothing.
+        vocab_size, d_model, n_heads, n_enc_layers, n_dec_layers,
+        dim_feedforward, max_layout_len, max_phrase_slots, num_difficulties,
+        num_genres, dropout: forwarded to LayoutPhraseModel.
+        learning_rate, weight_decay, warmup_steps, label_smoothing: optim hparams.
     """
 
     def __init__(
         self,
-        vocab_size: int = 118,
-        d_model: int = 512,
-        n_heads: int = 8,
-        n_layers: int = 4,
-        dim_feedforward: int = 2048,
-        max_len: int = 64,
-        dropout: float = 0.1,
-        num_difficulties: int = 5,
-        num_genres: int = 11,
-        learning_rate: float = 1e-4,
-        weight_decay: float = 0.01,
-        warmup_steps: int = 1000,
-        label_smoothing: float = 0.1,
+        vocab_size:        int = LAYOUT_VOCAB_SIZE,
+        d_model:           int = 384,
+        n_heads:           int = 6,
+        n_enc_layers:      int = 3,
+        n_dec_layers:      int = 4,
+        dim_feedforward:   int = 1536,
+        max_layout_len:    int = 384,
+        max_phrase_slots:  int = 96,
+        num_difficulties:  int = 5,
+        num_genres:        int = 11,
+        dropout:           float = 0.1,
+        learning_rate:     float = 1e-4,
+        weight_decay:      float = 0.01,
+        warmup_steps:      int = 1000,
+        label_smoothing:   float = 0.1,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
 
-        self.model = LayoutModel(
-            vocab_size=vocab_size,
-            d_model=d_model,
-            n_heads=n_heads,
-            n_layers=n_layers,
-            dim_feedforward=dim_feedforward,
-            max_len=max_len,
-            dropout=dropout,
-            num_difficulties=num_difficulties,
-            num_genres=num_genres,
+        self.model = LayoutPhraseModel(
+            vocab_size=vocab_size, d_model=d_model, n_heads=n_heads,
+            n_enc_layers=n_enc_layers, n_dec_layers=n_dec_layers,
+            dim_feedforward=dim_feedforward, max_layout_len=max_layout_len,
+            max_phrase_slots=max_phrase_slots, num_difficulties=num_difficulties,
+            num_genres=num_genres, dropout=dropout,
         )
-
         self.loss_fn = nn.CrossEntropyLoss(
-            ignore_index=LAYOUT_PAD,
-            label_smoothing=label_smoothing,
+            ignore_index=IGNORE_INDEX, label_smoothing=label_smoothing,
         )
 
+    # ------------------------------------------------------------------
     def _forward_batch(self, batch: dict) -> tuple[torch.Tensor, torch.Tensor]:
-        tokens      = batch["layout_tokens"]    # [B, max_len]
-        dec_input   = tokens[:, :-1]
-        target      = tokens[:, 1:]
-
         logits = self.model(
-            decoder_input=dec_input,
-            local_mert=  batch["local_mert"],
-            song_emb=    batch["song_emb"],
-            section_emb= batch["section_emb"],
-            saber_state= batch["saber_state"],
-            phrase_feat= batch["phrase_feat"],
-            difficulty=  batch["difficulty"],
-            genre=       batch["genre"],
-        )   # [B, S-1, vocab_size]
-
-        loss = self.loss_fn(
-            logits.reshape(-1, logits.size(-1)),
-            target.reshape(-1),
-        )
+            layout_tokens=batch["layout_tokens"],
+            token_slot   =batch["token_slot"],
+            token_hand   =batch["token_hand"],
+            token_role   =batch["token_role"],
+            phrase_mert  =batch["phrase_mert"],
+            phrase_mask  =batch["phrase_mask"],
+            difficulty   =batch["difficulty"],
+            genre        =batch["genre"],
+        )   # [B, S, vocab]
+        target = batch["target"]   # [B, S], IGNORE_INDEX on PAD
+        loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         return logits, loss
 
     def training_step(self, batch: dict, batch_idx: int) -> torch.Tensor:
@@ -105,16 +92,39 @@ class LayoutLitModule(lightning.LightningModule):
         logits, loss = self._forward_batch(batch)
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 
-        # Token accuracy (excluding PAD)
-        target = batch["layout_tokens"][:, 1:]
+        target = batch["target"]
         preds  = logits.argmax(dim=-1)
-        mask   = target != LAYOUT_PAD
-        if mask.sum() > 0:
-            acc = (preds == target)[mask].float().mean()
+        valid  = target != IGNORE_INDEX
+
+        # Overall token accuracy
+        if valid.any():
+            acc = (preds == target)[valid].float().mean()
             self.log("val_token_acc", acc, prog_bar=True, sync_dist=True)
 
+        # Per-role accuracy — diagnoses where the model is weak. We look up
+        # each target's role via token_role shifted-by-one (since target =
+        # input shifted-by-one, the role of target[t] is the role at the
+        # output position, i.e. the input position t+1).
+        role_in = batch["token_role"]   # [B, S]
+        # Roles align with the same shift: target[t] = input[t+1] → role at output t.
+        role_out = torch.cat([role_in[:, 1:], torch.full_like(role_in[:, :1], -1)], dim=1)
+
+        correct = (preds == target)
+        for role_id, role_name in [
+            (ROLE_KIND,    "kind"),
+            (ROLE_X,       "x"),
+            (ROLE_Y,       "y"),
+            (ROLE_DIR,     "dir"),
+            (ROLE_FIELD_D, "field_d"),
+        ]:
+            mask = valid & (role_out == role_id)
+            if mask.any():
+                acc_r = correct[mask].float().mean()
+                self.log(f"val_acc_{role_name}", acc_r, sync_dist=True)
+
+    # ------------------------------------------------------------------
     def configure_optimizers(self) -> dict:
-        optimizer = torch.optim.AdamW(
+        opt = torch.optim.AdamW(
             self.parameters(),
             lr=self.hparams.learning_rate,
             weight_decay=self.hparams.weight_decay,
@@ -129,7 +139,7 @@ class LayoutLitModule(lightning.LightningModule):
             return max(0.01, 0.5 * (1.0 + math.cos(math.pi * progress)))
 
         return {
-            "optimizer": optimizer,
-            "lr_scheduler": {"scheduler": torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda),
+            "optimizer": opt,
+            "lr_scheduler": {"scheduler": torch.optim.lr_scheduler.LambdaLR(opt, lr_lambda),
                              "interval": "step"},
         }

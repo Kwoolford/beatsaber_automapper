@@ -1,18 +1,24 @@
-"""V7-4: Dataset for Stage 2 LayoutModel training.
+"""V7-5b: Per-phrase Layout dataset.
 
-For each confirmed note onset (beat, hand) pair derived from Expert swing_tokens,
-yields:
-  - local_mert:      mix MERT features at the onset beat  [768]
-  - song_emb:        mean mix MERT over full song          [768]
-  - section_emb:     mean mix MERT over current section    [768]
-  - saber_state:     12-dim physical state at this onset   [12]
-  - layout_tokens:   spatial token sequence [KIND X Y DIR FIELD_D] padded to max_len
-  - retrieval_feats: phrase fingerprint for the window containing this onset [768]
-  - difficulty, genre, mapper_id
+Each sample is one phrase (16-beat / 64-slot window) of one (song, difficulty).
+The decoder will emit the spatial tokens for ALL notes in the phrase as a single
+autoregressive sequence; per-token metadata (slot, hand, role) lets the model
+know which onset each token belongs to. The hand-engineered 12-dim saber state
+is gone — the decoder learns position/direction/parity from its own prior-token
+attention within the phrase.
 
-The retrieval_feats vector is the phrase fingerprint; at inference the PhraseIndex
-does the actual cosine lookup. During training it's used to condition the model on
-which musical phrase it's in (so the model learns phrase-consistent mapping).
+Each sample:
+    phrase_mert       [P_slots, 768]      mix MERT for the phrase, slot-pooled
+    phrase_mask       [P_slots]            1 = real slot, 0 = padding
+    layout_tokens     [S]                  [BOS, ...event tokens..., EOS, PAD...]
+    token_slot        [S]                  per-token slot index (0..P-1), PAD value for BOS/EOS/PAD
+    token_hand        [S]                  per-token hand (LEFT=0, RIGHT=1), 2 for special
+    token_role        [S]                  per-token role: KIND=0, X=1, Y=2, DIR=3, FIELD_D=4, special=5
+    target            [S]                  next-token target (shifted by 1, -100 on PAD)
+    n_notes           int                  number of note events in phrase (audit aid)
+    difficulty        int
+    genre             int
+    song_id           str (for debugging only)
 """
 
 from __future__ import annotations
@@ -20,13 +26,14 @@ from __future__ import annotations
 import json
 import logging
 from collections import OrderedDict
+from dataclasses import dataclass
 from pathlib import Path
 
 import torch
 from torch.utils.data import Dataset
 
-from beatsaber_automapper.data.beat_grid import extract_beat_labels, BEAT_SUBDIV
-from beatsaber_automapper.data.saber_state import compute_saber_states
+from beatsaber_automapper.data.beat_grid import BEAT_SUBDIV
+from beatsaber_automapper.data.dataset import DIFFICULTY_MAP
 from beatsaber_automapper.data.swing_tokenizer import (
     _DT_BINS,
     ANGLE_BASE, ANGLE_COUNT,
@@ -46,55 +53,64 @@ from beatsaber_automapper.data.swing_tokenizer import (
     SQUISH_BASE, SQUISH_COUNT,
     X_BASE, X_COUNT,
     Y_BASE, Y_COUNT,
-    SwingEventTokenizer,
 )
 from beatsaber_automapper.data.tokenizer import GENRE_MAP
-from beatsaber_automapper.data.dataset import DIFFICULTY_MAP
 
 logger = logging.getLogger(__name__)
 
-# Layout token vocabulary: spatial-only subset (no HAND/Δt)
-# KIND(6) + X(4) + Y(3) + DIR(9) + ANGLE(7) + MU(9) + SLICE(31) + SQUISH(11) + BOS/EOS/PAD = ~83
+# Layout vocab — re-uses the swing-event vocab integer IDs. The HAND and Δt
+# tokens never appear in the layout sequence (timing comes from per-token slot
+# metadata, hand from per-token hand metadata).
 LAYOUT_PAD = 0
 LAYOUT_BOS = 1
 LAYOUT_EOS = 2
+LAYOUT_VOCAB_SIZE = 118  # full swing vocab — only the spatial subset is reachable
 
-# Remap original token IDs to compact layout vocab
-# We keep the same integer IDs from swing_tokenizer but skip HAND (3,4,5) and DT (6-37).
-# The layout model uses: PAD=0, BOS=1, EOS=2, KIND_BASE=38..43, X_BASE=44..47,
-# Y_BASE=48..50, DIR=51..59, ANGLE=60..66, MU=67..75, SLICE=76..106, SQUISH=107..117
-# These IDs are already compact and don't overlap — just use them directly.
-LAYOUT_VOCAB_SIZE = 118   # same vocab, subset actually used
+# Per-token role labels (small embedding alongside the token embedding).
+ROLE_KIND    = 0
+ROLE_X       = 1
+ROLE_Y       = 2
+ROLE_DIR     = 3
+ROLE_FIELD_D = 4
+ROLE_SPECIAL = 5  # BOS / EOS / PAD
+N_ROLES      = 6
 
-MAX_LAYOUT_LEN = 32   # max tokens per note event (very generous; NOTE = 5 tokens)
+# Hand sentinel for special tokens
+HAND_LEFT_IDX  = 0
+HAND_RIGHT_IDX = 1
+HAND_SPECIAL_IDX = 2
+N_HANDS_EMB = 3
 
+# Phrase slot embedding size default. Observed phrases are 64 slots; allow some
+# headroom. The "special slot" sentinel index for BOS/EOS/PAD is always equal
+# to whatever max_phrase_slots is configured on the dataset/model instance —
+# they must use the same value (the train script wires both consistently).
+MAX_PHRASE_SLOTS = 96
+SPECIAL_SLOT_IDX = MAX_PHRASE_SLOTS  # default-value alias kept for tests/imports
 
-def _encode_layout_event(
-    kind: int, x: int, y: int, direction: int, field_d: int,
-) -> list[int]:
-    """Encode a single swing event as spatial tokens (no HAND/Δt).
+# Max layout-token sequence length per phrase. Worst case Expert+ phrase:
+# ~50 events × 5 tokens = 250 + BOS/EOS = 252. Round up.
+DEFAULT_MAX_LAYOUT_LEN = 384
 
-    Returns a list of 3–5 token IDs depending on event kind.
-    """
-    tokens = [kind, X_BASE + x, Y_BASE + y]
-    if kind == BOMB:
-        pass  # 3 tokens: KIND X Y
-    elif kind == CHAIN_TAIL:
-        tokens.append(SQUISH_BASE + min(field_d, SQUISH_COUNT - 1))  # +SQUISH = 4
-    else:
-        tokens.append(DIR_BASE + direction)
-        if kind == NOTE:
-            tokens.append(ANGLE_BASE + min(field_d, ANGLE_COUNT - 1))
-        elif kind in (ARC_HEAD, ARC_TAIL):
-            tokens.append(MU_BASE + min(field_d, MU_COUNT - 1))
-        else:  # CHAIN_HEAD
-            tokens.append(SLICE_BASE + min(field_d, SLICE_COUNT - 1))
-    return tokens
+# Loss ignore index (matches PyTorch CE default)
+IGNORE_INDEX = -100
 
 
-def _parse_events_from_tokens(swing_tokens: list[int]) -> list[dict]:
-    """Parse swing_tokens into a list of event dicts with beat positions."""
-    events = []
+@dataclass
+class _Event:
+    beat:      float
+    slot:      int
+    hand:      int   # HAND_LEFT or HAND_RIGHT or HAND_NONE
+    kind:      int
+    x:         int
+    y:         int
+    direction: int
+    field_d:   int
+
+
+def _parse_events_from_tokens(swing_tokens: list[int], subdiv: int = BEAT_SUBDIV) -> list[_Event]:
+    """Decode the V6 swing-event token stream into structured _Event records."""
+    events: list[_Event] = []
     i, n = 0, len(swing_tokens)
     current_beat = 0.0
 
@@ -108,27 +124,23 @@ def _parse_events_from_tokens(swing_tokens: list[int]) -> list[dict]:
             i += 1; continue
 
         hand = tok
-        if i + 1 >= n:
-            break
+        if i + 1 >= n: break
         dt_tok = swing_tokens[i + 1]
         if not (DT_BASE <= dt_tok < DT_BASE + DT_COUNT):
             i += 1; continue
-
         dt = _DT_BINS[dt_tok - DT_BASE]
         current_beat += dt
 
-        if i + 2 >= n:
-            break
+        if i + 2 >= n: break
         kind_tok = swing_tokens[i + 2]
         if not (KIND_BASE <= kind_tok < KIND_BASE + KIND_COUNT):
             i += 1; continue
         kind = kind_tok
 
-        # Extract X, Y, DIR, FIELD_D based on kind
         x = y = direction = field_d = 0
         if i + 4 < n:
-            x = max(0, min(swing_tokens[i + 3] - X_BASE, 3))
-            y = max(0, min(swing_tokens[i + 4] - Y_BASE, 2))
+            x = max(0, min(swing_tokens[i + 3] - X_BASE, X_COUNT - 1))
+            y = max(0, min(swing_tokens[i + 4] - Y_BASE, Y_COUNT - 1))
 
         if kind == BOMB:
             step = 5
@@ -145,31 +157,65 @@ def _parse_events_from_tokens(swing_tokens: list[int]) -> list[dict]:
                     field_d = max(0, min(fd_tok - ANGLE_BASE, ANGLE_COUNT - 1))
                 elif kind in (ARC_HEAD, ARC_TAIL):
                     field_d = max(0, min(fd_tok - MU_BASE, MU_COUNT - 1))
-                else:
+                else:  # CHAIN_HEAD
                     field_d = max(0, min(fd_tok - SLICE_BASE, SLICE_COUNT - 1))
             step = 7
 
-        events.append({
-            "beat": current_beat, "hand": hand, "kind": kind,
-            "x": x, "y": y, "direction": direction, "field_d": field_d,
-        })
+        slot = int(round(current_beat * subdiv))
+        events.append(_Event(
+            beat=current_beat, slot=slot, hand=hand, kind=kind,
+            x=x, y=y, direction=direction, field_d=field_d,
+        ))
         i += step
 
     return events
 
 
-class LayoutDataset(Dataset):
-    """Per-onset dataset for Stage 2 Layout Model training.
+def _event_to_tokens(e: _Event) -> tuple[list[int], list[int]]:
+    """Return (token_ids, role_ids) for one event's spatial tokens.
 
-    Each sample represents one note (left or right hand) at a specific beat position.
-    The model is trained to predict the spatial token sequence given MERT context.
+    Roles tell the decoder what each token MEANS (KIND vs X vs Y vs DIR vs
+    FIELD_D), independent of event kind. Variable-length events skip DIR
+    (chain_tail, bomb) — those positions just don't appear in the sequence.
+    """
+    tokens: list[int] = [e.kind,            X_BASE + e.x, Y_BASE + e.y]
+    roles:  list[int] = [ROLE_KIND,         ROLE_X,       ROLE_Y]
+
+    if e.kind == BOMB:
+        return tokens, roles
+    if e.kind == CHAIN_TAIL:
+        tokens.append(SQUISH_BASE + min(e.field_d, SQUISH_COUNT - 1))
+        roles.append(ROLE_FIELD_D)
+        return tokens, roles
+
+    tokens.append(DIR_BASE + e.direction);    roles.append(ROLE_DIR)
+    if e.kind == NOTE:
+        tokens.append(ANGLE_BASE  + min(e.field_d, ANGLE_COUNT  - 1))
+    elif e.kind in (ARC_HEAD, ARC_TAIL):
+        tokens.append(MU_BASE     + min(e.field_d, MU_COUNT     - 1))
+    else:  # CHAIN_HEAD
+        tokens.append(SLICE_BASE  + min(e.field_d, SLICE_COUNT  - 1))
+    roles.append(ROLE_FIELD_D)
+    return tokens, roles
+
+
+def _hand_idx(hand: int) -> int:
+    if hand == HAND_LEFT:  return HAND_LEFT_IDX
+    if hand == HAND_RIGHT: return HAND_RIGHT_IDX
+    return HAND_SPECIAL_IDX   # HAND_NONE (bomb) — bombs have no "hand," group with special
+
+
+class LayoutPhraseDataset(Dataset):
+    """Per-phrase dataset for Stage 2 phrase-level autoregressive training.
 
     Args:
-        data_dir:           Directory with V7-preprocessed .pt files.
-        split:              "train" or "val".
+        data_dir:           Directory containing V7-preprocessed .pt files.
+        split:              "train" / "val" — uses splits.json if present.
         difficulties:       Difficulties to include (None = all).
         exclude_categories: Mod categories to skip.
-        max_len:            Max layout token sequence length.
+        max_layout_len:     Max layout-token sequence length per phrase.
+        max_phrase_slots:   Max phrase length in slots (pads encoder input).
+        min_notes:          Drop phrases with fewer than this many note events.
     """
 
     def __init__(
@@ -178,12 +224,19 @@ class LayoutDataset(Dataset):
         split: str = "train",
         difficulties: list[str] | None = None,
         exclude_categories: list[str] | None = None,
-        max_len: int = MAX_LAYOUT_LEN,
+        max_layout_len: int = DEFAULT_MAX_LAYOUT_LEN,
+        max_phrase_slots: int = MAX_PHRASE_SLOTS,
+        min_notes: int = 1,
     ) -> None:
-        self.data_dir     = Path(data_dir)
-        self.max_len      = max_len
-        self.target_diffs = set(difficulties) if difficulties else None
-        self.exclude_cats = set(exclude_categories) if exclude_categories else set()
+        self.data_dir         = Path(data_dir)
+        self.target_diffs     = set(difficulties) if difficulties else None
+        self.exclude_cats     = set(exclude_categories) if exclude_categories else set()
+        self.max_layout_len   = max_layout_len
+        self.max_phrase_slots = max_phrase_slots
+        # Special-slot index = max_phrase_slots; the model's slot embedding has
+        # `max_phrase_slots + 1` rows, with the last one reserved for this sentinel.
+        self._special_slot    = max_phrase_slots
+        self.min_notes        = min_notes
 
         splits_path = self.data_dir / "splits.json"
         song_ids: set[str] | None = None
@@ -196,8 +249,10 @@ class LayoutDataset(Dataset):
             with open(bp) as f:
                 blacklist = set(json.load(f).keys())
 
-        # Index: (pt_path, diff_name, event_idx, diff_id, genre_idx)
-        self.samples: list[tuple[Path, str, int, int, int]] = []
+        # Index: (pt_path, diff_name, phrase_idx, diff_id, genre_idx, n_notes)
+        self.samples: list[tuple[Path, str, int, int, int, int]] = []
+        n_skip_short = 0
+        n_skip_long  = 0
 
         for pt_path in sorted(self.data_dir.glob("*.pt")):
             song_id = pt_path.stem
@@ -205,191 +260,167 @@ class LayoutDataset(Dataset):
                 continue
             if song_id in blacklist:
                 continue
-
             try:
                 meta = torch.load(pt_path, weights_only=False, mmap=True)
             except Exception:
                 continue
-
             if "mix_beat_features" not in meta:
-                continue  # not yet V7-preprocessed
+                continue
 
             mod_reqs = meta.get("mod_requirements", {})
             if self.exclude_cats and mod_reqs.get("category") in self.exclude_cats:
                 continue
-
             genre_idx = GENRE_MAP.get(mod_reqs.get("genre", "unknown"), 0)
+
+            phrase_b = meta.get("phrase_boundaries") or []
+            if not phrase_b:
+                continue
 
             for diff_name, diff_data in meta.get("difficulties", {}).items():
                 if self.target_diffs and diff_name not in self.target_diffs:
                     continue
-                tokens = diff_data.get("swing_tokens", [])
+                tokens = diff_data.get("swing_tokens") or []
                 if not tokens:
                     continue
+                diff_id = DIFFICULTY_MAP.get(diff_name, 3)
 
-                diff_id  = DIFFICULTY_MAP.get(diff_name, 3)
-                n_events = sum(1 for t in tokens if t in (HAND_LEFT, HAND_RIGHT, HAND_NONE))
-                for evt_idx in range(n_events):
-                    self.samples.append((pt_path, diff_name, evt_idx, diff_id, genre_idx))
+                events = _parse_events_from_tokens(tokens)
+                if not events:
+                    continue
 
-        logger.info("LayoutDataset[%s]: %d note samples", split, len(self.samples))
+                for pi, (s, e) in enumerate(phrase_b):
+                    n_in = sum(1 for ev in events if s <= ev.slot < e and ev.kind != BOMB)
+                    if n_in < min_notes:
+                        n_skip_short += 1
+                        continue
+                    if e - s > max_phrase_slots:
+                        n_skip_long += 1
+                        continue
+                    self.samples.append(
+                        (pt_path, diff_name, pi, diff_id, genre_idx, n_in)
+                    )
 
-        self._cache: OrderedDict[str, dict] = OrderedDict()
-        self._cache_max = 32
-        # Per-(song, difficulty) cache of decoded events + saber states.
-        # Avoids the O(n²) re-decode that dominated dataset throughput when
-        # the cache was per-file only.
-        self._evt_cache: OrderedDict[tuple[str, str], tuple[list, torch.Tensor]] = OrderedDict()
-        self._evt_cache_max = 64
+        logger.info("LayoutPhraseDataset[%s]: %d phrases (skip_short=%d skip_long=%d)",
+                    split, len(self.samples), n_skip_short, n_skip_long)
 
-    def _load(self, pt_path: Path) -> dict:
+        self._meta_cache: OrderedDict[str, dict] = OrderedDict()
+        self._events_cache: OrderedDict[tuple[str, str], list[_Event]] = OrderedDict()
+        self._cache_max = 64
+
+    # ------------------------------------------------------------------
+    # Caching
+    # ------------------------------------------------------------------
+    def _meta(self, pt_path: Path) -> dict:
         key = str(pt_path)
-        if key in self._cache:
-            self._cache.move_to_end(key)
-            return self._cache[key]
+        if key in self._meta_cache:
+            self._meta_cache.move_to_end(key)
+            return self._meta_cache[key]
         data = torch.load(pt_path, weights_only=False)
-        self._cache[key] = data
-        if len(self._cache) > self._cache_max:
-            self._cache.popitem(last=False)
+        self._meta_cache[key] = data
+        if len(self._meta_cache) > self._cache_max:
+            self._meta_cache.popitem(last=False)
         return data
 
-    def _events_and_states(
-        self, pt_path: Path, diff_name: str, swing_tokens: list[int],
-    ) -> tuple[list, torch.Tensor]:
-        """Return (decoded events, saber-state-before-each-event tensor).
-
-        Cached per (song, difficulty) — the previous per-sample recompute was
-        O(n²) over the song's event count.
-        """
+    def _events(self, pt_path: Path, diff_name: str, swing_tokens: list[int]) -> list[_Event]:
         key = (str(pt_path), diff_name)
-        if key in self._evt_cache:
-            self._evt_cache.move_to_end(key)
-            return self._evt_cache[key]
+        if key in self._events_cache:
+            self._events_cache.move_to_end(key)
+            return self._events_cache[key]
+        evts = _parse_events_from_tokens(swing_tokens)
+        self._events_cache[key] = evts
+        if len(self._events_cache) > self._cache_max * 4:
+            self._events_cache.popitem(last=False)
+        return evts
 
-        tok = SwingEventTokenizer()
-        all_events = tok.decode_events(swing_tokens)
-        # states[i] is the saber state BEFORE event i — exactly the conditioning
-        # we want when generating the spatial tokens for event i.
-        states = compute_saber_states(all_events)
-        self._evt_cache[key] = (all_events, states)
-        if len(self._evt_cache) > self._evt_cache_max:
-            self._evt_cache.popitem(last=False)
-        return all_events, states
-
+    # ------------------------------------------------------------------
+    # Sample assembly
+    # ------------------------------------------------------------------
     def __len__(self) -> int:
         return len(self.samples)
 
     def __getitem__(self, idx: int) -> dict[str, torch.Tensor]:
-        pt_path, diff_name, evt_idx, diff_id, genre_idx = self.samples[idx]
-        data = self._load(pt_path)
+        pt_path, diff_name, phrase_idx, diff_id, genre_idx, _n_notes = self.samples[idx]
+        data = self._meta(pt_path)
 
-        mix_beat = data["mix_beat_features"].float()       # [N_slots, 768]
-        fp_tensor = data["phrase_fingerprints"].float()    # [N_phrases, 768]
-        pb = data["phrase_boundaries"]                     # list of (start, end)
-        bpm = float(data.get("bpm", 120.0))
-        n_slots = mix_beat.shape[0]
+        mix_beat   = data["mix_beat_features"].float()    # [N_slots, 768]
+        phrase_b   = data["phrase_boundaries"]
+        swing_toks = data["difficulties"][diff_name]["swing_tokens"]
+        events     = self._events(pt_path, diff_name, swing_toks)
 
-        swing_tokens = data["difficulties"][diff_name]["swing_tokens"]
-        events = _parse_events_from_tokens(swing_tokens)
+        s, e = phrase_b[phrase_idx]
+        phrase_len = min(e - s, self.max_phrase_slots)
 
-        if evt_idx >= len(events):
-            # Safety: return a zero sample if index is out of range
-            return self._zero_sample(diff_id, genre_idx)
-
-        evt = events[evt_idx]
-
-        # Decoded events + saber states (cached per song/diff)
-        all_events, all_states = self._events_and_states(pt_path, diff_name, swing_tokens)
-
-        # Beat → slot index
-        beat_slot = min(int(round(evt["beat"] * BEAT_SUBDIV)), n_slots - 1)
-
-        # Local MERT at this beat
-        local_mert = mix_beat[beat_slot]                   # [768]
-
-        # Song-level embedding
-        song_emb = mix_beat.mean(0)                        # [768]
-
-        # Section embedding: section that contains beat_slot
-        # Use the existing section detection from structure_features if available,
-        # otherwise fall back to a ±32-slot window around the beat
-        struct = data.get("structure_features")
-        if struct is not None and struct.shape[0] >= 7:
-            # Structure channel 6 = normalised section_id
-            cf = min(beat_slot, struct.shape[1] - 1)
-            sec_norm = float(struct[6, cf].item())
-            sec_id   = min(int(round(sec_norm * 5.0)), 5)
-            # Find all slots with the same section_id and average their mix features
-            sec_ids_all = (struct[6] * 5.0).round().long().clamp(0, 5)
-            # Pool mix_beat where section matches — resample struct to beat grid length
-            T_struct = sec_ids_all.shape[0]
-            if T_struct != n_slots:
-                # Nearest-neighbour upsample/downsample
-                ratio = T_struct / max(n_slots, 1)
-                sec_at_beat = torch.tensor([
-                    int(sec_ids_all[min(int(s * ratio), T_struct - 1)].item())
-                    for s in range(n_slots)
-                ])
-            else:
-                sec_at_beat = sec_ids_all
-            sec_mask = (sec_at_beat == sec_id)
-            if sec_mask.any():
-                section_emb = mix_beat[sec_mask].mean(0)
-            else:
-                section_emb = local_mert
+        # ---- Encoder input ----
+        phrase_mert = torch.zeros(self.max_phrase_slots, 768, dtype=torch.float32)
+        phrase_mask = torch.zeros(self.max_phrase_slots, dtype=torch.bool)
+        clipped_e = s + phrase_len
+        if clipped_e <= mix_beat.shape[0]:
+            phrase_mert[:phrase_len] = mix_beat[s:clipped_e]
         else:
-            # Fallback: ±64-beat window
-            half = 64 * BEAT_SUBDIV
-            s_start = max(0, beat_slot - half)
-            s_end   = min(n_slots, beat_slot + half)
-            section_emb = mix_beat[s_start:s_end].mean(0)
+            real = mix_beat.shape[0] - s
+            real = max(0, real)
+            phrase_mert[:real] = mix_beat[s:mix_beat.shape[0]]
+            phrase_mask[:real] = True
+            phrase_mask_set = True
+        phrase_mask[:phrase_len] = True
 
-        # Saber state BEFORE the current event (= state after all prior events).
-        # compute_saber_states emits state[i] = state BEFORE event i, so we
-        # want all_states[evt_idx] directly — no off-by-one slicing needed.
-        if evt_idx < all_states.shape[0]:
-            saber = all_states[evt_idx]
-        else:
-            saber = torch.zeros(12)
+        # ---- Decoder sequence (token / per-token metadata / target) ----
+        token_ids: list[int] = [LAYOUT_BOS]
+        token_slot: list[int] = [self._special_slot]
+        token_hand: list[int] = [HAND_SPECIAL_IDX]
+        token_role: list[int] = [ROLE_SPECIAL]
 
-        # Layout tokens (spatial only, no HAND/Δt)
-        layout_toks = _encode_layout_event(
-            evt["kind"], evt["x"], evt["y"], evt["direction"], evt["field_d"],
+        phrase_events = sorted(
+            (ev for ev in events if s <= ev.slot < e),
+            key=lambda ev: (ev.slot, _hand_idx(ev.hand), ev.kind),
         )
-        # Wrap with BOS/EOS
-        layout_toks = [LAYOUT_BOS] + layout_toks + [LAYOUT_EOS]
-        if len(layout_toks) > self.max_len:
-            layout_toks = layout_toks[:self.max_len]
-        padded = layout_toks + [LAYOUT_PAD] * (self.max_len - len(layout_toks))
 
-        # Phrase fingerprint: which phrase does this beat belong to?
-        phrase_feat = torch.zeros(768)
-        for pi, (s, e) in enumerate(pb):
-            if s <= beat_slot < e:
-                phrase_feat = fp_tensor[pi]
+        for ev in phrase_events:
+            ev_tokens, ev_roles = _event_to_tokens(ev)
+            slot_in_phrase = min(ev.slot - s, self.max_phrase_slots - 1)
+            h_idx = _hand_idx(ev.hand)
+            for tid, rid in zip(ev_tokens, ev_roles):
+                if len(token_ids) >= self.max_layout_len - 1:  # leave room for EOS
+                    break
+                token_ids.append(tid)
+                token_slot.append(slot_in_phrase)
+                token_hand.append(h_idx)
+                token_role.append(rid)
+            if len(token_ids) >= self.max_layout_len - 1:
                 break
 
-        return {
-            "local_mert":    local_mert,                                    # [768]
-            "song_emb":      song_emb,                                      # [768]
-            "section_emb":   section_emb,                                   # [768]
-            "saber_state":   saber.float(),                                  # [12]
-            "phrase_feat":   phrase_feat,                                   # [768]
-            "layout_tokens": torch.tensor(padded, dtype=torch.long),        # [max_len]
-            "token_length":  torch.tensor(len(layout_toks), dtype=torch.long),
-            "difficulty":    torch.tensor(diff_id,   dtype=torch.long),
-            "genre":         torch.tensor(genre_idx, dtype=torch.long),
-        }
+        token_ids.append(LAYOUT_EOS)
+        token_slot.append(self._special_slot)
+        token_hand.append(HAND_SPECIAL_IDX)
+        token_role.append(ROLE_SPECIAL)
 
-    def _zero_sample(self, diff_id: int, genre_idx: int) -> dict[str, torch.Tensor]:
+        # Pad to max_layout_len
+        L = len(token_ids)
+        pad_n = self.max_layout_len - L
+        if pad_n > 0:
+            token_ids.extend([LAYOUT_PAD] * pad_n)
+            token_slot.extend([self._special_slot] * pad_n)
+            token_hand.extend([HAND_SPECIAL_IDX] * pad_n)
+            token_role.extend([ROLE_SPECIAL]    * pad_n)
+
+        tok_t  = torch.tensor(token_ids,  dtype=torch.long)
+        slot_t = torch.tensor(token_slot, dtype=torch.long)
+        hand_t = torch.tensor(token_hand, dtype=torch.long)
+        role_t = torch.tensor(token_role, dtype=torch.long)
+
+        # Targets are next-token prediction; ignore loss on shifted PAD positions.
+        target = tok_t.clone()
+        target = torch.cat([target[1:], torch.tensor([LAYOUT_PAD], dtype=torch.long)])
+        target[target == LAYOUT_PAD] = IGNORE_INDEX
+
         return {
-            "local_mert":    torch.zeros(768),
-            "song_emb":      torch.zeros(768),
-            "section_emb":   torch.zeros(768),
-            "saber_state":   torch.zeros(12),
-            "phrase_feat":   torch.zeros(768),
-            "layout_tokens": torch.zeros(self.max_len, dtype=torch.long),
-            "token_length":  torch.tensor(0, dtype=torch.long),
+            "phrase_mert":   phrase_mert,                                # [P, 768]
+            "phrase_mask":   phrase_mask,                                # [P]
+            "layout_tokens": tok_t,                                      # [S]
+            "token_slot":    slot_t,                                     # [S]
+            "token_hand":    hand_t,                                     # [S]
+            "token_role":    role_t,                                     # [S]
+            "target":        target,                                     # [S]
             "difficulty":    torch.tensor(diff_id,   dtype=torch.long),
             "genre":         torch.tensor(genre_idx, dtype=torch.long),
         }

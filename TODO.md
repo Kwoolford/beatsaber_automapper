@@ -360,13 +360,14 @@ properties the decoder learns from its own prior-token attention within the phra
 
 - [x] Re-audit + plan (2026-05-21)
 - [x] Fix v3 decorative bomb leak (`fix(beatmap): filter decorative (fake)` — commit d7017d0)
-- [ ] Implement `LayoutPhraseDataset` (per-phrase samples)
-- [ ] Implement `LayoutPhraseModel` (encoder-decoder w/ token-history attention)
-- [ ] Implement `LayoutPhraseLitModule` (CE loss + token-acc metric)
-- [ ] Update `train_layout.py`
-- [ ] Smoke test on tiny subset
+- [x] Implement `LayoutPhraseDataset` (per-phrase samples)
+- [x] Implement `LayoutPhraseModel` (encoder-decoder w/ token-history attention)
+- [x] Implement `LayoutPhraseLitModule` (CE loss + per-role token-acc metrics)
+- [x] Update `train_layout.py`
+- [x] Smoke test (368 tests pass; GPU bf16 fwd+bwd ok at 15.4M params, 1.8 GB peak)
 - [ ] Launch overnight training
 - [ ] Follow-up: update `generate_v7_level` to use new model architecture
+      (currently imports `LayoutLitModule` — will fail at inference until rewritten)
 
 **DoD pending:** val_token_acc ≥ 0.85. Run after Stage 1 converges:
 ```bash
