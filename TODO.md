@@ -1,263 +1,375 @@
-# Beat Saber Automapper — V6 Plan (Swing-First Architecture)
+# Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-05-12
-**Status:** V6 architecture fully implemented. Three encoding bugs found during generation testing and fixed (see PROGRESS.md). Retrain required before generation is usable.
+**Last updated:** 2026-05-20
+**Status:** V7-1 preprocessing complete. V7-3 Run 1 (F1=0.422) and Run 2 (F1=0.442) both failed — Run 2's pos_weight + mix-stem fixes barely moved the metric and peaked at epoch 0. Audit (2026-05-20) identified that the model has no difficulty conditioning and the eval is exact-slot F1 (no MIR-standard tolerance window). Run 3 plan: add difficulty embedding + tolerance-window F1, keep Expert+ExpertPlus dataset.
 **North star:** A player plays a generated map and says *"who mapped this?"* — not *"is this AI?"*
 
-**Full rationale and architecture analysis:** [`docs/architecture_v6_plan.md`](docs/architecture_v6_plan.md)
+**Full implementation plan:** [`docs/architecture_v7_plan.md`](docs/architecture_v7_plan.md)
+**V6 post-mortem:** [`PROGRESS.md`](PROGRESS.md) — "V6 Post-Mortem" section
 
 ---
 
-## Why We Pivoted (Again)
+## Why V6 Failed (Short Version)
 
-V5 fixed two of three axes:
-- **Data axis:** single-mapper cohorts → kept. Already correct.
-- **Iteration axis:** auto-researcher harness → kept. Already correct.
-- **Modeling axis:** chord-token CE + bandaid aux losses → **wrong representation.**
+V6 collapsed two separate problems into one autoregressive token stream:
 
-A thorough re-review by Opus 4.7 on 2026-05-10 identified three blindspots in the V5 modeling stack:
+1. **WHEN** should a note appear? (beat/onset timing)
+2. **WHAT** should the note look like? (spatial layout, hand, direction)
 
-1. **Output representation hides physics.** A map is two interleaved hand trajectories, not a sequence of chords. The chord-at-timestamp tokenizer forces the model to re-learn saber kinematics through statistical regularity, with the aux losses (`flow`, `intra_onset_parity`, `follow_through`, `ergo`) acting as bandaids on the representation.
-2. **No body / no proprioception.** `prev_context_k=8` previous onsets mean-pooled to a single vector destroys ordering and grid information. The model has no idea where its sabers physically are.
-3. **Loss is local; mapping is phrasing.** CE + parity / follow-through optimize per-token correctness. There is no signal that says "this 4-bar window should feel like the song's 4-bar window" or "this is a Joetastic-style accent."
+The Δt token was doing all the work for Problem 1, but cross-entropy loss on Δt tokens
+has no audio-aligned gradient for timing — the 3-second audio context covers only 1/6 of
+the 18-second event window. The model learned the statistical Δt distribution, not
+audio-to-beat mapping. Every hyperparameter sweep, aux loss, and epoch budget increase
+hit the same ceiling: ~1 NPS on a 4–10 NPS target.
 
-V6 fixes all three with three coordinated bets.
-
----
-
-## The Three Bets
-
-### Bet 1 — Per-hand swing-event tokenization
-
-Replace the chord grammar with a single ordered stream of swing events, one per hand-cut:
-
-```
-SwingEvent := [HAND] [Δt_bin] [KIND] [GRID_X] [GRID_Y] [DIR] [ANGLE]
-```
-
-- `HAND`: LEFT (red) / RIGHT (blue) / NONE (bomb or wall)
-- `KIND`: NOTE / ARC_HEAD / ARC_TAIL / CHAIN_HEAD / CHAIN_TAIL / BOMB / WALL
-
-**Unlocks:** parity becomes structural (alternation enforced by data), follow-through becomes a clean geometric loss between consecutive same-hand events, chain/arc tails self-connect, vocab shrinks from 183 → ~70. **All current aux losses get deleted, not migrated.**
-
-### Bet 2 — Saber-state conditioning
-
-Pass an explicit 12-dim physical state at every decode step:
-`(L_x, L_y, L_dx, L_dy, L_dt, L_parity, R_x, R_y, R_dx, R_dy, R_dt, R_parity)`. Computed from ground-truth past swings at training; maintained incrementally during AR decoding at inference. Projected via `Linear(12 → d_model)`, additive to decoder input. Replaces (or augments) the mean-pooled `prev_context_k` blob.
-
-### Bet 3 — Phrase conditioning + style discriminator
-
-- **Phrase embedding.** Mean-pool a 16-bar audio window around the current time, project to `d_model`, add as conditioning at each decode position.
-- **Phrase-energy aux loss.** KL between predicted swing density per 4-bar window and audio RMS per 4-bar window.
-- **Style discriminator.** Train `D(audio_window, swing_window) → mapper_id` on all 18 cohorts. Once F1 ≥ 0.6, add `−λ · log p_D(this_mapper)` as auxiliary loss in sequence training. Learned style-closeness signal.
+Additionally: even if timing were fixed, the 3-second context window causes cross-song
+drift. The same guitar riff appearing at bar 8 and bar 40 produces inconsistent note
+patterns because the model has no memory of what it did at bar 8.
 
 ---
 
-## What Survives From V5 (no change required)
+## V7 Architecture — Three Coordinated Changes
+
+### Change 1 — Pretrained Audio Understanding (replaces scratch AudioEncoder)
+
+**Demucs** (`htdemucs`) separates audio into stems before encoding:
+- `drums` stem → cleaner beat signal (drums are nearly 1:1 with Beat Saber notes)
+- `other` (melody) stem → instrument-specific features for layout
+
+**MERT-v1-95M** (frozen, HuggingFace `m-a-p/MERT-v1-95M`) encodes each stem:
+- Trained on massive music corpora via masked acoustic modeling
+- Produces frame-level embeddings at 75 Hz (dense enough for 1/16-note resolution)
+- Benchmarked at ~0.94 AUC on beat tracking tasks out of the box
+- Replaces the scratch-trained `models/audio_encoder.py` entirely
+
+### Change 2 — Explicit Two-Stage Separation (solves the timing problem)
+
+**Stage 1: Beat Classifier** — small MLP on drum MERT features
+- Input: `drum_mert[beat_slot]` — MERT features pooled to 1/4-note grid
+- Output: `P(left_note)`, `P(right_note)` per beat slot
+- Loss: weighted binary cross-entropy (ground truth from existing swing_tokens)
+- This gives Stage 2 an explicit onset schedule — it never has to predict WHEN
+
+**Stage 2: Layout Generator** — autoregressive, conditioned on known positions
+- Input: confirmed beat position (from Stage 1) + MERT features + retrieval context
+- Output: `[KIND, X, Y, DIR, FIELD_D]` per note — **no HAND, no Δt tokens**
+- HAND is given by the beat slot (left or right). Δt is gone — timing is external.
+- Saber-state conditioning (12-dim) preserved from V6.
+
+### Change 3 — Cross-Song Phrase Memory (solves the consistency problem)
+
+**PhraseIndex** — cosine similarity lookup over MERT phrase fingerprints:
+- Before generation: segment full song into 4-bar windows, fingerprint each with mean MERT
+- At generation: for each window, look up the k nearest prior windows in the same song
+- If `max_similarity > 0.85`: **hard retrieval** — replay the stored note pattern as conditioning
+- If no match: generate freely, then record the pattern for future windows
+- Result: the second chorus produces nearly identical note patterns to the first chorus
+
+Start with hard retrieval; switch to soft (cross-attention over retrieved tokens) only
+if the output is perceptibly too repetitive.
+
+---
+
+## What Survives From V6
 
 | Component | Status |
 |-----------|--------|
-| `data/cohorts/{mapper}/` directory structure | Unchanged |
-| `scripts/download_cohorts.py` | Unchanged |
-| `scripts/auto_research.py` | Spec format extended (V6 model presets); core loop unchanged |
-| `experiments/leaderboard.jsonl` | Unchanged; V5 and V6 rows directly comparable on composite score |
-| `data/reference/mappers.json` | Unchanged — same 18 mappers, 9 buckets |
-| `models/audio_encoder.py` | Unchanged |
-| `models/onset_model.py` (Stage 1) | Unchanged |
-| `generation/lighting_rules.py` (Stage 3) | Unchanged |
-| `evaluation/playability.py` (as evaluation, not training loss) | Unchanged |
+| Swing-event grammar (`data/swing_tokenizer.py`) | Keep — just remove HAND + Δt from Stage 2 token stream |
+| Saber-state extractor (`data/saber_state.py`) | Keep |
+| Grammar-constrained decoder (`generation/beam_search_v6.py`) | Keep — simplify (shorter grammar) |
+| Postprocessor (`generation/postprocess.py`) | Keep |
+| Lighting rules (`generation/lighting_rules.py`) | Keep |
+| Training infrastructure (Lightning, Hydra configs) | Keep |
+| Cohort data + splits | Keep |
+| Leaderboard / auto-researcher harness | Keep |
+
+## What Gets Replaced
+
+| Component | Replacement |
+|-----------|-------------|
+| `models/audio_encoder.py` (scratch mel transformer) | MERT-v1-95M wrapper (frozen) |
+| `training/seq_module.py` V6 sequence module | `training/beat_module.py` (Stage 1) + `training/layout_module.py` (Stage 2) |
+| `data/dataset.py::SwingSequenceDataset` | `data/beat_dataset.py` + `data/layout_dataset.py` |
+| Windowed full-song Δt inference | Beat-slot iteration (Stage 1 schedule → Stage 2 per onset) |
+| `dt_density_alpha`, `bomb_hand_weight` aux losses | Not needed — timing is now explicit |
 
 ---
 
 ## Phase Plan
 
-Build order is **representation-first**. Bets 2 and 3 are cheap *after* Bet 1; doing them in any other order means redoing them after the tokenizer change.
+### V7-0 — Dependencies + Proof of Concept ✅ DONE (2026-05-15)
+- [x] `uv pip install demucs transformers` in venv; added to `pyproject.toml`
+- [x] Demucs `htdemucs` separates test song into 4 stems in ~2s on RTX 5090
+- [x] MERT-v1-95M produces `[13210, 768]` at 75 Hz for 176s test song (correct)
+- [x] Beat grid: 1444 slots at 1/4-note resolution (9.1 MERT frames/slot at 123 BPM)
+- [x] sklearn logistic regression (same-song, frozen MERT): **F1_avg = 0.59** → PASS
 
-### Phase V6-0 — Spec + round-trip (1 day)
+**DoD met.** Script: `scripts/v7_poc.py`
 
-- [ ] **0.1** Write `docs/swing_event_grammar.md`: token table, ordering rules, walls/bombs handling, chain/arc tail matching policy.
-- [ ] **0.2** Implement `data/swing_tokenizer.py::SwingEventTokenizer` with `encode_beatmap` and `decode_beatmap`.
-- [ ] **0.3** Round-trip test on full Joetastic catalog. Target ≥ 99.5% maps round-trip cleanly (within Δt + angle quantization).
-- [ ] **0.4** Lock vocabulary constants: vocab size, Δt resolution, ANGLE resolution.
+### V7-1 — Preprocessing Pipeline ✅ DONE (2026-05-17)
+- [x] `scripts/preprocess_v7.py` written and tested on single song
+- [x] Demucs → MERT pipeline: drum stem + melody stem encoded to beat grid
+- [x] Phrase fingerprints (4-bar windows) computed and stored
+- [x] All keys written to `.pt` files in fp16 (non-destructive)
+- [x] **Full dataset run complete:** 5319/5320 songs have V7 features (99.98%)
+  - 1 unrecoverable: song `3aa51` (corrupted zip, no audio)
+  - OOM fix shipped: `mert_encoder.py::extract_features` now chunks long audio at 30s
+    (`_CHUNK_SECS = 30`) — songs up to 39 min now process without OOM
+- [ ] `frame_index.json` update deferred — not blocking training
 
-**DoD:** Round-trip test passes; new tokenizer + tests committed.
+**DoD met.**
 
-### Phase V6-1 — Saber state extractor (1 day)
+### V7-2 — Beat Grid Labels ✅ DONE (2026-05-15)
+- [x] `data/beat_grid.py::extract_beat_labels()` — parses swing_tokens → binary left/right per slot
+- [x] `beat_labels_from_pt()` — convenience loader from a .pt dict
+- [x] Validated on `1ccca.pt`: 66L + 66R notes detected, 14.1% positive rate (confirms pos_weight=6.0)
+- [x] Labels computed on-the-fly at dataset load time (no separate precompute step needed)
 
-- [ ] **1.1** `data/saber_state.py::compute_saber_states(swing_events) -> Tensor[N, 12]`. Pure, deterministic, parity-resets on >3-beat gaps.
-- [ ] **1.2** Property tests: state at N depends only on swings 0..N−1; long-gap reset works; left/right independent.
-- [ ] **1.3** Sanity histogram on Joetastic cohort — distributions look healthy.
+**DoD met.**
 
-**DoD:** Saber state computed for every Joetastic map; histograms look reasonable.
+---
 
-### Phase V6-2 — Dataset migration (2 days)
+### V7-3 — Stage 1: Beat Classifier 🔧 RUN 3 PLAN (2026-05-20)
 
-- [ ] **2.1** Add `SwingSequenceDataset` (or `format=swing` flag on existing). Emits `tokens`, `saber_state`, `mapper_id`, `phrase_window_offset`.
-- [ ] **2.2** Update `collate_fn` for variable-length swing streams.
-- [ ] **2.3** Re-preprocess Joetastic → `data/cohorts/joetastic/processed_v6/`. Keep V5 `processed/` for fallback.
-- [ ] **2.4** Smoke test: batch → `SwingEventTokenizer.decode` → valid `DifficultyBeatmap`.
+#### Run 2 Result (2026-05-19 → 2026-05-20)
+- Best `val_f1_avg = 0.442` at **epoch 0**, then 10 epochs of no improvement → early stop at epoch 10.
+- Run 1 was 0.422. Run 2's fixes (pos_weight 6.0→3.6, mix-stem fusion, phase embedding) moved the needle ~2 points.
+- "Peaks at epoch 0 then decays" is the signature of a frozen-encoder head saturating against an irreducible label-noise floor — the head extracts everything the features can explain in one pass, then overfits.
 
-**DoD:** Joetastic V6-preprocessed; DataLoader produces correctly-shaped batches; round-trip from batch passes.
+#### Audit Findings (2026-05-20)
 
-### Phase V6-3 — Model rewiring (2 days)
+Re-derived diagnosis on Run 2 results. Two structural issues remain on top of any subjectivity ceiling:
 
-- [ ] **3.1** Add `saber_state_proj = Linear(12, d_model)`; additive to decoder input.
-- [ ] **3.2** Add `phrase_proj = Linear(d_model, d_model)`; phrase embedding pooled from 16-bar audio window, additive per decode position.
-- [ ] **3.3** New vocab size (~70) wired through model + tokenizer + configs.
-- [ ] **3.4** **Delete** from `seq_module.py`: `_compute_flow_loss`, `_compute_intra_onset_parity_loss`, `_compute_follow_through_loss`, `_compute_ergo_loss`, plus their `*_alpha` hyperparams.
-- [ ] **3.5** Update `decode_step_cached` to consume new vocab + saber-state input (recomputed per step at inference).
-- [ ] **3.6** Configs: `configs/model/sequence/sequence_swing_small.yaml` (d_model=256, 4 layers) and `sequence_swing_full.yaml` (d_model=512, 8 layers).
+1. **No in-model difficulty conditioning.** `BeatDataset.__getitem__` returns `difficulty` but `BeatClassifier.forward(drum, mix, slot_offset)` never consumes it. With Expert (~3 notes/bar) and ExpertPlus (~6 notes/bar) pooled, the same drum hit gets label `0` in one and `1` in the other; the model can only predict the marginal.
+2. **Exact-slot F1 is too brutal.** A prediction one slot off (≈125 ms at 120 BPM, subdiv=4) is currently double-counted (FP + FN). MIR-standard onset evaluation uses a ±tolerance window (typically ±50 ms or ±1 slot). Our reported F1 is systematically below the inter-mapper agreement floor.
 
-**DoD:** Model trains 1 epoch on Joetastic V6 without errors; val_loss is measurable.
+Looked-for and confirmed absent (not regressing for tonight; documented as follow-up):
+- Mapper-cohort conditioning: cohort scripts (`scripts/cohort_eda.py`, `compute_cohort_reference.py`) exist but the V7 preprocessing didn't write `mapper` into `mod_requirements` — value is `None` for every `.pt` file. Blocked on a preprocessing backfill pass.
+- Density-regression target instead of binary BCE per slot: bigger redesign, not 1-session-safe.
 
-### Phase V6-4 — Phrase-energy auxiliary loss (1 day)
+#### Run 3 Plan (overnight, 2026-05-20)
 
-- [x] **4.1** Compute predicted swing rate per 4-bar window from emission probabilities.
-- [x] **4.2** Compute ground-truth audio RMS per 4-bar window.
-- [x] **4.3** KL divergence between the two; weight via `phrase_energy_alpha` (default 0.1).
-- [ ] **4.4** Log `train_phrase_energy_loss`; verify it actually decreases on a real run.
+Code changes for this run:
 
-**DoD:** Loss is differentiable ✓. **"Verify it decreases" NOT yet met**: first training run showed phrase_energy_loss flat at ~0.09 across all 30 epochs. Three causes fixed before retrain: (1) double-BOS teacher forcing bug, (2) first-Δt absolute-encoding bug. Will re-verify on next run.
+1. **`models/beat_classifier.py`** — add `nn.Embedding(N_DIFF, d_model)` summed into the input post-`input_norm`. `forward(drum, mix, difficulty, slot_offset)`.
+2. **`training/beat_module.py`** — read `difficulty` from batch and plumb through to the model. Add a tolerance-window onset F1 metric (`val_f1_avg_tol`) alongside the exact-slot metric.
+3. **`data/beat_dataset.py`** — already returns `difficulty`; no change.
+4. **`scripts/train_beats.py`** — no signature change; tolerance value (`--tolerance-slots`, default 1) exposed for ablation.
 
-### Phase V6-5 — Style discriminator (2 days)
+Tolerance metric semantics (implementation note for the audit step):
+- A predicted positive at slot `t` matches a label positive at any slot in `[t - K, t + K]` (default K=1, ≈125 ms at 120 BPM).
+- Greedy nearest-match: walk predicted positives in order, each can match at most one label, each label matches at most one prediction.
+- Reported per-hand and averaged. Logged as `val_f1_avg_tol` (don't replace `val_f1_avg` — keep both so we can see the gap).
 
-- [ ] **5.1** `training/style_discriminator.py`: small transformer (`d_model=128`, 2 layers) over `(audio_window_emb, swing_window_tokens) → mapper_id` across all 18 cohorts.
-- [ ] **5.2** Pretrain to F1 ≥ 0.6 on held-out swing windows. Checkpoint saved.
-- [ ] **5.3** Plug into `seq_module.py` as `−λ · log p_D(this_mapper | generated_window)`. Frozen D, stop-gradient through D.
-- [ ] **5.4** Calibrate `style_disc_alpha` (default 0.2) so its gradient magnitude is comparable to CE.
+**Run 3 command:**
+```bash
+python scripts/train_beats.py \
+  --max-epochs 30 \
+  --batch-size 64 \
+  --pos-weight 3.6 \
+  --patience 8 \
+  --difficulties Expert ExpertPlus \
+  --tolerance-slots 1
+```
 
-**DoD:** Discriminator-augmented sequence run completes; style-closeness composite on leaderboard improves vs CE-only baseline.
+**Success criteria:**
+- `val_f1_avg_tol` ≥ 0.65 → tolerance metric alone explains the gap, model was always fine
+- `val_f1_avg` ≥ 0.55 with diff-embedding → conditioning unlocks the pooling-noise headroom
+- Both: ready to move to Stage 2 training
+- Neither: confirms subjectivity ceiling, escalate to density-regression or per-mapper plan
 
-### Phase V6-6 — Inference + postprocess cleanup (1 day)
+#### Earlier Run History (for reference)
 
-- [x] **6.1** V6 grammar-constrained nucleus sampler in `generation/beam_search_v6.py`. Grammar state machine enforces token grammar; saber state updated per event and passed to model.
-- [x] **6.2** `generation/generate.py::generate_swing_level` — full V6 end-to-end pipeline (audio → swing-event stream → beatmap → postprocess → lighting → .zip). `postprocess_beatmap` no longer calls `fix_parity` or `convert_dot_notes`.
-- [x] **6.2b** `scripts/generate.py` — `--v6` CLI flag routes to `generate_swing_level`. `--max-events` and `--mapper-id` flags added. Windowed inference cursor fixed (advances from model's `current_beat`, no per-window beat-range filter).
-- [ ] **6.3** End-to-end: `python scripts/generate.py "data/test_songs/SO TIRED ROCK - NUEKI.mp3" --v6 --seq-ckpt <ckpt> --difficulty Expert --genre rock`. Verify .zip loads in ArcViewer. **Blocked on retrain** (current ckpt poisoned by encoding bugs).
+#### Audit + Fix Pass (2026-05-19) — produced Run 2
 
-**DoD:** `test_generate_swing_level_creates_zip` passes ✓. Full ArcViewer test pending clean retrain.
+#### Audit + Fix Pass (2026-05-19)
 
-### Phase V6-7 — Harness re-validation (1 day)
+Code changes applied this session (`git diff` shows the full set):
 
-- [x] **7.1** `scripts/train.py` updated: `dataset_format=swing` flag, `limit_val_batches` knob, V6 SequenceLitModule params wired, V5 dead kwargs removed.
-- [x] **7.2** `experiments/queue/v6_pilot.yaml` created: Joetastic / Rustic / Helloimdaan @ `sequence_swing_small` preset, 90 min each.
-- [x] **7.3** First 30-epoch global run completed (all 5320 maps, Expert/ExpertPlus). val_loss 1.31→0.947, val_token_acc 69%→87%, no crash. **Checkpoint invalidated** — three encoding bugs found and fixed; retrain needed.
-- [ ] **7.4** Retrain with fixed encoding. Verify Δt distribution is reasonable (median ~0.5 beats, not 64). Verify phrase_energy_loss decreases. Compare leaderboard rows.
+- `models/beat_classifier.py`
+  - Added `mix_dim` parameter; `mix_proj` Linear(768→d_model) added in parallel with `drum_proj`
+  - Drum + mix projections sum-fused → input `LayerNorm` for training stability
+  - Learned **phase embedding** indexed by `(slot + slot_offset) % 16` — gives the model
+    explicit downbeat/within-bar phase, independent of pos_emb (which is window-relative)
+  - `forward(drum_features, mix_features, slot_offset)` — backward-compat: mix may be None
+- `data/beat_dataset.py`
+  - Requires both `drum_beat_features` and `mix_beat_features` keys
+  - Returns `mix_features` and `slot_offset` per sample
+  - Beat labels cached per (song, difficulty) — was recomputing per-window (O(W) wasted work)
+- `training/beat_module.py`
+  - Default `pos_weight = 3.6` (was 6.0 — measured positive rate is 21.8%, not 15%)
+  - `forward(drum, mix, slot_offset)` plumbed through training_step/validation_step
+- `scripts/train_beats.py`
+  - `--pos-weight` default 3.6, added `--mix-dim` (set 0 to disable), added `--patience`
+  - Patience wired to `EarlyStopping` (was hardcoded to 5)
 
-**DoD pending retrain.** Infrastructure ✓.
+Param count went from ~1.0M → ~2.0M (mix_proj 200K + phase_emb 4K + slightly larger
+input path). Still trivially small for our dataset; no overfitting risk added.
 
-### Phase V6-8 — Deep training + human eval (1–2 weeks)
+#### Run 1 Results (2026-05-17) — kept for reference
 
-- [ ] **8.1** From V6-7 leaderboard, pick top-2 cohorts. Full-size training (d_model=512, 8 layers), 6–10h each.
-- [ ] **8.2** Generate 3 test maps per winning cohort across 3 different test songs.
-- [ ] **8.3** Self-eval against the real catalog side-by-side in ArcViewer. Document wins/losses in `docs/v6_results.md`.
-- [ ] **8.4** If possible: blind community-mapper review of generated maps.
+#### Run 1 Results (2026-05-17)
+- Dataset: 187,855 train windows / 11,251 val windows from 4,457 songs
+- Best checkpoint: `logs/beat_classifier/version_0/checkpoints/beat-epoch=03-f1=val_f1_avg=0.422.ckpt`
+- **val_f1_avg = 0.422** at threshold 0.5 (target: 0.80) — early stopping at epoch 8
+- Best achievable with threshold tuning: **~0.46 at threshold 0.65** — still far short
 
-**DoD:** At least one cohort produces output a human can identify as that mapper's style.
+#### Post-Mortem: Why It Failed
+
+**Root cause: low precision, not low recall.**
+
+At the optimal threshold (0.65):
+```
+prec=0.33  recall=0.65  f1=0.46
+```
+The model predicts 3-4× more positives than ground truth. It detects drum hits well
+but Beat Saber notes only cover a *subset* of drum hits — different mappers choose
+different subsets. The model has no signal to make that distinction.
+
+**Two specific bugs:**
+
+1. **`pos_weight` miscalibrated**: Set to 6.0 (designed for 15% positive rate).
+   Actual dataset positive rate is **21.8%** (measured across val set).
+   Correct value: `neg_rate / pos_rate = 78.2 / 21.8 ≈ 3.6`
+   Too-high pos_weight forces the model to over-predict positives, crushing precision.
+
+2. **Missing melody features**: `mix_beat_features` (melody stem MERT) is stored in
+   every `.pt` file but is **not used** as input to the classifier. The melody is the
+   primary signal for *which* drum hits a human mapper chooses to include — different
+   genres/instruments create different mapping styles. Without melody context, the
+   model can only guess the statistical average onset rate, not song-specific choices.
+
+#### Fix Plan for Run 2
+
+**Code changes needed before retraining:**
+
+1. **`training/beat_module.py`**: Change default `pos_weight=6.0` → `pos_weight=3.6`
+
+2. **`models/beat_classifier.py`**: Modify `__init__` to accept `mix_dim=768` as a
+   second input. Concatenate drum + mix features before the input projection:
+   `input_proj = Linear(768 + 768, d_model)` (or project separately and add).
+   Forward signature: `forward(drum_features, mix_features) → [B, W, 2]`
+
+3. **`data/beat_dataset.py`**: Add `mix_features` to `__getitem__` return dict —
+   load `data["mix_beat_features"][start:end].float()` alongside drum features.
+
+4. **`scripts/train_beats.py`**: Pass `pos_weight=3.6` and update BeatLitModule init.
+
+**Run 2 command (after code changes):**
+```bash
+python scripts/train_beats.py \
+  --max-epochs 30 \
+  --batch-size 64 \
+  --pos-weight 3.6 \
+  --patience 8
+```
+*(add `--patience` arg to train_beats.py — currently hardcoded to 5)*
+
+**Expected improvement:** Correcting pos_weight alone should lift precision from 0.33
+to ~0.50. Adding melody features should further lift by teaching the model which drum
+hits a mapper would "choose" given the song's melodic content. Target: F1 ≥ 0.65 as
+a realistic intermediate; F1 ≥ 0.80 remains the DoD.
+
+#### Existing Code (unchanged)
+- [x] `models/beat_classifier.py` — 2-layer local self-attention, drum MERT only
+- [x] `data/beat_dataset.py` — sliding-window dataset, 128-slot windows, hop 64
+- [x] `training/beat_module.py` — weighted BCE, F1/P/R via torchmetrics
+- [x] `scripts/train_beats.py` — standalone training script
+- [x] **Run 2 code changes** — mix-stem fusion, phase embedding, pos_weight=3.6
+- [x] **Run 2 trained** — val_f1_avg=0.442 (peaked at epoch 0)
+- [ ] **Run 3 code changes** — diff embedding + tolerance F1 metric
+- [ ] **Run 3 trained** — overnight 2026-05-20
+- [ ] **Threshold sweep** after Run 3 converges
+- [ ] Follow-up: backfill `mapper` field into V7 `.pt` files to enable cohort conditioning
+- [ ] Follow-up: ablation of density-regression target if Run 3 still saturates
+
+**DoD:** `val_f1_avg_tol` ≥ 0.80 (with ±1-slot tolerance). Exact-slot F1 is a secondary diagnostic.
+
+### V7-4/5 — Stage 2: Layout Dataset + Generator ✅ CODE DONE / ⏳ AWAITING STAGE 1 (2026-05-15)
+- [x] `data/layout_dataset.py` — per-onset samples: local/section/song MERT + saber state + spatial tokens
+- [x] `models/layout_model.py` — causal transformer decoder, MERT conditioning at 3 levels, no Δt/HAND
+- [x] `training/layout_module.py` — CE loss over spatial tokens, val token accuracy metric
+- [x] `scripts/train_layout.py` — training script
+- [x] **Bug fix (2026-05-19): saber-state off-by-one** in `LayoutDataset.__getitem__`. Was
+      `compute_saber_states(all_events[:evt_idx])[-1]` — state BEFORE the *previous* event,
+      not the current one. Now uses `compute_saber_states(all_events)[evt_idx]` directly.
+- [x] **Perf fix (2026-05-19): O(n²) decode** — `decode_events` + `compute_saber_states` were
+      called per-`__getitem__`. Now cached per (song, difficulty) in `_evt_cache`.
+- [ ] **Run training** (blocked on Stage 1 checkpoint)
+
+#### Known architectural limitation (audit, 2026-05-19)
+
+Stage 2 currently generates each onset's 5-token spatial sequence **independently**, with
+the only cross-note state being the 12-dim saber state (which only carries the LAST event
+per hand). This caps musical "flow" between adjacent notes within a phrase. PhraseIndex
+hard-retrieval mitigates this for repeated phrases, but novel phrases get note-level
+independence. Candidate fixes (deferred — schedule after first end-to-end run):
+
+1. Pass a short window of recent spatial events (last K=4-8) as additional cross-attn memory
+2. Switch to phrase-level autoregression: the decoder unrolls all notes in a 4-bar window in
+   one teacher-forced pass instead of one note at a time
+
+For tonight: train Stage 2 as-designed; the multi-tier MERT conditioning already gives it
+song/section/phrase context that V6 lacked. Re-evaluate flow after first ArcViewer review.
+
+**DoD pending:** val_token_acc ≥ 0.85. Run after Stage 1 converges:
+```bash
+python scripts/train_layout.py --max-epochs 30
+```
+
+### V7-6 — PhraseIndex ✅ DONE (2026-05-15)
+- [x] `generation/phrase_index.py::PhraseIndex` — cosine similarity lookup over 4-bar fingerprints
+- [x] `NotePattern` dataclass — stores (relative_slot, hand) → spatial_token_list
+- [x] Hard retrieval: `query()` returns stored pattern if sim > threshold (0.85), else None
+- [x] `record()` fills the nearest pre-indexed slot (or appends if not pre-indexed)
+- [x] `build()` pre-computes fingerprints from mix MERT; `clear()` resets between songs
+- [x] Smoke-tested: query returns None before record, returns pattern after record ✓
+
+**DoD met** (manual phrase-match test deferred until trained models available).
+
+### V7-7 — End-to-End Inference ✅ CODE DONE / ⏳ AWAITING TRAINED MODELS (2026-05-15)
+- [x] `generation/generate.py::generate_v7_level()` — full Demucs→MERT→Stage1→PhraseIndex→Stage2 pipeline
+- [x] `_decode_spatial_tokens()` helper — spatial token list → `_SwingEvent`
+- [x] `scripts/generate.py --v7` — CLI flag wired; requires `--beat-ckpt` and `--layout-ckpt`
+- [ ] **End-to-end test run** (blocked on trained checkpoints)
+
+**DoD pending:** NPS ≥ 3.0. Run after both checkpoints exist:
+```bash
+python scripts/generate.py "data/test_songs/SO TIRED ROCK - NUEKI.mp3" \
+  --v7 --beat-ckpt <ckpt> --layout-ckpt <ckpt> \
+  --difficulty Expert --genre rock --run-tag v7_first
+```
+
+### V7-8 — Evaluation + Tuning ⏳ NOT STARTED
+- [ ] Generate on test song; check NPS and ArcViewer
+- [ ] Tune Stage 1 threshold (start at 0.4, sweep 0.3–0.6)
+- [ ] Tune PhraseIndex similarity threshold (start at 0.85)
+- [ ] If repetitive: lower threshold to 0.80 or 0.75
+- [ ] If drifting: raise threshold to 0.90
+- [ ] Compare V6 vs V7 NPS on same test songs
 
 ---
 
 ## Explicitly Deprecated (Do Not Revisit)
 
-| Thing | Why it's dead |
-|-------|--------------|
-| Chord-at-timestamp tokenization (`data/tokenizer.py::BeatmapTokenizer`) | Hides physics, generates aux-loss debt. Replaced by `SwingEventTokenizer`. |
-| `_compute_flow_loss` | Parity is structural under swing-events. |
-| `_compute_intra_onset_parity_loss` | Same as above. |
-| `_compute_follow_through_loss` | Replaced by geometric loss between consecutive same-hand swings (if needed). |
-| `_compute_ergo_loss` | Color-side preference is now structural via HAND tokens. |
-| Mean-pooled `prev_context_k` blob | Replaced by saber-state vector + per-hand swing window. |
-| Diagonal-biased `_choose_flow_direction` postproc | Model emits direction directly. |
-| `fix_parity`, `convert_dot_notes` rewrite passes | Same. |
-| V5 overnight sweep (`experiments/queue/initial.yaml`) | Held; would have trained the wrong representation. Will re-run as `v6_pilot.yaml` after V6-6. |
-
-The original `BeatmapTokenizer` stays in the repo as a legacy round-trip and evaluation aid, but is no longer used by Stage 2 training.
-
----
-
-## File Map (V6)
-
-### To Create
-| File | Purpose |
-|------|---------|
-| `docs/architecture_v6_plan.md` | Full V6 rationale + phase plan (EXISTS) |
-| `docs/swing_event_grammar.md` | Locked-down token table + ordering rules |
-| `src/beatsaber_automapper/data/swing_tokenizer.py` | New per-hand swing-event tokenizer |
-| `src/beatsaber_automapper/data/saber_state.py` | Saber-state extractor (12-dim per swing) |
-| `src/beatsaber_automapper/models/phrase_encoder.py` | 16-bar phrase-window pooler |
-| `src/beatsaber_automapper/training/style_discriminator.py` | Mapper classifier + pretraining loop |
-| `configs/model/sequence/sequence_swing_small.yaml` | V6 small preset |
-| `configs/model/sequence/sequence_swing_full.yaml` | V6 full preset |
-| `experiments/queue/v6_pilot.yaml` | First V6 sweep (3 cohorts × 90 min) |
-| `docs/v6_results.md` | Per-cohort wins/losses |
-
-### To Modify
-| File | Change |
-|------|--------|
-| `src/beatsaber_automapper/data/dataset.py` | Add swing-event format, emit saber-state + mapper_id |
-| `src/beatsaber_automapper/models/sequence_model.py` | New vocab, saber-state projection, phrase projection |
-| `src/beatsaber_automapper/training/seq_module.py` | **Delete** flow / parity / follow-through / ergo losses. Add phrase-energy + style-discriminator losses. |
-| `src/beatsaber_automapper/generation/beam_search.py` | Swing-event grammar mask; saber-state maintained per step |
-| `src/beatsaber_automapper/generation/postprocess.py` | Drop parity/dot/diagonal rewriters; keep structural rules |
-| `scripts/preprocess.py` | `--format swing` flag (defaults to v6 going forward) |
-| `scripts/auto_research.py` | Accept V6 model presets |
-| `CLAUDE.md` | Architecture section updated to V6 (DONE) |
-| `README.md` | ML pipeline diagram + conditioning table updated to V6 (DONE) |
-
-### To Reference (keep working, no changes)
-| File | What it does |
-|------|-------------|
-| `models/audio_encoder.py` | Shared audio encoder — still correct |
-| `models/onset_model.py` | Stage 1 — still correct |
-| `models/onset_planner.py` | Optional; saber-state subsumes most of its role. Keep wiring, expect to disable in V6 small preset. |
-| `generation/lighting_rules.py` | Rule-based Stage 3 — still good enough |
-| `generation/chroma.py` | Chroma palettes — still good |
-| `evaluation/playability.py` | Still the evaluator (heuristic checks); not used as training loss |
-
----
-
-## Commands (V6)
-
-```bash
-# Preprocess Joetastic cohort under V6 swing-event format
-python scripts/preprocess.py --cohort joetastic --format swing --workers 8
-
-# Train V6 small model on Joetastic
-python scripts/train.py stage=sequence \
-    model=sequence/sequence_swing_small \
-    data.cohort=joetastic \
-    seq_module.phrase_energy_alpha=0.1 \
-    seq_module.style_disc_alpha=0.0 \
-    max_epochs=30 max_samples_per_epoch=50000
-
-# Run V6 pilot sweep
-python scripts/auto_research.py experiments/queue/v6_pilot.yaml
-
-# Generate end-to-end with V6 model
-bsa-generate song.mp3 --difficulty Expert --cohort joetastic
-```
+| Thing | Why |
+|-------|-----|
+| Scratch `AudioEncoder` mel transformer | MERT knows more music than we can teach it |
+| Δt tokens in Stage 2 | Timing is now explicit from Stage 1 — conflating WHEN and WHAT was the root failure |
+| `phrase_energy_alpha` KL loss | MERT makes audio-density alignment unnecessary; retrieval handles consistency |
+| `dt_density_alpha` hinge loss | Symptom treatment; root cause was missing explicit timing |
+| `bomb_hand_weight` tuning | Bomb attractor was a symptom of bad timing loss; with explicit timing it won't recur |
+| Per-window Δt autoregressive inference | Replaced by beat-slot iteration from Stage 1 schedule |
 
 ---
 
 ## Success Criteria
 
-V6 is working when:
+V7 is working when:
 
-1. **Round-trip fidelity:** swing-event tokenizer round-trips ≥ 99.5% of cohort maps.
-2. **Structural correctness (pre-postproc):** parity violations < 5%; zero impossible follow-throughs; dot-direction usage ≤ cohort baseline ± 5%.
-3. **Style transfer:** at least one cohort's V6 output is identifiable as that mapper's style by a human.
-4. **Iteration speed:** harness still hits ≥ 10 experiments / overnight on V6 small preset.
-5. **Loss-stack simplicity:** `seq_module.py` is *smaller* after V6 than before V5. (If aux-loss code is growing again we're doing it wrong.)
-
----
-
-## Risk Register (summary; full version in `docs/architecture_v6_plan.md`)
-
-| Risk | Mitigation |
-|------|------------|
-| Swing-event grammar can't represent some v3 construction | Round-trip test on full Joetastic catalog before committing. |
-| Δt quantization loses musically-meaningful timing | Pick bin resolution from histogram of real inter-swing intervals. |
-| Saber state too low-dim to capture intent | Add `swing_velocity_estimate` or last-K same-hand swings. |
-| Style discriminator fails to learn | V6-5 is gated; ship V6 without it if F1 < 0.6. |
-| V6 worse than V5 on cohorts | Harness surfaces this within 90 min. Hold and debug before deeper runs. |
-| Removing aux losses regresses parity | Structural alternation guarantees parity. If violated, encoder is buggy — fix encoder, don't re-add loss. |
+1. **Stage 1 F1 ≥ 0.80** on held-out songs (onset detection, both hands)
+2. **NPS ≥ 3.0** on the test song at Expert difficulty (was 1.08 best V6)
+3. **NPS ≥ 5.0** after tuning (Expert target range: 4–10)
+4. **Cross-song consistency:** second chorus note patterns are visually similar to first chorus (manual ArcViewer review)
+5. **No bombs / no parity violations** pre-postprocess (structural grammar handles this)
+6. **Iteration speed:** full preprocessing + Stage 1 train + Stage 2 train ≤ 8 hours total on RTX 5090

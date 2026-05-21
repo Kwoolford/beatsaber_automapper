@@ -1,9 +1,285 @@
 # Beat Saber Automapper — Progress History
 
 > **For current work, active TODOs, and implementation plan, see [`TODO.md`](TODO.md)**
-> **For latest architecture analysis, see [`docs/architecture_v6_plan.md`](docs/architecture_v6_plan.md)**
+> **For latest architecture analysis, see [`docs/architecture_v7_plan.md`](docs/architecture_v7_plan.md)**
 
 This file is a historical record of what was done, what worked, and what didn't.
+
+---
+
+## V7-3 Run 2 Post-Mortem + Run 3 Audit (2026-05-20)
+
+**Run 2 result** (overnight 2026-05-19 → 2026-05-20): `val_f1_avg = 0.442`, best at epoch 0,
+10 epochs of no improvement → early stop. Run 1 was 0.422. The pos_weight + mix-stem +
+phase-embedding fixes from the 2026-05-19 audit moved the metric ~2 F1 points. The fixes
+were correct but not load-bearing.
+
+**The "peaks at epoch 0" pattern** is the clearest diagnostic signal we have. With a
+frozen MERT encoder feeding a small head, the head learns everything that's learnable from
+the input features almost instantly. Subsequent training just overfits to noise. F1
+saturating immediately means the *features-given-labels* relationship is the bottleneck,
+not the model capacity or optimization.
+
+**Audit (2026-05-20) re-derived two structural reasons the label/feature relationship is
+weaker than it should be:**
+
+1. **No in-model difficulty conditioning.** `BeatDataset` returns `difficulty` per sample,
+   but `BeatClassifier.forward(drum, mix, slot_offset)` never consumes it. Expert maps
+   carry ~3 notes/bar, ExpertPlus ~6 notes/bar — the same drum hit gets label 0 in one
+   and label 1 in the other. With both pooled and no conditioning, the model can only
+   predict the mixture marginal. This alone would explain a substantial F1 deficit.
+
+2. **Exact-slot F1 is too brutal.** At subdiv=4 and BPM=120, one slot is ~125 ms — well
+   inside human onset perception tolerance and well below mapper placement noise. MIR
+   onset-detection literature uses ±50 ms or ±1-slot tolerance windows; we use exact
+   slot match, which double-counts off-by-one errors (FP + FN). The reported F1 is
+   systematically below the inter-mapper agreement floor for this reason.
+
+Also confirmed absent (deferred, not regressed):
+- **Mapper-cohort conditioning:** cohort scripts (`scripts/cohort_eda.py`,
+  `compute_cohort_reference.py`, `download_cohorts.py`) survived from V6, but V7
+  preprocessing never populated `mapper` in `mod_requirements` — the field is `None`
+  for every `.pt`. Need a backfill pass before this is usable in V7.
+- **Density-regression target:** still binary BCE per slot. Bigger redesign,
+  deliberately deferred.
+
+**Run 3 plan** (overnight 2026-05-20):
+- Add `nn.Embedding(N_DIFF, d_model)` summed into the input post-`input_norm`.
+- Add MIR-style ±K-slot tolerance F1 (greedy match, each pred matches ≤1 label and
+  vice versa). Log `val_f1_avg_tol` alongside the existing exact-slot `val_f1_avg`.
+- Keep Expert + ExpertPlus pooled — the new embedding handles the diff disambiguation.
+- pos_weight stays at 3.6.
+
+If `val_f1_avg_tol` clears 0.65 the metric was always the issue; if it doesn't,
+we're closer to confirming the subjectivity ceiling and the next move is per-mapper
+training or density regression.
+
+---
+
+## V7 Audit + Fix Pass (2026-05-19)
+
+Architecture review confirmed V7's high-level intent is sound — decoupling WHEN (Stage 1)
+from WHAT (Stage 2), with multi-tier MERT conditioning (local frame / section / song) and
+PhraseIndex hard-retrieval for cross-song consistency. The 3-second-window failure mode of
+V6 is structurally avoided.
+
+Bugs found and fixed:
+
+**Stage 1 (BeatClassifier)**
+- `pos_weight = 6.0` was calibrated for a 15% positive rate; the measured rate on the
+  Expert+ training split is 21.8%. Corrected to 3.6 (= 78.2/21.8). This was the primary
+  cause of Run 1's low precision (0.33 — over-predicting positives by ~3×).
+- `mix_beat_features` was preprocessed into every `.pt` file but never read by the
+  classifier. The mix (melody) stem carries the genre/instrument signal that determines
+  which drum hits a human mapper *chooses* to include. Now sum-fused with the drum
+  projection inside `BeatClassifier`.
+- No explicit phase signal. Mappers respect the within-bar phase (1-and-2-and-3-and-4-and).
+  Added a learned phase embedding indexed by `(slot + slot_offset) % 16`. Acts in addition
+  to the (window-relative) positional embedding.
+- `--patience` was hardcoded to 5 in `train_beats.py`; exposed as a CLI arg (default 8).
+- Beat labels were recomputed per window in `__getitem__` — cached per (song, difficulty).
+
+**Stage 2 (LayoutDataset)**
+- **Off-by-one saber-state bug**: was `compute_saber_states(all_events[:evt_idx])[-1]`,
+  which is the saber state BEFORE event `evt_idx-1`, not before event `evt_idx`. Fixed
+  to `compute_saber_states(all_events)[evt_idx]`.
+- **O(n²) recompute**: `decode_events` + `compute_saber_states` were called for every
+  `__getitem__`. Now cached per (song, difficulty).
+
+Verified: 361/361 tests still pass; smoke training run on real data converges normally.
+
+---
+
+## V7 Implementation: Full Pipeline Built (May 15, 2026)
+
+### What was built
+
+All V7 code is implemented and import-tested (361/361 tests pass). The full
+pipeline runs end-to-end in smoke tests. **Training is blocked on preprocessing
+completing** — `scripts/preprocess_v7.py` is running and at ~505/5320 songs as of
+18:56 local, ETA ~4.5h remaining.
+
+### New files
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `scripts/v7_poc.py` | Demucs+MERT PoC beat classifier | Done |
+| `scripts/preprocess_v7.py` | Demucs+MERT feature extraction for all songs | Running |
+| `scripts/train_beats.py` | Stage 1 training script | Done, awaiting preprocessing |
+| `scripts/train_layout.py` | Stage 2 training script | Done, awaiting Stage 1 |
+| `data/mert_encoder.py` | MERT-v1-95M wrapper: extract + beat-grid pool + phrase fingerprints | Done |
+| `data/stem_separator.py` | Demucs htdemucs wrapper (GPU, cached) | Done |
+| `data/beat_grid.py` | Binary beat labels from swing_tokens | Done |
+| `data/beat_dataset.py` | Sliding-window dataset for Stage 1 | Done |
+| `data/layout_dataset.py` | Per-onset dataset for Stage 2 | Done |
+| `models/beat_classifier.py` | Stage 1: local attention on drum MERT → P(left/right) | Done |
+| `models/layout_model.py` | Stage 2: causal transformer, MERT-conditioned, no Δt/HAND | Done |
+| `training/beat_module.py` | Lightning: weighted BCE, F1/P/R metrics | Done |
+| `training/layout_module.py` | Lightning: spatial CE loss, token accuracy | Done |
+| `generation/phrase_index.py` | PhraseIndex: cosine similarity hard retrieval | Done |
+| `generate.py::generate_v7_level` | Full V7 end-to-end inference function | Done |
+| `scripts/generate.py --v7` | CLI flag wiring | Done |
+
+### V7-0 PoC results (validated before full build)
+
+- Demucs `htdemucs` separated test song in ~2s on RTX 5090 GPU
+- MERT-v1-95M produced `[13210, 768]` at 75 Hz (correct frame rate)
+- Beat grid: 1444 slots at 1/4-note resolution, 9.1 MERT frames per slot at 123 BPM
+- **sklearn logistic regression (same-song, frozen MERT):** F1_left=0.52, F1_right=0.67 → **avg F1=0.59**
+- Conclusion: MERT drum stem features carry strong onset signal without any task-specific training
+
+### Preprocessing throughput (actual, RTX 5090)
+
+- Warmup (model load): ~6s
+- Per-song: ~4.5s average (scales with song length)
+- 5320 songs total: ~6.5h one-time cost
+- Song `1ccca.pt` (52s song): features written as `drum_beat_features [468, 768]`,
+  `mix_beat_features [468, 768]`, `phrase_fingerprints [8, 768]` — all fp16, ~3 MB/song added
+
+### Data format after preprocessing
+
+Each `.pt` file gains four new keys (non-destructive, all existing keys preserved):
+
+| Key | Shape | dtype | Description |
+|-----|-------|-------|-------------|
+| `drum_beat_features` | `[N_slots, 768]` | fp16 | Drum MERT pooled to 1/4-note grid |
+| `mix_beat_features` | `[N_slots, 768]` | fp16 | Melody MERT pooled to 1/4-note grid |
+| `phrase_fingerprints` | `[N_phrases, 768]` | fp16 | Mean MERT per 4-bar window |
+| `phrase_boundaries` | list of (int, int) | — | (start_slot, end_slot) per phrase |
+
+### Key design decisions made
+
+1. **Drum stem only for Stage 1**: cleaner onset signal than full mix; confirmed by PoC
+2. **Melody stem ("other") for Stage 2**: captures instrument-specific features for layout
+3. **fp16 storage**: halves storage overhead vs fp32; 768-dim × N_slots × 2 bytes ≈ 1.2 MB per stem per song
+4. **MERT layer -1 (final layer)**: best for discriminative tasks per MERT paper; not tuned yet
+5. **4-bar phrase windows (16 beats)**: matches typical verse/chorus structure; configurable
+6. **Hard retrieval at sim > 0.85**: conservative starting threshold; tune based on subjective repetitiveness of output
+
+### What runs next (in order)
+
+```bash
+# 1. Wait for preprocessing to finish (~4.5h from 18:56)
+# 2. Train Stage 1
+python scripts/train_beats.py --max-epochs 20 --batch-size 64
+# Target: val_f1_avg ≥ 0.80
+
+# 3. Train Stage 2
+python scripts/train_layout.py --max-epochs 30
+# Target: val_token_acc ≥ 0.85
+
+# 4. Generate test map
+python scripts/generate.py "data/test_songs/SO TIRED ROCK - NUEKI.mp3" \
+  --v7 --beat-ckpt <ckpt> --layout-ckpt <ckpt> \
+  --difficulty Expert --genre rock --run-tag v7_first
+```
+
+---
+
+## V6 Post-Mortem: Beat Timing Failure + Architectural Verdict (May 15, 2026)
+
+### Performance Summary Across All V6 Runs
+
+| Checkpoint | Notes | NPS | Bombs | Val Loss | Epoch | Problem |
+|---|---|---|---|---|---|---|
+| version_2 (first post-bugfix retrain) | — | — | — | 0.947 | 30 | Encoding bugs invalidated |
+| version_3 | — | — | — | 0.997 | 30 | Post-bugfix retrain |
+| version_4 | 72→81 (gen-fixed) | 0.46 | 232 | 0.960 | 60 | Stall bug + bomb attractor |
+| version_6 (bomb_weight=0.3) | 157 | 0.89 | 0 | 0.986 | 30 | Low NPS |
+| version_7 (dt_density=0.5) | 120 | 0.68 | 0 | 1.010 | 30 | Regression |
+| version_8 (dt_density=1.0) | 191 | 1.08 | 0 | 1.010 | 30 | Low NPS |
+
+**Expert target: 4–10 NPS. Best achieved: 1.08 NPS. The model has never come close to target density in any run across any configuration.**
+
+### Generation Bugs Fixed Along the Way
+
+Two real bugs were fixed that were masking the problem:
+
+1. **Window stall bug (2026-05-14):** When the model emitted all Δt=0 events and hit the per-window cap, `resume_state.current_beat` wasn't advanced with `window_start_beat`. Every subsequent window had audio context at beat N but the model's internal clock at beat 32.44, permanently anchoring all events there. Fixed: `resume_state.current_beat = window_start_beat` on manual advance. Also: `max_events` 800→2000, per-window cap 256→128.
+
+2. **Bomb attractor (2026-05-14):** HAND_NONE (bombs) had the same 3× loss weight as HAND_LEFT/RIGHT. Bombs are 5-token events vs 7 for notes — shorter, easier to complete, lower-entropy. The model discovered them as a low-loss shortcut. With generation stall fixed, the pre-fix version_4 checkpoint generated 232 bombs / 341 total events (68%). Fixed: `bomb_hand_weight=0.3`.
+
+Fixing both bugs lifted NPS from 0.41 → 1.08. Still catastrophically below Expert target.
+
+### Root Cause: The Model Has No Supervised Signal for Beat Timing
+
+This is the core architectural failure. V6 conflates two separate problems into one autoregressive token stream:
+
+- **Problem 1 (WHEN):** At beat X, should a note exist?
+- **Problem 2 (WHAT):** Given a note at beat X, what hand/position/direction?
+
+The Δt token is doing ALL the work for Problem 1. And cross-entropy loss on Δt tokens provides essentially no audio-grounded supervision for this.
+
+**Why CE on Δt fails:**
+
+The training setup: `window_events=128` events, `context_frames=256` mel frames ≈ 3 seconds of audio. At Expert density (~7 NPS), 128 events span ~18 seconds. The audio context covers only **1/6 of the event window**. For ~83% of the Δt predictions the model makes during training, there is no local audio evidence. The model cannot learn "I see a drum hit at this audio frame → place a note here" because it can't see drum hits for most of the events it's predicting.
+
+The CE gradient on a Δt token is simply: `∂L/∂logit_j = p_j − 1[target=j]`. This pushes the model toward predicting the training data's marginal Δt distribution — which is dominated by intro/outro/break sparsity as much as by drop density. A model that learns "Δt is usually between 0.25 and 1.0 beats" will achieve good CE loss while producing maps that are uniformly sparse, because that's what the average of all song positions looks like.
+
+**Why `phrase_energy_alpha=0.1` didn't fix it:**
+
+The phrase-energy loss computes KL divergence between predicted swing density and audio RMS across 4 coarse bins over a 3-second window. At 123 BPM, 4 bins = 0.75 seconds each ≈ 1.5 beats. This is far too coarse to produce beat-level onset signals. The KL gradient is also swamped by CE loss at the 0.1 weight.
+
+**Why `dt_density_alpha` didn't fix it:**
+
+The hinge penalty on P(Δt=0) reduces event-bursting but doesn't provide audio-aligned density targets. It tells the model "don't cluster events at a single beat" but not "put events at THESE beats." The model responds by spreading events more evenly — but still not responding to audio features, so density remains low overall.
+
+### Why V6's Core Bet Was Wrong
+
+The V6 architecture was designed to fix V5's physics/parity/style problems. It fixed those correctly. But in eliminating Stage 1 (the onset detector) and collapsing timing into the autoregressive stream, it discarded the only component that had a clean discriminative signal for beat placement.
+
+V5's Stage 1 was trained with frame-level binary supervision: `onset_labels[frame] = 1` if a note exists at that frame, `0` otherwise. Every gradient step pointed directly at audio-onset detection. That signal was sharp, local, and correctly calibrated to the audio.
+
+V6 replaced this with Δt tokens inside a sequence model. The equivalent of "is there a note here?" became an implicit consequence of many correlated Δt predictions, with no direct training objective to produce correct onset timing. The saber state and phrase embedding address Problems 2 and 3 (spatial layout and style), but Problem 1 was left to emerge from sequence statistics. It doesn't.
+
+### The Consistent Symptom Across All Runs
+
+Every single run produces the same failure mode: the model generates events that cover the song (after the stall bug was fixed), but with large Δt values — frequently jumping 5–20 beats between events. The model has learned the GRAMMAR of notes (valid token sequences) and the STYLE of individual notes (reasonable X/Y/DIR), but it has not learned to generate notes at musically meaningful beat positions.
+
+This cannot be fixed by tuning `dt_density_alpha`, `bomb_hand_weight`, `phrase_energy_alpha`, epoch count, or any other hyperparameter of the current architecture. The gradient signal for beat timing is structurally absent.
+
+### What Must Change
+
+The two-problem conflation must be separated:
+
+**The WHEN problem requires explicit, audio-aligned binary supervision.**  
+Every note position in the training data is a positive label for a specific audio frame. A classifier trained directly on this signal — even a shallow one — can learn beat-onset patterns. This was true in V5 and discarding it was the V6 mistake.
+
+**The WHAT problem is actually tractable for V6.**  
+The swing-event grammar (HAND, X, Y, DIR, ANGLE, KIND) is a good representation for spatial layout and style. Once timing is provided externally, the autoregressive model only needs to predict "given a beat at this position, what does the note look like?" — which is a much simpler and more constrained problem. Val token accuracy of 87% suggests the model IS learning spatial layout well; it's purely timing that's broken.
+
+**The architecture needed:**
+
+```
+Audio → Beat-Slot Encoder → [binary onset per beat slot] → Onset Schedule
+Onset Schedule + Audio → Note Layout Model → [X, Y, DIR, ANGLE, KIND per onset] → Beatmap
+```
+
+Stage 1 is a discriminative classifier: per beat slot (1/4 note resolution), predict left-note probability and right-note probability. Direct binary cross-entropy, strong class weights for positive (note) examples, audio features aligned to each beat slot by construction.
+
+Stage 2 is the note layout model: given a confirmed onset position and its audio context, predict the spatial token sequence. This is the problem V6's sequence model was mostly solving correctly.
+
+The key insight: **separate the timing problem (binary classification per beat slot) from the layout problem (sequence generation conditioned on known beat positions).** These require different supervision signals and different architectures. Conflating them into one autoregressive stream requires the sequence model to solve onset detection implicitly through sequence statistics, which it cannot reliably do.
+
+---
+
+## V6 NPS-Fix Overnight Runs (May 14–15, 2026)
+
+Three sequential 30-epoch runs training from scratch with generation stall fix applied:
+
+**Run A** — `bomb_hand_weight=0.3`, `dt_density_alpha=0.0`  
+Checkpoint: version_6, val_loss=0.986. Generated 157 notes, 0 bombs → 0.89 NPS.  
+Result: bomb fix alone is the biggest single improvement. Bomb attractor eliminated entirely.
+
+**Run B** — `bomb_hand_weight=0.3`, `dt_density_alpha=0.5`  
+Checkpoint: version_7, val_loss=1.010. Generated 120 notes, 0 bombs → 0.68 NPS.  
+Result: regression vs A. Moderate Δt=0 penalty disrupted useful same-beat chord patterns without providing a positive density signal.
+
+**Run C** — `bomb_hand_weight=0.3`, `dt_density_alpha=1.0`  
+Checkpoint: version_8, val_loss=1.010. Generated 191 notes, 0 bombs → 1.08 NPS.  
+Result: best run to date. Stronger penalty overcomes chord disruption. Coverage is good (beat 0–365 evenly populated). Still 4–10× below Expert NPS target.
+
+**Conclusion:** Marginal improvements possible by tuning within this architecture. The ceiling is far below target. Do not invest further in hyperparameter search on the current model.
 
 ---
 
