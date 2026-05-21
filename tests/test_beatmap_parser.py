@@ -357,6 +357,57 @@ def test_v2_no_sliders_or_burst_sliders() -> None:
     assert result.burst_sliders == []
 
 
+def test_v3_skips_fake_color_notes() -> None:
+    """V3 colorNotes with customData.fake=True are filtered out."""
+    data = {
+        "version": "3.0.0",
+        "colorNotes": [
+            {"b": 1.0, "x": 0, "y": 0, "c": 0, "d": 0},
+            {"b": 2.0, "x": 1, "y": 0, "c": 0, "d": 0, "customData": {"fake": True}},
+        ],
+        "bombNotes": [], "obstacles": [], "sliders": [],
+        "burstSliders": [], "basicBeatmapEvents": [],
+    }
+    result = parse_difficulty_dat_json(data)
+    assert result is not None
+    assert len(result.color_notes) == 1
+    assert result.color_notes[0].beat == 1.0
+
+
+def test_v3_skips_fake_bombs() -> None:
+    """V3 bombNotes with customData.fake=True are filtered (decorative bomb art)."""
+    data = {
+        "version": "3.0.0",
+        "colorNotes": [],
+        "bombNotes": [
+            {"b": 1.0, "x": 0, "y": 0},
+            {"b": 2.0, "x": 1, "y": 0, "customData": {"fake": True}},
+            {"b": 3.0, "x": 2, "y": 0, "fake": True},  # top-level form
+        ],
+        "obstacles": [], "sliders": [], "burstSliders": [], "basicBeatmapEvents": [],
+    }
+    result = parse_difficulty_dat_json(data)
+    assert result is not None
+    assert len(result.bomb_notes) == 1
+    assert result.bomb_notes[0].beat == 1.0
+
+
+def test_v3_keeps_real_objects_when_fake_field_absent_or_false() -> None:
+    """V3 objects without a fake flag (or with fake=False) are not filtered."""
+    data = {
+        "version": "3.0.0",
+        "colorNotes": [
+            {"b": 1.0, "x": 0, "y": 0, "c": 0, "d": 0, "customData": {"fake": False}},
+            {"b": 2.0, "x": 1, "y": 0, "c": 0, "d": 0, "customData": {"other": 1}},
+        ],
+        "bombNotes": [], "obstacles": [], "sliders": [],
+        "burstSliders": [], "basicBeatmapEvents": [],
+    }
+    result = parse_difficulty_dat_json(data)
+    assert result is not None
+    assert len(result.color_notes) == 2
+
+
 def test_v2_skips_fake_notes() -> None:
     """V2 notes with _customData._fake=True are skipped."""
     data = {

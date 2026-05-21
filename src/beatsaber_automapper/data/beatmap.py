@@ -267,13 +267,17 @@ def parse_difficulty_dat_json(data: dict[str, Any]) -> DifficultyBeatmap | None:
     # v3 format has a "version" key (no underscore)
     version = data.get("version", "")
     if version and not version.startswith("2"):
+        # Filter decorative (fake) objects — Noodle Extensions / Mapping Extensions
+        # mark visual-only items as fake. They're not part of gameplay and must not
+        # leak into training data (Stage 2 was learning to emit decorative bomb art
+        # as if it were a real swing event).
         return DifficultyBeatmap(
             version=version,
-            color_notes=[_parse_color_note(n) for n in data.get("colorNotes", [])],
-            bomb_notes=[_parse_bomb_note(n) for n in data.get("bombNotes", [])],
-            obstacles=[_parse_obstacle(o) for o in data.get("obstacles", [])],
-            sliders=[_parse_slider(s) for s in data.get("sliders", [])],
-            burst_sliders=[_parse_burst_slider(bs) for bs in data.get("burstSliders", [])],
+            color_notes=[_parse_color_note(n)  for n in data.get("colorNotes",   []) if not _is_fake(n)],
+            bomb_notes=[_parse_bomb_note(n)   for n in data.get("bombNotes",    []) if not _is_fake(n)],
+            obstacles=[_parse_obstacle(o)     for o in data.get("obstacles",    []) if not _is_fake(o)],
+            sliders=[_parse_slider(s)         for s in data.get("sliders",      []) if not _is_fake(s)],
+            burst_sliders=[_parse_burst_slider(bs) for bs in data.get("burstSliders", []) if not _is_fake(bs)],
             basic_events=[_parse_basic_event(e) for e in data.get("basicBeatmapEvents", [])],
             color_boost_events=[
                 _parse_color_boost(e) for e in data.get("colorBoostBeatmapEvents", [])
@@ -377,6 +381,21 @@ def _parse_difficulty_v2(data: dict[str, Any], version: str) -> DifficultyBeatma
 # ---------------------------------------------------------------------------
 # Internal parsers for each object type
 # ---------------------------------------------------------------------------
+
+
+def _is_fake(d: dict[str, Any]) -> bool:
+    """Detect Noodle/Mapping-Extensions decorative objects.
+
+    The v3 fake convention is a boolean `fake` field inside `customData`
+    (e.g. `customData.fake: true`). Older or non-standard maps may put it
+    at the top level as `fake` or `_fake`. Check all three to be safe.
+    """
+    if d.get("fake") is True or d.get("_fake") is True:
+        return True
+    cd = d.get("customData")
+    if isinstance(cd, dict) and cd.get("fake") is True:
+        return True
+    return False
 
 
 def _parse_color_note(d: dict[str, Any]) -> ColorNote:
