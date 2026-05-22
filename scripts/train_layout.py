@@ -29,8 +29,12 @@ import logging
 import pathlib
 import sys
 
+import torch
+
 REPO_ROOT = pathlib.Path(__file__).parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
+
+torch.set_float32_matmul_precision("high")  # use Tensor Cores on Ampere+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)

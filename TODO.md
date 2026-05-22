@@ -1,7 +1,7 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-05-20
-**Status:** V7-1 preprocessing complete. V7-3 Run 1 (F1=0.422) and Run 2 (F1=0.442) both failed — Run 2's pos_weight + mix-stem fixes barely moved the metric and peaked at epoch 0. Audit (2026-05-20) identified that the model has no difficulty conditioning and the eval is exact-slot F1 (no MIR-standard tolerance window). Run 3 plan: add difficulty embedding + tolerance-window F1, keep Expert+ExpertPlus dataset.
+**Last updated:** 2026-05-21
+**Status:** Stage 1 BeatClassifier done (val_f1_avg_tol=0.588, deemed good — subjectivity ceiling). Stage 2 LayoutPhraseModel Run 1 complete (val_token_acc=0.859, DoD met). Run 2 launched overnight (38.7M params, targeting x-column acc > 67%).
 **North star:** A player plays a generated map and says *"who mapped this?"* — not *"is this AI?"*
 
 **Full implementation plan:** [`docs/architecture_v7_plan.md`](docs/architecture_v7_plan.md)
@@ -364,8 +364,16 @@ properties the decoder learns from its own prior-token attention within the phra
 - [x] Implement `LayoutPhraseModel` (encoder-decoder w/ token-history attention)
 - [x] Implement `LayoutPhraseLitModule` (CE loss + per-role token-acc metrics)
 - [x] Update `train_layout.py`
-- [x] Smoke test (368 tests pass; GPU bf16 fwd+bwd ok at 15.4M params, 1.8 GB peak)
-- [ ] Launch overnight training
+- [x] Smoke test (389 tests pass; GPU bf16 fwd+bwd ok at 15.4M params, 1.8 GB peak)
+- [x] **Run 1 complete** (2026-05-21): 18 epochs, best val_token_acc=0.859 at epoch 11
+      (d_model=384, batch=32, 200K train / 22K val phrases). DoD 0.85 MET.
+      Per-role breakdown: kind=98% field_d=100% y=83% dir=82% **x=67%** (weakest)
+      Logs: `logs/layout_phrase/version_0/`
+- [x] **Run 2 LAUNCHED** (2026-05-21 23:28): overnight, PID 5208
+      d_model=512, n_heads=8, n_enc_layers=4, n_dec_layers=6, dim_ff=2048 (38.7M params)
+      batch=64, lr=2e-4, max_epochs=60, patience=12
+      Goal: push x-column accuracy above 67%, overall acc above 0.86
+      Logs: `logs/train_layout_v1.log` → `logs/layout_phrase/version_1/`
 - [ ] Follow-up: update `generate_v7_level` to use new model architecture
       (currently imports `LayoutLitModule` — will fail at inference until rewritten)
 

@@ -7,6 +7,38 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## V7-5b Stage 2 Run 1 + Run 2 Launch (2026-05-21)
+
+### Run 1 result (logs/layout_phrase/version_0/)
+
+18 epochs, default architecture (d_model=384, 15.4M params), batch=32, 200K train / 22K val phrases.
+**Best val_token_acc = 0.859 at epoch 11** (DoD target: 0.85). Early stopping at epoch 17 (patience=12
+from peak). Training converged cleanly: val_loss bottomed at 1.099 around epoch 12, then slowly rose.
+
+Per-role accuracy at convergence:
+- val_acc_kind: **98.0%** — model almost always emits the right note type
+- val_acc_field_d: **99.7%** — near-perfect
+- val_acc_y (row, 3 classes): **83.4%**
+- val_acc_dir (direction, 9 classes): **81.7%**
+- val_acc_x (column, 4 classes): **66.7%** ← weakest; model capacity is the likely bottleneck
+
+X-column accuracy at 67% is above random (25%) but lower than the other attributes.
+This is the target for Run 2: a 2.5× larger model (38.7M params, d_model=512) should
+provide the capacity the column prediction needs.
+
+### Run 2 launched (overnight 2026-05-21 23:28, PID 5208)
+
+```bash
+python scripts/train_layout.py \
+  --max-epochs 60 --batch-size 64 --lr 2e-4 \
+  --d-model 512 --n-heads 8 --n-enc-layers 4 --n-dec-layers 6 --dim-feedforward 2048 \
+  --patience 12 --difficulties Expert ExpertPlus
+```
+
+Logs: `logs/train_layout_v1.log` → TensorBoard: `logs/layout_phrase/version_1/`
+
+---
+
 ## V7-3 Run 3 Diagnostic + Stage 2 Reevaluation (2026-05-21)
 
 ### Run 3 result and post-hoc diagnostics
