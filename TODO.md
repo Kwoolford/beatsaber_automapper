@@ -392,26 +392,36 @@ python scripts/train_layout.py --max-epochs 30
 
 **DoD met** (manual phrase-match test deferred until trained models available).
 
-### V7-7 — End-to-End Inference ✅ CODE DONE / ⏳ AWAITING TRAINED MODELS (2026-05-15)
-- [x] `generation/generate.py::generate_v7_level()` — full Demucs→MERT→Stage1→PhraseIndex→Stage2 pipeline
-- [x] `_decode_spatial_tokens()` helper — spatial token list → `_SwingEvent`
-- [x] `scripts/generate.py --v7` — CLI flag wired; requires `--beat-ckpt` and `--layout-ckpt`
-- [ ] **End-to-end test run** (blocked on trained checkpoints)
+### V7-7 — End-to-End Inference ✅ DONE (2026-05-22)
+- [x] `generation/generate.py::generate_v7_level()` — updated for LayoutPhraseModel
+  - Stage 1: windowed (128-slot) BeatClassifier inference with mix+difficulty conditioning
+  - Stage 2: per-phrase generation via `model.generate_phrase()`
+  - Added `_decode_phrase_tokens()` helper to decode phrase token list into _SwingEvent objects
+  - Added `max_layout_len` guard in `generate_phrase()` to prevent pos_emb overflow
+- [x] **End-to-end test run** (2026-05-22): SO TIRED ROCK - NUEKI.mp3, Expert
+  - Stage 1: 888L + 891R onsets across 1444 slots
+  - Stage 2: 1508 notes generated (~17s)
+  - Post-process: **8.6 → 6.0 NPS** (target 4-10 ✓)
+  - V6 best: 1.08 NPS — **V7 is 5.5× denser**
+  - Output: `outputs/v7_first_test.zip`
 
-**DoD pending:** NPS ≥ 3.0. Run after both checkpoints exist:
-```bash
-python scripts/generate.py "data/test_songs/SO TIRED ROCK - NUEKI.mp3" \
-  --v7 --beat-ckpt <ckpt> --layout-ckpt <ckpt> \
-  --difficulty Expert --genre rock --run-tag v7_first
-```
+**DoD MET:** NPS 6.0 ≥ 3.0
 
-### V7-8 — Evaluation + Tuning ⏳ NOT STARTED
-- [ ] Generate on test song; check NPS and ArcViewer
-- [ ] Tune Stage 1 threshold (start at 0.4, sweep 0.3–0.6)
+**Follow-up for V7-8 threshold tuning:**
+- Stage 1 threshold=0.4 gives 61% slot density (888+891 notes). Consider 0.5 for fewer false positives.
+- Postprocessor trimmed 8.6→6.0 NPS; threshold=0.5 would reduce trimming waste.
+- 0 arcs/chains/bombs generated — Stage 1 only predicts note presence; arc/chain types
+  would need Stage 1 to predict multi-class note type (future enhancement).
+- Color separation moved 35% of notes — X-position accuracy (67%) is the remaining gap.
+
+### V7-8 — Evaluation + Tuning 🔄 IN PROGRESS
+- [x] Generate on test song — 6.0 NPS at Expert ✓ (V7-7 done)
+- [ ] Load v7_first_test.zip in ArcViewer — visual check note placement, flow, lighting
+- [ ] Tune Stage 1 threshold (current 0.4 → try 0.5; 888+891 at 0.4 is likely overshooting)
 - [ ] Tune PhraseIndex similarity threshold (start at 0.85)
-- [ ] If repetitive: lower threshold to 0.80 or 0.75
-- [ ] If drifting: raise threshold to 0.90
-- [ ] Compare V6 vs V7 NPS on same test songs
+- [ ] If repetitive: lower to 0.80; if drifting: raise to 0.90
+- [ ] Compare V6 vs V7 NPS on same test songs (V6 best: 1.08 NPS, V7: 6.0 NPS)
+- [ ] Generate ExpertPlus variant to check density scaling
 
 ---
 
