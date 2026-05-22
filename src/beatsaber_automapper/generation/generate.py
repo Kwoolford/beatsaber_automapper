@@ -1111,7 +1111,7 @@ def generate_swing_level(
     onset_checkpoint: Path | str | None = None,
     temperature: float = 0.9,
     top_p: float = 0.9,
-    max_events: int = 800,
+    max_events: int = 2000,
     context_frames: int = 256,
     phrase_frames: int = 1024,
     song_name: str | None = None,
@@ -1252,6 +1252,9 @@ def generate_swing_level(
     # the model decide how far each window covers and advance the audio context
     # window from the resume state's beat after each pass. This is robust to
     # silent intros (large initial Δt) and lets the model self-pace.
+    # Frames per beat (for activity context computation)
+    _frames_per_beat = _FRAMES_PER_SEC * 60.0 / bpm
+
     while window_start_beat < duration_beats and len(all_events) < max_events:
         center_beat = window_start_beat + window_beats / 2.0
         center_frame = int(center_beat * _FRAMES_PER_SEC * 60.0 / bpm)
@@ -1276,9 +1279,37 @@ def generate_swing_level(
             )
             phrase_emb = phrase_audio.mean(dim=1)
 
-        # Per-window budget: leave headroom but cap to avoid runaway
+        # Song position fraction (0→1 across full song)
+        song_pos_frac_val = float(min(center_beat / max(duration_beats, 1.0), 1.0))
+        song_pos_frac_tensor = torch.tensor(
+            [song_pos_frac_val], dtype=torch.float32, device=device_obj,
+        )
+
+        # Section ID at the window centre frame
+        section_id_val = 0
+        if (struct_tensor is not None
+                and struct_tensor.shape[1] >= 7 and struct_tensor.shape[2] >= 1):
+            cf = max(0, min(center_frame, struct_tensor.shape[2] - 1))
+            sec_norm = float(struct_tensor[0, 6, cf].item())
+            section_id_val = min(int(round(sec_norm * 5.0)), 5)
+        section_id_tensor = torch.tensor([section_id_val], dtype=torch.long, device=device_obj)
+
+        # Activity prediction: suppress EOS in beat slots the predictor marks active
+        activity_probs: torch.Tensor | None = None
+        context_beats_window = context_frames / _FRAMES_PER_SEC * bpm / 60.0
+        activity_beat_start = center_beat - context_beats_window / 2.0
+        if (
+            hasattr(seq_module, "activity_predictor")
+            and seq_module.activity_predictor is not None
+        ):
+            with torch.no_grad():
+                act_logits = seq_module.activity_predictor(audio_features)  # [1, N_BEATS]
+                activity_probs = torch.sigmoid(act_logits).squeeze(0)       # [N_BEATS]
+
+        # Per-window budget: scale with window size, cap to prevent budget exhaustion.
+        # 256 was too high — a stall at Δt=0 could consume the entire budget in one window.
         remaining = max_events - len(all_events)
-        per_window_cap = min(remaining, 256)
+        per_window_cap = min(remaining, 128)
 
         # Stop sampling once the model crosses 1.5 window-widths past the audio
         # centre (so each pass covers ~one window of beats; rest comes from
@@ -1299,6 +1330,11 @@ def generate_swing_level(
             phrase_emb=phrase_emb,
             initial_state=resume_state,
             stop_at_beat=stop_beat,
+            activity_probs=activity_probs,
+            activity_beat_start=activity_beat_start,
+            activity_beat_width=context_beats_window,
+            song_pos_frac=song_pos_frac_tensor,
+            section_id=section_id_tensor,
         )
 
         all_events.extend(result.events)
@@ -1312,8 +1348,14 @@ def generate_swing_level(
 
         # Advance to where the model actually is, never backwards
         if next_beat <= window_start_beat:
-            # Model emitted EOS or got stuck — advance manually so we don't loop
+            # Model emitted EOS or got stuck — advance manually so we don't loop.
+            # CRITICAL: also sync the grammar state's beat clock to the new window
+            # start so that the next window's audio context stays aligned with the
+            # model's internal time. Without this, every subsequent window sees audio
+            # centered at beat N but the model's Δt predictions anchor on beat M<N,
+            # causing all new events to stack at the stall point indefinitely.
             window_start_beat += window_beats
+            resume_state.current_beat = window_start_beat
         else:
             window_start_beat = next_beat
 
@@ -1377,3 +1419,397 @@ def generate_swing_level(
         chroma_events=chroma_beatmap_dicts,
     )
     return output_path
+
+
+# ---------------------------------------------------------------------------
+# V7 generation pipeline: Demucs + MERT + Stage1 + PhraseIndex + Stage2
+# ---------------------------------------------------------------------------
+
+
+def generate_v7_level(
+    audio_path: Path | str,
+    output_path: Path | str,
+    beat_checkpoint: Path | str,
+    layout_checkpoint: Path | str,
+    difficulty: str = "Expert",
+    genre: str = "unknown",
+    song_name: str | None = None,
+    song_author: str = "Unknown Artist",
+    bpm: float | None = None,
+    beat_threshold_left: float = 0.4,
+    beat_threshold_right: float = 0.4,
+    temperature: float = 0.9,
+    top_p: float = 0.9,
+    phrase_similarity: float = 0.85,
+    device: str | None = None,
+    sample_rate: int = 44100,
+    hop_length: int = 512,
+    n_mels: int = 80,
+) -> Path:
+    """Generate a Beat Saber level using the V7 pipeline.
+
+    V7 pipeline:
+      1. Demucs source separation → drum stem + melody stem
+      2. MERT-v1-95M feature extraction → beat-aligned embeddings
+      3. Stage 1 BeatClassifier → onset schedule (which beats have notes)
+      4. PhraseIndex built from melody MERT fingerprints
+      5. Stage 2 LayoutModel → spatial tokens per onset (with phrase retrieval)
+      6. Assemble swing-event stream → postprocess → export
+
+    Args:
+        audio_path:          Input audio file.
+        output_path:         Output .zip path.
+        beat_checkpoint:     Path to BeatLitModule checkpoint.
+        layout_checkpoint:   Path to LayoutPhraseLitModule checkpoint.
+        difficulty:          Difficulty name.
+        genre:               Genre string for conditioning.
+        song_name:           Override song name (defaults to filename stem).
+        song_author:         Song author for metadata.
+        bpm:                 BPM override (auto-detected if None).
+        beat_threshold_left: P(left note) threshold for Stage 1.
+        beat_threshold_right: P(right note) threshold for Stage 1.
+        temperature:         Stage 2 sampling temperature.
+        top_p:               Stage 2 nucleus top-p.
+        phrase_similarity:   PhraseIndex cosine similarity threshold.
+        device:              Torch device (auto if None).
+        sample_rate:         Audio sample rate.
+        hop_length:          Mel spectrogram hop length.
+        n_mels:              Mel bands.
+
+    Returns:
+        Path to the generated .zip file.
+    """
+    import torch
+    from beatsaber_automapper.data.mert_encoder import (
+        extract_features as mert_extract,
+        pool_to_beat_grid,
+        phrase_fingerprints as compute_fingerprints,
+        BEAT_SUBDIV,
+    )
+    from beatsaber_automapper.data.stem_separator import separate as demucs_separate, DEMUCS_SR
+    from beatsaber_automapper.data.audio import detect_bpm, load_audio
+    from beatsaber_automapper.data.saber_state import compute_saber_states
+    from beatsaber_automapper.data.swing_tokenizer import (
+        HAND_LEFT, HAND_RIGHT,
+        _DT_BINS, DT_BASE,
+        SwingEventTokenizer,
+    )
+    from beatsaber_automapper.data.tokenizer import DIFFICULTY_MAP, GENRE_MAP
+    from beatsaber_automapper.generation.phrase_index import PhraseIndex, NotePattern
+    from beatsaber_automapper.generation.postprocess import postprocess_beatmap
+    from beatsaber_automapper.generation.export import package_level
+    from beatsaber_automapper.training.beat_module import BeatLitModule
+    from beatsaber_automapper.training.layout_module import LayoutPhraseLitModule
+    from beatsaber_automapper.data.beatmap import ColorNote, BombNote, DifficultyBeatmap
+    from beatsaber_automapper.data.swing_tokenizer import (
+        NOTE, ARC_HEAD, ARC_TAIL, CHAIN_HEAD, CHAIN_TAIL, BOMB,
+        X_BASE, Y_BASE, DIR_BASE, ANGLE_BASE, MU_BASE, SLICE_BASE, SQUISH_BASE,
+        _ANGLE_BINS, _MU_BINS, _SQUISH_BINS, _SLICE_MIN,
+    )
+    from beatsaber_automapper.data.layout_dataset import (
+        HAND_LEFT_IDX, HAND_RIGHT_IDX, MAX_PHRASE_SLOTS,
+    )
+
+    audio_path  = Path(audio_path)
+    output_path = Path(output_path)
+    if song_name is None:
+        song_name = audio_path.stem
+
+    if device is None:
+        device_obj = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device_obj = torch.device(device)
+
+    logger.info("V7 generate_v7_level: %s → %s (device=%s)", audio_path.name, output_path.name, device_obj)
+
+    # ---- 1. Audio loading + BPM ----
+    waveform, src_sr = load_audio(audio_path, target_sr=DEMUCS_SR)
+    if bpm is None:
+        bpm = detect_bpm(waveform, sample_rate=src_sr)
+    logger.info("BPM: %.1f", bpm)
+
+    song_duration_secs = waveform.shape[-1] / src_sr
+    total_beats = song_duration_secs * bpm / 60.0
+
+    # ---- 2. Source separation ----
+    logger.info("Separating audio with Demucs …")
+    stems = demucs_separate(waveform, src_sr, device=str(device_obj))
+
+    # ---- 3. MERT feature extraction ----
+    logger.info("Extracting MERT features …")
+    drum_mert = mert_extract(stems["drums"], DEMUCS_SR, device=str(device_obj))
+    mix_mert  = mert_extract(stems["other"], DEMUCS_SR, device=str(device_obj))
+
+    drum_beat = pool_to_beat_grid(drum_mert, bpm, total_beats, BEAT_SUBDIV)  # [N, 768]
+    mix_beat  = pool_to_beat_grid(mix_mert,  bpm, total_beats, BEAT_SUBDIV)  # [N, 768]
+    n_slots   = drum_beat.shape[0]
+
+    song_emb  = mix_beat.mean(0)   # [768] — full-song embedding
+
+    fingerprints, boundaries = compute_fingerprints(mix_beat, beats_per_phrase=16, subdiv=BEAT_SUBDIV)
+
+    # ---- 4. Load models ----
+    logger.info("Loading Stage 1 BeatClassifier …")
+    beat_module = BeatLitModule.load_from_checkpoint(str(beat_checkpoint))
+    beat_module = beat_module.to(device_obj).eval()
+
+    logger.info("Loading Stage 2 LayoutPhraseModel …")
+    layout_module = LayoutPhraseLitModule.load_from_checkpoint(str(layout_checkpoint))
+    layout_module = layout_module.to(device_obj).eval()
+
+    diff_idx  = DIFFICULTY_MAP.get(difficulty, 3)
+    genre_idx = GENRE_MAP.get(genre, 0)
+    diff_t    = torch.tensor([diff_idx],  dtype=torch.long, device=device_obj)
+    genre_t   = torch.tensor([genre_idx], dtype=torch.long, device=device_obj)
+
+    # ---- 5. Stage 1: onset schedule (windowed, matching training window=128) ----
+    logger.info("Running Stage 1 BeatClassifier …")
+    _BEAT_WIN = 128   # training window size; pos_emb max_len=512, so ≤512 is safe
+    drum_gpu = drum_beat.to(device_obj)   # [N, 768]
+    mix_gpu  = mix_beat.to(device_obj)    # [N, 768]
+    beat_probs_parts: list[torch.Tensor] = []
+    with torch.no_grad():
+        for s in range(0, n_slots, _BEAT_WIN):
+            e   = min(s + _BEAT_WIN, n_slots)
+            d_w = drum_gpu[s:e].unsqueeze(0)   # [1, W, 768]
+            m_w = mix_gpu[s:e].unsqueeze(0)    # [1, W, 768]
+            logits_w = beat_module(d_w, m_w, diff_t, slot_offset=s)  # [1, W, 2]
+            beat_probs_parts.append(torch.sigmoid(logits_w.squeeze(0)))
+    beat_probs = torch.cat(beat_probs_parts, dim=0)   # [N, 2]
+
+    left_onsets  = set((beat_probs[:, 0] >= beat_threshold_left).nonzero(as_tuple=True)[0].tolist())
+    right_onsets = set((beat_probs[:, 1] >= beat_threshold_right).nonzero(as_tuple=True)[0].tolist())
+    logger.info("Stage 1: %d left onsets, %d right onsets across %d slots",
+                len(left_onsets), len(right_onsets), n_slots)
+
+    # ---- 6. Build PhraseIndex ----
+    phrase_index = PhraseIndex(similarity_threshold=phrase_similarity)
+    phrase_index.build(mix_beat, boundaries)
+
+    # ---- 7. Section embeddings (pre-compute per slot) ----
+    # Simple: each phrase window is its own "section"
+    # For finer-grained section boundaries use detect_sections if needed
+
+    # ---- 8. Stage 2: phrase-level layout generation ----
+    logger.info("Running Stage 2 LayoutPhraseModel …")
+
+    from beatsaber_automapper.data.swing_tokenizer import _SwingEvent
+    from beatsaber_automapper.data.beat_grid import BEAT_SUBDIV as _BEAT_SUBDIV
+
+    all_events: list[_SwingEvent] = []
+    max_phrase_slots_inf = layout_module.model.max_phrase_slots
+
+    for phrase_idx, (slot_start, slot_end) in enumerate(boundaries):
+        # Collect onset schedule for this phrase: (slot_in_phrase, hand_idx) sorted
+        # by (slot, hand) so LEFT comes before RIGHT at the same beat — matches
+        # the training-data event ordering in LayoutPhraseDataset.
+        onset_schedule: list[tuple[int, int]] = []
+        for slot in range(slot_start, min(slot_end, n_slots)):
+            sip = slot - slot_start
+            if slot in left_onsets:
+                onset_schedule.append((sip, HAND_LEFT_IDX))
+            if slot in right_onsets:
+                onset_schedule.append((sip, HAND_RIGHT_IDX))
+
+        if not onset_schedule:
+            continue
+
+        # Build phrase MERT input tensor, padded to max_phrase_slots.
+        real_slots = min(slot_end, n_slots) - slot_start
+        p_len = min(real_slots, max_phrase_slots_inf)
+        phrase_mert_t = mix_beat[slot_start:slot_start + p_len].unsqueeze(0).to(device_obj)  # [1,p,768]
+        phrase_mask_t = torch.ones(1, p_len, dtype=torch.bool, device=device_obj)
+        if p_len < max_phrase_slots_inf:
+            pad_feat = torch.zeros(1, max_phrase_slots_inf - p_len, mix_beat.shape[-1],
+                                   device=device_obj)
+            pad_mask = torch.zeros(1, max_phrase_slots_inf - p_len, dtype=torch.bool,
+                                   device=device_obj)
+            phrase_mert_t = torch.cat([phrase_mert_t, pad_feat], dim=1)
+            phrase_mask_t = torch.cat([phrase_mask_t, pad_mask], dim=1)
+
+        with torch.no_grad():
+            flat_tokens = layout_module.model.generate_phrase(
+                phrase_mert    = phrase_mert_t,
+                phrase_mask    = phrase_mask_t,
+                onset_schedule = onset_schedule,
+                difficulty     = diff_t,
+                genre          = genre_t,
+                temperature    = temperature,
+                top_p          = top_p,
+            )
+
+        phrase_events = _decode_phrase_tokens(flat_tokens, onset_schedule, slot_start)
+        all_events.extend(phrase_events)
+
+    logger.info("Generated %d events", len(all_events))
+
+    # ---- 9. Assemble beatmap ----
+    beatmap = _events_to_beatmap(all_events)
+    logger.info("Decoded: %d notes, %d arcs, %d chains, %d bombs",
+                len(beatmap.color_notes), len(beatmap.sliders),
+                len(beatmap.burst_sliders), len(beatmap.bomb_notes))
+
+    beatmap = postprocess_beatmap(beatmap, difficulty=difficulty, bpm=bpm,
+                                  song_duration_secs=song_duration_secs)
+
+    # ---- 10. Lighting + export ----
+    from beatsaber_automapper.data.audio import (
+        compute_structure_features, detect_sections, compute_section_features,
+    )
+    # Re-use existing structure features for lighting
+    mel = extract_mel_spectrogram(waveform, src_sr, n_mels=n_mels, hop_length=hop_length)
+    structure_features = compute_structure_features(waveform, src_sr, hop_length=hop_length, n_mels=n_mels)
+    if structure_features.shape[1] > mel.shape[1]:
+        structure_features = structure_features[:, :mel.shape[1]]
+
+    from beatsaber_automapper.generation.lighting_rules import generate_lighting_events
+    basic_events, boost_events = generate_lighting_events(
+        structure_features=structure_features, bpm=bpm,
+        sample_rate=sample_rate, hop_length=hop_length,
+    )
+    beatmap.basic_events.extend(basic_events)
+    beatmap.color_boost_events.extend(boost_events)
+
+    from beatsaber_automapper.generation.chroma import add_chroma_colors
+    chroma_events = None
+    if beatmap.basic_events:
+        plain_events = [{"b": e.beat, "et": e.event_type, "i": e.value, "f": e.float_value}
+                        for e in beatmap.basic_events]
+        chroma_events = add_chroma_colors(
+            events=plain_events, structure_features=structure_features,
+            bpm=bpm, sample_rate=sample_rate, hop_length=hop_length, genre=genre,
+        )
+
+    output_path = package_level(
+        beatmaps={difficulty: beatmap},
+        audio_path=audio_path,
+        output_path=output_path,
+        song_name=song_name,
+        song_author=song_author,
+        bpm=bpm,
+        chroma_events={difficulty: chroma_events},
+    )
+    return output_path
+
+
+def _decode_phrase_tokens(
+    tokens: list[int],
+    onset_schedule: list[tuple[int, int]],
+    slot_start: int,
+) -> list["_SwingEvent"]:
+    """Decode the flat token list from LayoutPhraseModel.generate_phrase into _SwingEvent objects.
+
+    `tokens` is the BOS-stripped output of generate_phrase. Each entry in
+    onset_schedule is (slot_in_phrase, hand_idx) and corresponds to one note;
+    tokens are consumed in the same order the schedule was presented to the model:
+      - BOMB      → 3 tokens: KIND X Y
+      - CHAIN_TAIL → 4 tokens: KIND X Y FIELD_D(squish)
+      - others     → 5 tokens: KIND X Y DIR FIELD_D
+    """
+    from beatsaber_automapper.data.swing_tokenizer import (
+        _SwingEvent,
+        BOMB, CHAIN_TAIL, NOTE, ARC_HEAD, ARC_TAIL,
+        KIND_BASE, KIND_COUNT,
+        X_BASE, X_COUNT, Y_BASE, Y_COUNT,
+        DIR_BASE,
+        ANGLE_BASE, ANGLE_COUNT, MU_BASE, MU_COUNT,
+        SQUISH_BASE, SQUISH_COUNT, SLICE_BASE, SLICE_COUNT,
+        HAND_LEFT, HAND_RIGHT,
+    )
+    from beatsaber_automapper.data.layout_dataset import HAND_LEFT_IDX
+    from beatsaber_automapper.data.beat_grid import BEAT_SUBDIV
+
+    events: list[_SwingEvent] = []
+    i = 0
+    for slot_in_phrase, hand_idx in onset_schedule:
+        if i >= len(tokens):
+            break
+        beat_pos = (slot_start + slot_in_phrase) / BEAT_SUBDIV
+        hand = HAND_LEFT if hand_idx == HAND_LEFT_IDX else HAND_RIGHT
+
+        kind_tok = tokens[i]; i += 1
+        if not (KIND_BASE <= kind_tok < KIND_BASE + KIND_COUNT):
+            kind_tok = KIND_BASE  # clamp to NOTE
+
+        x_tok = tokens[i]     if i     < len(tokens) else X_BASE
+        y_tok = tokens[i + 1] if i + 1 < len(tokens) else Y_BASE
+        i += 2
+
+        x = max(0, min(x_tok - X_BASE, X_COUNT - 1))
+        y = max(0, min(y_tok - Y_BASE, Y_COUNT - 1))
+        direction = 0
+        field_d   = 0
+
+        if kind_tok == BOMB:
+            pass
+        elif kind_tok == CHAIN_TAIL:
+            if i < len(tokens):
+                fd_tok  = tokens[i]; i += 1
+                field_d = max(0, min(fd_tok - SQUISH_BASE, SQUISH_COUNT - 1))
+        else:
+            if i < len(tokens):
+                dir_tok   = tokens[i]; i += 1
+                direction = max(0, min(dir_tok - DIR_BASE, 8))
+            if i < len(tokens):
+                fd_tok = tokens[i]; i += 1
+                if kind_tok == NOTE:
+                    field_d = max(0, min(fd_tok - ANGLE_BASE,  ANGLE_COUNT  - 1))
+                elif kind_tok in (ARC_HEAD, ARC_TAIL):
+                    field_d = max(0, min(fd_tok - MU_BASE,     MU_COUNT     - 1))
+                else:  # CHAIN_HEAD
+                    field_d = max(0, min(fd_tok - SLICE_BASE,  SLICE_COUNT  - 1))
+
+        events.append(_SwingEvent(
+            beat=beat_pos, hand=hand, kind=kind_tok,
+            x=x, y=y, direction=direction, field_d=field_d,
+        ))
+    return events
+
+
+def _decode_spatial_tokens(
+    tokens: list[int],
+    beat: float,
+    hand: int,
+) -> "_SwingEvent | None":
+    """Decode a spatial token list into a _SwingEvent for assembly."""
+    from beatsaber_automapper.data.swing_tokenizer import (
+        _SwingEvent,
+        NOTE, ARC_HEAD, ARC_TAIL, CHAIN_HEAD, CHAIN_TAIL, BOMB,
+        KIND_BASE, KIND_COUNT,
+        X_BASE, X_COUNT, Y_BASE, Y_COUNT,
+        DIR_BASE, DIR_COUNT,
+        ANGLE_BASE, ANGLE_COUNT, MU_BASE, MU_COUNT,
+        SLICE_BASE, SLICE_COUNT, SQUISH_BASE, SQUISH_COUNT,
+    )
+    if len(tokens) < 3:
+        return None
+
+    kind_tok = tokens[0]
+    if not (KIND_BASE <= kind_tok < KIND_BASE + KIND_COUNT):
+        return None
+    kind = kind_tok
+
+    x = max(0, min(tokens[1] - X_BASE, 3)) if len(tokens) > 1 else 0
+    y = max(0, min(tokens[2] - Y_BASE, 2)) if len(tokens) > 2 else 0
+    direction = 0
+    field_d   = 0
+
+    if kind == BOMB:
+        pass
+    elif kind == CHAIN_TAIL:
+        if len(tokens) > 3:
+            field_d = max(0, min(tokens[3] - SQUISH_BASE, SQUISH_COUNT - 1))
+    else:
+        if len(tokens) > 3:
+            direction = max(0, min(tokens[3] - DIR_BASE, 8))
+        if len(tokens) > 4:
+            fd = tokens[4]
+            if kind == NOTE:
+                field_d = max(0, min(fd - ANGLE_BASE, ANGLE_COUNT - 1))
+            elif kind in (ARC_HEAD, ARC_TAIL):
+                field_d = max(0, min(fd - MU_BASE, MU_COUNT - 1))
+            else:
+                field_d = max(0, min(fd - SLICE_BASE, SLICE_COUNT - 1))
+
+    return _SwingEvent(beat=beat, hand=hand, kind=kind,
+                       x=x, y=y, direction=direction, field_d=field_d)

@@ -44,6 +44,42 @@ from beatsaber_automapper.models.components import (
 
 logger = logging.getLogger(__name__)
 
+# Number of beat slots for ActivityPredictor (coarse beat grid per audio window)
+N_ACTIVITY_BEATS = 8
+
+
+class ActivityPredictor(nn.Module):
+    """Lightweight per-beat activity predictor.
+
+    Pools audio encoder output to a coarse beat grid and predicts a binary
+    active/inactive logit per slot. At inference, active slots suppress EOS
+    so the model does not go silent in energetic song sections.
+    """
+
+    def __init__(self, d_model: int, n_beats: int = N_ACTIVITY_BEATS) -> None:
+        super().__init__()
+        self.n_beats = n_beats
+        self.pool = nn.AdaptiveAvgPool1d(n_beats)
+        self.mlp = nn.Sequential(
+            nn.Linear(d_model, d_model // 2),
+            nn.GELU(),
+            nn.Linear(d_model // 2, 1),
+        )
+
+    def forward(self, audio_features: torch.Tensor) -> torch.Tensor:
+        """Predict per-beat activity logits.
+
+        Args:
+            audio_features: Audio encoder output [B, T, d_model].
+
+        Returns:
+            Per-beat logits [B, n_beats].
+        """
+        x = audio_features.permute(0, 2, 1)  # [B, d_model, T]
+        x = self.pool(x)                      # [B, d_model, n_beats]
+        x = x.permute(0, 2, 1)               # [B, n_beats, d_model]
+        return self.mlp(x).squeeze(-1)        # [B, n_beats]
+
 
 class SequenceModel(nn.Module):
     """Autoregressive swing-event sequence generator for Stage 2 (V6).
@@ -74,6 +110,7 @@ class SequenceModel(nn.Module):
         num_difficulties: int = 5,
         num_genres: int = 11,
         num_mappers: int = 0,
+        num_sections: int = 6,
         saber_state_dim: int = 12,
         dropout: float = 0.1,
         conditioning_dropout: float = 0.0,
@@ -100,6 +137,11 @@ class SequenceModel(nn.Module):
             self.mapper_emb = nn.Embedding(num_mappers, d_model)
         else:
             self.mapper_emb = None
+
+        # Song-position fraction [0, 1] → d_model (tells model where in song it is)
+        self.song_pos_proj = nn.Linear(1, d_model)
+        # Section-type embedding: intro/verse/chorus/bridge/drop/outro → d_model
+        self.section_emb = nn.Embedding(num_sections, d_model)
 
         # V6 proprioception: saber physical state → d_model (additive per step)
         self.saber_state_proj = nn.Linear(saber_state_dim, d_model)
@@ -181,6 +223,8 @@ class SequenceModel(nn.Module):
         mapper_id: torch.Tensor | None = None,
         prev_tokens: torch.Tensor | None = None,
         plan_vector: torch.Tensor | None = None,
+        song_pos_frac: torch.Tensor | None = None,
+        section_id: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass for teacher forcing.
 
@@ -196,6 +240,10 @@ class SequenceModel(nn.Module):
             mapper_id: Optional cohort mapper index per sample [B].
             prev_tokens: Legacy V5 inter-onset context [B, K, S] (unused by default).
             plan_vector: Legacy V5 planner vector [B, 1, d_model] (unused by default).
+            song_pos_frac: Optional song position fraction [B] in [0, 1].
+                           Tells the model where in the song the current window sits.
+            section_id: Optional section type index [B] in [0, num_sections-1].
+                        Encodes intro/verse/chorus/bridge/drop/outro.
 
         Returns:
             Logits over vocabulary [B, S, vocab_size].
@@ -221,6 +269,14 @@ class SequenceModel(nn.Module):
 
         if mapper_id is not None and self.mapper_emb is not None:
             x = x + self.mapper_emb(mapper_id).unsqueeze(1)
+
+        # Song position and section type (both uniform per window, like phrase_emb)
+        if song_pos_frac is not None:
+            # song_pos_frac: [B] → Linear(1, d_model) → [B, 1, d_model]
+            x = x + self.song_pos_proj(song_pos_frac.unsqueeze(-1)).unsqueeze(1)
+        if section_id is not None:
+            # section_id: [B] long → [B, 1, d_model]
+            x = x + self.section_emb(section_id).unsqueeze(1)
 
         # --- V6 saber-state proprioception: per-position additive signal ---
         if saber_state is not None:
@@ -265,6 +321,8 @@ class SequenceModel(nn.Module):
         mapper_id: torch.Tensor | None = None,
         prev_tokens: torch.Tensor | None = None,
         plan_vector: torch.Tensor | None = None,
+        song_pos_frac: torch.Tensor | None = None,
+        section_id: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Single-step decode for autoregressive inference (no cache).
 
@@ -280,6 +338,8 @@ class SequenceModel(nn.Module):
             mapper_id: Optional mapper index [B].
             prev_tokens: Legacy V5 inter-onset context [B, K, S].
             plan_vector: Legacy V5 planner vector [B, 1, d_model].
+            song_pos_frac: Optional song position fraction [B] in [0, 1].
+            section_id: Optional section type index [B].
 
         Returns:
             Logits at last position [B, vocab_size].
@@ -288,6 +348,7 @@ class SequenceModel(nn.Module):
             tokens, audio_features, difficulty, genre,
             saber_state=saber_state, phrase_emb=phrase_emb, mapper_id=mapper_id,
             prev_tokens=prev_tokens, plan_vector=plan_vector,
+            song_pos_frac=song_pos_frac, section_id=section_id,
         )
         return logits[:, -1, :]  # [B, vocab_size]
 
@@ -309,6 +370,8 @@ class SequenceModel(nn.Module):
         mapper_id: torch.Tensor | None = None,
         prev_tokens: torch.Tensor | None = None,
         plan_vector: torch.Tensor | None = None,
+        song_pos_frac: torch.Tensor | None = None,
+        section_id: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Single-step decode with KV cache for fast inference.
 
@@ -327,6 +390,8 @@ class SequenceModel(nn.Module):
             mapper_id: Optional mapper index [B].
             prev_tokens: Legacy V5 inter-onset context [B, K, S].
             plan_vector: Legacy V5 planner vector [B, 1, d_model].
+            song_pos_frac: Optional song position fraction [B] in [0, 1].
+            section_id: Optional section type index [B].
 
         Returns:
             Logits at the new position [B, vocab_size].
@@ -343,6 +408,11 @@ class SequenceModel(nn.Module):
 
         if mapper_id is not None and self.mapper_emb is not None:
             x = x + self.mapper_emb(mapper_id).unsqueeze(1)
+
+        if song_pos_frac is not None:
+            x = x + self.song_pos_proj(song_pos_frac.unsqueeze(-1)).unsqueeze(1)
+        if section_id is not None:
+            x = x + self.section_emb(section_id).unsqueeze(1)
 
         if saber_state_step is not None:
             x = x + self.saber_state_proj(saber_state_step)  # [B, 1, d_model]

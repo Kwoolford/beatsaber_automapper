@@ -1033,6 +1033,9 @@ def song_batch_collate(batch: list[dict[str, torch.Tensor]]) -> dict[str, torch.
 # ~86 audio frames per second at sr=44100, hop=512
 _FRAMES_PER_SEC = 44100 / 512
 
+# Beat slots for ActivityPredictor training labels (must match sequence_model.N_ACTIVITY_BEATS)
+N_ACTIVITY_BEATS = 8
+
 
 def _beats_to_frame(beat: float, bpm: float) -> int:
     """Convert a beat position to an audio frame index."""
@@ -1266,7 +1269,7 @@ class SwingSequenceDataset(Dataset):
         mel_window = self._extract_mel_window(mel_full, center_frame, self.context_frames, n_frames)
         phrase_mel = self._extract_mel_window(mel_full, center_frame, self.phrase_frames, n_frames)
 
-        # Structure features
+        # Structure features (also used for section_id below)
         structure = data.get("structure_features", None)
         if structure is not None:
             structure = _pad_structure(structure)
@@ -1275,6 +1278,30 @@ class SwingSequenceDataset(Dataset):
             )
         else:
             struct_win = torch.zeros(N_STRUCTURE_FEATURES, self.context_frames)
+
+        # --- Song position fraction (where in the song is this window?) ---
+        total_beats = n_frames / _FRAMES_PER_SEC * (bpm / 60.0)
+        song_pos_frac = float(mid_beat) / max(total_beats, 1.0)
+        song_pos_frac = max(0.0, min(1.0, song_pos_frac))
+
+        # --- Section ID at window centre (recovered from structure ch 6) ---
+        section_id_val = 0
+        if structure is not None and structure.shape[0] >= 7:
+            cf = min(center_frame, structure.shape[1] - 1)
+            sec_norm = float(structure[6, cf].item())
+            section_id_val = min(int(round(sec_norm * 5.0)), 5)
+
+        # --- Activity labels for ActivityPredictor training ---
+        # Mark which of N_ACTIVITY_BEATS beat slots in the audio context have events.
+        context_seconds = self.context_frames / _FRAMES_PER_SEC
+        context_beats = context_seconds * bpm / 60.0
+        ctx_start_beat = mid_beat - context_beats / 2.0
+        activity_labels = torch.zeros(N_ACTIVITY_BEATS, dtype=torch.float32)
+        for evt in all_events:
+            frac = (evt.beat - ctx_start_beat) / max(context_beats, 1e-6)
+            slot = int(frac * N_ACTIVITY_BEATS)
+            if 0 <= slot < N_ACTIVITY_BEATS:
+                activity_labels[slot] = 1.0
 
         return {
             "tokens": torch.tensor(padded, dtype=torch.long),
@@ -1286,6 +1313,9 @@ class SwingSequenceDataset(Dataset):
             "difficulty": torch.tensor(diff_id, dtype=torch.long),
             "genre": torch.tensor(genre_idx, dtype=torch.long),
             "mapper_id": torch.tensor(self.mapper_id, dtype=torch.long),
+            "song_pos_frac": torch.tensor(song_pos_frac, dtype=torch.float32),
+            "section_id": torch.tensor(section_id_val, dtype=torch.long),
+            "activity_labels": activity_labels,
         }
 
     @staticmethod

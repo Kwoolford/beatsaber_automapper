@@ -37,7 +37,7 @@ from beatsaber_automapper.data.swing_tokenizer import (
     VOCAB_SIZE as SWING_VOCAB_SIZE,
 )
 from beatsaber_automapper.models.audio_encoder import AudioEncoder
-from beatsaber_automapper.models.sequence_model import SequenceModel
+from beatsaber_automapper.models.sequence_model import ActivityPredictor, SequenceModel
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,43 @@ _V6_RHYTHM_TOKENS = frozenset({EOS, HAND_LEFT, HAND_RIGHT, HAND_NONE})
 
 # HAND token IDs that represent actual saber cuts (left + right, not NONE)
 _SWING_HAND_IDS = [HAND_LEFT, HAND_RIGHT]
+
+
+def _compute_dt_density_loss(
+    logits: torch.Tensor,
+    target: torch.Tensor,
+    target_p_zero: float = 0.20,
+) -> torch.Tensor:
+    """Hinge penalty on excess P(Δt=0) at timing token positions.
+
+    In training data, Δt=0 legitimately occurs for same-beat hand pairs (chords).
+    But the model tends to over-apply Δt=0, producing event bursts at a single beat
+    instead of spreading notes across the song.  This loss penalises whenever the
+    model's predicted P(Δt=0) exceeds ``target_p_zero`` at DT token positions.
+
+    Args:
+        logits: Model output logits [B, S, V].
+        target: Ground-truth target token IDs [B, S].
+        target_p_zero: Maximum allowed expected rate of Δt=0 events (default 0.20).
+
+    Returns:
+        Scalar hinge loss (mean over DT positions; 0 when all positions are below cap).
+    """
+    from beatsaber_automapper.data.swing_tokenizer import DT_BASE, DT_COUNT
+
+    B, S, V = logits.shape
+    dt_mask = (target >= DT_BASE) & (target < DT_BASE + DT_COUNT)  # [B, S]
+    n_dt = dt_mask.sum().item()
+    if n_dt == 0:
+        return torch.tensor(0.0, device=logits.device)
+
+    flat_logits = logits.reshape(-1, V)
+    flat_mask = dt_mask.reshape(-1)
+    dt_logits = flat_logits[flat_mask][:, DT_BASE : DT_BASE + DT_COUNT]  # [N_dt, 32]
+    dt_probs = F.softmax(dt_logits.float(), dim=-1)
+    p_zero = dt_probs[:, 0]  # P(Δt=0) per position
+    excess = (p_zero - target_p_zero).clamp(min=0.0)
+    return excess.mean()
 
 
 def _compute_phrase_energy_loss(
@@ -108,11 +145,15 @@ def _build_token_weights(
     vocab_size: int,
     rhythm_weight: float = 3.0,
     eos_weight: float = 1.0,
+    bomb_hand_weight: float = 1.0,
 ) -> torch.Tensor:
     """Build per-token loss weights with higher weight on rhythm tokens.
 
     For V6, rhythm tokens are EOS + the three HAND tokens (LEFT/RIGHT/NONE).
     These tokens control the timing and hand assignment of each swing event.
+    HAND_NONE (bombs) gets a separate weight because bombs are rare in Expert
+    maps; letting it share rhythm_weight with HAND_LEFT/RIGHT causes the model
+    to over-generate bombs as a low-effort way to satisfy the grammar.
     """
     weights = torch.ones(vocab_size)
     for token_id in _V6_RHYTHM_TOKENS:
@@ -120,6 +161,8 @@ def _build_token_weights(
             weights[token_id] = rhythm_weight
     if 0 <= EOS < vocab_size:
         weights[EOS] = eos_weight
+    if 0 <= HAND_NONE < vocab_size:
+        weights[HAND_NONE] = bomb_hand_weight
     weights[PAD] = 0.0
     return weights
 
@@ -190,6 +233,7 @@ class SequenceLitModule(lightning.LightningModule):
         label_smoothing: float = 0.1,
         rhythm_weight: float = 3.0,
         eos_weight: float = 1.0,
+        bomb_hand_weight: float = 1.0,
         learning_rate: float = 1e-4,
         weight_decay: float = 0.01,
         warmup_steps: int = 2000,
@@ -198,6 +242,10 @@ class SequenceLitModule(lightning.LightningModule):
         freeze_encoder: bool = False,
         # V6 aux losses
         phrase_energy_alpha: float = 0.0,  # V6-4: phrase density KL loss
+        dt_density_alpha: float = 0.0,     # V6-8: Δt=0 over-concentration penalty
+        activity_alpha: float = 0.0,       # V6-7: activity prediction aux loss
+        # Section conditioning
+        n_section_types: int = 6,
         # Structure features
         n_structure_features: int = 8,
         # Legacy V5 compat
@@ -224,16 +272,22 @@ class SequenceLitModule(lightning.LightningModule):
             num_difficulties=seq_num_difficulties,
             num_genres=seq_num_genres,
             num_mappers=seq_num_mappers,
+            num_sections=n_section_types,
             dropout=seq_dropout,
             conditioning_dropout=conditioning_dropout,
             prev_context_k=prev_context_k,
+        )
+
+        # V6-7: activity predictor — predicts which beat slots should have notes
+        self.activity_predictor: ActivityPredictor | None = (
+            ActivityPredictor(d_model=seq_d_model) if activity_alpha > 0 else None
         )
 
         if freeze_encoder:
             for param in self.audio_encoder.parameters():
                 param.requires_grad = False
 
-        token_weights = _build_token_weights(vocab_size, rhythm_weight, eos_weight)
+        token_weights = _build_token_weights(vocab_size, rhythm_weight, eos_weight, bomb_hand_weight)
         self.register_buffer("token_weights", token_weights)
 
         self.loss_fn = nn.CrossEntropyLoss(
@@ -266,6 +320,8 @@ class SequenceLitModule(lightning.LightningModule):
         saber_state: torch.Tensor | None = None,
         phrase_mel: torch.Tensor | None = None,
         mapper_id: torch.Tensor | None = None,
+        song_pos_frac: torch.Tensor | None = None,
+        section_id: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass: mel → audio features → swing-event logits.
 
@@ -278,6 +334,8 @@ class SequenceLitModule(lightning.LightningModule):
             saber_state: Optional saber state per step [B, S, 12].
             phrase_mel: Optional wide-context mel for phrase embedding [B, n_mels, T_phrase].
             mapper_id: Optional mapper/cohort index [B].
+            song_pos_frac: Optional song position fraction [B] in [0, 1].
+            section_id: Optional section type index [B] in [0, n_section_types-1].
 
         Returns:
             Logits [B, S, vocab_size].
@@ -295,7 +353,22 @@ class SequenceLitModule(lightning.LightningModule):
             saber_state=saber_state,
             phrase_emb=phrase_emb,
             mapper_id=mapper_id,
+            song_pos_frac=song_pos_frac,
+            section_id=section_id,
         )
+
+    def _encode_audio(
+        self, batch: dict[str, torch.Tensor],
+    ) -> tuple[torch.Tensor, torch.Tensor | None]:
+        """Encode mel + structure once and compute phrase embedding."""
+        audio_features = self.audio_encoder(
+            batch["mel"], structure_features=batch.get("structure")
+        )
+        phrase_emb: torch.Tensor | None = None
+        if batch.get("phrase_mel") is not None:
+            phrase_audio = self.audio_encoder(batch["phrase_mel"])
+            phrase_emb = phrase_audio.mean(dim=1)
+        return audio_features, phrase_emb
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int) -> torch.Tensor:
         decoder_input, target = self._prepare_teacher_forcing(batch["tokens"])
@@ -307,29 +380,35 @@ class SequenceLitModule(lightning.LightningModule):
 
         # Token dropout: replace random input tokens to reduce exposure bias
         if self.hparams.token_dropout > 0 and self.training:
-            mask = torch.rand_like(decoder_input.float()) < self.hparams.token_dropout
-            mask[:, 0] = False  # never mask BOS
+            dropout_mask = torch.rand_like(decoder_input.float()) < self.hparams.token_dropout
+            dropout_mask[:, 0] = False  # never mask BOS
             decoder_input = decoder_input.clone()
-            decoder_input[mask] = torch.randint(
-                1, self.hparams.vocab_size, (int(mask.sum().item()),),
+            decoder_input[dropout_mask] = torch.randint(
+                1, self.hparams.vocab_size, (int(dropout_mask.sum().item()),),
                 device=decoder_input.device,
             )
 
-        logits = self(
-            batch["mel"],
-            decoder_input,
-            batch["difficulty"],
-            batch["genre"],
-            structure=batch.get("structure"),
+        # Encode audio once — reused by both sequence model and activity predictor
+        audio_features, phrase_emb = self._encode_audio(batch)
+
+        logits = self.sequence_model(
+            decoder_input, audio_features, batch["difficulty"], batch["genre"],
             saber_state=saber_state,
-            phrase_mel=batch.get("phrase_mel"),
+            phrase_emb=phrase_emb,
             mapper_id=batch.get("mapper_id"),
+            song_pos_frac=batch.get("song_pos_frac"),
+            section_id=batch.get("section_id"),
         )
 
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
 
-        # V6-4: phrase-energy KL loss. Prefer phrase_mel (wider context, ~12s)
-        # over structure (context_frames ~3s) for a true phrase-scale signal.
+        # V6-8: Δt=0 density hinge loss (penalise event bursts at a single beat)
+        if self.hparams.dt_density_alpha > 0:
+            dt_loss = _compute_dt_density_loss(logits, target)
+            loss = loss + self.hparams.dt_density_alpha * dt_loss
+            self.log("train_dt_density_loss", dt_loss, prog_bar=False)
+
+        # V6-4: phrase-energy KL loss
         if self.hparams.phrase_energy_alpha > 0:
             audio_signal = batch.get("phrase_mel")
             if audio_signal is None:
@@ -339,6 +418,15 @@ class SequenceLitModule(lightning.LightningModule):
                 loss = loss + self.hparams.phrase_energy_alpha * pe_loss
                 self.log("train_phrase_energy_loss", pe_loss, prog_bar=False)
 
+        # V6-7: activity prediction aux loss
+        if self.activity_predictor is not None and self.hparams.activity_alpha > 0:
+            act_labels = batch.get("activity_labels")
+            if act_labels is not None:
+                act_logits = self.activity_predictor(audio_features)  # [B, N_BEATS]
+                act_loss = F.binary_cross_entropy_with_logits(act_logits, act_labels)
+                loss = loss + self.hparams.activity_alpha * act_loss
+                self.log("train_activity_loss", act_loss, prog_bar=False)
+
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
@@ -347,15 +435,16 @@ class SequenceLitModule(lightning.LightningModule):
         saber_state = batch.get("saber_state")
         if saber_state is not None:
             saber_state = saber_state[:, :-1, :]
-        logits = self(
-            batch["mel"],
-            decoder_input,
-            batch["difficulty"],
-            batch["genre"],
-            structure=batch.get("structure"),
+
+        audio_features, phrase_emb = self._encode_audio(batch)
+
+        logits = self.sequence_model(
+            decoder_input, audio_features, batch["difficulty"], batch["genre"],
             saber_state=saber_state,
-            phrase_mel=batch.get("phrase_mel"),
+            phrase_emb=phrase_emb,
             mapper_id=batch.get("mapper_id"),
+            song_pos_frac=batch.get("song_pos_frac"),
+            section_id=batch.get("section_id"),
         )
         loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)

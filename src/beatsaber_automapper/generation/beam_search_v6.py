@@ -352,6 +352,12 @@ def sample_swing_events(
     phrase_emb: torch.Tensor | None = None,
     initial_state: _GrammarState | None = None,
     stop_at_beat: float | None = None,
+    activity_probs: torch.Tensor | None = None,
+    activity_beat_start: float = 0.0,
+    activity_beat_width: float = 8.0,
+    activity_threshold: float = 0.5,
+    song_pos_frac: torch.Tensor | None = None,
+    section_id: torch.Tensor | None = None,
 ) -> SamplingResult:
     """Sample V6 swing events with grammar constraints and saber-state tracking.
 
@@ -374,6 +380,15 @@ def sample_swing_events(
             song-absolute current_beat). Phase will be reset to EXPECT_HAND.
         stop_at_beat: If set, stop as soon as current_beat >= this after an
             event completes. Used by windowed full-song generation.
+        activity_probs: Optional per-beat activity probabilities [N_BEATS].
+            When a beat slot's probability exceeds activity_threshold, EOS is
+            suppressed so the model keeps generating rather than going silent.
+        activity_beat_start: Song-absolute beat at the start of the activity
+            window (aligns activity_probs to current_beat).
+        activity_beat_width: Beat range covered by activity_probs.
+        activity_threshold: Probability above which EOS is suppressed (0.5).
+        song_pos_frac: Optional song position fraction [1] passed to the model.
+        section_id: Optional section type index [1] passed to the model.
 
     Returns:
         SamplingResult with tokens, decoded events, and final grammar state.
@@ -384,6 +399,10 @@ def sample_swing_events(
     audio_features = audio_features.to(device)
     difficulty = difficulty.to(device)
     genre = genre.to(device)
+    if song_pos_frac is not None:
+        song_pos_frac = song_pos_frac.to(device)
+    if section_id is not None:
+        section_id = section_id.to(device)
 
     if initial_state is None:
         grammar = _GrammarState()
@@ -399,6 +418,8 @@ def sample_swing_events(
         saber_state_step=grammar.saber_tensor(device),
         phrase_emb=phrase_emb,
         mapper_id=mapper_id,
+        song_pos_frac=song_pos_frac,
+        section_id=section_id,
     )
 
     generated: list[int] = []
@@ -412,6 +433,16 @@ def sample_swing_events(
 
         mask = _build_mask(grammar.phase, grammar.current_hand, grammar.current_kind,
                            VOCAB_SIZE).to(device)
+
+        # V6-7: suppress EOS when ActivityPredictor says current beat is active
+        if (activity_probs is not None and grammar.phase == _Phase.EXPECT_HAND):
+            beat_frac = (
+                (grammar.current_beat - activity_beat_start) / max(activity_beat_width, 1e-6)
+            )
+            slot = max(0, min(int(beat_frac * len(activity_probs)), len(activity_probs) - 1))
+            if float(activity_probs[slot]) > activity_threshold:
+                mask[EOS] = _NEG_INF
+
         masked_logits = logits.nan_to_num(nan=0.0, posinf=1e4, neginf=-1e4) + mask
 
         tok = _nucleus_sample(masked_logits.squeeze(0), temperature, top_p)
@@ -439,6 +470,8 @@ def sample_swing_events(
             saber_state_step=saber_step,
             phrase_emb=phrase_emb,
             mapper_id=mapper_id,
+            song_pos_frac=song_pos_frac,
+            section_id=section_id,
         )
         step += 1
 

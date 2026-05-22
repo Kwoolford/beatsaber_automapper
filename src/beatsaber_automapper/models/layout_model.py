@@ -225,6 +225,11 @@ class LayoutPhraseModel(nn.Module):
         device = phrase_mert.device
         memory, mem_kp = self.encode(phrase_mert, phrase_mask)
 
+        # Safety: each onset produces ≤5 tokens; BOS already occupies 1 slot.
+        # Truncate the schedule so we never exceed max_layout_len.
+        max_onsets = (self.max_layout_len - 1) // 5
+        onset_schedule = onset_schedule[:max_onsets]
+
         # Running token / metadata buffers — appended per step.
         toks   = [LAYOUT_BOS]
         slots  = [self.special_slot_idx]

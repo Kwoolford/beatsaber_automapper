@@ -173,6 +173,41 @@ def main() -> None:
         dest="mapper_id",
         help="V6 only: cohort/mapper conditioning index (0 = unknown).",
     )
+    # V7 flags
+    parser.add_argument(
+        "--v7",
+        action="store_true",
+        dest="use_v7",
+        help="Use V7 pipeline: Demucs + MERT + BeatClassifier + LayoutModel + PhraseIndex.",
+    )
+    parser.add_argument(
+        "--beat-ckpt",
+        type=Path,
+        default=None,
+        dest="beat_ckpt",
+        help="V7 only: path to BeatLitModule checkpoint.",
+    )
+    parser.add_argument(
+        "--layout-ckpt",
+        type=Path,
+        default=None,
+        dest="layout_ckpt",
+        help="V7 only: path to LayoutLitModule checkpoint.",
+    )
+    parser.add_argument(
+        "--beat-threshold",
+        type=float,
+        default=0.4,
+        dest="beat_threshold",
+        help="V7 only: probability threshold for Stage 1 onset detection.",
+    )
+    parser.add_argument(
+        "--phrase-similarity",
+        type=float,
+        default=0.85,
+        dest="phrase_similarity",
+        help="V7 only: cosine similarity threshold for PhraseIndex hard retrieval.",
+    )
 
     args = parser.parse_args()
 
@@ -194,7 +229,31 @@ def main() -> None:
     else:
         output_path = audio_path.with_suffix(".zip")
 
-    if args.use_v6:
+    if args.use_v7:
+        if len(args.difficulty) > 1:
+            parser.error("--v7 mode generates one difficulty at a time")
+        if args.beat_ckpt is None or args.layout_ckpt is None:
+            parser.error("--v7 requires --beat-ckpt and --layout-ckpt")
+        from beatsaber_automapper.generation.generate import generate_v7_level
+
+        result = generate_v7_level(
+            audio_path=audio_path,
+            output_path=output_path,
+            beat_checkpoint=args.beat_ckpt,
+            layout_checkpoint=args.layout_ckpt,
+            difficulty=args.difficulty[0],
+            genre=args.genre,
+            song_name=args.song_name,
+            song_author=args.song_author,
+            bpm=args.bpm,
+            beat_threshold_left=args.beat_threshold,
+            beat_threshold_right=args.beat_threshold,
+            temperature=args.temperature,
+            top_p=args.top_p,
+            phrase_similarity=args.phrase_similarity,
+            device=args.device,
+        )
+    elif args.use_v6:
         if len(args.difficulty) > 1:
             parser.error("--v6 mode generates one difficulty at a time")
         from beatsaber_automapper.generation.generate import generate_swing_level

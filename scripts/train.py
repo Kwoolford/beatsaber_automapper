@@ -193,6 +193,7 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         label_smoothing=sc.get("label_smoothing", 0.1),
         rhythm_weight=sc.get("rhythm_weight", 3.0),
         eos_weight=sc.get("eos_weight", 1.0),
+        bomb_hand_weight=sc.get("bomb_hand_weight", 1.0),
         # Per-stage LR/schedule overrides (fall back to global optimizer config)
         learning_rate=sc.get("learning_rate", cfg.optimizer.learning_rate),
         weight_decay=cfg.optimizer.weight_decay,
@@ -202,6 +203,10 @@ def _build_sequence(cfg: DictConfig) -> tuple[lightning.LightningModule, lightni
         freeze_encoder=sc.get("freeze_encoder", False),
         # V6 aux losses
         phrase_energy_alpha=sc.get("phrase_energy_alpha", 0.0),
+        dt_density_alpha=sc.get("dt_density_alpha", 0.0),
+        activity_alpha=sc.get("activity_alpha", 0.0),
+        # Section conditioning
+        n_section_types=sc.get("n_section_types", 6),
         # Structure features
         n_structure_features=ac.get("n_structure_features", 8),
         # Legacy V5 compat

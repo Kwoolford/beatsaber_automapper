@@ -25,11 +25,15 @@ lr_min_ratio: 0.01
 label_smoothing: 0.1
 rhythm_weight: 3.0
 eos_weight: 1.0
+bomb_hand_weight: 1.0   # V6-8: HAND_NONE weight; set to 0.3 to discourage bomb overgen
 token_dropout: 0.1
 freeze_encoder: false
 
 # V6 aux losses
 phrase_energy_alpha: 0.0   # Enabled in V6-4
+dt_density_alpha: 0.0      # V6-8: hinge penalty on excess P(Δt=0); try 0.5 or 1.0
+activity_alpha: 0.0        # V6-7: activity predictor aux loss; enable with 0.1
+n_section_types: 6         # intro/verse/chorus/bridge/drop/outro
 
 # Dataset
 window_events: 128
