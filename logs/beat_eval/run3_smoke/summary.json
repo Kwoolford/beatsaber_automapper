@@ -1,0 +1,35 @@
+{
+  "checkpoint": "logs/beat_classifier/version_3/checkpoints/beat-epoch=21-val_f1_avg_tol=0.588.ckpt",
+  "n_songs": 10,
+  "threshold": 0.5,
+  "calibration_left": {
+    "ece": 0.22773967112997054,
+    "n": 12752
+  },
+  "calibration_right": {
+    "ece": 0.22028014284337738,
+    "n": 12752
+  },
+  "calibration_pooled": {
+    "ece": 0.22400990449280067,
+    "n": 25504
+  },
+  "audio_support": {
+    "median_pct_pred_left": 0.42662731934298237,
+    "median_pct_pred_right": 0.42536164566219015,
+    "median_pct_label_left": 0.4679176755447942,
+    "median_pct_label_right": 0.47235673930589184,
+    "top30_pred_left": 0.22197416867873734,
+    "top30_pred_right": 0.21759894878126249,
+    "top30_label_left": 0.2659990791896869,
+    "top30_label_right": 0.2525782167877812,
+    "baseline_random_median": 0.5,
+    "baseline_random_top30": 0.3
+  },
+  "density": {
+    "n_phrases": 206,
+    "spearman_pred_vs_onset": 0.22289189291217526,
+    "spearman_label_vs_onset": 0.5326764749285315,
+    "spearman_pred_vs_label": 0.5230837340032329
+  }
+}

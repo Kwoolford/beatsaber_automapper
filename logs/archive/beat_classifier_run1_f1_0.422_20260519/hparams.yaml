@@ -1,0 +1,11 @@
+mert_dim: 768
+d_model: 256
+n_heads: 4
+n_layers: 2
+max_len: 160
+dropout: 0.1
+learning_rate: 0.0003
+weight_decay: 0.01
+warmup_steps: 500
+pos_weight: 6.0
+threshold: 0.5

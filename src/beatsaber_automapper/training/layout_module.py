@@ -52,7 +52,21 @@ class LayoutPhraseLitModule(lightning.LightningModule):
         weight_decay:      float = 0.01,
         warmup_steps:      int = 1000,
         label_smoothing:   float = 0.1,
+        x_role_weight:     float = 2.0,
+        ctx_len:           int   = 0,
+        max_song_phrases:  int   = 0,
+        sched_sampling_start: float = 0.0,
+        sched_sampling_end:   float = 0.0,
+        sched_sampling_epochs: int  = 20,
     ) -> None:
+        """
+        sched_sampling_start/end/epochs: linear ramp of scheduled-sampling
+        probability from `start` to `end` over `epochs` epochs. At epoch 0
+        the model is fully teacher-forced (standard). At epoch N it mixes in
+        its own predicted tokens with probability `end`, which reduces the
+        teacher-forcing exposure-bias gap at autoregressive inference time.
+        Default (all zeros) = pure teacher forcing = no change from Run 3.
+        """
         super().__init__()
         self.save_hyperparameters()
 
@@ -60,17 +74,72 @@ class LayoutPhraseLitModule(lightning.LightningModule):
             vocab_size=vocab_size, d_model=d_model, n_heads=n_heads,
             n_enc_layers=n_enc_layers, n_dec_layers=n_dec_layers,
             dim_feedforward=dim_feedforward, max_layout_len=max_layout_len,
-            max_phrase_slots=max_phrase_slots, num_difficulties=num_difficulties,
-            num_genres=num_genres, dropout=dropout,
+            max_phrase_slots=max_phrase_slots, max_song_phrases=max_song_phrases,
+            num_difficulties=num_difficulties, num_genres=num_genres, dropout=dropout,
         )
+        # We compute per-position CE manually so we can apply a role weight to
+        # the weakest role (X). Runs 1+2 showed kind=98% / field_d=100% / y=83%
+        # / dir=82% / **x=67%** — the model is plenty capable, X is just hard
+        # because the same musical hit can map to several legal columns. A
+        # small weight bias toward ROLE_X tells the optimizer where to spend
+        # the remaining capacity.
         self.loss_fn = nn.CrossEntropyLoss(
             ignore_index=IGNORE_INDEX, label_smoothing=label_smoothing,
+            reduction="none",
         )
+        self.x_role_weight = x_role_weight
+        self.model.ctx_len = ctx_len   # expose for inference in generate.py
+        self._sched_start  = sched_sampling_start
+        self._sched_end    = sched_sampling_end
+        self._sched_epochs = max(1, sched_sampling_epochs)
 
     # ------------------------------------------------------------------
+    def _sched_p(self) -> float:
+        """Current scheduled-sampling probability (linear ramp over epochs)."""
+        if self._sched_end <= 0:
+            return 0.0
+        epoch = self.current_epoch if self.trainer is not None else 0
+        t = min(epoch / self._sched_epochs, 1.0)
+        return self._sched_start + t * (self._sched_end - self._sched_start)
+
     def _forward_batch(self, batch: dict) -> tuple[torch.Tensor, torch.Tensor]:
+        layout_tokens = batch["layout_tokens"]
+
+        p_sched = self._sched_p()
+        if p_sched > 0 and self.training:
+            # Scheduled sampling: on each non-context, non-BOS position replace
+            # the input token with the model's argmax with probability p_sched.
+            # Step 1 — teacher-forced pass to get predicted tokens (no grad).
+            with torch.no_grad():
+                logits_tf = self.model(
+                    layout_tokens=layout_tokens,
+                    token_slot   =batch["token_slot"],
+                    token_hand   =batch["token_hand"],
+                    token_role   =batch["token_role"],
+                    phrase_mert  =batch["phrase_mert"],
+                    phrase_mask  =batch["phrase_mask"],
+                    difficulty   =batch["difficulty"],
+                    genre        =batch["genre"],
+                    song_fps     =batch.get("song_fps"),
+                    song_fp_mask =batch.get("song_fp_mask"),
+                )
+                # Predicted token at position t is used as input at position t+1
+                pred_toks = logits_tf.argmax(dim=-1)   # [B, S]
+                # Shift: pred_toks[t] is the replacement for layout_tokens[t+1]
+                # (position 0 = BOS, never replaced; context prefix also preserved)
+                ctx_n = int(batch.get("ctx_len", torch.zeros(1))[0].item())
+                keep_mask = torch.zeros_like(layout_tokens, dtype=torch.bool)
+                keep_mask[:, :ctx_n + 1] = True  # keep context prefix + BOS
+                # PAD positions must also keep ground truth (preserve padding)
+                keep_mask |= (layout_tokens == LAYOUT_PAD)
+                replace_mask = (~keep_mask) & (torch.rand_like(layout_tokens.float()) < p_sched)
+                # Replace: use prediction from previous position
+                shifted_pred = torch.cat([layout_tokens[:, :1], pred_toks[:, :-1]], dim=1)
+                mixed_tokens = torch.where(replace_mask, shifted_pred, layout_tokens)
+            layout_tokens = mixed_tokens
+
         logits = self.model(
-            layout_tokens=batch["layout_tokens"],
+            layout_tokens=layout_tokens,
             token_slot   =batch["token_slot"],
             token_hand   =batch["token_hand"],
             token_role   =batch["token_role"],
@@ -78,9 +147,28 @@ class LayoutPhraseLitModule(lightning.LightningModule):
             phrase_mask  =batch["phrase_mask"],
             difficulty   =batch["difficulty"],
             genre        =batch["genre"],
+            song_fps     =batch.get("song_fps"),
+            song_fp_mask =batch.get("song_fp_mask"),
         )   # [B, S, vocab]
-        target = batch["target"]   # [B, S], IGNORE_INDEX on PAD
-        loss = self.loss_fn(logits.reshape(-1, logits.size(-1)), target.reshape(-1))
+        target  = batch["target"]                              # [B, S]
+        per_tok = self.loss_fn(
+            logits.reshape(-1, logits.size(-1)), target.reshape(-1),
+        ).view_as(target)                                       # [B, S]
+
+        # Weight the X-role positions higher. role_out aligns to target the
+        # same way the validation metric does: target[t] = input[t+1], so the
+        # role of target[t] is token_role[t+1].
+        role_in  = batch["token_role"]
+        role_out = torch.cat(
+            [role_in[:, 1:], torch.full_like(role_in[:, :1], -1)], dim=1,
+        )                                                       # [B, S]
+        weights  = torch.where(
+            role_out == ROLE_X,
+            torch.full_like(per_tok, self.x_role_weight),
+            torch.ones_like(per_tok),
+        )
+        valid   = target != IGNORE_INDEX                         # [B, S]
+        loss    = (per_tok * weights * valid).sum() / weights[valid].sum().clamp_min(1.0)
         return logits, loss
 
     def training_step(self, batch: dict, batch_idx: int) -> torch.Tensor:

@@ -86,10 +86,15 @@ def postprocess_beatmap(
     beatmap = rebalance_colors(beatmap)
     beatmap = enforce_color_separation(beatmap)
     beatmap = remove_unplayable_patterns(beatmap, bpm)
-    # V6: fix_parity and convert_dot_notes are intentionally removed here.
-    # The V6 swing-event model produces correct parity by construction (per-hand
-    # alternation is structural in the training data) and emits directional notes
-    # directly. Rewriting directions in postprocess would destroy the model's output.
+    # V7: re-enable parity and dot-note conversion.
+    # V7's decoder learns directions from training data but has no explicit saber
+    # state — parity at phrase boundaries is emergent, not guaranteed. fix_parity
+    # is a cheap rule-based safety net that catches cross-phrase violations without
+    # touching notes whose directions are already correct.
+    # convert_dot_notes fills in any residual dot (D=8) notes the model emits at
+    # higher temperature; at default temp they're rare but nonzero.
+    beatmap = convert_dot_notes(beatmap)
+    beatmap = fix_parity(beatmap)
     beatmap = fix_arc_chain_connectivity(beatmap, bpm)
     beatmap = postprocess_lighting(beatmap, bpm)
 

@@ -62,6 +62,24 @@ def main() -> None:
     parser.add_argument("--max-samples",      type=int,   default=None,
                         help="Cap samples per epoch (random sampler).")
     parser.add_argument("--device",           default="auto")
+    parser.add_argument("--x-role-weight",    type=float, default=2.0,
+                        help="Loss weight on ROLE_X positions to push the weakest "
+                             "role harder. 1.0 = uniform loss.")
+    parser.add_argument("--max-song-phrases",  type=int,   default=150,
+                        help="Max phrase fingerprints per song in the song-memory "
+                             "encoder. 0 = disable song-memory (legacy behaviour).")
+    parser.add_argument("--ctx-len",          type=int,   default=0,
+                        help="Cross-phrase context prefix length. 0 = disabled. "
+                             "N > 0 prepends last N tokens from the prior phrase as "
+                             "read-only context (ROLE_CONTEXT, loss masked).")
+    parser.add_argument("--sched-sampling-start",  type=float, default=0.0,
+                        help="Scheduled-sampling probability at epoch 0 (0 = pure TF).")
+    parser.add_argument("--sched-sampling-end",    type=float, default=0.0,
+                        help="Scheduled-sampling probability at final ramp epoch.")
+    parser.add_argument("--sched-sampling-epochs", type=int,   default=20,
+                        help="Epochs over which to ramp scheduled sampling.")
+    parser.add_argument("--resume-from",      default=None,
+                        help="Checkpoint path to resume from (model + optimizer).")
     args = parser.parse_args()
 
     from torch.utils.data import DataLoader, RandomSampler
@@ -82,6 +100,8 @@ def main() -> None:
         exclude_categories=["noodle", "mapping_extensions"],
         max_layout_len=args.max_layout_len,
         max_phrase_slots=args.max_phrase_slots,
+        ctx_len=args.ctx_len,
+        max_song_phrases=args.max_song_phrases,
     )
     val_ds = LayoutPhraseDataset(
         data_dir=data_dir,
@@ -90,6 +110,8 @@ def main() -> None:
         exclude_categories=["noodle", "mapping_extensions"],
         max_layout_len=args.max_layout_len,
         max_phrase_slots=args.max_phrase_slots,
+        ctx_len=args.ctx_len,
+        max_song_phrases=args.max_song_phrases,
     )
 
     log.info("Train: %d phrases | Val: %d phrases", len(train_ds), len(val_ds))
@@ -125,6 +147,12 @@ def main() -> None:
         learning_rate=args.lr,
         warmup_steps=1000,
         dropout=args.dropout,
+        x_role_weight=args.x_role_weight,
+        ctx_len=args.ctx_len,
+        max_song_phrases=args.max_song_phrases,
+        sched_sampling_start=args.sched_sampling_start,
+        sched_sampling_end=args.sched_sampling_end,
+        sched_sampling_epochs=args.sched_sampling_epochs,
     )
 
     tb_logger = TensorBoardLogger("logs", name="layout_phrase")
@@ -150,7 +178,7 @@ def main() -> None:
     )
 
     log.info("Starting V7-5b phrase-level Stage 2 training …")
-    trainer.fit(module, train_dl, val_dl)
+    trainer.fit(module, train_dl, val_dl, ckpt_path=args.resume_from)
     log.info("Best %s: %.3f", args.monitor, callbacks[0].best_model_score)
     log.info("Best checkpoint: %s", callbacks[0].best_model_path)
 

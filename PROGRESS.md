@@ -2372,3 +2372,53 @@ Chroma adds `customData` fields to `basicBeatmapEvents`:
 | 6  | **DONE** | Stage 3 (lighting) |
 | 7  | —      | Scale training + quality |
 | 8  | —      | Documentation + demo |
+
+---
+
+## V7 Post-Launch Architecture Iteration (2026-05-23 → 2026-05-25)
+
+### Inference Bugs Fixed (2026-05-23)
+
+Three bugs discovered in first ArcViewer review of V7-7 output:
+
+**Bug 1 — Role alignment (critical):** `generate_phrase._step` appended token
+metadata *before* the forward pass, placing role=KIND at the placeholder position.
+Training convention: position i with `role_i` predicts `T_{i+1}`. The fix forwards
+the real buffer and reads logits at the last position, then appends metadata after
+sampling. No retraining needed. Confirmed fix: Y=top-row 89.7%→28%, D=dot
+99.5%→0%.
+
+**Bug 2 — Nucleus sampling was uniform:** `_nucleus_sample` used `torch.randint`
+(uniform among kept tokens) instead of `torch.multinomial` (probability-weighted).
+This collapsed model confidence at every generation step.
+
+**Bug 3 — Flat onset density:** Fixed threshold=0.4 produced a metronome. Added
+±1-slot NMS and section-aware thresholds (drop=0.38 / verse=0.52 / intro=0.68 /
+outro=0.72) using `detect_sections()`.
+
+Additional: constrained sampling (logits masked to legal role vocab range),
+`fix_parity` + `convert_dot_notes` re-enabled in postprocessor, `top_p` 0.90→0.95.
+
+### Architecture Experiments (2026-05-23 → 2026-05-25)
+
+| Run | Best acc | Finding |
+|-----|----------|---------|
+| Run 3 (x_role_weight=2.0) | 0.861 | X ceiling (~68%) confirmed as mapper subjectivity |
+| Run 4 (ctx_len=16) | **0.870** | Cross-phrase prefix broke 0.861 ceiling, all roles improved |
+| Run 5 (+ scheduled sampling) | 0.869 | No benefit; exposure bias not the bottleneck |
+| Run 6 (+ scalar song/section emb) | 0.870 | Scalar conditioning gives zero lift — confirmed |
+| **Run 7** (song-memory cross-attn) | 🔄 | Phrase fingerprints as full cross-attn memory — replaces PhraseIndex |
+| Beat Clf Run 5 (d=512, 4-layer) | f1_tol=0.603 | Up from 0.588 with larger model |
+
+**Key insight:** The phrase encoder processes a fixed 64-slot window — structurally
+identical to V6's 3-second sliding window, just with better features. Scalar
+song/section embeddings (Run 6) added zero lift, confirming a summary vector can't
+substitute for attentional access to song history. Run 7 appends all `phrase_fingerprints
+[N_phrases, 768]` (already in every .pt file) to the encoder memory so the decoder
+can attend to chorus 2 when generating chorus 2, learning the repetition pattern that
+PhraseIndex tried to hard-code.
+
+**Remaining gap:** Stage 1 outputs a flat probability distribution (18–31% density
+across thresholds 0.30–0.80). Section-aware thresholds create 5–8 NPS variation but
+not the 0–9 NPS range of real maps. Target: wire `_compute_adaptive_threshold()` for
+per-section NPS targeting.

@@ -1,0 +1,1856 @@
+[
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 39,
+    "label_count": 12,
+    "mean_onset": 14.385879516601562,
+    "song_id": "1e555",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 58,
+    "label_count": 16,
+    "mean_onset": 22.415515899658203,
+    "song_id": "1e555",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 52,
+    "label_count": 20,
+    "mean_onset": 19.381208419799805,
+    "song_id": "1e555",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 58,
+    "label_count": 20,
+    "mean_onset": 13.516092300415039,
+    "song_id": "1e555",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 256,
+    "end": 295,
+    "pred_count": 0,
+    "label_count": 0,
+    "mean_onset": 7.299581050872803,
+    "song_id": "1e555",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 47,
+    "label_count": 20,
+    "mean_onset": 14.385879516601562,
+    "song_id": "1e555",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 64,
+    "label_count": 24,
+    "mean_onset": 22.415515899658203,
+    "song_id": "1e555",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 63,
+    "label_count": 24,
+    "mean_onset": 19.381208419799805,
+    "song_id": "1e555",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 64,
+    "label_count": 26,
+    "mean_onset": 13.516092300415039,
+    "song_id": "1e555",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 256,
+    "end": 295,
+    "pred_count": 0,
+    "label_count": 6,
+    "mean_onset": 7.299581050872803,
+    "song_id": "1e555",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 5,
+    "label_count": 6,
+    "mean_onset": 6.2697272300720215,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 16,
+    "label_count": 13,
+    "mean_onset": 13.031383514404297,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 59,
+    "label_count": 17,
+    "mean_onset": 15.562546730041504,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 60,
+    "label_count": 27,
+    "mean_onset": 21.253149032592773,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 61,
+    "label_count": 24,
+    "mean_onset": 24.462934494018555,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 60,
+    "label_count": 22,
+    "mean_onset": 27.001087188720703,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 50,
+    "label_count": 25,
+    "mean_onset": 23.871002197265625,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 73,
+    "label_count": 28,
+    "mean_onset": 19.243427276611328,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 50,
+    "label_count": 22,
+    "mean_onset": 14.773033142089844,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 45,
+    "label_count": 21,
+    "mean_onset": 14.215121269226074,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 52,
+    "label_count": 33,
+    "mean_onset": 12.507184982299805,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 57,
+    "label_count": 26,
+    "mean_onset": 13.97416877746582,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 96,
+    "label_count": 27,
+    "mean_onset": 12.621253967285156,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 92,
+    "label_count": 22,
+    "mean_onset": 13.33652400970459,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 896,
+    "end": 960,
+    "pred_count": 53,
+    "label_count": 29,
+    "mean_onset": 17.299758911132812,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 960,
+    "end": 1024,
+    "pred_count": 57,
+    "label_count": 28,
+    "mean_onset": 15.443263053894043,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1024,
+    "end": 1088,
+    "pred_count": 81,
+    "label_count": 28,
+    "mean_onset": 15.543609619140625,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1088,
+    "end": 1152,
+    "pred_count": 43,
+    "label_count": 22,
+    "mean_onset": 12.89387321472168,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1152,
+    "end": 1216,
+    "pred_count": 64,
+    "label_count": 21,
+    "mean_onset": 13.919683456420898,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1216,
+    "end": 1280,
+    "pred_count": 64,
+    "label_count": 33,
+    "mean_onset": 11.990373611450195,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1280,
+    "end": 1344,
+    "pred_count": 62,
+    "label_count": 26,
+    "mean_onset": 13.274166107177734,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1344,
+    "end": 1408,
+    "pred_count": 62,
+    "label_count": 27,
+    "mean_onset": 11.965593338012695,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1408,
+    "end": 1472,
+    "pred_count": 50,
+    "label_count": 22,
+    "mean_onset": 13.262918472290039,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1472,
+    "end": 1536,
+    "pred_count": 61,
+    "label_count": 29,
+    "mean_onset": 12.520705223083496,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1536,
+    "end": 1600,
+    "pred_count": 59,
+    "label_count": 21,
+    "mean_onset": 10.378508567810059,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1600,
+    "end": 1664,
+    "pred_count": 64,
+    "label_count": 9,
+    "mean_onset": 11.55476188659668,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1664,
+    "end": 1728,
+    "pred_count": 42,
+    "label_count": 8,
+    "mean_onset": 15.07091999053955,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1728,
+    "end": 1792,
+    "pred_count": 64,
+    "label_count": 20,
+    "mean_onset": 18.36557388305664,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1792,
+    "end": 1856,
+    "pred_count": 63,
+    "label_count": 26,
+    "mean_onset": 12.871123313903809,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1856,
+    "end": 1920,
+    "pred_count": 62,
+    "label_count": 27,
+    "mean_onset": 11.732926368713379,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1920,
+    "end": 1984,
+    "pred_count": 59,
+    "label_count": 22,
+    "mean_onset": 12.971266746520996,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1984,
+    "end": 2048,
+    "pred_count": 68,
+    "label_count": 35,
+    "mean_onset": 15.447202682495117,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 2048,
+    "end": 2058,
+    "pred_count": 0,
+    "label_count": 0,
+    "mean_onset": 0.33665379881858826,
+    "song_id": "1fd47",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 7,
+    "label_count": 6,
+    "mean_onset": 6.2697272300720215,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 14,
+    "label_count": 13,
+    "mean_onset": 13.031383514404297,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 96,
+    "label_count": 23,
+    "mean_onset": 15.562546730041504,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 98,
+    "label_count": 37,
+    "mean_onset": 21.253149032592773,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 77,
+    "label_count": 30,
+    "mean_onset": 24.462934494018555,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 58,
+    "label_count": 29,
+    "mean_onset": 27.001087188720703,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 52,
+    "label_count": 32,
+    "mean_onset": 23.871002197265625,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 59,
+    "label_count": 33,
+    "mean_onset": 19.243427276611328,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 77,
+    "label_count": 25,
+    "mean_onset": 14.773033142089844,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 66,
+    "label_count": 21,
+    "mean_onset": 14.215121269226074,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 70,
+    "label_count": 40,
+    "mean_onset": 12.507184982299805,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 77,
+    "label_count": 34,
+    "mean_onset": 13.97416877746582,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 64,
+    "label_count": 29,
+    "mean_onset": 12.621253967285156,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 64,
+    "label_count": 25,
+    "mean_onset": 13.33652400970459,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 896,
+    "end": 960,
+    "pred_count": 68,
+    "label_count": 35,
+    "mean_onset": 17.299758911132812,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 960,
+    "end": 1024,
+    "pred_count": 68,
+    "label_count": 32,
+    "mean_onset": 15.443263053894043,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1024,
+    "end": 1088,
+    "pred_count": 80,
+    "label_count": 33,
+    "mean_onset": 15.543609619140625,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1088,
+    "end": 1152,
+    "pred_count": 56,
+    "label_count": 25,
+    "mean_onset": 12.89387321472168,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1152,
+    "end": 1216,
+    "pred_count": 45,
+    "label_count": 21,
+    "mean_onset": 13.919683456420898,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1216,
+    "end": 1280,
+    "pred_count": 106,
+    "label_count": 40,
+    "mean_onset": 11.990373611450195,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1280,
+    "end": 1344,
+    "pred_count": 64,
+    "label_count": 34,
+    "mean_onset": 13.274166107177734,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1344,
+    "end": 1408,
+    "pred_count": 64,
+    "label_count": 29,
+    "mean_onset": 11.965593338012695,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1408,
+    "end": 1472,
+    "pred_count": 66,
+    "label_count": 25,
+    "mean_onset": 13.262918472290039,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1472,
+    "end": 1536,
+    "pred_count": 65,
+    "label_count": 33,
+    "mean_onset": 12.520705223083496,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1536,
+    "end": 1600,
+    "pred_count": 66,
+    "label_count": 23,
+    "mean_onset": 10.378508567810059,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1600,
+    "end": 1664,
+    "pred_count": 54,
+    "label_count": 9,
+    "mean_onset": 11.55476188659668,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1664,
+    "end": 1728,
+    "pred_count": 53,
+    "label_count": 8,
+    "mean_onset": 15.07091999053955,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1728,
+    "end": 1792,
+    "pred_count": 64,
+    "label_count": 29,
+    "mean_onset": 18.36557388305664,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1792,
+    "end": 1856,
+    "pred_count": 66,
+    "label_count": 34,
+    "mean_onset": 12.871123313903809,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1856,
+    "end": 1920,
+    "pred_count": 62,
+    "label_count": 29,
+    "mean_onset": 11.732926368713379,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1920,
+    "end": 1984,
+    "pred_count": 64,
+    "label_count": 25,
+    "mean_onset": 12.971266746520996,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1984,
+    "end": 2048,
+    "pred_count": 65,
+    "label_count": 35,
+    "mean_onset": 15.447202682495117,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 2048,
+    "end": 2058,
+    "pred_count": 0,
+    "label_count": 0,
+    "mean_onset": 0.33665379881858826,
+    "song_id": "1fd47",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 48,
+    "label_count": 34,
+    "mean_onset": 19.924327850341797,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 59,
+    "label_count": 38,
+    "mean_onset": 31.860794067382812,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 57,
+    "label_count": 38,
+    "mean_onset": 33.33647155761719,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 58,
+    "label_count": 40,
+    "mean_onset": 39.807655334472656,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 107,
+    "label_count": 40,
+    "mean_onset": 36.84455871582031,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 32,
+    "label_count": 26,
+    "mean_onset": 28.510297775268555,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 49,
+    "label_count": 30,
+    "mean_onset": 30.961288452148438,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 56,
+    "label_count": 28,
+    "mean_onset": 17.839134216308594,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 48,
+    "label_count": 36,
+    "mean_onset": 26.971405029296875,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 64,
+    "label_count": 38,
+    "mean_onset": 27.752727508544922,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 56,
+    "label_count": 40,
+    "mean_onset": 39.175106048583984,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 64,
+    "label_count": 40,
+    "mean_onset": 31.246826171875,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 10,
+    "label_count": 28,
+    "mean_onset": 27.12995719909668,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 34,
+    "label_count": 30,
+    "mean_onset": 26.780691146850586,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 896,
+    "end": 960,
+    "pred_count": 66,
+    "label_count": 28,
+    "mean_onset": 17.90583038330078,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 960,
+    "end": 1024,
+    "pred_count": 67,
+    "label_count": 36,
+    "mean_onset": 30.550765991210938,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1024,
+    "end": 1088,
+    "pred_count": 64,
+    "label_count": 38,
+    "mean_onset": 30.225181579589844,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1088,
+    "end": 1152,
+    "pred_count": 64,
+    "label_count": 40,
+    "mean_onset": 29.09581756591797,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1152,
+    "end": 1216,
+    "pred_count": 2,
+    "label_count": 40,
+    "mean_onset": 24.068363189697266,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1216,
+    "end": 1240,
+    "pred_count": 0,
+    "label_count": 12,
+    "mean_onset": 17.560684204101562,
+    "song_id": "1ffbe",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 48,
+    "label_count": 40,
+    "mean_onset": 19.924327850341797,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 64,
+    "label_count": 46,
+    "mean_onset": 31.860794067382812,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 120,
+    "label_count": 43,
+    "mean_onset": 33.33647155761719,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 101,
+    "label_count": 44,
+    "mean_onset": 39.807655334472656,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 75,
+    "label_count": 46,
+    "mean_onset": 36.84455871582031,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 64,
+    "label_count": 37,
+    "mean_onset": 28.510297775268555,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 64,
+    "label_count": 42,
+    "mean_onset": 30.961288452148438,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 64,
+    "label_count": 29,
+    "mean_onset": 17.839134216308594,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 49,
+    "label_count": 44,
+    "mean_onset": 26.971405029296875,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 64,
+    "label_count": 44,
+    "mean_onset": 27.752727508544922,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 64,
+    "label_count": 44,
+    "mean_onset": 39.175106048583984,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 64,
+    "label_count": 49,
+    "mean_onset": 31.246826171875,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 68,
+    "label_count": 39,
+    "mean_onset": 27.12995719909668,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 77,
+    "label_count": 42,
+    "mean_onset": 26.780691146850586,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 896,
+    "end": 960,
+    "pred_count": 68,
+    "label_count": 28,
+    "mean_onset": 17.90583038330078,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 960,
+    "end": 1024,
+    "pred_count": 64,
+    "label_count": 44,
+    "mean_onset": 30.550765991210938,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1024,
+    "end": 1088,
+    "pred_count": 65,
+    "label_count": 44,
+    "mean_onset": 30.225181579589844,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1088,
+    "end": 1152,
+    "pred_count": 65,
+    "label_count": 45,
+    "mean_onset": 29.09581756591797,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1152,
+    "end": 1216,
+    "pred_count": 12,
+    "label_count": 45,
+    "mean_onset": 24.068363189697266,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1216,
+    "end": 1240,
+    "pred_count": 0,
+    "label_count": 15,
+    "mean_onset": 17.560684204101562,
+    "song_id": "1ffbe",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 11,
+    "label_count": 6,
+    "mean_onset": 8.0482177734375,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 28,
+    "label_count": 28,
+    "mean_onset": 28.04983901977539,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 62,
+    "label_count": 22,
+    "mean_onset": 21.839963912963867,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 60,
+    "label_count": 22,
+    "mean_onset": 19.428783416748047,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 41,
+    "label_count": 30,
+    "mean_onset": 20.45122718811035,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 51,
+    "label_count": 24,
+    "mean_onset": 21.351783752441406,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 51,
+    "label_count": 22,
+    "mean_onset": 16.03215217590332,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 47,
+    "label_count": 27,
+    "mean_onset": 15.813769340515137,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 41,
+    "label_count": 22,
+    "mean_onset": 15.097667694091797,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 50,
+    "label_count": 25,
+    "mean_onset": 15.532754898071289,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 28,
+    "label_count": 26,
+    "mean_onset": 14.571020126342773,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 31,
+    "label_count": 25,
+    "mean_onset": 16.746164321899414,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 35,
+    "label_count": 29,
+    "mean_onset": 19.24712562561035,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 41,
+    "label_count": 24,
+    "mean_onset": 15.103755950927734,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 896,
+    "end": 960,
+    "pred_count": 62,
+    "label_count": 28,
+    "mean_onset": 19.42322540283203,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 960,
+    "end": 1024,
+    "pred_count": 64,
+    "label_count": 34,
+    "mean_onset": 17.150379180908203,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1024,
+    "end": 1088,
+    "pred_count": 61,
+    "label_count": 22,
+    "mean_onset": 14.925628662109375,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1088,
+    "end": 1152,
+    "pred_count": 59,
+    "label_count": 28,
+    "mean_onset": 13.174945831298828,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1152,
+    "end": 1216,
+    "pred_count": 49,
+    "label_count": 29,
+    "mean_onset": 14.635843276977539,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1216,
+    "end": 1280,
+    "pred_count": 56,
+    "label_count": 44,
+    "mean_onset": 13.917043685913086,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1280,
+    "end": 1344,
+    "pred_count": 64,
+    "label_count": 22,
+    "mean_onset": 11.177997589111328,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1344,
+    "end": 1408,
+    "pred_count": 64,
+    "label_count": 25,
+    "mean_onset": 10.312202453613281,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1408,
+    "end": 1472,
+    "pred_count": 62,
+    "label_count": 26,
+    "mean_onset": 10.782246589660645,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1472,
+    "end": 1536,
+    "pred_count": 64,
+    "label_count": 24,
+    "mean_onset": 12.343398094177246,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1536,
+    "end": 1600,
+    "pred_count": 71,
+    "label_count": 28,
+    "mean_onset": 16.51036834716797,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1600,
+    "end": 1664,
+    "pred_count": 70,
+    "label_count": 45,
+    "mean_onset": 13.211686134338379,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1664,
+    "end": 1728,
+    "pred_count": 46,
+    "label_count": 23,
+    "mean_onset": 15.6826171875,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1728,
+    "end": 1792,
+    "pred_count": 0,
+    "label_count": 12,
+    "mean_onset": 5.166172981262207,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1792,
+    "end": 1856,
+    "pred_count": 0,
+    "label_count": 5,
+    "mean_onset": 3.5265660285949707,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 1856,
+    "end": 1875,
+    "pred_count": 0,
+    "label_count": 0,
+    "mean_onset": 0.0,
+    "song_id": "1ffe3",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 20,
+    "label_count": 5,
+    "mean_onset": 8.0482177734375,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 46,
+    "label_count": 28,
+    "mean_onset": 28.04983901977539,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 47,
+    "label_count": 25,
+    "mean_onset": 21.839963912963867,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 46,
+    "label_count": 27,
+    "mean_onset": 19.428783416748047,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 41,
+    "label_count": 26,
+    "mean_onset": 20.45122718811035,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 49,
+    "label_count": 29,
+    "mean_onset": 21.351783752441406,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 49,
+    "label_count": 28,
+    "mean_onset": 16.03215217590332,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 45,
+    "label_count": 28,
+    "mean_onset": 15.813769340515137,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 53,
+    "label_count": 26,
+    "mean_onset": 15.097667694091797,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 57,
+    "label_count": 31,
+    "mean_onset": 15.532754898071289,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 45,
+    "label_count": 30,
+    "mean_onset": 14.571020126342773,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 40,
+    "label_count": 26,
+    "mean_onset": 16.746164321899414,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 50,
+    "label_count": 26,
+    "mean_onset": 19.24712562561035,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 46,
+    "label_count": 32,
+    "mean_onset": 15.103755950927734,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 896,
+    "end": 960,
+    "pred_count": 64,
+    "label_count": 29,
+    "mean_onset": 19.42322540283203,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 960,
+    "end": 1024,
+    "pred_count": 64,
+    "label_count": 34,
+    "mean_onset": 17.150379180908203,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1024,
+    "end": 1088,
+    "pred_count": 64,
+    "label_count": 28,
+    "mean_onset": 14.925628662109375,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1088,
+    "end": 1152,
+    "pred_count": 64,
+    "label_count": 33,
+    "mean_onset": 13.174945831298828,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1152,
+    "end": 1216,
+    "pred_count": 64,
+    "label_count": 32,
+    "mean_onset": 14.635843276977539,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1216,
+    "end": 1280,
+    "pred_count": 65,
+    "label_count": 41,
+    "mean_onset": 13.917043685913086,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1280,
+    "end": 1344,
+    "pred_count": 58,
+    "label_count": 26,
+    "mean_onset": 11.177997589111328,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1344,
+    "end": 1408,
+    "pred_count": 75,
+    "label_count": 31,
+    "mean_onset": 10.312202453613281,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1408,
+    "end": 1472,
+    "pred_count": 44,
+    "label_count": 30,
+    "mean_onset": 10.782246589660645,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1472,
+    "end": 1536,
+    "pred_count": 62,
+    "label_count": 28,
+    "mean_onset": 12.343398094177246,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1536,
+    "end": 1600,
+    "pred_count": 113,
+    "label_count": 34,
+    "mean_onset": 16.51036834716797,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1600,
+    "end": 1664,
+    "pred_count": 91,
+    "label_count": 40,
+    "mean_onset": 13.211686134338379,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1664,
+    "end": 1728,
+    "pred_count": 60,
+    "label_count": 30,
+    "mean_onset": 15.6826171875,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1728,
+    "end": 1792,
+    "pred_count": 15,
+    "label_count": 20,
+    "mean_onset": 5.166172981262207,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1792,
+    "end": 1856,
+    "pred_count": 0,
+    "label_count": 6,
+    "mean_onset": 3.5265660285949707,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 1856,
+    "end": 1875,
+    "pred_count": 0,
+    "label_count": 0,
+    "mean_onset": 0.0,
+    "song_id": "1ffe3",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 8,
+    "label_count": 6,
+    "mean_onset": 3.8990418910980225,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 25,
+    "label_count": 33,
+    "mean_onset": 14.455045700073242,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 60,
+    "label_count": 30,
+    "mean_onset": 14.86722183227539,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 64,
+    "label_count": 39,
+    "mean_onset": 17.43305206298828,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 17,
+    "label_count": 26,
+    "mean_onset": 14.613485336303711,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 57,
+    "label_count": 36,
+    "mean_onset": 20.602203369140625,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 64,
+    "label_count": 36,
+    "mean_onset": 19.510927200317383,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 64,
+    "label_count": 30,
+    "mean_onset": 16.820356369018555,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 64,
+    "label_count": 21,
+    "mean_onset": 12.339484214782715,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 64,
+    "label_count": 31,
+    "mean_onset": 15.486337661743164,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 63,
+    "label_count": 33,
+    "mean_onset": 14.043517112731934,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 62,
+    "label_count": 32,
+    "mean_onset": 14.160995483398438,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 64,
+    "label_count": 35,
+    "mean_onset": 16.203365325927734,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 37,
+    "label_count": 23,
+    "mean_onset": 8.731502532958984,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 896,
+    "end": 908,
+    "pred_count": 0,
+    "label_count": 0,
+    "mean_onset": 0.002724461257457733,
+    "song_id": "201a0",
+    "difficulty": "Expert"
+  },
+  {
+    "start": 0,
+    "end": 64,
+    "pred_count": 6,
+    "label_count": 4,
+    "mean_onset": 3.8990418910980225,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 64,
+    "end": 128,
+    "pred_count": 18,
+    "label_count": 32,
+    "mean_onset": 14.455045700073242,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 128,
+    "end": 192,
+    "pred_count": 61,
+    "label_count": 36,
+    "mean_onset": 14.86722183227539,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 192,
+    "end": 256,
+    "pred_count": 64,
+    "label_count": 42,
+    "mean_onset": 17.43305206298828,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 256,
+    "end": 320,
+    "pred_count": 36,
+    "label_count": 24,
+    "mean_onset": 14.613485336303711,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 320,
+    "end": 384,
+    "pred_count": 65,
+    "label_count": 39,
+    "mean_onset": 20.602203369140625,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 384,
+    "end": 448,
+    "pred_count": 67,
+    "label_count": 35,
+    "mean_onset": 19.510927200317383,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 448,
+    "end": 512,
+    "pred_count": 67,
+    "label_count": 31,
+    "mean_onset": 16.820356369018555,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 512,
+    "end": 576,
+    "pred_count": 64,
+    "label_count": 40,
+    "mean_onset": 12.339484214782715,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 576,
+    "end": 640,
+    "pred_count": 64,
+    "label_count": 39,
+    "mean_onset": 15.486337661743164,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 640,
+    "end": 704,
+    "pred_count": 64,
+    "label_count": 40,
+    "mean_onset": 14.043517112731934,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 704,
+    "end": 768,
+    "pred_count": 64,
+    "label_count": 42,
+    "mean_onset": 14.160995483398438,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 768,
+    "end": 832,
+    "pred_count": 64,
+    "label_count": 37,
+    "mean_onset": 16.203365325927734,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 832,
+    "end": 896,
+    "pred_count": 38,
+    "label_count": 27,
+    "mean_onset": 8.731502532958984,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  },
+  {
+    "start": 896,
+    "end": 908,
+    "pred_count": 0,
+    "label_count": 0,
+    "mean_onset": 0.002724461257457733,
+    "song_id": "201a0",
+    "difficulty": "ExpertPlus"
+  }
+]

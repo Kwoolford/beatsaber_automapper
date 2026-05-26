@@ -1436,10 +1436,12 @@ def generate_v7_level(
     song_name: str | None = None,
     song_author: str = "Unknown Artist",
     bpm: float | None = None,
-    beat_threshold_left: float = 0.4,
-    beat_threshold_right: float = 0.4,
+    beat_threshold_left: float = 0.55,
+    beat_threshold_right: float = 0.55,
+    beat_nms_radius: int = 1,
+    beat_energy_scale: float = 0.15,
     temperature: float = 0.9,
-    top_p: float = 0.9,
+    top_p: float = 0.95,
     phrase_similarity: float = 0.85,
     device: str | None = None,
     sample_rate: int = 44100,
@@ -1544,7 +1546,7 @@ def generate_v7_level(
     mix_beat  = pool_to_beat_grid(mix_mert,  bpm, total_beats, BEAT_SUBDIV)  # [N, 768]
     n_slots   = drum_beat.shape[0]
 
-    song_emb  = mix_beat.mean(0)   # [768] — full-song embedding
+    song_emb_vec  = mix_beat.mean(0)   # [768] — full-song embedding
 
     fingerprints, boundaries = compute_fingerprints(mix_beat, beats_per_phrase=16, subdiv=BEAT_SUBDIV)
 
@@ -1577,8 +1579,58 @@ def generate_v7_level(
             beat_probs_parts.append(torch.sigmoid(logits_w.squeeze(0)))
     beat_probs = torch.cat(beat_probs_parts, dim=0)   # [N, 2]
 
-    left_onsets  = set((beat_probs[:, 0] >= beat_threshold_left).nonzero(as_tuple=True)[0].tolist())
-    right_onsets = set((beat_probs[:, 1] >= beat_threshold_right).nonzero(as_tuple=True)[0].tolist())
+    # ----- Section-aware threshold (replaces flat energy modulation) -----
+    # The model outputs a near-uniform probability distribution with no clear
+    # bimodal gap, so a fixed threshold produces a metronome. Instead we:
+    #   1. Detect song sections (intro/verse/chorus/drop/bridge/outro) once.
+    #   2. Map each section type to a threshold that reflects natural map density:
+    #      drops get low thresholds (dense), intros/outros get high (sparse).
+    #   3. Apply per-slot thresholds derived from section boundaries.
+    # This matches how human mappers behave: they drop density in breakdowns and
+    # go dense in drops, rather than sustaining a constant 6 NPS throughout.
+    _SECTION_THRESHOLDS = {
+        "drop":   0.38,   # loudest section — many notes
+        "chorus": 0.44,
+        "verse":  0.52,
+        "bridge": 0.58,
+        "intro":  0.68,   # sparse opening
+        "outro":  0.72,   # sparse ending
+    }
+
+    try:
+        from beatsaber_automapper.data.audio import detect_sections as _detect_sections
+        sections = _detect_sections(waveform, sample_rate=src_sr)
+    except Exception:
+        sections = [("verse", 0.0, song_duration_secs)]
+
+    logger.info("Sections: %s", [(t, f"{s:.0f}s", f"{e:.0f}s") for t, s, e in sections])
+
+    # Build per-slot threshold vector from section labels
+    beats_per_sec = bpm / 60.0
+    thr_L = torch.full((n_slots,), beat_threshold_left,  device=device_obj)
+    thr_R = torch.full((n_slots,), beat_threshold_right, device=device_obj)
+    for sec_type, sec_start, sec_end in sections:
+        base = _SECTION_THRESHOLDS.get(sec_type, beat_threshold_left)
+        slot_s = max(0, int(sec_start * beats_per_sec * BEAT_SUBDIV))
+        slot_e = min(n_slots, int(sec_end   * beats_per_sec * BEAT_SUBDIV) + 1)
+        thr_L[slot_s:slot_e] = base
+        thr_R[slot_s:slot_e] = base
+
+    # ----- Non-maximum suppression within ±beat_nms_radius -----
+    def _nms(probs: torch.Tensor, thresh: torch.Tensor, radius: int) -> set[int]:
+        keep_mask = probs >= thresh
+        if radius <= 0 or not keep_mask.any():
+            return set(keep_mask.nonzero(as_tuple=True)[0].tolist())
+        N = probs.shape[0]
+        pooled = torch.nn.functional.max_pool1d(
+            probs.unsqueeze(0).unsqueeze(0),
+            kernel_size=2 * radius + 1, stride=1, padding=radius,
+        ).squeeze(0).squeeze(0)[:N]
+        keep = keep_mask & (probs >= pooled)
+        return set(keep.nonzero(as_tuple=True)[0].tolist())
+
+    left_onsets  = _nms(beat_probs[:, 0].to(device_obj), thr_L, beat_nms_radius)
+    right_onsets = _nms(beat_probs[:, 1].to(device_obj), thr_R, beat_nms_radius)
     logger.info("Stage 1: %d left onsets, %d right onsets across %d slots",
                 len(left_onsets), len(right_onsets), n_slots)
 
@@ -1597,7 +1649,28 @@ def generate_v7_level(
     from beatsaber_automapper.data.beat_grid import BEAT_SUBDIV as _BEAT_SUBDIV
 
     all_events: list[_SwingEvent] = []
-    max_phrase_slots_inf = layout_module.model.max_phrase_slots
+    max_phrase_slots_inf  = layout_module.model.max_phrase_slots
+    max_song_phrases_inf  = getattr(layout_module.model, "max_song_phrases", 0)
+
+    # Cross-phrase context: last ctx_len tokens from prior phrase.
+    _ctx_len = getattr(layout_module.model, "ctx_len", 0)
+    _prev_ctx_toks:  list[int] = []
+    _prev_ctx_slots: list[int] = []
+    _prev_ctx_hands: list[int] = []
+
+    # Song-memory: all phrase fingerprints padded to max_song_phrases.
+    # Computed once and reused for every phrase in this song.
+    if max_song_phrases_inf > 0 and fingerprints is not None and len(fingerprints) > 0:
+        N_fp = min(len(fingerprints), max_song_phrases_inf)
+        _song_fps_pad  = torch.zeros(1, max_song_phrases_inf, 768, device=device_obj)
+        _song_fp_mask_pad = torch.zeros(1, max_song_phrases_inf, dtype=torch.bool, device=device_obj)
+        _song_fps_pad[0, :N_fp]      = fingerprints[:N_fp].to(device_obj, dtype=torch.float32)
+        _song_fp_mask_pad[0, :N_fp]  = True
+        _song_fps_t      = _song_fps_pad
+        _song_fp_mask_t  = _song_fp_mask_pad
+    else:
+        _song_fps_t     = None
+        _song_fp_mask_t = None
 
     for phrase_idx, (slot_start, slot_end) in enumerate(boundaries):
         # Collect onset schedule for this phrase: (slot_in_phrase, hand_idx) sorted
@@ -1636,10 +1709,43 @@ def generate_v7_level(
                 genre          = genre_t,
                 temperature    = temperature,
                 top_p          = top_p,
+                context_tokens = _prev_ctx_toks  if _ctx_len > 0 else None,
+                context_slots  = _prev_ctx_slots if _ctx_len > 0 else None,
+                context_hands  = _prev_ctx_hands if _ctx_len > 0 else None,
+                song_fps       = _song_fps_t,
+                song_fp_mask   = _song_fp_mask_t,
             )
 
         phrase_events = _decode_phrase_tokens(flat_tokens, onset_schedule, slot_start)
         all_events.extend(phrase_events)
+
+        # Update cross-phrase context buffer for next phrase.
+        if _ctx_len > 0:
+            _prev_ctx_toks  = flat_tokens[-_ctx_len:]
+            # Slots/hands need to come from the onset_schedule alignment.
+            # Rebuild from onset_schedule consumed by _decode_phrase_tokens.
+            ctx_slots: list[int] = []
+            ctx_hands: list[int] = []
+            tok_per_onset = []
+            ti = 0
+            from beatsaber_automapper.data.swing_tokenizer import (
+                BOMB as _BOMB, CHAIN_TAIL as _CHAIN_TAIL, KIND_BASE as _KB, KIND_COUNT as _KC,
+            )
+            for sip, hidx in onset_schedule:
+                if ti >= len(flat_tokens): break
+                k = flat_tokens[ti]
+                n_tok = 3 if (k == _BOMB) else 4 if (k == _CHAIN_TAIL) else 5
+                n_tok = min(n_tok, len(flat_tokens) - ti)
+                tok_per_onset.append((sip, hidx, n_tok))
+                ti += n_tok
+            # Flatten slot/hand per token
+            all_ctx_slots: list[int] = []
+            all_ctx_hands: list[int] = []
+            for sip, hidx, n in tok_per_onset:
+                all_ctx_slots.extend([sip] * n)
+                all_ctx_hands.extend([hidx] * n)
+            _prev_ctx_slots = all_ctx_slots[-_ctx_len:]
+            _prev_ctx_hands = all_ctx_hands[-_ctx_len:]
 
     logger.info("Generated %d events", len(all_events))
 

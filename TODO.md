@@ -1,7 +1,7 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-05-21
-**Status:** Stage 1 BeatClassifier done (val_f1_avg_tol=0.588, deemed good — subjectivity ceiling). Stage 2 LayoutPhraseModel Run 1 complete (val_token_acc=0.859, DoD met). Run 2 launched overnight (38.7M params, targeting x-column acc > 67%).
+**Last updated:** 2026-05-22
+**Status:** V7 end-to-end done (6.0 NPS). ArcViewer review found 3 inference bugs (see V7-8). Bug 1 (role alignment in generate_phrase._step) is critical and must be fixed before eval is meaningful.
 **North star:** A player plays a generated map and says *"who mapped this?"* — not *"is this AI?"*
 
 **Full implementation plan:** [`docs/architecture_v7_plan.md`](docs/architecture_v7_plan.md)
@@ -414,14 +414,202 @@ python scripts/train_layout.py --max-epochs 30
   would need Stage 1 to predict multi-class note type (future enhancement).
 - Color separation moved 35% of notes — X-position accuracy (67%) is the remaining gap.
 
-### V7-8 — Evaluation + Tuning 🔄 IN PROGRESS
+### V7-8 — Evaluation + Tuning ✅ BUGS FIXED, ARCHITECTURE ITERATION IN PROGRESS
+
+#### Status (2026-05-25)
 - [x] Generate on test song — 6.0 NPS at Expert ✓ (V7-7 done)
-- [ ] Load v7_first_test.zip in ArcViewer — visual check note placement, flow, lighting
-- [ ] Tune Stage 1 threshold (current 0.4 → try 0.5; 888+891 at 0.4 is likely overshooting)
-- [ ] Tune PhraseIndex similarity threshold (start at 0.85)
-- [ ] If repetitive: lower to 0.80; if drifting: raise to 0.90
+- [x] ArcViewer review (2026-05-22) — three bugs found
+- [x] **All three bugs fixed** (2026-05-23) — see below
+- [x] EDA confirmed fix: Y=top-row 89.7%→28%, D=dot 99.5%→0%, X spread collapsed→even
+- [x] Section-aware thresholds replace flat energy scaling (2026-05-25)
+- [x] `fix_parity` + `convert_dot_notes` re-enabled in postprocessor
+- [x] `top_p` default raised 0.90→0.95 (unblocks D=2/3 horizontal swipes)
+- [ ] **Run ArcViewer on `outputs/v7_section_aware.zip`** — section-aware map with Run 4 checkpoint
+- [ ] Wire `_compute_adaptive_threshold()` into V7 for per-section NPS targeting (see backlog)
+- [ ] Generate ExpertPlus variant to check density scaling
+- [ ] Tune PhraseIndex similarity threshold (currently unused now that song-memory replaces it)
+
+#### Bug 1 (CRITICAL — FIXED 2026-05-23): Off-by-one role alignment in `generate_phrase._step`
+**Symptom:** ~100% of notes appear in the top row (Y=2), ~100% use dot/any-direction.  
+**Root cause:** In `layout_model.py::generate_phrase._step`, the new role/slot/hand metadata
+is appended to the sequence buffers **before** the forward pass runs — placing `role=KIND` at
+the LAYOUT_PAD placeholder position rather than at the sampled token's position. The model
+was trained so that position i with `role=R_i` predicts `T_{i+1}` (the next token). So at the
+placeholder with `role=KIND`, the model outputs X-range tokens. At the placeholder with
+`role=X`, it outputs Y-range tokens. And so on — a systematic one-step circular shift:
+- `role=KIND` → 91% X-range tokens (IDs 44–47)
+- `role=X`    → 90.5% Y-range tokens (IDs 48–50)
+- `role=Y`    → 91.4% DIR-range tokens (IDs 51–59)
+- `role=DIR`  → 90.2% ANGLE-range tokens (IDs 60–66)
+- `role=FIELD_D` → 87.5% KIND-range tokens (IDs 38–43)
+
+The hard clamp in `_decode_phrase_tokens` then converts out-of-range tokens to boundary values:
+- DIR-range (51–59) decoded as Y: `max(0, min(tok - 48, 2))` → **always 2 (top row)**
+- ANGLE-range (60–66) decoded as DIR: `max(0, min(tok - 51, 8))` → **always 8 (dot)**
+
+**Why training didn't catch it:** `val_token_acc` is teacher-forced — the model sees ground-truth
+previous tokens at every step and correctly predicts the next one. The role misalignment
+only surfaces during autoregressive rollout, which the metric never tests.
+
+**Fix:** Restructure `_step` in `layout_model.py::generate_phrase` to read logits from the last
+real token's output position *before* appending the new metadata. Append role/slot/hand *after*
+sampling, together with the newly sampled token. No retraining needed.
+
+```python
+def _step(role: int, slot: int, hand: int) -> int:
+    S = len(toks)   # use real sequence length, no placeholder
+    x = (tok_emb([toks]) + slot_emb([slots]) + hand_emb([hands])
+         + role_emb([roles]) + dec_pos_emb(arange(S)))
+    ...
+    logits = out_proj(y)[:, -1, :]   # last real token predicts next
+    tok = nucleus_sample(logits)
+    toks.append(tok)    # append token THEN metadata
+    slots.append(slot)
+    hands.append(hand)
+    roles.append(role)
+    return tok
+```
+
+---
+
+#### Bug 2: Stage 1 threshold too low → fixed-interval appearance
+**Symptom:** Beat pattern looks like a metronome — notes on nearly every 16th-note slot,
+no rhythmic variation, can't "speed up" for fast passages because the grid is already saturated.  
+**Root cause:** `beat_threshold=0.4` produces 888+891 onsets across 1444 slots (62% density).
+At 123 BPM with 4 subdiv, 62% density = a note every ~1.6 16th notes on average = 8+ NPS
+before postprocessing. A real Expert rock map runs 3–5 NPS with large rhythmic gaps.
+Threshold=0.4 is far below the operating point that produces musical density variation.  
+**Fix:** Raise threshold to 0.5–0.6 and regenerate. Profile the onset probability histogram
+to find the natural gap between "clear beat" and "marginal prediction" and use that as the
+threshold. Additionally, within a window, high-probability slots should suppress adjacent
+low-probability ones (non-maximum suppression within ±1 slot).
+
+---
+
+#### Bug 3: No energy or section adaptation — monotone throughout
+**Symptom:** The generated map is identical in density and intensity from intro to breakdown
+to chorus to outro. There is no distinction between quiet and loud sections, guitar vs. bass
+vs. drum passages, or beat drops.  
+**Root cause:** `generate_v7_level` applies a fixed threshold for the entire song and does not
+use `structure_features` (RMS energy, spectral flux, etc.) which are already computed and
+stored in every `.pt` file. The V6 pipeline had `_compute_adaptive_threshold()` (still present
+in `generate.py:272`) that raised thresholds in quiet sections and lowered them in loud sections,
+but it is never called from `generate_v7_level`. Neither Stage 1 nor Stage 2 has any
+section/energy conditioning during inference.  
+**Fix:** For Stage 1, extract per-phrase energy from `mix_beat` (mean L2 norm per 64-slot
+window is a cheap proxy) and scale the beat threshold inversely — low-energy phrases get a
+higher threshold (fewer notes), high-energy phrases get a lower threshold (more notes).
+Alternatively, route the existing `_compute_adaptive_threshold()` function from the V6 path
+into the V7 windowed inference loop. No retraining needed; this is a pure inference change.
+
+---
+
+- [x] **Fix Bug 1** — restructure `_step` in `layout_model.py` (2026-05-23)
+- [x] **Fix Bug 2** — threshold raised to 0.55, ±1-slot NMS added (2026-05-23)
+- [x] **Fix Bug 3** — section-aware per-slot thresholds replace flat energy scaling (2026-05-25)
+- [x] Nucleus sampling fixed: uniform→probability-weighted (2026-05-23)
+- [x] Constrained sampling added: logits masked to legal role vocab range (2026-05-23)
+- [x] `fix_parity` + `convert_dot_notes` re-enabled in postprocessor (2026-05-25)
+- [ ] Wire `_compute_adaptive_threshold()` for target-NPS-per-section (see backlog)
 - [ ] Compare V6 vs V7 NPS on same test songs (V6 best: 1.08 NPS, V7: 6.0 NPS)
 - [ ] Generate ExpertPlus variant to check density scaling
+- [ ] ArcViewer pass on `outputs/v7_section_aware.zip` (section-aware map, Run 4 ckpt)
+
+---
+
+## V7 Architecture Iteration Log (2026-05-23 → 2026-05-25)
+
+### Training Run History
+
+| Run | Version | Config | Best val_token_acc | X-acc | Notes |
+|-----|---------|--------|--------------------|-------|-------|
+| Run 1 | layout/version_0 | d=384, 3enc+4dec, 15.4M | 0.859 | 67% | Baseline, DoD met |
+| Run 2 | layout/version_1 | d=512, 4enc+6dec, 38.7M | 0.861 | 68% | Bigger model, no gain |
+| Run 3 | layout/version_2 | same + x_role_weight=2.0 | 0.861 | 68% | X-weight didn't help → ceiling is subjectivity |
+| Run 4 | layout/version_3 | same + ctx_len=16 | **0.870** | **70%** | Cross-phrase prefix broke ceiling — +0.009 overall |
+| Run 5 | layout/version_4 | ctx_16 + scheduled_sampling | 0.869 | 70% | No benefit from scheduled sampling |
+| Run 6 | layout/version_5 | ctx_16 + song_emb/section_emb scalar | 0.870 | 70% | Scalar conditioning confirmed useless |
+| **Run 7** | layout/version_6 | ctx_16 + **song-memory cross-attn** | 🔄 IN PROGRESS | — | Dynamic: decoder attends to all phrase fingerprints |
+
+Beat Classifier:
+| Run | Version | Config | Best val_f1_avg_tol |
+|-----|---------|--------|---------------------|
+| Run 3 | bc/version_3 | d=256, 2-layer | 0.588 |
+| Run 5 | bc/version_4 | **d=512, 4-layer** | **0.603** |
+
+### Architectural Lessons
+
+1. **Fixed window encoder ≠ dynamic context.** The phrase encoder processes a fixed 64-slot window. Every run (1–6) with the same local encoder hit the same 0.861 ceiling. Scalar song/section embeddings added zero lift — the model needs *attentional* access to song history, not a summary vector.
+
+2. **Cross-phrase token prefix is the cheapest win.** ctx_len=16 (last 16 tokens from prior phrase) pushed the ceiling to 0.870 and improved every spatial role. The decoder uses its causal self-attention to leverage this — no architecture change needed.
+
+3. **X-column accuracy is ~70%, structural.** Role weighting (2×), bigger model, and everything else left X at 68–70%. This is mapper subjectivity: same melody legitimately maps to multiple columns. The ceiling is not capacity or optimization.
+
+4. **Song-memory cross-attention (Run 7) is the right fix** for the original V6 failure mode ("same chorus at bar 8 and bar 40 → inconsistent patterns"). Phrase fingerprints are precomputed in every .pt file. The decoder now attends to [local 64-slot MERT | all N_phrases fingerprints] jointly — soft retrieval instead of the hard-threshold PhraseIndex.
+
+5. **Stage 1 probability distribution is flat.** The beat classifier outputs near-uniform probabilities (18–31% density from threshold 0.30–0.80). There is no bimodal gap. Section-aware thresholds (drop=0.38, outro=0.72) create 5–8 NPS variation but not the 0–9 NPS of real maps. Target: wire `_compute_adaptive_threshold()` to find per-section threshold that hits desired NPS.
+
+6. **Section detector needs calibration for EDM.** `detect_sections()` (agglomerative clustering on chroma+MFCC) labels most EDM tracks as "outro" after ~40s because EDM has consistent RMS post-intro. Genre-aware weighting or a simpler energy-percentile threshold would serve better.
+
+---
+
+## Backlog (Prioritised)
+
+### High — expected to move needle
+
+- **Wire `_compute_adaptive_threshold()` into V7** `generate_v7_level`.
+  V6 had this: binary-search the threshold that produces a target NPS per section.
+  Target: drop=7 NPS, verse=4 NPS, intro/outro=2 NPS.
+  File: `generation/generate.py` — function already exists at line ~272.
+  No training needed; pure inference change.
+
+- **Evaluate Run 7 checkpoint** (song-memory cross-attention) once training completes.
+  Expected metric: val_token_acc > 0.870. More importantly: does second chorus match
+  first chorus pattern in ArcViewer? That's the true test.
+
+- **Improve section detector for EDM**.
+  Options: (a) use raw RMS percentiles instead of clustering — any window in the top-25%
+  energy percentile is a "drop", bottom-25% is "intro/outro"; (b) pass genre to
+  `detect_sections` and tune aggressiveness by genre.
+
+### Medium — good experiments, lower certainty
+
+- **Scheduled sampling (revisit after Run 7).**
+  Run 5 showed no benefit vs Run 4 teacher-forcing. Hypothesis: exposure bias isn't the
+  bottleneck when constrained sampling already prevents grammar errors. May be worth
+  revisiting after song-memory is proven.
+
+- **Larger Beat Classifier (Run 6).**
+  version_4 at d=512/4-layer gives 0.603. Try d=768 or adding structure_features as
+  auxiliary input (RMS, onset strength pooled to beat grid). Stage 1 is still the
+  limiting factor for density shaping.
+
+- **ExpertPlus + Hard difficulty training.**
+  Currently Expert+ExpertPlus only. Adding Hard (lower density, different patterns)
+  might help generalization. Or try a density-conditioned model that scales NPS
+  to a requested target rather than learning a fixed Expert density.
+
+### Low — future / research
+
+- **KV-cache for autoregressive decoding.**
+  `generate_phrase` recomputes the full forward pass at every step → O(N²) cost.
+  With ~150 tokens/phrase × 45 phrases/song, this is ~300K FLOPs/step. A KV-cache
+  would halve generation time. Not blocking quality.
+
+- **Arc/chain generation.**
+  Stage 1 currently only predicts note presence (binary). Multi-class prediction
+  (note vs arc vs chain vs bomb per slot) would unlock the full beatmap vocabulary.
+  Would require retraining Stage 1 with multi-class labels from swing_tokens.
+
+- **Per-mapper style conditioning.**
+  `mapper` field was never backfilled into V7 .pt files (preprocessing gap). A
+  preprocessing pass + mapper embedding would let the model mimic specific mapping
+  styles. Low priority until the base quality is strong.
+
+- **Replace PhraseIndex entirely.**
+  With song-memory cross-attention (Run 7), the PhraseIndex hard-retrieval is
+  superseded — the model learns soft retrieval. Keep PhraseIndex as a fallback but
+  disable by default once Run 7 is validated.
 
 ---
 

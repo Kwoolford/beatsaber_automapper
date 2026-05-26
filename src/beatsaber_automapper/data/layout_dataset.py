@@ -73,7 +73,8 @@ ROLE_Y       = 2
 ROLE_DIR     = 3
 ROLE_FIELD_D = 4
 ROLE_SPECIAL = 5  # BOS / EOS / PAD
-N_ROLES      = 6
+ROLE_CONTEXT = 6  # cross-phrase context prefix tokens (loss masked)
+N_ROLES      = 7  # includes ROLE_CONTEXT
 
 # Hand sentinel for special tokens
 HAND_LEFT_IDX  = 0
@@ -227,6 +228,8 @@ class LayoutPhraseDataset(Dataset):
         max_layout_len: int = DEFAULT_MAX_LAYOUT_LEN,
         max_phrase_slots: int = MAX_PHRASE_SLOTS,
         min_notes: int = 1,
+        ctx_len: int = 0,
+        max_song_phrases: int = 150,
     ) -> None:
         self.data_dir         = Path(data_dir)
         self.target_diffs     = set(difficulties) if difficulties else None
@@ -237,6 +240,10 @@ class LayoutPhraseDataset(Dataset):
         # `max_phrase_slots + 1` rows, with the last one reserved for this sentinel.
         self._special_slot    = max_phrase_slots
         self.min_notes        = min_notes
+        self.max_song_phrases = max_song_phrases
+        # ctx_len > 0: prepend the last ctx_len spatial tokens from the prior
+        # phrase into the decoder sequence (with ROLE_CONTEXT; loss is masked).
+        self.ctx_len          = ctx_len
 
         splits_path = self.data_dir / "splits.json"
         song_ids: set[str] | None = None
@@ -351,24 +358,62 @@ class LayoutPhraseDataset(Dataset):
         phrase_len = min(e - s, self.max_phrase_slots)
 
         # ---- Encoder input ----
+        # Only positions that are actually backed by mix_beat data should be
+        # marked True in the mask. Otherwise the encoder attends to zero
+        # vectors at the end of the last phrase of every song.
         phrase_mert = torch.zeros(self.max_phrase_slots, 768, dtype=torch.float32)
         phrase_mask = torch.zeros(self.max_phrase_slots, dtype=torch.bool)
-        clipped_e = s + phrase_len
-        if clipped_e <= mix_beat.shape[0]:
-            phrase_mert[:phrase_len] = mix_beat[s:clipped_e]
-        else:
-            real = mix_beat.shape[0] - s
-            real = max(0, real)
-            phrase_mert[:real] = mix_beat[s:mix_beat.shape[0]]
+        clipped_e = min(s + phrase_len, mix_beat.shape[0])
+        real = max(0, clipped_e - s)
+        if real > 0:
+            phrase_mert[:real] = mix_beat[s:clipped_e]
             phrase_mask[:real] = True
-            phrase_mask_set = True
-        phrase_mask[:phrase_len] = True
 
-        # ---- Decoder sequence (token / per-token metadata / target) ----
-        token_ids: list[int] = [LAYOUT_BOS]
-        token_slot: list[int] = [self._special_slot]
-        token_hand: list[int] = [HAND_SPECIAL_IDX]
-        token_role: list[int] = [ROLE_SPECIAL]
+        # ---- Cross-phrase context prefix ----
+        # Collect the last ctx_len spatial tokens from the previous phrase (same
+        # song, same difficulty). These are prepended to the decoder input with
+        # role=ROLE_CONTEXT so the model can see the trailing note pattern from
+        # the prior phrase. Loss is masked on these positions (they're context,
+        # not predictions). For phrase_idx==0, or if ctx_len==0, this is empty.
+        ctx_token_ids: list[int] = []
+        ctx_token_slot: list[int] = []
+        ctx_token_hand: list[int] = []
+        ctx_token_role: list[int] = []
+
+        if self.ctx_len > 0 and phrase_idx > 0:
+            prev_s, prev_e = phrase_b[phrase_idx - 1]
+            prev_events = sorted(
+                (ev for ev in events if prev_s <= ev.slot < prev_e),
+                key=lambda ev: (ev.slot, _hand_idx(ev.hand), ev.kind),
+            )
+            # Build the full token sequence for the previous phrase
+            all_prev_toks: list[int] = []
+            all_prev_slots: list[int] = []
+            all_prev_hands: list[int] = []
+            all_prev_roles: list[int] = []
+            for ev in prev_events:
+                ev_tokens, ev_roles = _event_to_tokens(ev)
+                sp = min(ev.slot - prev_s, self.max_phrase_slots - 1)
+                h_idx = _hand_idx(ev.hand)
+                for tid, rid in zip(ev_tokens, ev_roles):
+                    all_prev_toks.append(tid)
+                    all_prev_slots.append(sp)
+                    all_prev_hands.append(h_idx)
+                    all_prev_roles.append(rid)
+            # Take the last ctx_len tokens and relabel with ROLE_CONTEXT
+            tail = all_prev_toks[-self.ctx_len:]
+            tail_slots = all_prev_slots[-self.ctx_len:]
+            tail_hands = all_prev_hands[-self.ctx_len:]
+            ctx_token_ids   = tail
+            ctx_token_slot  = tail_slots
+            ctx_token_hand  = tail_hands
+            ctx_token_role  = [ROLE_CONTEXT] * len(tail)
+
+        # ---- Decoder sequence (context prefix + BOS + event tokens) ----
+        token_ids: list[int] = ctx_token_ids + [LAYOUT_BOS]
+        token_slot: list[int] = ctx_token_slot + [self._special_slot]
+        token_hand: list[int] = ctx_token_hand + [HAND_SPECIAL_IDX]
+        token_role: list[int] = ctx_token_role + [ROLE_SPECIAL]
 
         phrase_events = sorted(
             (ev for ev in events if s <= ev.slot < e),
@@ -408,10 +453,33 @@ class LayoutPhraseDataset(Dataset):
         hand_t = torch.tensor(token_hand, dtype=torch.long)
         role_t = torch.tensor(token_role, dtype=torch.long)
 
-        # Targets are next-token prediction; ignore loss on shifted PAD positions.
+        # Targets are next-token prediction; ignore loss on shifted PAD positions
+        # AND on the context prefix (we don't want to predict those — they're
+        # read-only context for the decoder, not training targets).
+        ctx_n  = len(ctx_token_ids)
         target = tok_t.clone()
         target = torch.cat([target[1:], torch.tensor([LAYOUT_PAD], dtype=torch.long)])
         target[target == LAYOUT_PAD] = IGNORE_INDEX
+        # Mask loss on context prefix positions (positions 0 .. ctx_n-1)
+        if ctx_n > 0:
+            target[:ctx_n] = IGNORE_INDEX
+
+        # ---- Song-memory: all phrase fingerprints for this song ----
+        # Padded to max_song_phrases so batches collate cleanly. The model's
+        # encoder concatenates these to the local phrase memory so the decoder
+        # can dynamically attend to whichever prior phrase had similar melody —
+        # replacing the hard-threshold PhraseIndex with learned soft retrieval.
+        MAX_FP = self.max_song_phrases
+        fp_raw = data.get("phrase_fingerprints")  # [N, 768] float16 | None
+        if fp_raw is not None:
+            N_fp = min(fp_raw.shape[0], MAX_FP)
+            song_fps      = torch.zeros(MAX_FP, 768, dtype=torch.float32)
+            song_fp_mask  = torch.zeros(MAX_FP, dtype=torch.bool)
+            song_fps[:N_fp]     = fp_raw[:N_fp].float()
+            song_fp_mask[:N_fp] = True
+        else:
+            song_fps     = torch.zeros(MAX_FP, 768, dtype=torch.float32)
+            song_fp_mask = torch.zeros(MAX_FP, dtype=torch.bool)
 
         return {
             "phrase_mert":   phrase_mert,                                # [P, 768]
@@ -423,4 +491,7 @@ class LayoutPhraseDataset(Dataset):
             "target":        target,                                     # [S]
             "difficulty":    torch.tensor(diff_id,   dtype=torch.long),
             "genre":         torch.tensor(genre_idx, dtype=torch.long),
+            "ctx_len":       torch.tensor(ctx_n,     dtype=torch.long),
+            "song_fps":      song_fps,                                   # [MAX_FP, 768]
+            "song_fp_mask":  song_fp_mask,                               # [MAX_FP]
         }

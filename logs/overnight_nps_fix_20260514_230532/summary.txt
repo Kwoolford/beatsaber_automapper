@@ -1,0 +1,3 @@
+  ckpt: outputs/beatsaber_automapper/sequence/version_6/checkpoints/sequence-epoch=29-val_loss=0.986.ckpt
+  ckpt: outputs/beatsaber_automapper/sequence/version_7/checkpoints/sequence-epoch=29-val_loss=1.008.ckpt
+  ckpt: outputs/beatsaber_automapper/sequence/version_8/checkpoints/sequence-epoch=29-val_loss=1.007.ckpt

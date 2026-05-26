@@ -1,0 +1,15 @@
+vocab_size: 118
+d_model: 384
+n_heads: 6
+n_enc_layers: 3
+n_dec_layers: 4
+dim_feedforward: 1536
+max_layout_len: 384
+max_phrase_slots: 96
+num_difficulties: 5
+num_genres: 11
+dropout: 0.1
+learning_rate: 0.0001
+weight_decay: 0.01
+warmup_steps: 1000
+label_smoothing: 0.1
