@@ -5,11 +5,14 @@ binary note-presence logits for left and right hands independently.
 
 Architecture:
   Inputs:
-    drum_features [B, W, 768]  beat-aligned drum MERT
-    mix_features  [B, W, 768]  beat-aligned mix (melody) MERT  (optional)
-    difficulty    [B]          per-sample difficulty ID         (optional)
+    drum_features  [B, W, 768]  beat-aligned drum MERT
+    mix_features   [B, W, 768]  beat-aligned mix (melody) MERT  (optional)
+    struct_features [B, W, 8]   beat-aligned structure features  (optional)
+                                rows: rms, onset_strength, bass, mid, high,
+                                      spectral_centroid, section_id, section_progress
+    difficulty     [B]          per-sample difficulty ID         (optional)
   Proj:
-    Linear(drum, d_model) + Linear(mix, d_model)               (sum-fused)
+    Linear(drum, d_model) + Linear(mix, d_model) + Linear(8, d_model)  (sum-fused)
     + LayerNorm
     + position embedding (window-relative)
     + phase embedding (slot-within-bar, modulo 16 at subdiv=4)
@@ -22,7 +25,10 @@ different genres/instruments yield different mapping styles. The phase
 embedding gives the model an explicit downbeat signal. The difficulty
 embedding lets the model distinguish Expert (~3 notes/bar) from ExpertPlus
 (~6 notes/bar) when both are pooled in the training set — without it, the
-same drum hit carries contradictory labels across difficulties.
+same drum hit carries contradictory labels across difficulties. The struct
+path directly encodes energy dynamics (RMS, onset strength) and section
+position so the model can learn that loud/energetic sections warrant more
+notes without inferring this purely from MERT activations.
 """
 
 from __future__ import annotations
@@ -55,22 +61,27 @@ class BeatClassifier(nn.Module):
 
     def __init__(
         self,
-        mert_dim: int = 768,
-        mix_dim:  int = 768,
-        d_model: int = 256,
-        n_heads: int = 4,
-        n_layers: int = 2,
-        max_len: int = 512,
-        dropout: float = 0.1,
+        mert_dim:   int = 768,
+        mix_dim:    int = 768,
+        struct_dim: int = 8,
+        d_model:    int = 256,
+        n_heads:    int = 4,
+        n_layers:   int = 2,
+        max_len:    int = 512,
+        dropout:    float = 0.1,
         n_difficulties: int = N_DIFFICULTIES,
     ) -> None:
         super().__init__()
-        self.d_model = d_model
-        self.use_mix = mix_dim > 0
-        self.use_diff = n_difficulties > 0
+        self.d_model    = d_model
+        self.use_mix    = mix_dim > 0
+        self.use_struct = struct_dim > 0
+        self.use_diff   = n_difficulties > 0
 
-        self.drum_proj = nn.Linear(mert_dim, d_model)
-        self.mix_proj  = nn.Linear(mix_dim, d_model) if self.use_mix else None
+        self.drum_proj   = nn.Linear(mert_dim, d_model)
+        self.mix_proj    = nn.Linear(mix_dim,    d_model) if self.use_mix    else None
+        # struct_proj uses a larger fan-in ratio so small 8-dim features get appropriate
+        # gradient scale relative to the 768-dim MERT paths.
+        self.struct_proj = nn.Linear(struct_dim, d_model) if self.use_struct else None
 
         self.input_norm = nn.LayerNorm(d_model)
 
@@ -99,6 +110,9 @@ class BeatClassifier(nn.Module):
         if self.mix_proj is not None:
             nn.init.xavier_uniform_(self.mix_proj.weight)
             nn.init.zeros_(self.mix_proj.bias)
+        if self.struct_proj is not None:
+            nn.init.xavier_uniform_(self.struct_proj.weight)
+            nn.init.zeros_(self.struct_proj.bias)
         if self.diff_emb is not None:
             # Start at zero so the first epoch behaves identically to a no-diff baseline
             # and the embedding has to *earn* signal during training.
@@ -108,22 +122,26 @@ class BeatClassifier(nn.Module):
 
     def forward(
         self,
-        drum_features: torch.Tensor,
-        mix_features:  torch.Tensor | None = None,
-        difficulty:    torch.Tensor | int | None = None,
-        slot_offset:   int = 0,
+        drum_features:   torch.Tensor,
+        mix_features:    torch.Tensor | None = None,
+        difficulty:      torch.Tensor | int | None = None,
+        slot_offset:     int = 0,
+        struct_features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass.
 
         Args:
-            drum_features: [B, W, mert_dim] beat-aligned drum MERT.
-            mix_features:  [B, W, mix_dim]  beat-aligned mix MERT (optional).
-            difficulty:    [B] long tensor of difficulty IDs, or a scalar int
-                           (broadcast to the whole batch). Per-sample so a
-                           mixed-difficulty batch is handled correctly.
-            slot_offset:   Absolute slot index of the first slot in the window.
-                           Used to compute the within-bar phase embedding so
-                           the phase signal is consistent across windows.
+            drum_features:   [B, W, mert_dim] beat-aligned drum MERT.
+            mix_features:    [B, W, mix_dim]  beat-aligned mix MERT (optional).
+            difficulty:      [B] long tensor of difficulty IDs, or a scalar int
+                             (broadcast to the whole batch). Per-sample so a
+                             mixed-difficulty batch is handled correctly.
+            slot_offset:     Absolute slot index of the first slot in the window.
+                             Used to compute the within-bar phase embedding so
+                             the phase signal is consistent across windows.
+            struct_features: [B, W, struct_dim] beat-aligned structure features
+                             (rms, onset_strength, bass, mid, high, centroid,
+                              section_id, section_progress). Optional.
 
         Returns:
             logits: [B, W, 2] — [left_logit, right_logit] per beat slot.
@@ -134,6 +152,8 @@ class BeatClassifier(nn.Module):
         x = self.drum_proj(drum_features)
         if self.use_mix and mix_features is not None:
             x = x + self.mix_proj(mix_features)
+        if self.use_struct and struct_features is not None:
+            x = x + self.struct_proj(struct_features)
         x = self.input_norm(x)
 
         positions = torch.arange(W, device=device)
@@ -153,10 +173,11 @@ class BeatClassifier(nn.Module):
 
     def predict_probs(
         self,
-        drum_features: torch.Tensor,
-        mix_features:  torch.Tensor | None = None,
-        difficulty:    torch.Tensor | int | None = None,
-        slot_offset:   int = 0,
+        drum_features:   torch.Tensor,
+        mix_features:    torch.Tensor | None = None,
+        difficulty:      torch.Tensor | int | None = None,
+        slot_offset:     int = 0,
+        struct_features: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Convenience wrapper: return sigmoid probabilities [B, W, 2]."""
-        return torch.sigmoid(self(drum_features, mix_features, difficulty, slot_offset))
+        return torch.sigmoid(self(drum_features, mix_features, difficulty, slot_offset, struct_features))

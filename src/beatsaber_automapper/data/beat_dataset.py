@@ -185,12 +185,29 @@ class BeatDataset(Dataset):
             left_w  = torch.nn.functional.pad(left_w,  (0, pad))
             right_w = torch.nn.functional.pad(right_w, (0, pad))
 
+        # ---- Structure features: pool [8, N_frames] → [N_slots, 8] ----
+        # adaptive_avg_pool1d handles variable frame-rate → beat-grid mapping
+        # without needing BPM arithmetic.  All .pt files have structure_features.
+        sf_raw = data.get("structure_features")   # [8, N_frames] float32
+        if sf_raw is not None and sf_raw.shape[0] > 0:
+            n_slots_full = data["drum_beat_features"].shape[0]
+            sf_grid = torch.nn.functional.adaptive_avg_pool1d(
+                sf_raw.unsqueeze(0).float(), n_slots_full,
+            ).squeeze(0).T                                    # [N_slots, 8]
+            struct_w = sf_grid[start:end]
+            if struct_w.shape[0] < self.window_size:
+                pad = self.window_size - struct_w.shape[0]
+                struct_w = torch.nn.functional.pad(struct_w, (0, 0, 0, pad))
+        else:
+            struct_w = torch.zeros(self.window_size, 8)
+
         return {
-            "drum_features": drum_window,                                 # [W, 768]
-            "mix_features":  mix_window,                                  # [W, 768]
-            "left_labels":   left_w,                                       # [W]
-            "right_labels":  right_w,                                      # [W]
-            "slot_offset":   torch.tensor(start,     dtype=torch.long),
-            "difficulty":    torch.tensor(diff_id,   dtype=torch.long),
-            "genre":         torch.tensor(genre_idx, dtype=torch.long),
+            "drum_features":   drum_window,                               # [W, 768]
+            "mix_features":    mix_window,                                # [W, 768]
+            "struct_features": struct_w,                                  # [W, 8]
+            "left_labels":     left_w,                                    # [W]
+            "right_labels":    right_w,                                   # [W]
+            "slot_offset":     torch.tensor(start,     dtype=torch.long),
+            "difficulty":      torch.tensor(diff_id,   dtype=torch.long),
+            "genre":           torch.tensor(genre_idx, dtype=torch.long),
         }

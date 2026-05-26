@@ -45,20 +45,21 @@ class BeatLitModule(lightning.LightningModule):
 
     def __init__(
         self,
-        mert_dim: int = 768,
-        mix_dim:  int = 768,
-        d_model: int = 256,
-        n_heads: int = 4,
-        n_layers: int = 2,
-        max_len: int = 512,
-        dropout: float = 0.1,
+        mert_dim:   int = 768,
+        mix_dim:    int = 768,
+        struct_dim: int = 8,
+        d_model:    int = 256,
+        n_heads:    int = 4,
+        n_layers:   int = 2,
+        max_len:    int = 512,
+        dropout:    float = 0.1,
         learning_rate: float = 3e-4,
-        weight_decay: float = 0.01,
-        warmup_steps: int = 500,
+        weight_decay:  float = 0.01,
+        warmup_steps:  int = 500,
         # Run 1 used pos_weight=6.0 for an assumed 15% positive rate.
         # Measured positive rate on Expert+ data is 21.8% → 78.2/21.8 ≈ 3.6.
         pos_weight: float = 3.6,
-        threshold: float = 0.5,
+        threshold:  float = 0.5,
         tolerance_slots: int = 1,
     ) -> None:
         super().__init__()
@@ -67,6 +68,7 @@ class BeatLitModule(lightning.LightningModule):
         self.model = BeatClassifier(
             mert_dim=mert_dim,
             mix_dim=mix_dim,
+            struct_dim=struct_dim,
             d_model=d_model,
             n_heads=n_heads,
             n_layers=n_layers,
@@ -92,12 +94,13 @@ class BeatLitModule(lightning.LightningModule):
 
     def forward(
         self,
-        drum_features: torch.Tensor,
-        mix_features:  torch.Tensor | None = None,
-        difficulty:    torch.Tensor | None = None,
-        slot_offset:   int = 0,
+        drum_features:   torch.Tensor,
+        mix_features:    torch.Tensor | None = None,
+        difficulty:      torch.Tensor | None = None,
+        slot_offset:     int = 0,
+        struct_features: torch.Tensor | None = None,
     ) -> torch.Tensor:
-        return self.model(drum_features, mix_features, difficulty, slot_offset)
+        return self.model(drum_features, mix_features, difficulty, slot_offset, struct_features)
 
     def _loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """Weighted BCE summed across left + right hands."""
@@ -131,27 +134,29 @@ class BeatLitModule(lightning.LightningModule):
         return int(so)
 
     def training_step(self, batch: dict, batch_idx: int) -> torch.Tensor:
-        drum = batch["drum_features"]                        # [B, W, 768]
-        mix  = batch.get("mix_features")                     # [B, W, 768] or None
-        diff = batch.get("difficulty")                       # [B] long or None
+        drum   = batch["drum_features"]                      # [B, W, 768]
+        mix    = batch.get("mix_features")                   # [B, W, 768] or None
+        struct = batch.get("struct_features")                # [B, W, 8] or None
+        diff   = batch.get("difficulty")                     # [B] long or None
         labels = torch.stack(
             [batch["left_labels"], batch["right_labels"]], dim=-1
         ).long()                                             # [B, W, 2]
 
-        logits = self(drum, mix, diff, self._slot_offset(batch))
+        logits = self(drum, mix, diff, self._slot_offset(batch), struct)
         loss   = self._loss(logits, labels)
         self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch: dict, batch_idx: int) -> None:
-        drum = batch["drum_features"]
-        mix  = batch.get("mix_features")
-        diff = batch.get("difficulty")
+        drum   = batch["drum_features"]
+        mix    = batch.get("mix_features")
+        struct = batch.get("struct_features")                # [B, W, 8] or None
+        diff   = batch.get("difficulty")
         labels = torch.stack(
             [batch["left_labels"], batch["right_labels"]], dim=-1
         ).long()
 
-        logits = self(drum, mix, diff, self._slot_offset(batch))
+        logits = self(drum, mix, diff, self._slot_offset(batch), struct)
         loss   = self._loss(logits, labels)
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 
