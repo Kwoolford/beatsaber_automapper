@@ -68,6 +68,11 @@ def main() -> None:
     parser.add_argument("--max-song-phrases",  type=int,   default=150,
                         help="Max phrase fingerprints per song in the song-memory "
                              "encoder. 0 = disable song-memory (legacy behaviour).")
+    parser.add_argument("--min-nps",          type=float, default=None,
+                        help="Cohort filter: drop (song,diff) pairs below this NPS.")
+    parser.add_argument("--max-nps",          type=float, default=None,
+                        help="Cohort filter: drop (song,diff) pairs above this NPS "
+                             "(e.g. 8.0 to exclude for-sport ExpertPlus density).")
     parser.add_argument("--ctx-len",          type=int,   default=0,
                         help="Cross-phrase context prefix length. 0 = disabled. "
                              "N > 0 prepends last N tokens from the prior phrase as "
@@ -80,6 +85,10 @@ def main() -> None:
                         help="Epochs over which to ramp scheduled sampling.")
     parser.add_argument("--resume-from",      default=None,
                         help="Checkpoint path to resume from (model + optimizer).")
+    parser.add_argument("--use-contour",      action="store_true",
+                        help="TASK 3: feed per-slot pitch contour (instr_beat_features "
+                             "cols 7:10 — lead_pitch/dpitch/bass_pitch) into the Stage-2 "
+                             "encoder for directional cohesion. Default off = version_10 behaviour.")
     args = parser.parse_args()
 
     from torch.utils.data import DataLoader, RandomSampler
@@ -102,6 +111,9 @@ def main() -> None:
         max_phrase_slots=args.max_phrase_slots,
         ctx_len=args.ctx_len,
         max_song_phrases=args.max_song_phrases,
+        min_nps=args.min_nps,
+        max_nps=args.max_nps,
+        use_contour=args.use_contour,
     )
     val_ds = LayoutPhraseDataset(
         data_dir=data_dir,
@@ -112,6 +124,9 @@ def main() -> None:
         max_phrase_slots=args.max_phrase_slots,
         ctx_len=args.ctx_len,
         max_song_phrases=args.max_song_phrases,
+        min_nps=args.min_nps,
+        max_nps=args.max_nps,
+        use_contour=args.use_contour,
     )
 
     log.info("Train: %d phrases | Val: %d phrases", len(train_ds), len(val_ds))
@@ -153,6 +168,7 @@ def main() -> None:
         sched_sampling_start=args.sched_sampling_start,
         sched_sampling_end=args.sched_sampling_end,
         sched_sampling_epochs=args.sched_sampling_epochs,
+        use_contour=args.use_contour,
     )
 
     tb_logger = TensorBoardLogger("logs", name="layout_phrase")

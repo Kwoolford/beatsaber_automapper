@@ -1,11 +1,614 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-05-22
-**Status:** V7 end-to-end done (6.0 NPS). ArcViewer review found 3 inference bugs (see V7-8). Bug 1 (role alignment in generate_phrase._step) is critical and must be fixed before eval is meaningful.
+**Last updated:** 2026-06-09
+
+## ⚠️ 2026-06-09 — MACHINE-SWAP HANDOFF (READ FIRST) ⚠️
+
+**You are migrating machines. NOTHING since 2026-05-25 is committed** — `git log` shows the last
+commit is `a51022c` (Run-6 prep), which predates ALL the V7-harness / scoped-V8 / reward-gate work.
+A plain `git clone` on the new box loses everything. The big data + checkpoints are **gitignored**
+(`/data/`, `logs/`, `outputs/`, `*.pt`) so they will NOT travel with the repo either.
+
+### Before you wipe the old machine — copy/commit these
+1. **COMMIT THE CODE (most important).** 13 modified + ~35 untracked source files are this project's
+   entire current state. From repo root:
+   ```bash
+   git add -A && git commit -m "wip: V7 harness + scoped-V8 (T0..T5) + reward-gate PoC (2026-06-09)"
+   git bundle create /path/to/usb/beatsaber.bundle --all   # or push to a remote
+   ```
+   (Logs dirs are gitignored — they won't be added; that's fine, copy them separately below.)
+2. **COPY the gitignored artifacts you can't cheaply rebuild** (rsync to USB/NAS/new box):
+   | path | size | rebuildable? |
+   |---|---|---|
+   | `data/raw/`           | 36G   | source maps — the seed for everything; HARD to re-fetch (couldn't fetch over wire). **COPY.** |
+   | `data/processed/`     | 59G   | the 5320 `.pt` feature cache. Rebuildable from `data/raw` via preprocess (~4–7h GPU) — copy if you value the 4–7h. |
+   | `data/test_songs/`    | 6.8M  | `SO TIRED ROCK - NUEKI.mp3` — the only test song, couldn't re-fetch. **COPY.** |
+   | `logs/beat_classifier/version_4/`  | 619M | **PRODUCTION beat ckpt** (val_f1=0.603). **COPY.** |
+   | `logs/layout_phrase/version_10/`   | 723M | **PRODUCTION layout ckpt** (ctx16+song-mem, align-F1 0.410). **COPY.** |
+   | `logs/layout_phrase/version_13,14/`| 723M ea | TASK-3 contour A/B ckpts — **TASK 3 is DEAD, safe to DROP.** |
+   | `outputs/`            | 11G   | generated maps + evals; only `outputs/2026-06-07/` (reward-gate probe inputs) + `outputs/reward_gate_smoke.json` matter. Rest droppable. |
+   | `.venv/`              | 7.8G  | **DO NOT copy — rebuild** (see below). |
+3. **REBUILD THE ENV on the new box** (Python **3.12.3**, RTX 5090 sm_120 needs PyTorch nightly cu128):
+   ```bash
+   uv sync                       # restores from uv.lock + pyproject.toml
+   # basic-pitch on py3.12 has NO TF cp312 wheel → ONNX backend special-case:
+   uv pip install basic-pitch --no-deps onnxruntime mir_eval resampy pretty_midi
+   ```
+   Verify: `pytest -q` (**415 passed, 4 xfailed, 5 xpassed, ~9s** as of 2026-06-09), then
+   `nvidia-smi` shows the GPU, then run the reward-gate smoke (below) to confirm end-to-end.
+
+### Uncommitted-file inventory (what `git add -A` will capture — all this session's lineage)
+**Modified (13)** — core pipeline changes since `a51022c`:
+`TODO.md`, `scripts/generate.py`, `scripts/train_beats.py`, `scripts/train_layout.py`,
+`src/.../data/audio.py` (energy-percentile section detector), `src/.../data/beat_dataset.py`
+(`require_instr` + instr features), `src/.../data/layout_dataset.py` (`use_contour` + NPS cohort),
+`src/.../generation/generate.py` (V7 inference, `section_gate`, `use_instr`/`use_contour`,
+**`BS_PREPOST_OUT`** dump added today), `src/.../models/beat_classifier.py` (`instr_proj`/`struct_proj`),
+`src/.../models/layout_model.py` (`contour_proj`, song-memory), `src/.../training/beat_module.py`,
+`src/.../training/layout_module.py`, `tests/test_audio.py`.
+**Untracked, KEEP (code/docs/specs):** `src/.../data/instrument_features.py`,
+`src/.../research/{spec_v7.py,runner_v7.py}`, `scripts/auto_research_v7.py`,
+`scripts/eval_{alignment,contour_follow,density_corr}.py`, `scripts/preprocess_instruments.py`,
+`scripts/v8_poc{,_alignment,_structure,_retrieval_key}.py`, **`scripts/reward_gate_poc.py`** (today),
+`scripts/confound_prepost_2026-06-08.sh` (today), the `scripts/overnight_*.sh` + `run_scoped_v8_stage1.sh`
++ `task0_eval_v12.sh` runners, `tests/test_{cohort_filter,instrument_features,section_gate}.py`,
+`docs/architecture_v8_plan.md`, `docs/v8_0_poc_findings.md`,
+`experiments/leaderboard_v7.jsonl` + `experiments/queue/*.yaml`.
+**Untracked, gitignored (won't be added — copy separately, see table above):** all `logs/**/version_*`.
+> Suggested commit hygiene: `logs/` should be in `.gitignore` (it is) — don't force-add it. Consider
+> one squashed "wip" commit now for safety, then split into logical commits later if you care.
+
+### Where the project stands (one paragraph)
+V7 (MERT+Demucs two-stage) is the live pipeline. The scoped-V8 stack is **exhausted** — every
+per-slot-F1 lever (T1/T2/T3) came back null, T4 killed, T5 has no live premise (full post-mortem
+below). User pivoted to a **whole-map "feel" objective** (learned reward / preference, not slot-F1).
+The de-risk gate for that pivot **PASSED GREEN today** (see next section) — so the next real build
+is the preference/reward model. Production inference ckpts remain version_10 (layout) + version_4
+(beat), `section_gate="loud_only"`.
+
+---
+
+## 2026-06-09 — OBJECTIVE/EVAL PIVOT → REWARD-SIGNAL GATE = **GREEN** → BUILD THE REWARD MODEL (Top of Stack)
+
+User chose the **objective/eval pivot** (over "accept pipeline" and "attack flat density"): per-slot
+F1 keeps hitting a subjectivity ceiling (Stage-1 val_f1 ~0.60 ×6 runs; Stage-2 x-acc ~70% ×7 runs;
+contour ~chance) because human mappers disagree per-slot but agree on FEEL. New thesis: optimize a
+WHOLE-MAP "feel" objective (human-preference / learned reward / ranking), not slot-wise agreement.
+
+### De-risk GATE result — GREEN, decisive (`scripts/reward_gate_poc.py`, smoke n=80)
+Cheap handcrafted-feature classifier, human Expert vs feel-destroyed (corrupt) maps, then probe V7:
+- **DoD-A: CV AUC(human vs corrupt) = 0.905** (≥0.80 PASS) → a map-level feel signal IS learnable
+  from cheap features, no deep encoder needed for the *signal* to exist.
+- **DoD-B: mean human P(human)=0.751 vs V7 mean=0.33 → Δ=+0.405** (≥0.25 PASS) → the signal scores
+  our generator as clearly sub-human → **usable as a reward.** (V7 probe: A_contour_ep 0.44,
+  A_contour_ex 0.33, B_control_ep 0.31, B_control_ex 0.31.)
+- **Feature weights corroborate the user's own complaints** (signed, + = human-like):
+  `ini_cv +1.54` (humans VARY note spacing; ours is metronomic), `horiz_dot_frac −0.99` &
+  `diagonal_frac −0.83` (too many horizontals/diagonals = NON-human → exactly the "for-sport
+  diagonals / random horizontals" complaint), `contour_follow +0.75`, `parity_viol_proxy −0.75`,
+  `density_corr_drum +0.70` (tracking the drums = human; our flat density = not). 
+- Artifacts: `outputs/reward_gate_smoke.json`. **VERDICT logged: GREEN — build the reward model.**
+- ⚠️ Caveat to validate at scale before trusting as a training reward: the corrupt negatives are
+  EASY (random/shuffled). High AUC vs easy negatives ≠ the reward can rank two *plausible* maps. The
+  honest next test is human-vs-OUR-GENERATED as the negative (harder), and ideally pairwise human
+  preference. Treat 0.905 as "signal exists," not "reward is solved."
+
+### NEXT BUILD — the preference/reward model (detailed)
+Build order (each step gated, cheapest first; keep V7 generation frozen until a reward is trusted):
+1. **[ ] Harden the gate (1 run, CPU).** Re-run `reward_gate_poc.py --n 1500` (full Expert cohort)
+   to confirm AUC holds at scale. Then add a 4th negative class = **our V7-generated maps** (not just
+   corruptions) and report AUC(human vs V7) separately — that's the discrimination the reward must
+   actually make. DoD: AUC(human vs V7) ≥ 0.75. If it collapses, the handcrafted features can't tell
+   "bad-but-plausible" from human → escalate to a learned map encoder.
+2. **[ ] Reward model proper.** Two options, prefer (a) first:
+   (a) **Calibrated feel-score** = the logistic-reg P(human) from a frozen, full-cohort featurizer.
+       Cheap, interpretable, immediately usable as a scalar reward. Persist `mu/sd/coef` to
+       `models/reward_v0.json`. 
+   (b) **Learned pairwise ranker** (only if (a)'s features cap out): small MLP/transformer on the
+       map token stream + MERT, trained on (human ≻ corrupt) and (human ≻ V7) pairs with a
+       Bradley-Terry / margin loss. This is the "real" preference model.
+       **⭐ BIG HEAD START — reuse `src/.../training/style_discriminator.py` (`StyleDiscriminator`).**
+       It's a V6-era audio-conditioned transformer over (audio_emb, swing_tokens)→mapper_id, and it
+       **already accepts soft probabilities `[B,S,V]` so gradients flow from the seq model through
+       the discriminator** — i.e. it was purpose-built as a learned "style-closeness" reward. It's
+       NOT wired into V7 (uses the old AudioEncoder, not MERT; vocab is V6's 118). To repurpose:
+       swap AudioEncoder→pooled MERT, retarget the head from mapper_id to human-vs-generated (or
+       keep mapper_id and reward "classified as a real cohort mapper"), retrain on the V7 token
+       grammar. Tested (`tests/test_style_discriminator.py`, 15 cases pass).
+3. **[ ] Use the reward to improve Stage-2 — cheapest usage first:**
+   (a) **Best-of-N rerank at inference** (no training): generate N layouts per phrase/song, keep the
+       max-reward one. Measure reward lift + ArcViewer feel. If best-of-N already feels better, that
+       alone is a shippable win and validates the reward.
+   (b) **Reward-weighted fine-tune / RL** (expensive, only if best-of-N helps): fine-tune Stage-2 to
+       maximize reward (REINFORCE / DPO-style on sampled pairs). Guard against reward-hacking by
+       keeping per-slot F1 + density-corr as regression tripwires.
+4. **[ ] DoD for the whole direction:** a best-of-N or fine-tuned map (i) raises mean reward vs greedy
+   V7, (ii) does NOT regress align-F1/density-corr, and — the North Star — (iii) the user ArcViewers
+   it and it feels more human ("who mapped this?", not "is this AI?").
+
+Smoke command (re-verify after machine swap):
+```bash
+python scripts/reward_gate_poc.py --n 80 --json outputs/reward_gate_smoke.json   # expect AUC~0.90, GREEN
+```
+
+## 2026-06-08 Session — TASK-3 EVAL'D → NULL → CONFOUND RULED OUT → TASK 3 DEAD; SCOPED-V8 STACK EXHAUSTED
+
+Evaluated the 06-07 overnight A/B and ran the prescribed confound test. **TASK 3 is dead.**
+
+**End-to-end A/B (06-07 run, from each arm's `last.ckpt`, beat version_4, gate=loud_only):**
+
+| arm | contour-follow | density-spear | gen_cv | align note-count |
+|---|---|---|---|---|
+| A_contour Expert     | 0.5214 | -0.057 | 0.205 | 1379 |
+| B_control Expert     | 0.5014 | -0.010 | 0.197 | 1383 |
+| A_contour ExpertPlus | 0.4567 |  0.124 | 0.191 | 1362 |
+| B_control ExpertPlus | 0.5015 |  0.162 | 0.205 | 1354 |
+
+End-to-end delta: **Expert +0.0199, ExpertPlus −0.0448** (contour HURT on Ex+). Both << +0.05 DoD ⇒ NULL.
+Density-corr still flat (~0.12–0.16, all FAIL ≥0.41) — no regression, no gain. align note-counts ~equal.
+
+**CONFOUND TEST (the gate before killing TASK 3) — ruled out.** Added env-gated `BS_PREPOST_OUT`
+to `generate_v7_level` (deep-copies the beatmap and exports it BEFORE `postprocess_beatmap`, so the
+parity-fix can't rewrite swing directions; production behavior unchanged when unset). Re-scored
+contour-follow on the **pre-postprocess** token stream (`scripts/confound_prepost_2026-06-08.sh`,
+log `logs/overnight/confound_prepost_2026-06-08.log`, out `outputs/2026-06-07/prepost/`):
+
+| arm | PRE contour-follow |
+|---|---|
+| A_contour Expert     | 0.4076 |
+| B_control Expert     | 0.4110 |
+| A_contour ExpertPlus | 0.4273 |
+| B_control ExpertPlus | 0.4651 |
+
+PRE delta: **Expert −0.0033, ExpertPlus −0.0378** — contour arm NO BETTER (worse on Ex+) even before
+postprocess. (Note pre-postprocess rates sit BELOW chance ~0.41 and postprocess RAISES them to ~0.50 —
+the parity-fix wasn't erasing contour signal, it was *adding* the loose up/down alternation that
+loosely tracks melody. The model never learned contour-following.) **→ TASK 3 KILLED (well-tested,
+both end-to-end and pre-postprocess). Stage-2 swing DIRECTION is a mapper-subjectivity ceiling, same
+as the Stage-1 ~0.60 val_f1 ceiling.** `--use-contour` stays OFF (default); version_10 layout +
+version_4 beat remain production. Uncommitted: the `BS_PREPOST_OUT` dump in generate.py + the
+confound script + version_13/14 layout dirs + outputs/2026-06-07.
+
+**SCOPED-V8 STACK IS EXHAUSTED — every build bet came back null:** TASK 0 done (cohort eval neutral);
+TASK 1 null (layering retrieval key WORSE than mean-MERT → TASK 4 KILLED); TASK 2 null (instr density
+doesn't propagate to OUTPUT density, <0.41); TASK 3 null (contour not learned). **TASK 5 (sparse
+long-range "DeepSeek" retrieval) is gated on preconditions that BOTH failed:** "only if S3/contour
+helps" (it didn't) AND a better-than-MERT layering key for the sparse top-k (TASK 1 proved MERT wins).
+So TASK 5 as written has no live premise either. **The two-stage MERT pipeline sits at a confirmed
+quality plateau: align-F1 ~0.40, density-corr ~0.15 (flat ~8 NPS, ignores structure), contour ~chance,
+late-song/final-chorus collapse persists.** This is a strategic fork for the user (see below) — NOT
+auto-queuing another overnight.
+
+**DECISION FORK (awaiting user):** (1) accept the pipeline as-is and ship the gate-fix wins; (2)
+re-spec TASK 5 with a NEW key (not layering) — but its "if S3 helps" premise is gone; (3) step back
+to a different lever entirely (the per-slot subjectivity ceiling keeps capping per-note metrics — the
+honest North-Star question may need a different objective/eval than per-slot F1, e.g. learned reward /
+human-preference, or a fundamentally different WHAT representation). Key notes status unchanged this
+session: silent-drop FIXED (gate=loud_only), but flat-density / late-song-collapse / for-sport
+diagonals all PERSIST and are NOT addressed by anything in the scoped-V8 stack.
+
+## 2026-06-07 Session — TASK-3 BUILT + LAUNCHED (Stage-2 pitch-contour) (Top of Stack)
+
+Implemented TASK 3 (the last live build item) and launched the overnight A/B.
+**What shipped this session (code + smoke tests):**
+- **Per-slot pitch contour → Stage-2 encoder.** `LayoutPhraseDataset(use_contour=True)`
+  slices cols 7:10 of the already-cached `instr_beat_features` (lead_pitch/lead_dpitch/
+  bass_pitch) into a `phrase_contour [P,3]` tensor, slot-aligned 1:1 with `phrase_mert`
+  (**no new preprocess pass** — those columns already ship in 5319/5320 .pt). `LayoutPhraseModel`
+  gains a guarded `contour_proj = Linear(3,d_model)` (None unless `use_contour`, so old ckpts
+  load clean) added to the encoder input. Threaded through `encode`/`forward`/`generate_phrase`
+  + `layout_module` (both fwd calls) + `train_layout.py --use-contour`.
+- **Inference wiring.** `generate_v7_level(use_contour=…)` auto-detects from the layout ckpt
+  (`model.use_contour`), reuses the same Demucs→transcription pass as `--use-instr`, builds a
+  per-phrase contour padded like `phrase_mert`. `scripts/generate.py --use-contour/--no-use-contour`.
+- **DoD eval `scripts/eval_contour_follow.py`** — fraction of vertical-swing notes whose swing
+  sign (up=0,4,5 → +1; down=1,6,7 → −1; left/right/dot skipped) matches the lead Δpitch sign at
+  that slot (deadband 0.05 on |dpitch| to skip flat/jitter). 0.5 = chance.
+- Smoke: tests pass; forward+generate with contour changes logits Δ3.3 (not a no-op); tiny
+  `--use-contour` train completes; control generate path unbroken; **eval on the existing
+  no-contour version_10 map = 0.4257 (below chance)** — the baseline to beat.
+
+**RUNNING NOW:** `scripts/overnight_2026-06-07.sh` (launched ~23:19, log
+`logs/overnight/task3_contour_dod_2026-06-07.log`, out `outputs/2026-06-07/`). Two training
+arms, single variable = contour: **A** = version_10 config (`--ctx-len 16`, d384/3enc/4dec,
+song-mem 150) **+ `--use-contour`**; **B** = same recipe, no contour (control). ~3 h each (early-
+stop ~ep18). Generate from each arm's **`last.ckpt`** (NOT best-val_token_acc — anti-correlates),
+production beat version_4, `section_gate=loud_only`, Expert + ExpertPlus.
+
+**DoD / how to read the verdict next session:** contour-follow(A) − contour-follow(B) **≥ +0.05
+at BOTH difficulties** AND alignment-F1 / density-corr not regressed vs B ⇒ **TASK 3 MET** →
+make `--use-contour` the Stage-2 default + ArcViewer check. If delta < 0.05 ⇒ **before killing
+TASK 3, rule out the CONFOUND**: postprocess parity-fix rewrites **~48% of swing directions**
+(observed "corrected 661/1380 violations") and can erase the model's contour choices. Re-run
+the eval on the **pre-postprocess token stream** to disambiguate "model didn't learn it" vs
+"parity-fix erased it." Only a pre-postprocess null kills TASK 3 → then TASK 5 / accept pipeline.
+Summary block in the runner prints the table + verdict automatically.
+
+## 2026-06-06 Session — TASK-2 INFERENCE DoD RAN → NULL → pivot to TASK 3 (Top of Stack)
+
+Built the missing TASK-2 inference test (the only unfalsified piece of the per-instrument
+thesis) and ran it. **Wired `instr_beat_features` into `generate_v7_level` Stage-1 inference**
+(new `use_instr` arg on `generate_v7_level` + `--use-instr/--no-use-instr` on `scripts/generate.py`;
+computes `compute_instrument_features` once per song at gen time, feeds per-128-window). New eval
+`scripts/eval_density_corr.py` = Spearman(generated note density, ref onset density) over uniform
+2s windows — decoupled from the energy section detector (unlike `eval_alignment`'s per-section).
+DoD: **≥0.41** (the structure-PoC bar). Runner `scripts/overnight_2026-06-05.sh`; outputs
+`outputs/2026-06-05/`, log `logs/overnight/task2_infer_dod_2026-06-05.log`. SO TIRED ROCK, 5 arms.
+
+| arm | spearman | gen_cv | DoD |
+|---|---|---|---|
+| A instr, gate off, Expert | 0.153 | 0.259 | fail |
+| A instr, gate off, ExpertPlus | 0.133 | 0.258 | fail |
+| B baseline, gate off, Expert (control) | 0.060 | 0.204 | fail |
+| B baseline, gate off, ExpertPlus (control) | 0.151 | 0.173 | fail |
+| C instr, **loud_only**, Expert | **0.191** | 0.285 | fail |
+
+**Verdict — TASK-2 NULL ON INFERENCE TOO.** Instr features *do* raise density variation (gen_cv
+0.26 vs control 0.20) and on Expert beat the control (0.153 vs 0.060, Δ+0.093) — but ExpertPlus is
+a wash and **nothing clears 0.41**. The r=0.41 the drum/instr density had *as an INPUT feature*
+(structure PoC) does **not** propagate to r≥0.41 in *generated OUTPUT* density. So per-instrument
+conditioning of Stage-1 is confirmed null on the metric that matters. **→ TASK 2 closed (null).
+The live build item is now TASK 3 (Stage-2 pitch-contour for WHAT-cohesion).** Note `instr_proj`
+inference path is shipped + smoke-tested (instr logit Δ0.68) but **not made default** — version_4
+remains the production beat ckpt.
+
+**TASK 3 is cheaper than written:** the per-slot contour (`lead_pitch`/`lead_dpitch`/`bass_pitch`,
+cols 7–9 of the already-cached `instr_beat_features`) needs **no new preprocess pass** — just wire
+those columns into `LayoutPhraseDataset`/`LayoutPhraseModel` as a per-note conditioning channel and
+retrain Stage-2 (version_10 config). That retrain is the real overnight job.
+
+**Status:** Overnight chain (06-04→05, post power-cut resume) ran scoped-V8 Stage-1 retrain +
+TASK-1 retrieval-key eval. **Both came back negative.** (1) **TASK 1 DEAD (well-powered):** layering
+fingerprint is a WORSE song-memory key than mean-MERT — AUC 0.824 < 0.848, and loses worst on
+electronic (0.800 vs 0.864). The prelim "layering wins" was a 9-pair artifact. → **TASK 4 KILLED.**
+(2) **TASK 2 null on val_f1:** Stage-1 `--use-instr` (`version_7`, d512/4L) best val_f1_avg_tol=0.600
+@ep0 vs 0.603 baseline — 3rd confirmation the per-slot metric is a subjectivity ceiling. BUT val_f1
+is the wrong yardstick; TASK 2's real DoD (inference-side density tracking w/ section gate OFF) was
+NOT tested — instr never wired into `generate_v7_level`. **TASK 2 = inconclusive, not dead.**
+Open decision: run the TASK-2 inference DoD test, pivot to TASK 3 (contour for WHAT-cohesion,
+untouched), or accept ceiling + keep the gate-fix that fixed silent-drop. Full writeup in memory +
+`docs/v8_0_poc_findings.md` addendum. Prior: ctx16+song-mem ON align F1 0.410 (`version_10`,
+production); val_token_acc anti-correlates with alignment F1 — don't select checkpoints on it.
 **North star:** A player plays a generated map and says *"who mapped this?"* — not *"is this AI?"*
 
 **Full implementation plan:** [`docs/architecture_v7_plan.md`](docs/architecture_v7_plan.md)
 **V6 post-mortem:** [`PROGRESS.md`](PROGRESS.md) — "V6 Post-Mortem" section
+
+---
+
+## 2026-06-02 (late) → 06-03 Overnight Session — V8-0 GATE RUN (Top of Stack)
+
+**TL;DR:** Ran the V8-0 de-risk PoC (the hard gate). Outcome: **the full V8 WHEN-rebuild
+is NO-GO; a scoped V8 is GO.** Shipped the two supported cheap wins and launched a
+cohort-quality retrain. Full writeup: [`docs/v8_0_poc_findings.md`](docs/v8_0_poc_findings.md).
+
+### What the gate found (data, not hunch)
+basic-pitch installed on py3.12 via the **ONNX** backend (TF has no cp312 wheel). Per-stem
+transcription (bass/vocals/other → basic-pitch, drums → multi-band librosa onset) on the test
+song + **12 in-dataset songs with human maps**:
+
+| finding | number | implication |
+|---|---|---|
+| transcribed pool covers human notes | 0.79 (±25ms) / 0.90 (±50ms) | richer pool than librosa (0.54/0.74) ✅ |
+| **BPM-grid off-grid residual** | **0.7% (±50ms) / 6% (±25ms)** | **V7's 1/16 grid already represents 94–99% of human note timing** — refutes V8 Layer-2 ("trapped in BPM space") ❌ |
+| per-instrument structure (bass riff, lead contour, breakdowns) | see `outputs/v8_poc/*/pianoroll.png` | real signal V7 lacks — supports V8 Layer-3 (WHAT) ✅ |
+
+**Root-cause re-attribution:** the silent-drop is **Layer 1** (the section-threshold *gate*,
+not the representation) — confirmed live: the energy detector labels SO TIRED ROCK `0–16s` as
+"intro", so the ~13–15s drop was gated at 0.68. **Layer 2 (BPM grid) is NOT the timing flaw.**
+**Layer 3 (no melodic anchor) IS real** and is the right target for a *scoped* V8.
+
+### Shipped this session (code + tests + run)
+1. **Section-gate fix** (Layer 1) — `generate_v7_level(section_gate="loud_only")` (new default).
+   A section can only *lower* the onset threshold (densify a drop), never *raise* it (silence a
+   region). New module helper `_build_section_threshold_vector` + 6 tests (`test_section_gate.py`).
+   **Demonstrated run** on SO TIRED ROCK (production ckpts, ExpertPlus):
+   | region | legacy gate | loud_only |
+   |---|---|---|
+   | intro 0–16s | 75 | **107** |
+   | drop 12–16s | 19 | **32** |
+   | outro 168–176s | **0 (silent)** | **5** |
+   Maps: `outputs/v8_gatefix_{legacy,loudonly}.zip`.
+2. **Cohort NPS filter** (orthogonal data fix) — `LayoutPhraseDataset(min_nps, max_nps)` +
+   `train_layout.py --min-nps/--max-nps` + 3 tests (`test_cohort_filter.py`). Drops for-sport
+   ExpertPlus density (>8 NPS = ~7% of Expert+) and near-empty maps.
+3. **Cohort-filtered Stage-2 retrain — ✅ COMPLETE** (`logs/layout_phrase/version_12`,
+   version_10 config + `--min-nps 4 --max-nps 8`). Best `val_token_acc=0.863` @epoch10 (vs
+   version_10's 0.865 — filtering did NOT cost teacher-forced accuracy). Log
+   `logs/overnight/v8_cohort_layout_2026-06-02.log`. **NOT yet evaluated** — see TASK 1 below.
+
+### A second + third test refined the direction (2026-06-03, after user pushback)
+
+**Test 2 — structure signal** (`scripts/v8_poc_structure.py`, 12 songs, 2s windows, Spearman
+vs human note density). Per-instrument event activity predicts *where humans map notes* better
+than V7's section detector: **drum density r=0.41, total 0.38, kick 0.34 > section_detector_rank
+0.27**; bass/lead weak (~0.13 — they're WHAT not WHEN). → per-instrument events are a better
+**structure/density signal** than the hand-tuned detector, not just a direction signal.
+
+**User correction (important, accepted):** do NOT lean on drums — that was a rock-leaning sample;
+for EDM the bass/synth *layering* carries structure. **Pass the full per-instrument layering
+vector and let the model weight it per genre.** The generalizable input is the whole layering
+picture, not any one stem.
+
+**User insight — consistency via layering as a retrieval KEY (the big one):** the model already
+has a long-range memory mechanism — **song-memory cross-attention attends over ALL ~150 phrase
+fingerprints**. Its weakness is the *key*: those fingerprints are **mean-pooled MERT** (a timbre
+average), too coarse to recognize "the drop at 14s == the drop at 4:00". Replace the key with a
+**per-instrument layering + pitch-contour fingerprint** → the model can match analogous moments
+and replay consistent notes (the original North-Star "same chorus, inconsistent patterns" bug).
+
+**On `ctx_len=16`:** it's NOT arbitrary — ablation showed ctx16 > ctx0 > ctx32, and **ctx32
+collapsed on the final chorus (drift)**. So *raw* long context is the wrong tool here; the
+long-range job belongs to **sparse, content-addressed retrieval** on a good key (DeepSeek
+MLA/NSA-style "attend to a good latent key, not everything"). Keep ctx16 for local flow; move
+long-range consistency onto the better-keyed song-memory retrieval. This is the user's "DeepSeek
+context optimization" north star, and the model's own drift behavior argues FOR it.
+
+---
+
+## ⇒ NEXT-SESSION IMPLEMENTATION PLAN — "Scoped V8" (per-instrument INPUT around the kept grid)
+
+**Architecture in one paragraph:** Keep the 1/16 BPM grid as the output timing lattice (off-grid
+rebuild stayed no-go). Add **per-instrument note events** (Demucs stems → basic-pitch for
+bass/vocals/other, multi-band librosa onset for drums; code already in `scripts/v8_poc.py`) as
+**INPUT/conditioning** in three places: (S1) Stage-1 density, (S2) Stage-2 direction, (S3)
+song-memory retrieval key. Then retrain. Each is independently shippable.
+
+### TASK 0 — Evaluate the version_12 cohort retrain (cheap, do first) ✅ DONE 2026-06-03
+- [x] Generated v12 + v10 @ Expert/ExpertPlus (`--section-gate loud_only`), eval_alignment in
+      `outputs/task0/`, 2 leaderboard rows added.
+- **Verdict: NPS-4–8 cohort filter did NOT lower generated density** — all maps stayed ~7.8–7.9 NPS
+      (pinned at the cap); F1 a wash (EP v12 0.4151 vs v10 0.4106; Ex v12 0.395 vs v10 0.399).
+      Density is set by Stage-1 thresholds/section gate, NOT the Stage-2 layout cohort → reinforces
+      TASK 2. **Keep version_10 as inference default.**
+
+### TASK 1 — ❌ DEAD (2026-06-05, well-powered): layering key is WORSE than mean-MERT → TASK 4 KILLED
+**Do this BEFORE the S3 retrain — it gates whether the key-swap is worth a training cycle.**
+**RESULT (definitive):** `--n 60 --difficulty Expert`, 60 songs / 25,950 pairs →
+`outputs/v8_poc/retrieval_key_2026-06-04.json`. mean-MERT AUC **0.848** > layering **0.824**
+(Δ−0.025), and layering loses worst on **electronic** (mert 0.864 vs layering 0.800, 15 songs/10k
+pairs) — the genre it was predicted to win. The preliminary "layering 0.902>0.893" was a 9-pair
+artifact. DoD FAILED → **do NOT build TASK 4.** The North-Star consistency fix is not a layering key.
+- [x] `scripts/v8_poc_retrieval_key.py` built (GPU-free: layering key = pooled cached
+      `instr_beat_features` per phrase vs mean-MERT `phrase_fingerprints`; ROC-AUC of key-cosine
+      predicting human-identical phrase pairs over (slot,hand,x,y) occupancy).
+- [~] **Preliminary (5 songs preprocessed so far): layering AUC 0.902 > mean-MERT 0.893; on the lone
+      electronic song layering 0.873 > 0.828 (Δ+0.045 — the predicted EDM win).** UNDERPOWERED
+      (9 identical pairs). `outputs/v8_poc/retrieval_key.json`.
+- [x] **RE-RAN `--n 60 --difficulty Expert` (2026-06-05)** → definitive NO (see header above).
+- DoD: layering-key AUC > mean-MERT AUC (esp electronic) → ❌ FAILED. TASK 4 killed.
+
+### TASK 2 (S1) — ❌ NULL (2026-06-06): instr density doesn't propagate to OUTPUT density (<0.41). CLOSED.
+> Inference DoD ran (`scripts/overnight_2026-06-05.sh`): 5 arms, best Spearman 0.191 « 0.41 bar.
+> instr_proj path shipped+smoke-tested but NOT default; version_4 stays production. Detail below.
+- [x] `data/instrument_features.py` — Demucs→per-stem transcription→`events_to_slot_features`
+      `[N_slots, 10]` (kick/snare/hat/bass/vocals/lead density + n_active_stems + lead_pitch +
+      lead_dpitch + bass_pitch), mass-preserving onset interp, same 1/4-note grid. 11 tests pass.
+- [x] `scripts/preprocess_instruments.py` — caches `instr_beat_features` (fp16, non-destructive).
+      Smoke: ~3s/song, ~98–100% slots active; **Spearman(drum_density, human density)=0.52 on 1ccca.**
+- [x] `models/beat_classifier.py` + `beat_module.py`: dedicated `instr_proj` sum-fused path +
+      `instr_features` threaded through. `beat_dataset.py`: reads key + `require_instr`.
+      `train_beats.py --use-instr`.
+- [x] **RAN (2026-06-05, overnight chain post power-cut).** Preprocess finished 5319/5320; Stage-1
+      `--use-instr --d-model 512 --n-layers 4 --n-heads 8` → `logs/beat_classifier/version_7`,
+      log `logs/overnight/instr_stage1_train_2026-06-04.log`. **Best val_f1_avg_tol=0.600 @ EPOCH 0,
+      never improved (early-stopped ep8)** vs version_4 baseline 0.603. Instr features did NOT move
+      val_f1 — 3rd confirmation (struct=0.598, instr=0.600) the per-slot metric is a subjectivity
+      ceiling. Best ckpt: `version_7/checkpoints/beat-epoch=00-val_f1_avg_tol=0.600.ckpt`.
+- [ ] ⚠️ **val_f1 gate (≥0.603) NOT met, BUT val_f1 is the WRONG metric** (per-slot binary acc,
+      known to anti-correlate w/ alignment F1). The real DoD below was NEVER tested — instr is still
+      not wired into `generate_v7_level`. **DECISION PENDING:** run the inference-side test (wire
+      `compute_instrument_features` per song at gen time, gate OFF, measure generated-vs-human
+      per-section NPS corr) to truly adjudicate TASK 2 — OR pivot. Do NOT delete `_SECTION_THRESHOLDS`
+      yet (the gate-fix `section_gate="loud_only"` is the only thing that demonstrably fixed silent-drop).
+- DoD: generated per-section NPS tracks human density with NO section gate; structure-corr ≥ 0.41.
+      **(UNTESTED — this is the only unfalsified piece of the per-instrument thesis.)**
+
+### TASK 3 (S2) — ❌ DEAD (2026-06-09): contour not learned, confirmed end-to-end AND pre-postprocess.
+> Built + ran A/B (06-07, version_13 contour vs version_14 control). End-to-end contour-follow delta
+> Expert +0.020 / Ex+ −0.045 (« +0.05). Confound (parity-fix) RULED OUT: pre-postprocess delta
+> −0.003 / −0.038 (`scripts/confound_prepost_2026-06-08.sh`). Stage-2 swing DIRECTION is a
+> subjectivity ceiling. `--use-contour` stays OFF. version_13/14 ckpts droppable. Detail at TODO top.
+> _Original spec (for reference only — DONE/disproven):_
+- [x] contour wired WITHOUT new preprocess (cols 7:10 of cached `instr_beat_features`).
+- [x] `layout_dataset.py`/`layout_model.py` `use_contour` + `contour_proj`; `eval_contour_follow.py`.
+- [x] Retrained + measured contour-follow → NULL (above).
+- DoD: contour-follow rate up vs V7; ArcViewer: fewer "diagonal swings for sport".
+
+### TASK 4 (S3) — ❌ KILLED (2026-06-05): gated on TASK 1, which FAILED well-powered.
+**Gated on TASK 1 passing — IT DID NOT.** Layering key AUC 0.824 < mean-MERT 0.848 (worse on EDM).
+Do NOT build this. The North-Star chorus-consistency fix does not come from a layering retrieval key.
+Steps below retained for the record only.
+- [ ] Compute a per-phrase **layering+contour fingerprint** (concat: per-stem activity profile +
+      lead contour summary) → store as new `.pt` key alongside `phrase_fingerprints`.
+- [ ] `models/layout_model.py` song-memory cross-attn: key on the layering fingerprint instead of
+      mean-MERT. `generation/phrase_index.py`: same key for hard-retrieval fallback.
+- [ ] Keep `ctx_len=16` (local). Retrain.
+- DoD: **consistency metric** — note-pattern similarity between human-identical repeated sections
+      (e.g. chorus1 vs chorus2) is higher than version_10 baseline. This is the North-Star test.
+
+### TASK 5 — ⛔ NO LIVE PREMISE (2026-06-09): both preconditions failed.
+> Was gated on "only if S3/contour helps" (TASK 3 DEAD) AND a better-than-MERT layering key for the
+> sparse top-k (TASK 1 proved mean-MERT WINS, AUC 0.848>0.824). Neither holds → not actionable as
+> written. Superseded by the reward/preference direction at TODO top.
+- [ ] ~~sparse top-k song-memory by layering-key similarity (NSA-style)~~ — shelved, premise gone.
+
+### Genre note (carry forward)
+User listens to a lot of EDM and wants generalization. Several tests so far skewed rock. For
+TASK 1/2/3 **stratify by `mod_requirements.genre`** and verify EDM specifically (bass/synth
+layering should matter more there than drums). The cohort/leaderboard should not be rock-only.
+
+### Status of the speculative V8 rebuild plan (below) — SHELVED by the gate
+The `docs/architecture_v8_plan.md` full rebuild and the V8-1..V8-5 work breakdown below are
+**superseded** — their premise (BPM grid can't represent the music) was tested and rejected.
+The continuous-time event-selector / deleting the grid label path are SHELVED. What survives from
+that doc: per-stem transcription (now used as INPUT/conditioning, not a WHEN backbone) and the
+cohort filter (done). Full reasoning: `docs/v8_0_poc_findings.md`.
+
+---
+
+## 2026-06-01 → 2026-06-02 Overnight Results
+
+### Song-memory ablation (✅ ran via V7 harness)
+Queue `experiments/queue/v7_layout_songmem_ablation.yaml`, 2 arms, both capped at 200min.
+Held ctx_len=16 fixed and flipped song-memory ON/OFF, both eval'd in-harness (unlike the
+confounded v3-vs-v8 comparison). Completes the ctx_len × song-mem grid:
+
+| ctx_len | song-mem | val_acc | align F1 | version |
+|---------|----------|---------|----------|---------|
+| **16**  | **ON**   | 0.865   | **0.4099** | version_10 (NEW, best overall) |
+| 0       | ON       | 0.856   | 0.4059   | version_8 |
+| 16      | OFF      | 0.868   | 0.4027   | version_11 (NEW, in-harness version_3 repro) |
+| 32      | ON       | 0.868   | 0.3978   | version_9 |
+
+- **Song-memory helps at ctx16** (+0.007 F1). Reverses last night's tentative "song-mem may
+  hurt" — that compared v3 (legacy eval) vs v8 (two knobs different).
+- **ctx16 is the alignment sweet spot** (0.410 > 0.406 > 0.398 across ctx{0,16,32}). Extends
+  "don't go beyond 16" with "16 > 0 too".
+- **val_token_acc anti-correlates with align F1**: song-mem ON had lower val (0.865 vs 0.868)
+  but higher F1. Stop selecting inference checkpoints by val_token_acc.
+- **In-harness version_3 repro = 0.403, not the legacy 0.415** quoted before → legacy and
+  harness eval paths differ; old 0.415 wasn't comparable. This re-run was the right call.
+- **NEW failure mode — final-chorus collapse.** Per-section ON−OFF mostly +0.02..0.04 EXCEPT
+  final chorus 160-164s: ON 0.327 vs OFF 0.537 (−0.21). Same spot ctx32 collapsed last night.
+  Collapse tracks song-memory aggressiveness, not ctx_len. Suspect song-memory retrieval
+  over-commits to an earlier chorus that doesn't match the final chorus's onsets.
+
+**Production config:** ctx16 + song-memory ON (max_song_phrases=150). Inference ckpt
+`logs/layout_phrase/version_10/checkpoints/layout-epoch=09-val_token_acc=0.865.ckpt`.
+
+**Caveats:** ~0.01 F1 spread, single test song — needs a 2nd song to confirm (still blocked:
+only SO TIRED ROCK present). Outro 168-176s still 0/0 in both (section detector, unchanged).
+
+### ⚑ MAJOR: V7 input representation is the fundamental flaw → V8 designed
+User review 2026-06-02: every V7 map is incohesive ("diagonal swings for sport"), NPS too high,
+and **zero notes at the ~13-15s drop on every song**. Root-caused in code to 3 audio-blind layers:
+(1) note timing overridden by 6 hand-tuned section thresholds (drop@13s lands in "intro"→gated 0.68
+→silenced), (2) MERT mean-pooled onto a BPM grid (onsets blurred, no phase lock), (3) only Demucs
+"other" stem → no per-instrument line for directions to follow. **Full V8 blueprint written:**
+[`docs/architecture_v8_plan.md`](docs/architecture_v8_plan.md) — symbolic per-stem transcription
+(basic-pitch) NoteEvent backbone, event-driven WHEN (no section gate), pitch-contour-conditioned
+WHAT, phased + gated on a V8-0 PoC. Also: filter training to Expert / NPS 4-8 (Expert+ teaches
+for-sport swings). **Next concrete step: V8-0 PoC** — install basic-pitch, transcribe SO TIRED ROCK,
+prove (a) drop yields a dense onset cluster V7 misses, (b) transcribed-onset alignment beats 0.41.
+
+### V8 Work Breakdown (from [`docs/architecture_v8_plan.md`](docs/architecture_v8_plan.md))
+
+Phases are sequential unless marked ∥ (parallelizable). **V8-0 is a hard gate** — do not start
+V8-1+ until the PoC goes green.
+
+#### V8-0 — De-risk PoC ⚑ GATE
+- [ ] Install transcription deps: `uv pip install basic-pitch pretty_midi` (+ add to `pyproject.toml`).
+- [ ] PoC script: Demucs-separate SO TIRED ROCK, run basic-pitch per stem (drums via multi-band
+      `librosa.onset`), dump a `NoteEvent` list + piano-roll plot.
+- [ ] **Validate (a):** the ~13–15s drop produces a dense onset cluster that V7's generated map misses.
+- [ ] **Validate (b):** transcribed-onset → human-map alignment F1 **beats current 0.41** (reuse
+      `scripts/eval_alignment.py` with transcribed onsets as the "generated" set).
+- [ ] **Validate (c):** lead-stem (`other`) pitch contour visibly tracks the melody (eyeball).
+- [ ] **Go/no-go writeup** in leaderboard/PROGRESS; only proceed to V8-1 if (a)+(b) pass.
+
+#### V8-1 — Transcription preprocessing (depends V8-0)
+- [ ] `data/note_events.py` — `NoteEvent` dataclass (onset_sec, dur_sec, pitch, stem, salience),
+      .pt (de)serialization, piano-roll render helper.
+- [ ] `data/transcribe.py` — per-stem basic-pitch + drum-band onset → merged `NoteEvent` stream.
+- [ ] Tune `other`-stem `salience > τ` gate + within-window chord-merge (kills distorted-guitar smear).
+- [ ] Batch-transcribe all 5320 songs → new `.pt` keys `note_events`, `lead_contour` (non-destructive).
+- [ ] Sanity report: median events/sec (expect ~2–6), per-song coverage, failures.
+
+#### V8-2 — Label representation (depends V8-1)
+- [ ] `data/event_dataset.py` — match each GT Beat Saber note to nearest `NoteEvent` within ±ε ms;
+      emit selected/hand/spatial labels per event.
+- [ ] Report **unmatched-GT residual** (GT notes with no nearby event); decide ε, or add a
+      fallback grid-candidate channel if residual is large.
+
+#### V8-3 — Stage 1 Event Selector (depends V8-2)
+- [ ] `models/event_selector.py` — sequence model over the event stream → P(note), P(hand=L/R).
+- [ ] Training module + train run; **delete** dependence on `extract_beat_labels` BPM-grid path.
+- [ ] Sanity: drops dense / breakdowns sparse without any section-threshold gate; report selection F1.
+
+#### V8-4 — Stage 2 contour conditioning (depends V8-3)
+- [ ] `data/layout_dataset.py` — add lead pitch-contour conditioning channel (relative Δpitch).
+- [ ] `models/layout_model.py` — accept contour conditioning.
+- [ ] `generation/phrase_index.py` — key retrieval on contour-segment similarity (not mean-MERT).
+- [ ] Train; report a **directional-cohesion metric** (contour-follow rate) vs V7 baseline.
+
+#### V8-5 — Inference + harness + ArcViewer (depends V8-4)
+- [ ] `generation/generate.py::generate_v8_level`; **delete** `_SECTION_THRESHOLDS`, the per-slot
+      threshold vector, `_apply_density_curve`, `_compute_adaptive_threshold`, and section-as-note-gate
+      (sections may stay for lighting only).
+- [ ] `research/spec_v8.py` + `research/runner_v8.py` mirroring the V7 harness; `auto_research_v8.py`.
+- [ ] End-to-end generate on SO TIRED ROCK → **ArcViewer human play (the real DoD):** drop has notes,
+      swings cohere, NPS in band.
+
+#### ∥ Orthogonal data-quality fix (independent of V8 phases)
+- [ ] Filter training cohort to **Expert-only, or all difficulties capped at NPS 4–8** (Expert+ teaches
+      ergonomically hard "for-sport" swings). Cheap cohort filter; fold into the V8 retrain.
+
+### Follow-ups (next session)
+- [ ] **Investigate final-chorus collapse** at 160-164s: dump song-memory cross-attn weights
+  there, or try gating/attenuating song-memory on the last phrase, then re-eval. (V7-era; may be
+  moot if V8 proceeds.)
+- [ ] **Add a 2nd test song** to `data/test_songs/` and re-run the 4-point grid to confirm the
+  ordering generalises (still can't fetch over the wire — manual drop).
+- [ ] Carry forward: ctx16 + song-mem ON is the inference default going forward.
+
+---
+
+## 2026-05-26 → 2026-05-27 Overnight Results (Top of Stack)
+
+### Section detector replacement (✅ shipped)
+- `data/audio.py::detect_sections_energy_percentile()` — new RMS-percentile detector. Top-25 % windows → `drop`, bottom-25 % at song edges → `intro` / `outro`. Replaces chroma+MFCC agglomerative clustering as the primary path in `generate_v7_level`; clustering kept as fallback.
+- **Why**: the clustering detector collapsed everything after ~40 s into a single "outro" cluster on EDM and stable-timbre rock, which mapped to threshold 0.72 and produced a *pause at the drop* in ArcViewer review.
+- Alignment-eval results, same test song, ExpertPlus, ±50 ms vs. drum+melody onset union:
+
+  | Map | Notes | Overall F1 | drops 16-32s | drops 144-160s | last 8s outro |
+  |-----|-------|------------|--------------|-----------------|----------------|
+  | `outputs/v7_section_aware.zip` (clustering) | 1036 | **0.375** | 0.561 | 0.225 | 0.049 |
+  | `outputs/v7_energy_sections.zip` (energy)  | 1270 | **0.415** | 0.583 | 0.366 | 0.000 |
+
+  Late-song drops (the parts the user said "got worse over the song") improved most.
+- Tests: 3 new cases in `tests/test_audio.py`; full suite 395 + 4 xfailed + 5 xpassed.
+
+### Beat Classifier Run 6 — struct features (negative result)
+- Config: d=512 / 4-layer / mix + difficulty + **struct (rms, onset_strength, bass/mid/high, centroid, section_id, section_progress)**
+- Best `val_f1_avg_tol` = **0.598** at epoch 18 → `logs/beat_classifier/version_6/checkpoints/beat-epoch=18-val_f1_avg_tol=0.598.ckpt`
+- Previous best (version_4, no struct) = 0.603. **Struct features did not lift the metric**; they slightly underperformed within run-to-run noise.
+- Interpretation: MERT already encodes RMS/timbre/onset content. The hand-engineered 8-dim path is redundant. The 0.60 ceiling continues to look like mapper-choice subjectivity (different mappers select different subsets of the same drum hits).
+- **Implication**: don't bother wiring `compute_structure_features()` into `generate_v7_level` Stage 1 — it isn't worth the inference complexity if the model can't use it. Use version_4's checkpoint for inference going forward.
+
+### New eval tool — `scripts/eval_alignment.py` (✅ shipped)
+Compares a generated map to librosa-detected onsets on the Demucs drum + melody stems, with ±tolerance windowing and per-section breakdown.
+```
+python scripts/eval_alignment.py \
+  --audio data/test_songs/<song>.mp3 \
+  --map outputs/<map>.zip \
+  --difficulty ExpertPlus --tolerance-ms 50 \
+  --json outputs/<date>/alignment.json
+```
+Use this to answer "do generated notes line up to real musical events" without ArcViewer. Per-section P/R/F1 surfaces *which* sections drift (precision low → "random notes on top of nothing"; recall low → "missing the obvious beats").
+
+### Bugs found and fixed this session
+- **`a51022c` broke checkpoint loading.** Adding `struct_proj` to `BeatClassifier` made strict `load_from_checkpoint` fail on any pre-struct checkpoint (`Missing key(s): model.struct_proj.weight`). This is why a `python scripts/train_beats.py …` started at 17:18 today stalled — but more importantly **any inference call also failed silently for users on the old checkpoint**. Fix: `generate.py` now loads with `strict=False`. The struct_proj weights are uninitialised in that path, but they're a no-op because we never pass `struct_features=` at inference.
+  - Follow-up: consider adding a defensive `state_dict` check in `BeatLitModule.load_from_checkpoint` so the silent-mismatch failure mode doesn't recur on the next field addition.
+- **`scripts/generate.py` takes `audio` as a positional argument**, not `--audio`. The first overnight launch silently exited because the script wrapper used `--audio`. Documented in `scripts/overnight_2026-05-26.sh`.
+- **Demucs returns `[channels, samples]` stereo**. `librosa.onset.onset_detect` errors with `sparse=True does not support 2-dimensional inputs`. `scripts/eval_alignment.py::_separate_stems` now collapses to mono before onset detection.
+- **`@dataclass(slots=True)` removes `__dict__`**. `eval_alignment.py` initially serialized with `.__dict__` → `AttributeError`. Use `dataclasses.asdict()`.
+
+### Follow-ups (next session, prioritised)
+
+#### High — user-flagged complaints not yet fully resolved
+- [ ] **Add a clear-drop test song to `data/test_songs/`**. User wants a known EDM-style track with an unambiguous build → drop to validate that the energy-percentile detector and Stage 1 thresholds actually fire at the drop. (Couldn't add over the wire — drop a file in manually.)
+- [ ] **Verify in ArcViewer** that `outputs/v7_energy_sections.zip` no longer has the *pause at the drop*. Numbers say it should be fixed; visual confirmation needed.
+- [ ] **"Random horizontal notes"** — this is the X-column 70 % ceiling. Use `eval_alignment.py` per-section to see which sections have the worst precision (those are where "random" notes live). The bridge 76-112 s and chorus 124-136 s sections both have precision < 0.45. Probably needs Stage 2 work — see "Architectural lessons" in PROGRESS-equivalent below.
+
+#### Medium — known gaps
+- [ ] **Generate phrase context-buffer bug suspect**. Per-section F1 degrades over song time even with the new detector (drop @ 16-32 s F1=0.58 → drop @ 144-160 s F1=0.37). Suspect either (a) the cross-phrase context buffer `_prev_ctx_*` builds up drift across many phrases, or (b) position-encoding extrapolation in the layout decoder. Worth an ablation: regenerate with `--ctx-len 0` (no cross-phrase prefix) and see if late-song F1 holds up better.
+- [ ] **Outro detection bias**. The energy detector still flags 168-176 s as outro and generates 0 notes there, but librosa finds 42 onsets in that range (the song fades but still has events). Either the detector's "tail low → outro" rule is too aggressive (last 8 s should arguably be `verse` if energy isn't actually low) or 0-NPS is the desired behaviour. Decide via ArcViewer.
+- [ ] **Stage 1 inference does not use difficulty**. `generate_v7_level` passes `diff_t` only to the layout model, not to the beat classifier. version_4/version_6 both train with a difficulty embedding — the inference path is missing that signal.
+
+#### Low — research / nice-to-have
+- [ ] Drop the struct-features code path entirely if a second run also fails to help. Currently `BeatClassifier` carries it as dead weight at inference.
+- [ ] MERT-vs-transcription experiment (user question): MERT is opaque about *which musical events* it sees. For ground-truth alignment we use librosa onsets. A heavier-weight alternative is a pitch-tracker like `basic-pitch` to enumerate guitar/vocal note onsets explicitly — would give the alignment eval finer signal than spectral-flux onsets.
 
 ---
 

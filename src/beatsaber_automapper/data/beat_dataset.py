@@ -26,6 +26,7 @@ import torch
 from torch.utils.data import Dataset
 
 from beatsaber_automapper.data.beat_grid import extract_beat_labels, BEAT_SUBDIV
+from beatsaber_automapper.data.instrument_features import INSTR_FEATURE_DIM
 from beatsaber_automapper.data.tokenizer import GENRE_MAP
 from beatsaber_automapper.data.dataset import DIFFICULTY_MAP
 
@@ -55,6 +56,7 @@ class BeatDataset(Dataset):
         difficulties: list[str] | None = None,
         exclude_categories: list[str] | None = None,
         min_note_density: float = 0.02,
+        require_instr: bool = False,
     ) -> None:
         self.data_dir       = Path(data_dir)
         self.window_size    = window_size
@@ -62,6 +64,9 @@ class BeatDataset(Dataset):
         self.target_diffs   = set(difficulties) if difficulties else None
         self.exclude_cats   = set(exclude_categories) if exclude_categories else set()
         self.min_density    = min_note_density
+        # When True, only index songs that already have cached per-instrument
+        # layering features (skips songs not yet covered by the transcription pass).
+        self.require_instr  = require_instr
 
         splits_path = self.data_dir / "splits.json"
         song_ids: set[str] | None = None
@@ -91,6 +96,8 @@ class BeatDataset(Dataset):
 
             if "drum_beat_features" not in meta or "mix_beat_features" not in meta:
                 continue  # not yet preprocessed by V7
+            if self.require_instr and "instr_beat_features" not in meta:
+                continue  # not yet covered by the per-instrument transcription pass
 
             mod_reqs = meta.get("mod_requirements", {})
             if self.exclude_cats and mod_reqs.get("category") in self.exclude_cats:
@@ -201,10 +208,23 @@ class BeatDataset(Dataset):
         else:
             struct_w = torch.zeros(self.window_size, 8)
 
+        # ---- Per-instrument layering features [N_slots, INSTR_FEATURE_DIM] ----
+        # Already on the same 1/subdiv-note grid as drum/mix (written by the
+        # transcription preprocessing pass). Zeros when a song isn't covered yet.
+        instr_raw = data.get("instr_beat_features")
+        if instr_raw is not None:
+            instr_w = instr_raw[start:end].float()
+            if instr_w.shape[0] < self.window_size:
+                pad = self.window_size - instr_w.shape[0]
+                instr_w = torch.nn.functional.pad(instr_w, (0, 0, 0, pad))
+        else:
+            instr_w = torch.zeros(self.window_size, INSTR_FEATURE_DIM)
+
         return {
             "drum_features":   drum_window,                               # [W, 768]
             "mix_features":    mix_window,                                # [W, 768]
             "struct_features": struct_w,                                  # [W, 8]
+            "instr_features":  instr_w,                                   # [W, INSTR_FEATURE_DIM]
             "left_labels":     left_w,                                    # [W]
             "right_labels":    right_w,                                   # [W]
             "slot_offset":     torch.tensor(start,     dtype=torch.long),

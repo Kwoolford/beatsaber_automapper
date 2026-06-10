@@ -208,6 +208,33 @@ def main() -> None:
         dest="phrase_similarity",
         help="V7 only: cosine similarity threshold for PhraseIndex hard retrieval.",
     )
+    parser.add_argument(
+        "--section-gate",
+        choices=["loud_only", "off", "legacy"],
+        default="loud_only",
+        dest="section_gate",
+        help="V7 only: how sections modulate the Stage-1 threshold. 'loud_only' "
+             "(default) never silences a region (fixes the silent-drop); 'off' is "
+             "flat; 'legacy' is the old intro/outro 0.68/0.72 gating.",
+    )
+    parser.add_argument(
+        "--use-instr",
+        dest="use_instr",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="V7 only: feed per-instrument layering features into Stage-1 "
+             "(auto-detected from the checkpoint if unset). Use --use-instr / "
+             "--no-use-instr to force on/off (TASK-2 inference DoD).",
+    )
+    parser.add_argument(
+        "--use-contour",
+        dest="use_contour",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="V7 only: feed per-slot pitch contour (lead/bass pitch) into the "
+             "Stage-2 layout encoder (auto-detected from the layout checkpoint if "
+             "unset). Use --use-contour / --no-use-contour to force (TASK-3 DoD).",
+    )
 
     args = parser.parse_args()
 
@@ -248,6 +275,9 @@ def main() -> None:
             bpm=args.bpm,
             beat_threshold_left=args.beat_threshold,
             beat_threshold_right=args.beat_threshold,
+            section_gate=args.section_gate,
+            use_instr=args.use_instr,
+            use_contour=args.use_contour,
             temperature=args.temperature,
             top_p=args.top_p,
             phrase_similarity=args.phrase_similarity,

@@ -1,0 +1,71 @@
+# V7 layout context-length ablation — overnight 2026-05-31.
+#
+# Hypothesis under test (TODO.md "Generate phrase context-buffer bug suspect"):
+#   Per-section F1 degrades late-song even with the new energy section detector
+#   (drop @ 16-32 s F1=0.58 → drop @ 144-160 s F1=0.37). Two competing
+#   explanations:
+#     A) The cross-phrase context buffer _prev_ctx_* builds up drift across
+#        phrases — late-song predictions are conditioned on accumulated
+#        autoregressive errors.
+#     B) Position-encoding extrapolation in the layout decoder breaks once we
+#        accumulate enough cross-phrase prefix that effective sequence length
+#        exceeds what training saw.
+#
+# Both explanations predict different outcomes for varying ctx_len:
+#   ctx_len=0   → no cross-phrase prefix at all. If A, late-song F1 should
+#                 hold up better than ctx_len=16. If B, also better but for
+#                 a different reason.
+#   ctx_len=32  → twice the prefix of the current best (version_3 used 16).
+#                 If A, late-song F1 should degrade more. If B, degrade
+#                 sharply.
+#
+# Baseline ctx_len=16 already exists (logs/layout_phrase/version_3,
+# val_token_acc=0.870) so we don't re-train it — comparison is against that
+# row in the leaderboard.
+#
+# Both runs ENABLE song-memory (max_song_phrases=150) — version_3 had
+# song-memory disabled, but Run 7 (version_7) added it. We use the
+# version_7-style architecture so the only knob being ablated is ctx_len.
+#
+# Budget: ~2-3 hr per run, two runs ≈ 5-6 hr overnight.
+#
+# Run:
+#     python scripts/auto_research_v7.py experiments/queue/v7_layout_ctx_ablation.yaml
+#
+# Compare:
+#     jq -s 'sort_by(.alignment_f1_combined) | reverse' experiments/leaderboard_v7.jsonl
+
+defaults:
+  max_epochs: 30
+  max_wall_clock_min: 200    # 3 hr 20 min hard cap per run
+  batch_size: 32
+  learning_rate: 1.0e-4
+  seed: 42
+
+  # Match version_3 / version_7 architecture so only ctx_len differs.
+  d_model: 384
+  n_heads: 6
+  n_enc_layers: 3
+  n_dec_layers: 4
+  dim_feedforward: 1536
+  dropout: 0.1
+  x_role_weight: 2.0
+  max_layout_len: 384
+  max_phrase_slots: 96
+  max_song_phrases: 150       # song-memory cross-attn ON for both arms
+  patience: 12
+  difficulties: [Expert, ExpertPlus]
+
+  beat_ckpt: "logs/beat_classifier/version_4/checkpoints/beat-epoch=11-val_f1_avg_tol=0.603.ckpt"
+  test_audio: "data/test_songs/SO TIRED ROCK - NUEKI.mp3"
+  test_difficulty: ExpertPlus
+  tolerance_ms: 50.0
+
+experiments:
+  - name: layout_ctx0_songmem
+    ctx_len: 0
+    notes: "Ablation: no cross-phrase prefix. Tests context-buffer-drift hypothesis."
+
+  - name: layout_ctx32_songmem
+    ctx_len: 32
+    notes: "Ablation: doubled cross-phrase prefix. Tests pos-emb-extrapolation hypothesis."

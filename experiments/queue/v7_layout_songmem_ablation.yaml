@@ -1,0 +1,74 @@
+# V7 layout song-memory ablation — overnight 2026-06-01.
+#
+# Hypothesis under test (memory follow-up "does song-memory cross-attn help
+# or hurt?"): last night's ctx-len ablation produced
+#     v8  ctx0  + song-mem ON  → align F1 0.406
+#     v9  ctx32 + song-mem ON  → align F1 0.398
+# and the only prior no-song-mem point is version_3 (ctx16, song-mem OFF,
+# align F1 0.415) — but version_3 predates this harness, so its 0.415 was
+# measured by a different eval path AND it differs from v8/v9 in TWO knobs at
+# once (ctx_len and song-mem). That comparison cannot isolate song-memory.
+#
+# This queue isolates song-memory cleanly: hold ctx_len fixed at 16 (the value
+# recommended by the ctx ablation — "do NOT increase beyond 16") and flip
+# song-memory ON vs OFF, BOTH evaluated through this harness so the alignment
+# numbers are directly comparable.
+#
+#   arm A  ctx16 + song-mem ON  (max_song_phrases=150)  → never run in-harness
+#   arm B  ctx16 + song-mem OFF (max_song_phrases=0)    → in-harness version_3
+#
+# Predicted outcomes:
+#   If song-memory HELPS at this scale  → A.f1 > B.f1.
+#   If song-memory HURTS (current suspicion) → B.f1 >= A.f1, and B should land
+#     near version_3's 0.415, validating that the harness eval reproduces the
+#     legacy baseline.
+#
+# Together with last night's v8/v9 rows this completes a ctx_len x song-mem
+# grid (ctx {0,16,32} x song-mem {on}; plus ctx16 song-mem off).
+#
+# Budget: ~3 hr 20 min wall-clock cap per run (both hit the cap last night at
+# epoch 8-9), two runs ~= 6 hr 40 min overnight.
+#
+# Run:
+#     python scripts/auto_research_v7.py experiments/queue/v7_layout_songmem_ablation.yaml
+#
+# Compare (all four points):
+#     jq -s 'sort_by(.alignment_f1_combined) | reverse
+#            | map({name, ctx_len, max_song_phrases, best_val_token_acc,
+#                   alignment_f1_combined, notes_per_sec})' \
+#       experiments/leaderboard_v7.jsonl
+
+defaults:
+  max_epochs: 30
+  max_wall_clock_min: 200    # 3 hr 20 min hard cap per run (matches ctx ablation)
+  batch_size: 32
+  learning_rate: 1.0e-4
+  seed: 42
+
+  # Match version_3 / version_7 architecture so only song-memory differs.
+  d_model: 384
+  n_heads: 6
+  n_enc_layers: 3
+  n_dec_layers: 4
+  dim_feedforward: 1536
+  dropout: 0.1
+  x_role_weight: 2.0
+  max_layout_len: 384
+  max_phrase_slots: 96
+  ctx_len: 16                # fixed at the recommended value for both arms
+  patience: 12
+  difficulties: [Expert, ExpertPlus]
+
+  beat_ckpt: "logs/beat_classifier/version_4/checkpoints/beat-epoch=11-val_f1_avg_tol=0.603.ckpt"
+  test_audio: "data/test_songs/SO TIRED ROCK - NUEKI.mp3"
+  test_difficulty: ExpertPlus
+  tolerance_ms: 50.0
+
+experiments:
+  - name: layout_ctx16_songmem_on
+    max_song_phrases: 150
+    notes: "Ablation arm A: song-memory ON at ctx16. Missing cell in the ctx x song-mem grid."
+
+  - name: layout_ctx16_songmem_off
+    max_song_phrases: 0
+    notes: "Ablation arm B: song-memory OFF at ctx16. In-harness reproduction of version_3 (expect F1 ~0.415)."

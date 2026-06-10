@@ -48,6 +48,7 @@ class BeatLitModule(lightning.LightningModule):
         mert_dim:   int = 768,
         mix_dim:    int = 768,
         struct_dim: int = 8,
+        instr_dim:  int = 0,
         d_model:    int = 256,
         n_heads:    int = 4,
         n_layers:   int = 2,
@@ -69,6 +70,7 @@ class BeatLitModule(lightning.LightningModule):
             mert_dim=mert_dim,
             mix_dim=mix_dim,
             struct_dim=struct_dim,
+            instr_dim=instr_dim,
             d_model=d_model,
             n_heads=n_heads,
             n_layers=n_layers,
@@ -99,8 +101,11 @@ class BeatLitModule(lightning.LightningModule):
         difficulty:      torch.Tensor | None = None,
         slot_offset:     int = 0,
         struct_features: torch.Tensor | None = None,
+        instr_features:  torch.Tensor | None = None,
     ) -> torch.Tensor:
-        return self.model(drum_features, mix_features, difficulty, slot_offset, struct_features)
+        return self.model(
+            drum_features, mix_features, difficulty, slot_offset, struct_features, instr_features
+        )
 
     def _loss(self, logits: torch.Tensor, labels: torch.Tensor) -> torch.Tensor:
         """Weighted BCE summed across left + right hands."""
@@ -137,12 +142,13 @@ class BeatLitModule(lightning.LightningModule):
         drum   = batch["drum_features"]                      # [B, W, 768]
         mix    = batch.get("mix_features")                   # [B, W, 768] or None
         struct = batch.get("struct_features")                # [B, W, 8] or None
+        instr  = batch.get("instr_features")                 # [B, W, instr_dim] or None
         diff   = batch.get("difficulty")                     # [B] long or None
         labels = torch.stack(
             [batch["left_labels"], batch["right_labels"]], dim=-1
         ).long()                                             # [B, W, 2]
 
-        logits = self(drum, mix, diff, self._slot_offset(batch), struct)
+        logits = self(drum, mix, diff, self._slot_offset(batch), struct, instr)
         loss   = self._loss(logits, labels)
         self.log("train_loss", loss, prog_bar=True)
         return loss
@@ -151,12 +157,13 @@ class BeatLitModule(lightning.LightningModule):
         drum   = batch["drum_features"]
         mix    = batch.get("mix_features")
         struct = batch.get("struct_features")                # [B, W, 8] or None
+        instr  = batch.get("instr_features")                 # [B, W, instr_dim] or None
         diff   = batch.get("difficulty")
         labels = torch.stack(
             [batch["left_labels"], batch["right_labels"]], dim=-1
         ).long()
 
-        logits = self(drum, mix, diff, self._slot_offset(batch), struct)
+        logits = self(drum, mix, diff, self._slot_offset(batch), struct, instr)
         loss   = self._loss(logits, labels)
         self.log("val_loss", loss, prog_bar=True, sync_dist=True)
 

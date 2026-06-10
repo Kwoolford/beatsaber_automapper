@@ -259,6 +259,62 @@ def _events_to_beatmap(events: list) -> Any:
     )
 
 
+# Per-section Stage-1 onset thresholds. Loud sections (drop/chorus) get a low
+# threshold (dense); quiet ones (intro/outro) historically got a high one (sparse).
+# The high intro/outro values are exactly what silenced real drops — see
+# `_build_section_threshold_vector` and docs/v8_0_poc_findings.md.
+_SECTION_THRESHOLDS: dict[str, float] = {
+    "drop":   0.38,   # loudest section — many notes
+    "chorus": 0.44,
+    "verse":  0.52,
+    "bridge": 0.58,
+    "intro":  0.68,   # sparse opening
+    "outro":  0.72,   # sparse ending
+}
+
+
+def _build_section_threshold_vector(
+    sections: "list[tuple[str, float, float]]",
+    n_slots: int,
+    base_left: float,
+    base_right: float,
+    beats_per_sec: float,
+    subdiv: int,
+    section_gate: str = "loud_only",
+) -> "tuple[torch.Tensor, torch.Tensor]":
+    """Per-slot Stage-1 onset thresholds derived from detected sections.
+
+    ``section_gate`` controls how sections modulate the base threshold:
+
+    * ``"loud_only"`` (default): a section may only *lower* the threshold (make a
+      loud part denser); it can never *raise* it above ``base_*``. This guarantees
+      no section — however mislabeled — can silence a real onset. Fixes the
+      V8-0-confirmed silent-drop failure mode.
+    * ``"off"``: flat ``base_*`` everywhere; sections never touch notes.
+    * ``"legacy"``: sections set the threshold outright (incl. raising intro/outro
+      to 0.68/0.72). Kept for A/B comparison only.
+
+    Returns ``(thr_left, thr_right)`` float tensors of shape ``[n_slots]``.
+    """
+    if section_gate not in ("off", "loud_only", "legacy"):
+        raise ValueError(f"section_gate must be off|loud_only|legacy, got {section_gate!r}")
+    thr_L = torch.full((n_slots,), float(base_left))
+    thr_R = torch.full((n_slots,), float(base_right))
+    if section_gate == "off":
+        return thr_L, thr_R
+    for sec_type, sec_start, sec_end in sections:
+        base_L = _SECTION_THRESHOLDS.get(sec_type, base_left)
+        base_R = _SECTION_THRESHOLDS.get(sec_type, base_right)
+        if section_gate == "loud_only":
+            base_L = min(base_L, base_left)     # never silence — only densify
+            base_R = min(base_R, base_right)
+        slot_s = max(0, int(sec_start * beats_per_sec * subdiv))
+        slot_e = min(n_slots, int(sec_end * beats_per_sec * subdiv) + 1)
+        thr_L[slot_s:slot_e] = base_L
+        thr_R[slot_s:slot_e] = base_R
+    return thr_L, thr_R
+
+
 # Target NPS ranges by difficulty (from training data analysis)
 _NPS_RANGES: dict[int, tuple[float, float]] = {
     0: (1.0, 3.0),   # Easy
@@ -1440,6 +1496,9 @@ def generate_v7_level(
     beat_threshold_right: float = 0.55,
     beat_nms_radius: int = 1,
     beat_energy_scale: float = 0.15,
+    section_gate: str = "loud_only",
+    use_instr: bool | None = None,
+    use_contour: bool | None = None,
     temperature: float = 0.9,
     top_p: float = 0.95,
     phrase_similarity: float = 0.85,
@@ -1470,6 +1529,24 @@ def generate_v7_level(
         bpm:                 BPM override (auto-detected if None).
         beat_threshold_left: P(left note) threshold for Stage 1.
         beat_threshold_right: P(right note) threshold for Stage 1.
+        use_instr:           Whether to feed per-instrument layering features
+            (Demucs→transcription→[n_slots, INSTR_FEATURE_DIM]) into the Stage-1
+            BeatClassifier. ``None`` (default) auto-detects from the checkpoint
+            (``model.use_instr``); pass ``True``/``False`` to force. Only the
+            ``--use-instr`` checkpoints (e.g. version_7) consume this path; it is the
+            TASK-2 inference DoD lever (does learned density track human density with
+            the section gate OFF). Computed once per song at gen time (~adds Demucs +
+            basic-pitch transcription cost).
+        section_gate:        How section labels modulate the Stage-1 onset threshold.
+            "loud_only" (default): only *lower* the threshold in loud sections
+                (drop/chorus); never *raise* it above ``beat_threshold_*`` for quiet
+                ones. This kills the V8-0-confirmed silent-drop failure mode (a
+                mislabeled "intro"/"outro" can no longer gate a real drop at 0.68/0.72)
+                while still letting drops get denser.
+            "off": flat ``beat_threshold_*`` everywhere — sections never touch notes
+                (they may still drive lighting). Most conservative re: the drop bug.
+            "legacy": the old behavior (sections set the threshold outright, incl.
+                raising intro/outro to 0.68/0.72). Kept for A/B comparison only.
         temperature:         Stage 2 sampling temperature.
         top_p:               Stage 2 nucleus top-p.
         phrase_similarity:   PhraseIndex cosine similarity threshold.
@@ -1552,7 +1629,11 @@ def generate_v7_level(
 
     # ---- 4. Load models ----
     logger.info("Loading Stage 1 BeatClassifier …")
-    beat_module = BeatLitModule.load_from_checkpoint(str(beat_checkpoint))
+    # ``strict=False`` so pre-struct-feature checkpoints (no struct_proj) still load.
+    # Missing weights are reinitialised — fine because we only feed
+    # struct_features when explicitly available, and the model treats the path
+    # as a no-op when it isn't.
+    beat_module = BeatLitModule.load_from_checkpoint(str(beat_checkpoint), strict=False)
     beat_module = beat_module.to(device_obj).eval()
 
     logger.info("Loading Stage 2 LayoutPhraseModel …")
@@ -1569,13 +1650,56 @@ def generate_v7_level(
     _BEAT_WIN = 128   # training window size; pos_emb max_len=512, so ≤512 is safe
     drum_gpu = drum_beat.to(device_obj)   # [N, 768]
     mix_gpu  = mix_beat.to(device_obj)    # [N, 768]
+
+    # ---- Optional: per-instrument layering features (TASK-2) + pitch contour (TASK-3) ----
+    # Both derive from the same Demucs→transcription pass. instr_features feeds
+    # the Stage-1 BeatClassifier (--use-instr / version_7+); the contour columns
+    # (7:10 — lead_pitch/dpitch/bass_pitch) feed the Stage-2 LayoutModel encoder
+    # when the layout ckpt was trained with --use-contour. Both auto-detect from
+    # their checkpoints unless explicitly overridden. Compute the features once.
+    from beatsaber_automapper.data.layout_dataset import CONTOUR_COLS
+    model_has_instr   = bool(getattr(beat_module.model, "use_instr", False))
+    model_has_contour = bool(getattr(layout_module.model, "use_contour", False))
+    want_instr   = model_has_instr   if use_instr   is None else use_instr
+    want_contour = model_has_contour if use_contour is None else use_contour
+    instr_gpu:    torch.Tensor | None = None
+    contour_full: torch.Tensor | None = None   # [N, 3] for Stage-2, lazily sliced per phrase
+    if (want_instr and model_has_instr) or (want_contour and model_has_contour):
+        from beatsaber_automapper.data.instrument_features import (
+            compute_instrument_features,
+        )
+        logger.info("Computing per-instrument layering features (Demucs→transcription) …")
+        instr_feats = compute_instrument_features(
+            waveform, src_sr, bpm, n_slots, subdiv=BEAT_SUBDIV, device=str(device_obj),
+        )   # [N, INSTR_FEATURE_DIM]
+        instr_all = instr_feats.to(device_obj)
+        logger.info("instr_features %s  nonzero_slots=%.2f",
+                    tuple(instr_all.shape),
+                    float((instr_all.abs().sum(-1) > 0).float().mean()))
+        if want_instr and model_has_instr:
+            instr_gpu = instr_all
+        if want_contour and model_has_contour:
+            contour_full = instr_all[:, CONTOUR_COLS].float()   # [N, 3]
+    if want_instr and not model_has_instr:
+        logger.warning("use_instr=True but beat checkpoint has no instr_proj path — ignoring.")
+    elif model_has_instr and not want_instr:
+        logger.warning("Beat checkpoint trained with --use-instr but use_instr=False — "
+                       "feeding zeros (instr_proj path is a no-op).")
+    if want_contour and not model_has_contour:
+        logger.warning("use_contour=True but layout checkpoint has no contour_proj path — ignoring.")
+    elif model_has_contour and not want_contour:
+        logger.warning("Layout checkpoint trained with --use-contour but use_contour=False — "
+                       "feeding zeros (contour_proj path is a no-op).")
+
     beat_probs_parts: list[torch.Tensor] = []
     with torch.no_grad():
         for s in range(0, n_slots, _BEAT_WIN):
             e   = min(s + _BEAT_WIN, n_slots)
             d_w = drum_gpu[s:e].unsqueeze(0)   # [1, W, 768]
             m_w = mix_gpu[s:e].unsqueeze(0)    # [1, W, 768]
-            logits_w = beat_module(d_w, m_w, diff_t, slot_offset=s)  # [1, W, 2]
+            instr_w = instr_gpu[s:e].unsqueeze(0) if instr_gpu is not None else None
+            logits_w = beat_module(d_w, m_w, diff_t, slot_offset=s,
+                                   instr_features=instr_w)  # [1, W, 2]
             beat_probs_parts.append(torch.sigmoid(logits_w.squeeze(0)))
     beat_probs = torch.cat(beat_probs_parts, dim=0)   # [N, 2]
 
@@ -1588,33 +1712,46 @@ def generate_v7_level(
     #   3. Apply per-slot thresholds derived from section boundaries.
     # This matches how human mappers behave: they drop density in breakdowns and
     # go dense in drops, rather than sustaining a constant 6 NPS throughout.
-    _SECTION_THRESHOLDS = {
-        "drop":   0.38,   # loudest section — many notes
-        "chorus": 0.44,
-        "verse":  0.52,
-        "bridge": 0.58,
-        "intro":  0.68,   # sparse opening
-        "outro":  0.72,   # sparse ending
-    }
+    # Per-section thresholds live in module-level `_SECTION_THRESHOLDS`; how they
+    # apply is governed by `section_gate` (see `_build_section_threshold_vector`).
 
+    # Energy-percentile section detector replaces the chroma/MFCC clustering
+    # one. EDM and stable-timbre rock both collapsed into a single "outro"
+    # cluster post-intro, which mapped to threshold 0.72 and produced a pause
+    # at the drop in ArcViewer review. Raw RMS percentiles handle these tracks
+    # cleanly. The clustering detector is kept as a fallback only.
     try:
-        from beatsaber_automapper.data.audio import detect_sections as _detect_sections
-        sections = _detect_sections(waveform, sample_rate=src_sr)
+        from beatsaber_automapper.data.audio import (
+            detect_sections_energy_percentile as _detect_sections_energy,
+        )
+        sections = _detect_sections_energy(waveform, sample_rate=src_sr)
     except Exception:
-        sections = [("verse", 0.0, song_duration_secs)]
+        try:
+            from beatsaber_automapper.data.audio import detect_sections as _detect_sections
+            sections = _detect_sections(waveform, sample_rate=src_sr)
+        except Exception:
+            sections = [("verse", 0.0, song_duration_secs)]
 
-    logger.info("Sections: %s", [(t, f"{s:.0f}s", f"{e:.0f}s") for t, s, e in sections])
+    logger.info("Sections (energy-percentile): %s",
+                [(t, f"{s:.1f}s", f"{e:.1f}s") for t, s, e in sections])
 
-    # Build per-slot threshold vector from section labels
+    # Build per-slot threshold vector from section labels.
+    #
+    # V8-0 PoC finding (docs/v8_0_poc_findings.md): the silent-drop bug is NOT a
+    # representation problem — 94-99% of human notes sit on the existing BPM grid.
+    # It is THIS gate: a mislabeled "intro"/"outro" raises the threshold to
+    # 0.68/0.72 and silences a real drop. So by default we no longer let a section
+    # RAISE the threshold above the base; we only LOWER it for loud sections.
     beats_per_sec = bpm / 60.0
-    thr_L = torch.full((n_slots,), beat_threshold_left,  device=device_obj)
-    thr_R = torch.full((n_slots,), beat_threshold_right, device=device_obj)
-    for sec_type, sec_start, sec_end in sections:
-        base = _SECTION_THRESHOLDS.get(sec_type, beat_threshold_left)
-        slot_s = max(0, int(sec_start * beats_per_sec * BEAT_SUBDIV))
-        slot_e = min(n_slots, int(sec_end   * beats_per_sec * BEAT_SUBDIV) + 1)
-        thr_L[slot_s:slot_e] = base
-        thr_R[slot_s:slot_e] = base
+    thr_L, thr_R = _build_section_threshold_vector(
+        sections, n_slots, beat_threshold_left, beat_threshold_right,
+        beats_per_sec, BEAT_SUBDIV, section_gate,
+    )
+    thr_L = thr_L.to(device_obj)
+    thr_R = thr_R.to(device_obj)
+    logger.info("Stage-1 section_gate=%s — thr range L[%.2f,%.2f] R[%.2f,%.2f]",
+                section_gate, float(thr_L.min()), float(thr_L.max()),
+                float(thr_R.min()), float(thr_R.max()))
 
     # ----- Non-maximum suppression within ±beat_nms_radius -----
     def _nms(probs: torch.Tensor, thresh: torch.Tensor, radius: int) -> set[int]:
@@ -1700,6 +1837,16 @@ def generate_v7_level(
             phrase_mert_t = torch.cat([phrase_mert_t, pad_feat], dim=1)
             phrase_mask_t = torch.cat([phrase_mask_t, pad_mask], dim=1)
 
+        # TASK 3: per-slot pitch contour for this phrase, padded like phrase_mert.
+        phrase_contour_t = None
+        if contour_full is not None:
+            pc = contour_full[slot_start:slot_start + p_len].unsqueeze(0)   # [1, p, 3]
+            if p_len < max_phrase_slots_inf:
+                pad_c = torch.zeros(1, max_phrase_slots_inf - p_len, pc.shape[-1],
+                                    device=device_obj)
+                pc = torch.cat([pc, pad_c], dim=1)
+            phrase_contour_t = pc
+
         with torch.no_grad():
             flat_tokens = layout_module.model.generate_phrase(
                 phrase_mert    = phrase_mert_t,
@@ -1714,6 +1861,7 @@ def generate_v7_level(
                 context_hands  = _prev_ctx_hands if _ctx_len > 0 else None,
                 song_fps       = _song_fps_t,
                 song_fp_mask   = _song_fp_mask_t,
+                phrase_contour = phrase_contour_t,
             )
 
         phrase_events = _decode_phrase_tokens(flat_tokens, onset_schedule, slot_start)
@@ -1755,8 +1903,28 @@ def generate_v7_level(
                 len(beatmap.color_notes), len(beatmap.sliders),
                 len(beatmap.burst_sliders), len(beatmap.bomb_notes))
 
+    # Confound probe (TASK-3): dump the PRE-postprocess beatmap so the
+    # contour-follow eval can see the model's raw swing directions before the
+    # parity-fix rewrites ~48% of them. Gated behind an env var so production
+    # behavior is unchanged when unset.
+    import os as _os, copy as _copy
+    _prepost_out = _os.environ.get("BS_PREPOST_OUT")
+    _prepost_bm = _copy.deepcopy(beatmap) if _prepost_out else None
+
     beatmap = postprocess_beatmap(beatmap, difficulty=difficulty, bpm=bpm,
                                   song_duration_secs=song_duration_secs)
+
+    if _prepost_out:
+        package_level(
+            beatmaps={difficulty: _prepost_bm},
+            audio_path=audio_path,
+            output_path=Path(_prepost_out),
+            song_name=song_name,
+            song_author=song_author,
+            bpm=bpm,
+            chroma_events={difficulty: None},
+        )
+        logger.info("Wrote PRE-postprocess beatmap to %s", _prepost_out)
 
     # ---- 10. Lighting + export ----
     from beatsaber_automapper.data.audio import (

@@ -96,6 +96,16 @@ DEFAULT_MAX_LAYOUT_LEN = 384
 # Loss ignore index (matches PyTorch CE default)
 IGNORE_INDEX = -100
 
+# TASK 3 (S2 pitch-contour conditioning): the per-slot melodic anchor channel.
+# Columns 7,8,9 of the cached `instr_beat_features` [N_slots, 10] (written by
+# scripts/preprocess_instruments.py): lead_pitch, lead_dpitch, bass_pitch. We
+# slice them into a per-slot [N_slots, 3] contour tensor and feed it into the
+# encoder alongside the MERT slots, so the decoder's cross-attention can bias
+# swing DIRECTION to follow the melodic line (ascending→up/right, etc.). No new
+# preprocess pass — these columns already ship in every .pt.
+CONTOUR_COLS = slice(7, 10)
+CONTOUR_DIM = 3
+
 
 @dataclass
 class _Event:
@@ -230,9 +240,19 @@ class LayoutPhraseDataset(Dataset):
         min_notes: int = 1,
         ctx_len: int = 0,
         max_song_phrases: int = 150,
+        min_nps: float | None = None,
+        max_nps: float | None = None,
+        use_contour: bool = False,
     ) -> None:
         self.data_dir         = Path(data_dir)
         self.target_diffs     = set(difficulties) if difficulties else None
+        # Cohort quality filter (V8-0 follow-up / orthogonal data fix): drop whole
+        # (song, difficulty) pairs whose overall notes-per-second is outside this
+        # band. ExpertPlus maps that run 9-15 NPS teach ergonomically hard
+        # "for-sport" swings the user flagged; capping at ~4-8 NPS keeps the cohort
+        # to musical, human-playable density regardless of the difficulty label.
+        self.min_nps          = min_nps
+        self.max_nps          = max_nps
         self.exclude_cats     = set(exclude_categories) if exclude_categories else set()
         self.max_layout_len   = max_layout_len
         self.max_phrase_slots = max_phrase_slots
@@ -244,6 +264,9 @@ class LayoutPhraseDataset(Dataset):
         # ctx_len > 0: prepend the last ctx_len spatial tokens from the prior
         # phrase into the decoder sequence (with ROLE_CONTEXT; loss is masked).
         self.ctx_len          = ctx_len
+        # TASK 3: feed per-slot pitch contour (instr_beat_features cols 7:10) into
+        # the encoder. Off by default → prior behaviour / old ckpts unchanged.
+        self.use_contour      = use_contour
 
         splits_path = self.data_dir / "splits.json"
         song_ids: set[str] | None = None
@@ -260,6 +283,7 @@ class LayoutPhraseDataset(Dataset):
         self.samples: list[tuple[Path, str, int, int, int, int]] = []
         n_skip_short = 0
         n_skip_long  = 0
+        n_skip_nps   = 0
 
         for pt_path in sorted(self.data_dir.glob("*.pt")):
             song_id = pt_path.stem
@@ -295,6 +319,19 @@ class LayoutPhraseDataset(Dataset):
                 if not events:
                     continue
 
+                # Cohort NPS filter. Duration from the last event slot (slots are
+                # 1/BEAT_SUBDIV-beat) and the song bpm. Counts non-bomb notes only.
+                if self.min_nps is not None or self.max_nps is not None:
+                    bpm = float(meta.get("bpm") or 0.0)
+                    note_events = [ev for ev in events if ev.kind != BOMB]
+                    max_slot = max((ev.slot for ev in note_events), default=0)
+                    dur_sec = (max_slot / BEAT_SUBDIV) * (60.0 / bpm) if bpm > 0 else 0.0
+                    nps = len(note_events) / dur_sec if dur_sec > 1.0 else 0.0
+                    if (self.min_nps is not None and nps < self.min_nps) or \
+                       (self.max_nps is not None and nps > self.max_nps):
+                        n_skip_nps += 1
+                        continue
+
                 for pi, (s, e) in enumerate(phrase_b):
                     n_in = sum(1 for ev in events if s <= ev.slot < e and ev.kind != BOMB)
                     if n_in < min_notes:
@@ -307,8 +344,10 @@ class LayoutPhraseDataset(Dataset):
                         (pt_path, diff_name, pi, diff_id, genre_idx, n_in)
                     )
 
-        logger.info("LayoutPhraseDataset[%s]: %d phrases (skip_short=%d skip_long=%d)",
-                    split, len(self.samples), n_skip_short, n_skip_long)
+        logger.info("LayoutPhraseDataset[%s]: %d phrases (skip_short=%d skip_long=%d "
+                    "skip_nps=%d, nps_band=[%s,%s])",
+                    split, len(self.samples), n_skip_short, n_skip_long, n_skip_nps,
+                    self.min_nps, self.max_nps)
 
         self._meta_cache: OrderedDict[str, dict] = OrderedDict()
         self._events_cache: OrderedDict[tuple[str, str], list[_Event]] = OrderedDict()
@@ -481,7 +520,19 @@ class LayoutPhraseDataset(Dataset):
             song_fps     = torch.zeros(MAX_FP, 768, dtype=torch.float32)
             song_fp_mask = torch.zeros(MAX_FP, dtype=torch.bool)
 
-        return {
+        # ---- TASK 3: per-slot pitch contour (lead_pitch/dpitch/bass_pitch) ----
+        # Same slot grid + same slicing/padding as phrase_mert so it lines up
+        # 1:1 with the encoder positions. Zeros where the song has no cached
+        # instr features (1/5320 songs) or beyond the real slot count.
+        out: dict[str, torch.Tensor]
+        if self.use_contour:
+            phrase_contour = torch.zeros(self.max_phrase_slots, CONTOUR_DIM, dtype=torch.float32)
+            instr = data.get("instr_beat_features")
+            if instr is not None and real > 0:
+                contour_slice = instr[s:clipped_e, CONTOUR_COLS].float()
+                phrase_contour[:contour_slice.shape[0]] = contour_slice
+
+        out = {
             "phrase_mert":   phrase_mert,                                # [P, 768]
             "phrase_mask":   phrase_mask,                                # [P]
             "layout_tokens": tok_t,                                      # [S]
@@ -495,3 +546,6 @@ class LayoutPhraseDataset(Dataset):
             "song_fps":      song_fps,                                   # [MAX_FP, 768]
             "song_fp_mask":  song_fp_mask,                               # [MAX_FP]
         }
+        if self.use_contour:
+            out["phrase_contour"] = phrase_contour                       # [P, 3]
+        return out

@@ -64,6 +64,7 @@ class BeatClassifier(nn.Module):
         mert_dim:   int = 768,
         mix_dim:    int = 768,
         struct_dim: int = 8,
+        instr_dim:  int = 0,
         d_model:    int = 256,
         n_heads:    int = 4,
         n_layers:   int = 2,
@@ -75,6 +76,7 @@ class BeatClassifier(nn.Module):
         self.d_model    = d_model
         self.use_mix    = mix_dim > 0
         self.use_struct = struct_dim > 0
+        self.use_instr  = instr_dim > 0
         self.use_diff   = n_difficulties > 0
 
         self.drum_proj   = nn.Linear(mert_dim, d_model)
@@ -82,6 +84,11 @@ class BeatClassifier(nn.Module):
         # struct_proj uses a larger fan-in ratio so small 8-dim features get appropriate
         # gradient scale relative to the 768-dim MERT paths.
         self.struct_proj = nn.Linear(struct_dim, d_model) if self.use_struct else None
+        # instr_proj: per-instrument layering features (drum/bass/synth/vocal density
+        # + lead/bass pitch contour). The scoped-V8 density/structure signal that the
+        # blurred mean-pooled MERT can't carry — gives Stage 1 explicit onset density
+        # so it can learn where humans map notes without the hand-tuned section gate.
+        self.instr_proj  = nn.Linear(instr_dim,  d_model) if self.use_instr  else None
 
         self.input_norm = nn.LayerNorm(d_model)
 
@@ -113,6 +120,9 @@ class BeatClassifier(nn.Module):
         if self.struct_proj is not None:
             nn.init.xavier_uniform_(self.struct_proj.weight)
             nn.init.zeros_(self.struct_proj.bias)
+        if self.instr_proj is not None:
+            nn.init.xavier_uniform_(self.instr_proj.weight)
+            nn.init.zeros_(self.instr_proj.bias)
         if self.diff_emb is not None:
             # Start at zero so the first epoch behaves identically to a no-diff baseline
             # and the embedding has to *earn* signal during training.
@@ -127,6 +137,7 @@ class BeatClassifier(nn.Module):
         difficulty:      torch.Tensor | int | None = None,
         slot_offset:     int = 0,
         struct_features: torch.Tensor | None = None,
+        instr_features:  torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Forward pass.
 
@@ -142,6 +153,8 @@ class BeatClassifier(nn.Module):
             struct_features: [B, W, struct_dim] beat-aligned structure features
                              (rms, onset_strength, bass, mid, high, centroid,
                               section_id, section_progress). Optional.
+            instr_features:  [B, W, instr_dim] per-instrument layering features
+                             (per-stem density + lead/bass pitch contour). Optional.
 
         Returns:
             logits: [B, W, 2] — [left_logit, right_logit] per beat slot.
@@ -154,6 +167,8 @@ class BeatClassifier(nn.Module):
             x = x + self.mix_proj(mix_features)
         if self.use_struct and struct_features is not None:
             x = x + self.struct_proj(struct_features)
+        if self.use_instr and instr_features is not None:
+            x = x + self.instr_proj(instr_features)
         x = self.input_norm(x)
 
         positions = torch.arange(W, device=device)
@@ -178,6 +193,9 @@ class BeatClassifier(nn.Module):
         difficulty:      torch.Tensor | int | None = None,
         slot_offset:     int = 0,
         struct_features: torch.Tensor | None = None,
+        instr_features:  torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Convenience wrapper: return sigmoid probabilities [B, W, 2]."""
-        return torch.sigmoid(self(drum_features, mix_features, difficulty, slot_offset, struct_features))
+        return torch.sigmoid(
+            self(drum_features, mix_features, difficulty, slot_offset, struct_features, instr_features)
+        )

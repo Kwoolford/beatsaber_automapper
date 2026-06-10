@@ -58,6 +58,7 @@ class LayoutPhraseLitModule(lightning.LightningModule):
         sched_sampling_start: float = 0.0,
         sched_sampling_end:   float = 0.0,
         sched_sampling_epochs: int  = 20,
+        use_contour:       bool  = False,
     ) -> None:
         """
         sched_sampling_start/end/epochs: linear ramp of scheduled-sampling
@@ -76,6 +77,7 @@ class LayoutPhraseLitModule(lightning.LightningModule):
             dim_feedforward=dim_feedforward, max_layout_len=max_layout_len,
             max_phrase_slots=max_phrase_slots, max_song_phrases=max_song_phrases,
             num_difficulties=num_difficulties, num_genres=num_genres, dropout=dropout,
+            use_contour=use_contour,
         )
         # We compute per-position CE manually so we can apply a role weight to
         # the weakest role (X). Runs 1+2 showed kind=98% / field_d=100% / y=83%
@@ -122,6 +124,7 @@ class LayoutPhraseLitModule(lightning.LightningModule):
                     genre        =batch["genre"],
                     song_fps     =batch.get("song_fps"),
                     song_fp_mask =batch.get("song_fp_mask"),
+                    phrase_contour=batch.get("phrase_contour"),
                 )
                 # Predicted token at position t is used as input at position t+1
                 pred_toks = logits_tf.argmax(dim=-1)   # [B, S]
@@ -149,6 +152,7 @@ class LayoutPhraseLitModule(lightning.LightningModule):
             genre        =batch["genre"],
             song_fps     =batch.get("song_fps"),
             song_fp_mask =batch.get("song_fp_mask"),
+            phrase_contour=batch.get("phrase_contour"),
         )   # [B, S, vocab]
         target  = batch["target"]                              # [B, S]
         per_tok = self.loss_fn(

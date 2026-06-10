@@ -14,6 +14,7 @@ from beatsaber_automapper.data.audio import (
     beat_to_frame,
     compute_section_features,
     detect_sections,
+    detect_sections_energy_percentile,
     extract_mel_spectrogram,
     frame_to_beat,
     load_audio,
@@ -259,4 +260,55 @@ def test_detect_sections_short_audio() -> None:
     """Very short audio should still return at least one section."""
     waveform = torch.randn(1, 44100 * 3)  # 3 seconds
     sections = detect_sections(waveform, sample_rate=44100)
+    assert len(sections) >= 1
+
+
+# ---------------------------------------------------------------------------
+# detect_sections_energy_percentile
+# ---------------------------------------------------------------------------
+
+
+def test_detect_sections_energy_percentile_basic() -> None:
+    """All returned types should be from SECTION_TYPES and cover the song."""
+    waveform = _make_synthetic_song(duration=40.0)
+    sections = detect_sections_energy_percentile(waveform, sample_rate=44100)
+
+    assert len(sections) >= 1
+    for sec_type, start, end in sections:
+        assert sec_type in SECTION_TYPES
+        assert end > start
+    assert sections[0][1] == 0.0
+    assert abs(sections[-1][2] - 40.0) < 4.5  # within one window
+
+
+def test_detect_sections_energy_percentile_labels_drop_as_loud() -> None:
+    """The loudest section of a quiet→loud→quiet song should be labelled 'drop'
+    or 'chorus' (top energy band), not 'outro'."""
+    sr = 44100
+    duration = 40.0
+    t = np.linspace(0, duration, int(sr * duration), endpoint=False, dtype=np.float32)
+    waveform = 0.05 * np.sin(2 * np.pi * 220 * t)
+    # Loud band 15s..25s — should land in the top-25% energy bucket.
+    loud_start = int(15 * sr)
+    loud_end = int(25 * sr)
+    waveform[loud_start:loud_end] = 0.9 * np.sin(2 * np.pi * 220 * t[loud_start:loud_end])
+    waveform[loud_start:loud_end] += 0.3 * np.random.randn(loud_end - loud_start).astype(np.float32)
+    wf = torch.from_numpy(waveform).unsqueeze(0)
+
+    sections = detect_sections_energy_percentile(wf, sample_rate=sr)
+
+    # The section overlapping 18-23s should be "drop" or "chorus".
+    found_loud = False
+    for sec_type, s, e in sections:
+        if s <= 20.0 <= e:
+            assert sec_type in ("drop", "chorus"), f"Loud window mis-labelled {sec_type}"
+            found_loud = True
+            break
+    assert found_loud, f"No section contained 20s mark; sections={sections}"
+
+
+def test_detect_sections_energy_percentile_short_audio() -> None:
+    """Very short audio should still return at least one section without error."""
+    waveform = torch.randn(1, 44100 * 3)
+    sections = detect_sections_energy_percentile(waveform, sample_rate=44100)
     assert len(sections) >= 1

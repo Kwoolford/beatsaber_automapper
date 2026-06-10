@@ -25,6 +25,7 @@ import torch
 import torch.nn as nn
 
 from beatsaber_automapper.data.layout_dataset import (
+    CONTOUR_DIM,
     HAND_SPECIAL_IDX,
     LAYOUT_PAD,
     LAYOUT_VOCAB_SIZE,
@@ -72,12 +73,14 @@ class LayoutPhraseModel(nn.Module):
         num_difficulties: int = 5,
         num_genres:       int = 11,
         dropout:          float = 0.1,
+        use_contour:      bool = False,
     ) -> None:
         super().__init__()
         self.d_model          = d_model
         self.max_layout_len   = max_layout_len
         self.max_phrase_slots = max_phrase_slots
         self.max_song_phrases = max_song_phrases
+        self.use_contour      = use_contour
         self.ctx_len          = 0   # set by LayoutPhraseLitModule when ctx_len > 0
         # Special-slot sentinel index matches the dataset's convention.
         self.special_slot_idx = max_phrase_slots
@@ -86,6 +89,10 @@ class LayoutPhraseModel(nn.Module):
         self.enc_proj    = nn.Linear(MERT_DIM, d_model)
         self.enc_pos_emb = nn.Embedding(max_phrase_slots, d_model)
         self.enc_norm    = nn.LayerNorm(d_model)
+        # TASK 3: per-slot pitch contour → encoder. Only instantiated when
+        # use_contour=True so checkpoints trained without it load with no
+        # missing keys (mirrors the song_fp_proj guard).
+        self.contour_proj = nn.Linear(CONTOUR_DIM, d_model) if use_contour else None
         enc_layer = nn.TransformerEncoderLayer(
             d_model=d_model, nhead=n_heads, dim_feedforward=dim_feedforward,
             dropout=dropout, batch_first=True, norm_first=True,
@@ -142,6 +149,7 @@ class LayoutPhraseModel(nn.Module):
         phrase_mask:   torch.Tensor,            # [B, P]   bool: True = real
         song_fps:      torch.Tensor | None = None,   # [B, M, 768] phrase fingerprints
         song_fp_mask:  torch.Tensor | None = None,   # [B, M]      bool: True = real
+        phrase_contour: torch.Tensor | None = None,  # [B, P, 3] per-slot pitch contour
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Encode phrase MERT + optional song-level phrase fingerprints.
 
@@ -160,6 +168,10 @@ class LayoutPhraseModel(nn.Module):
         # Local: encode current phrase slots
         pos = torch.arange(P, device=device)
         x = self.enc_proj(phrase_mert) + self.enc_pos_emb(pos).unsqueeze(0)
+        # TASK 3: add per-slot pitch-contour anchor. Slot-aligned with phrase_mert,
+        # so the decoder cross-attention sees lead/bass pitch at each onset's slot.
+        if self.contour_proj is not None and phrase_contour is not None:
+            x = x + self.contour_proj(phrase_contour)
         x = self.enc_norm(x)
         local_kp = ~phrase_mask                          # [B, P]
         memory_local = self.encoder(x, src_key_padding_mask=local_kp)
@@ -190,6 +202,7 @@ class LayoutPhraseModel(nn.Module):
         genre:         torch.Tensor,             # [B]
         song_fps:      torch.Tensor | None = None,   # [B, M, 768]
         song_fp_mask:  torch.Tensor | None = None,   # [B, M]  bool True=real
+        phrase_contour: torch.Tensor | None = None,  # [B, P, 3]
         song_emb:      torch.Tensor | None = None,   # kept for ckpt compat, unused
         section_emb:   torch.Tensor | None = None,   # kept for ckpt compat, unused
     ) -> torch.Tensor:                  # [B, S, vocab]
@@ -198,7 +211,9 @@ class LayoutPhraseModel(nn.Module):
         `layout_tokens` is the input sequence (BOS, ...) — the target sequence
         is the shift-by-one of this (handled in the LightningModule).
         """
-        memory, mem_kp = self.encode(phrase_mert, phrase_mask, song_fps, song_fp_mask)
+        memory, mem_kp = self.encode(
+            phrase_mert, phrase_mask, song_fps, song_fp_mask, phrase_contour,
+        )
 
         B, S = layout_tokens.shape
         device = layout_tokens.device
@@ -250,6 +265,7 @@ class LayoutPhraseModel(nn.Module):
         context_hands:  list[int] | None = None,
         song_fps:     torch.Tensor | None = None,      # [1, M, 768] all phrase fingerprints
         song_fp_mask: torch.Tensor | None = None,      # [1, M]      bool True=real
+        phrase_contour: torch.Tensor | None = None,    # [1, P, 3] per-slot pitch contour
         song_emb:    torch.Tensor | None = None,       # kept for ckpt compat, unused
         section_emb: torch.Tensor | None = None,       # kept for ckpt compat, unused
     ) -> list[int]:
@@ -287,7 +303,9 @@ class LayoutPhraseModel(nn.Module):
         )
 
         device = phrase_mert.device
-        memory, mem_kp = self.encode(phrase_mert, phrase_mask, song_fps, song_fp_mask)
+        memory, mem_kp = self.encode(
+            phrase_mert, phrase_mask, song_fps, song_fp_mask, phrase_contour,
+        )
 
         # Safety: each onset produces ≤5 tokens; BOS already occupies 1 slot.
         # Truncate the schedule so we never exceed max_layout_len.

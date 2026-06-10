@@ -48,6 +48,10 @@ def main() -> None:
                         help="BCE positive class weight (default 3.6 ≈ 78.2/21.8)")
     parser.add_argument("--mix-dim",        type=int,   default=768,
                         help="Mix-stem MERT dim. 0 disables mix features.")
+    parser.add_argument("--use-instr",      action="store_true",
+                        help="Use per-instrument layering features (requires the "
+                             "transcription preprocessing pass; restricts the cohort "
+                             "to songs with cached instr_beat_features).")
     parser.add_argument("--window-size",    type=int,   default=128)
     parser.add_argument("--num-workers",    type=int,   default=8)
     parser.add_argument("--limit-val",      type=int,   default=200)
@@ -68,9 +72,11 @@ def main() -> None:
     from lightning.pytorch.loggers import TensorBoardLogger
 
     from beatsaber_automapper.data.beat_dataset import BeatDataset
+    from beatsaber_automapper.data.instrument_features import INSTR_FEATURE_DIM
     from beatsaber_automapper.training.beat_module import BeatLitModule
 
     data_dir = REPO_ROOT / args.data_dir
+    instr_dim = INSTR_FEATURE_DIM if args.use_instr else 0
 
     log.info("Building datasets …")
     train_ds = BeatDataset(
@@ -80,6 +86,7 @@ def main() -> None:
         hop=args.window_size // 2,
         difficulties=args.difficulties,
         exclude_categories=["noodle", "mapping_extensions"],
+        require_instr=args.use_instr,
     )
     val_ds = BeatDataset(
         data_dir=data_dir,
@@ -88,6 +95,7 @@ def main() -> None:
         hop=args.window_size,
         difficulties=args.difficulties,
         exclude_categories=["noodle", "mapping_extensions"],
+        require_instr=args.use_instr,
     )
 
     log.info("Train: %d windows | Val: %d windows", len(train_ds), len(val_ds))
@@ -118,6 +126,7 @@ def main() -> None:
     module = BeatLitModule(
         d_model=args.d_model,
         mix_dim=args.mix_dim,
+        instr_dim=instr_dim,
         n_heads=args.n_heads,
         n_layers=args.n_layers,
         learning_rate=args.lr,

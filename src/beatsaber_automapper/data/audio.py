@@ -410,6 +410,105 @@ def detect_sections(
     return typed_sections
 
 
+def detect_sections_energy_percentile(
+    waveform: torch.Tensor,
+    sample_rate: int = 44100,
+    window_sec: float = 4.0,
+    smooth_sec: float = 2.0,
+) -> list[tuple[str, float, float]]:
+    """Detect song sections from raw RMS energy percentiles.
+
+    The clustering-based ``detect_sections`` saturates on tracks whose timbre
+    is stable post-intro (most EDM, much modern rock) — chroma+MFCC stay near
+    constant so the whole song after the intro collapses into one cluster
+    labelled "outro", which then gets the sparsest threshold band at inference
+    time and produces a *pause* exactly where the drop should be densest.
+
+    Energy is a much more robust signal for "is this a drop":
+      1. Compute RMS in fixed 4-second windows.
+      2. Smooth with a 2-second causal window.
+      3. Rank windows globally; map percentile → section type:
+         top 25 %     → drop
+         60–75 %      → chorus
+         40–60 %      → verse
+         25–40 %      → bridge
+         leading low  → intro
+         trailing low → outro
+         other low    → bridge
+      4. Collapse consecutive same-type windows into single ranges.
+
+    Args:
+        waveform: Audio tensor [1, samples] or [samples].
+        sample_rate: Sample rate of the waveform.
+        window_sec: Window length for RMS computation.
+        smooth_sec: Trailing smoothing window length.
+
+    Returns:
+        List of (section_type, start_sec, end_sec) tuples sorted by start time.
+    """
+    import numpy as np
+
+    y = waveform.squeeze().numpy().astype(np.float32)
+    duration = len(y) / sample_rate
+    if duration < window_sec * 2:
+        return [("verse", 0.0, duration)]
+
+    win = max(1, int(window_sec * sample_rate))
+    n_win = max(1, len(y) // win)
+    rms = np.array(
+        [float(np.sqrt(np.mean(y[i * win : (i + 1) * win] ** 2) + 1e-12)) for i in range(n_win)],
+        dtype=np.float32,
+    )
+    if rms.size == 0:
+        return [("verse", 0.0, duration)]
+
+    # Trailing smoothing (causal — keeps the rising edge of a build/drop aligned)
+    k = max(1, int(round(smooth_sec / window_sec)))
+    if k > 1 and rms.size >= k:
+        kernel = np.ones(k, dtype=np.float32) / k
+        rms_smooth = np.convolve(rms, kernel, mode="full")[: rms.size]
+    else:
+        rms_smooth = rms.copy()
+
+    # Percentile ranks in [0, 1]
+    order = rms_smooth.argsort().argsort().astype(np.float32)
+    pct = order / max(1, len(order) - 1)
+
+    types: list[str] = []
+    last_idx = len(pct) - 1
+    for i, p in enumerate(pct):
+        if p >= 0.75:
+            t = "drop"
+        elif p >= 0.60:
+            t = "chorus"
+        elif p >= 0.40:
+            t = "verse"
+        elif p >= 0.25:
+            t = "bridge"
+        else:
+            # Low-energy bucket: leading run → intro, trailing run → outro, middle → bridge
+            if i <= max(1, last_idx // 8):
+                t = "intro"
+            elif i >= last_idx - max(1, last_idx // 8):
+                t = "outro"
+            else:
+                t = "bridge"
+        types.append(t)
+
+    # Collapse consecutive same-type windows
+    sections: list[tuple[str, float, float]] = []
+    cur_type = types[0]
+    cur_start = 0.0
+    for i in range(1, len(types)):
+        if types[i] != cur_type:
+            end_sec = i * window_sec
+            sections.append((cur_type, cur_start, end_sec))
+            cur_type = types[i]
+            cur_start = end_sec
+    sections.append((cur_type, cur_start, duration))
+    return sections
+
+
 def compute_section_features(
     sections: list[tuple[str, float, float]],
     n_frames: int,
