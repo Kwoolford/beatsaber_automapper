@@ -10,13 +10,14 @@ A plain `git clone` on the new box loses everything. The big data + checkpoints 
 (`/data/`, `logs/`, `outputs/`, `*.pt`) so they will NOT travel with the repo either.
 
 ### Before you wipe the old machine — copy/commit these
-1. **COMMIT THE CODE (most important).** 13 modified + ~35 untracked source files are this project's
-   entire current state. From repo root:
+1. **COMMIT THE CODE (most important).** ✅ **DONE 2026-06-09 — committed as `39c877f` on `main`**
+   (63 files, 4.6M: code/docs/specs + tiny TensorBoard events/hparams; NO ckpts/data). Tree CLEAN.
+   NOTE: `logs/` is NOT gitignored (only `*.ckpt`/`*.log` inside are), so the small
+   `events.*`/`hparams.yaml` for version_5..14 got committed — fine/intended.
+   **STILL TODO before wipe — get the commit OFF this box (it protects nothing until it leaves):**
    ```bash
-   git add -A && git commit -m "wip: V7 harness + scoped-V8 (T0..T5) + reward-gate PoC (2026-06-09)"
    git bundle create /path/to/usb/beatsaber.bundle --all   # or push to a remote
    ```
-   (Logs dirs are gitignored — they won't be added; that's fine, copy them separately below.)
 2. **COPY the gitignored artifacts you can't cheaply rebuild** (rsync to USB/NAS/new box):
    | path | size | rebuildable? |
    |---|---|---|
@@ -36,6 +37,24 @@ A plain `git clone` on the new box loses everything. The big data + checkpoints 
    ```
    Verify: `pytest -q` (**415 passed, 4 xfailed, 5 xpassed, ~9s** as of 2026-06-09), then
    `nvidia-smi` shows the GPU, then run the reward-gate smoke (below) to confirm end-to-end.
+
+   **⚠️ THIS IS A DUAL-BOOT OS SWITCH (same machine), NOT new hardware.** Booting Linux→Windows
+   2026-06-09/10. The "copy 95G to a USB/new box" framing in the table above is overkill for the
+   *code* — same disks. What actually matters:
+   - **Code travels via `origin` (GitHub), not the disk.** The repo here lives on the Linux ext4
+     partition; Windows can't read ext4 natively. So push to origin and `git clone`/`pull` on the
+     Windows side (or work from WSL, which CAN see the Linux files). **`git push origin main` is the
+     real safety action before booting away.**
+   - **Data (`data/raw` 36G, `data/processed` 59G) is gitignored + on ext4** → not reachable from
+     native Windows. If you intend to do project work on the Windows side, either run under WSL2
+     (mounts the ext4) or stage the data on a shared NTFS partition. If Windows is just for
+     gaming/other, ignore this — the Linux partition keeps everything intact for next Linux boot.
+   - If running natively on Windows: `.venv\Scripts\activate` (not `source`); `uv sync` +
+     basic-pitch ONNX line work as-is; `nohup ... &` → `Start-Process`/scheduled task; the bash
+     `overnight_*.sh` runners need Git-Bash/WSL.
+   - **Claude Code memory does NOT travel with git** — `~/.claude/projects/.../memory/` (`MEMORY.md`
+     + the two project memories). On a fresh Windows Claude Code it starts blind; under WSL it reads
+     the same Linux home, so prefer WSL to keep continuity.
 
 ### Uncommitted-file inventory (what `git add -A` will capture — all this session's lineage)
 **Modified (13)** — core pipeline changes since `a51022c`:
