@@ -229,6 +229,9 @@ def main():
     ap.add_argument("--pt-glob", default="data/processed/*.pt")
     ap.add_argument("--gen-glob", default="outputs/2026-06-07/*.zip")
     ap.add_argument("--gen-difficulty", default="Expert")
+    ap.add_argument("--v7-glob", default=None,
+                    help="glob of a V7 cohort (real bpm read per-zip) → AUC(human vs V7), DoD>=0.75")
+    ap.add_argument("--v7-difficulty", default="Expert")
     ap.add_argument("--json", type=pathlib.Path, default=None)
     ap.add_argument("--seed", type=int, default=0)
     args = ap.parse_args()
@@ -311,6 +314,58 @@ def main():
     delta = human_proba_mean - gen_mean
     print(f"[DoD-B] human - V7 mean P(human) = {delta:+.3f}   (>=0.25 → V7 sub-human, usable reward)")
 
+    # ---- AUC(human vs V7 cohort): the discrimination the reward must actually make ----
+    # The build plan's real gate. Uses each map's REAL bpm (read from its Info.dat) so the
+    # nps feature is correct, unlike the legacy probe above which assumed 123 BPM.
+    import io as _io, json as _json, zipfile as _zip
+
+    def _zip_bpm(zp):
+        try:
+            with _zip.ZipFile(zp) as zf:
+                nm = next((n for n in zf.namelist()
+                           if pathlib.PurePosixPath(n).name.lower() == "info.dat"), None)
+                if nm:
+                    return float(_json.loads(zf.read(nm).decode("utf-8", "ignore"))
+                                 .get("_beatsPerMinute", 0)) or None
+        except Exception:
+            return None
+        return None
+
+    auc_human_vs_v7 = None
+    v7_scores = []
+    if args.v7_glob:
+        for gp in sorted(glob.glob(args.v7_glob)):
+            gp = pathlib.Path(gp)
+            try:
+                recs = _load_notes_with_direction(gp, args.v7_difficulty)
+            except Exception:
+                continue
+            notes = [(b, x, y, dr) for (b, x, y, _c, dr) in recs]
+            if len(notes) < 8:
+                continue
+            bpm = _zip_bpm(gp) or 120.0
+            spb = 60.0 / bpm
+            dur = max(n[0] for n in notes) * spb + spb
+            gf = featurize(notes, bpm, dur, None)
+            if gf is None:
+                continue
+            gf = np.where(np.isnan(gf), mu, gf)
+            s = float(clf.predict_proba(((gf - mu) / sd).reshape(1, -1))[:, 1][0])
+            v7_scores.append(s)
+        if len(v7_scores) >= 5:
+            hh = proba[y == 1]  # out-of-fold human P(human)
+            vv = np.array(v7_scores)
+            yy = np.concatenate([np.ones(len(hh)), np.zeros(len(vv))])
+            ss = np.concatenate([hh, vv])
+            auc_human_vs_v7 = float(roc_auc_score(yy, ss))
+            print(f"\n[V7-cohort] n={len(vv)} maps  mean P(human)={vv.mean():.3f}  "
+                  f"(human CV mean {human_proba_mean:.3f})")
+            print(f"[DoD-1] AUC(human vs V7) = {auc_human_vs_v7:.4f}   (>=0.75 → reward can rank "
+                  f"our maps below humans = USABLE; <0.75 → handcrafted reward DEAD, escalate to "
+                  f"learned encoder)")
+        else:
+            print(f"\n[V7-cohort] too few usable maps ({len(v7_scores)}) for AUC — skipping DoD-1")
+
     # ---- verdict ----
     print("\n=== VERDICT ===")
     a_pass = auc >= 0.80
@@ -337,6 +392,8 @@ def main():
         "feature_weights": weights, "human_proba_mean": human_proba_mean,
         "gen_scores": gen_scores, "gen_mean": gen_mean, "dod_b_delta": delta,
         "dod_a_pass": bool(a_pass), "dod_b_pass": bool(b_pass), "verdict": v,
+        "auc_human_vs_v7": auc_human_vs_v7, "v7_cohort_n": len(v7_scores),
+        "v7_cohort_mean_proba": float(np.mean(v7_scores)) if v7_scores else None,
     }
     if args.json:
         args.json.write_text(json.dumps(out, indent=2))

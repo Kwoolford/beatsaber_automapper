@@ -152,11 +152,13 @@ def _load_notes_with_direction(
 
     Returns (beat, x, y, color, direction) tuples.
     """
+    import shutil
     import tempfile
     import zipfile
 
     from beatsaber_automapper.data.beatmap import parse_difficulty_dat
 
+    tmp = None
     if map_path.suffix == ".zip":
         tmp = tempfile.mkdtemp(prefix="contour_eval_")
         with zipfile.ZipFile(map_path) as zf:
@@ -180,12 +182,18 @@ def _load_notes_with_direction(
             if diff_path is not None:
                 break
     if diff_path is None:
+        if tmp is not None:
+            shutil.rmtree(tmp, ignore_errors=True)
         raise FileNotFoundError(f"No difficulty .dat in {map_dir}")
 
-    beatmap = parse_difficulty_dat(diff_path)
-    if beatmap is None:
-        raise RuntimeError(f"Failed to parse {diff_path}")
-    return [(n.beat, n.x, n.y, n.color, n.direction) for n in beatmap.color_notes]
+    try:
+        beatmap = parse_difficulty_dat(diff_path)
+        if beatmap is None:
+            raise RuntimeError(f"Failed to parse {diff_path}")
+        return [(n.beat, n.x, n.y, n.color, n.direction) for n in beatmap.color_notes]
+    finally:
+        if tmp is not None:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 if __name__ == "__main__":

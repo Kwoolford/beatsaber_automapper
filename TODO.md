@@ -1,8 +1,145 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-06-09
+**Last updated:** 2026-06-15
 
-## ⚠️ 2026-06-09 — MACHINE-SWAP HANDOFF (READ FIRST) ⚠️
+## 2026-06-15 — P1-2 RENDERER + P1-3 CALIBRATION GATE DONE (GATE PASSED) → TOP OF STACK = P1-4 BEST-OF-N PoC
+
+**PHASE-1 PERCEPTION CHANNEL COMPLETE (P1-1, P1-2, P1-3 all DoD-MET).** The agent-side
+ArcViewer works: Claude-vision can blind-separate human from V7 output and its reasons match
+the known complaints. P1-4 (Phase-2 kickoff) is now UNGATED.
+
+> **GIT (2026-06-15):** all work is COMMITTED on `main` (phase-1 perception channel; `main` is
+> ~23 commits ahead of origin). **PUSH STILL PENDING** — `git push origin main` failed in-session
+> (HTTPS remote, no gh/SSH/token auth in the agent env). Run it yourself after auth (`gh auth
+> login`, a PAT in the URL, or switch remote to SSH). Commits are safe locally across restarts.
+
+- **P1-2 renderer DONE** — `scripts/render_map.py` (matplotlib, CPU). Three views per map:
+  (a) whole-song density-vs-RMS strip with violation marks; (b) mapper's-eye lattice panels
+  (time x, 4×3 grid unrolled on y, cut-direction arrows, hand colors, beat lines, dots=hollow
+  circles); (c) per-hand swing-path/parity trace (resets ○, violations ✗) from swing_sim.
+  CLI: `render_map.py <zip> --difficulty Expert --out x.png [--panels N --no-audio]`.
+- **P1-3 calibration gate PASSED** — `scripts/calibration_gate.py` (render→blind→score).
+  Rendered **5 human (data/raw) + 5 real V7 cohort (outputs/v7_cohort_2026-06-10/, post-process)**
+  blind-shuffled; Claude ranked. **DoD MET: 5/5 clean separation** (blind top-5 = all human,
+  bottom-5 = all V7) AND reasons cite all three complaints (diagonals/for-sport, monotony,
+  dead drops). Artifacts `outputs/calib/{sample_*.png,key.json,ranking.json}`.
+  **KEY FINDING:** the V7 cohort maps are **parity-CLEAN (0 swing-sim violations — postprocess
+  rewrites directions)**, so the discriminator was NOT parity but **monotony + missing structure**:
+  near-identical per-beat patterns (red→ at row0 + blue triangle), bottom-row for-sport streams,
+  flat/step-function density ignoring the song. This is exactly Kyle's complaint set, now
+  machine-legible. ⇒ Phase-2 selection must optimize structure/variety, not just parity.
+
+### TOP OF STACK — P1-4 (Phase-2 kickoff PoC), now ungated
+Best-of-N (N=16) rerank on ONE song using the **early-stopped feel-disc** (rule: max within-
+generator ranking spread s.t. AUC ≥ 0.9 — the ep1 ckpt, NOT the saturated 60-ep one) + the
+**swing-sim hard filter** (now available) + (NEW from P1-3) a **monotony/structure penalty**
+since parity alone won't separate post-process candidates. Deliverable: render winner vs a
+no-rerank control for Kyle to ArcViewer (he stays final judge — milestone re-anchor).
+**Open q (1) RESOLVED 2026-06-15:** minted the early-stopped ranker
+`outputs/feel_disc_ep1_2026-06-15.pt` (`feel_disc_poc.py --epochs 1 --save-ckpt`). Held-out
+AUC(human vs V7) = 1.000 (≥0.9 ✓) AND **within-V7 logit spread = 10.8% of the human-V7 gap**
+(saturated 60-ep was 0.3%; usable ordering, p10/p50/p90 = -1.84/-1.75/-1.65, max 0.57) → a
+usable best-of-N ranker per the Phase-2 reward rule. Scores: `outputs/feel_disc_ep1_scores_2026-06-15.json`.
+**Open q (2) still open:** generate.py has --temperature/--top_p but NO seed/N flag → best-of-N =
+N stochastic invocations of generate.py (start whole-map N=16, scripted; phrase-level later).
+**Build remaining for P1-4:** (a) wrap feel_disc model to SCORE an arbitrary generated map (reuse
+load_v7 featurizer from feel_disc_poc.py); (b) a monotony/structure penalty (P1-3 finding: parity
+is clean post-process, so penalize flat density + repeated per-beat patterns); (c) best-of-N harness
+= gen 16 → swing-sim hard filter → feel-disc+monotony rank → render winner vs no-rerank control for
+Kyle to ArcViewer.
+
+## 2026-06-14 — P1-1 SWING SIMULATOR DONE (DoD MET)
+
+**TASK P1-1 (swing simulator) COMPLETE.** `src/beatsaber_automapper/evaluation/swing_sim.py`
++ `scripts/eval_swing_sim.py` (DoD harness) + `tests/test_swing_sim.py` (9 tests, pass).
+JoshaParity-style per-hand parity state machine: swing extraction → forehand/backhand
+assignment → reset classification (bomb / intentional / fast_single / **violation**) →
+per-map scorecard + `seam_hand_states()` for Phase-2 seam stitching + swing-EBPM.
+
+**DoD MET (artifact `outputs/swing_sim/dod_2026-06-14.log`):**
+- **600 human Standard-Expert maps → 0 violations** (median reset-rate 0.003, p99 0.08).
+- **Raw V7 PRE-postprocess → ~1208–1245 violations/map** (reset-rate ~0.91).
+- Sanity: V7 POST → 0 violations (postprocess rewrites directions to fix parity → the
+  metric tracks real quality; clean pre/post contrast).
+
+**The model that made human=0 / V7≫0 work (all physically motivated, no threshold-fudging
+— each was found by inspecting a specific false-positive against real maps):**
+1. Reset timing is **wall-clock seconds, not beats** (needs BPM): wrist-break floor
+   `HARD_RESET_SEC=0.30` (human fastest reset ~0.34s; V7 crammed at 0.244s).
+2. **Dots (all-dot swings) are parity-FREE** — never assign them a geometric direction for
+   parity; they absorb a flip. (This was the single biggest false-positive source.)
+3. A **neutral (L/R/dot) swing absorbs one parity flip** for the next directional note.
+4. **Angle-flow gate** (`ANGLE_FLOW_DEG=90`): same-parity but ≥90° apart (dnL↔dnR) = a
+   playable wrist *roll*, not a reset. Only near-identical-direction repeats reset.
+5. **Run requirement**: a LONE fast reset = playable "double"; only the 2nd+ consecutive
+   fast reset is a violation (V7's signature = sustained runs).
+6. **Symmetric bomb window**: a bomb just before OR after a same-dir stream = deliberate
+   bomb-reset, not a wrist-break.
+7. **Standard-characteristic scoping** in the loader: load Standard/<difficulty> via
+   Info.dat; SKIP maps lacking it (OneSaber/90-360/**Lawless** have different/no parity —
+   they were the only two residual "human" false-positives at scale; both resolved).
+
+**NEXT (live, in order): P1-2 renderer → P1-3 calibration gate → P1-4 best-of-N PoC.**
+P1-1 unblocks the swing-path trace panel in P1-2 and the simulator hard-filter in P1-4.
+
+## 2026-06-12 — PHASE 0 CLOSED → TOP OF STACK = PHASE 1 "MAP PERCEPTION" (READ FIRST)
+
+**Strategy reset 2026-06-12 (user-requested fresh-eyes review). Master plan =
+`docs/research_2026-06-12_fresh_eyes_plan.md` — read it before building anything.** Diagnosis:
+8 architectures optimized per-slot proxies that anti-correlate with quality; the missing piece is
+the JUDGE (perception), not the generator. Pipeline: judges first (Phase 1), then structure-first
+generation + best-of-N selection (Phase 2), DPO only if needed (Phase 3), lighting decorator
+(Phase 4).
+
+### Phase 0 — DONE 2026-06-12 (reward gate at scale)
+- V7 cohort grown to **400 maps** (`outputs/v7_cohort_2026-06-10/`, 5 fails, 24s avg).
+- Feel-discriminator (`scripts/feel_disc_poc.py`, now has `--save-ckpt`/`--dump-scores`):
+  **held-out AUC(human vs V7) = 1.0000 on ALL arms** (none/dt/spatial/dir) → gate PASSED, not a
+  one-feature fingerprint (V7 is distinguishable in every feature group).
+- **Saturation finding:** the 60-epoch model is a perfect detector but a USELESS ranker (all V7
+  logits ≈ −10.23, within-V7 sd = 0.3% of human gap). **Fix VALIDATED = early stopping:** @1 epoch
+  AUC 0.994 with within-V7 sd = 14% of gap (smooth ordering). **Reward-ckpt rule for Phase 2:
+  maximize within-generator ranking spread subject to AUC ≥ 0.9.**
+- Artifacts: `outputs/feel_disc_{none,dt,spatial,dir}_2026-06-11.json`,
+  `outputs/feel_disc_2026-06-12.pt` (60-ep, saturated — do NOT use for ranking),
+  `outputs/feel_disc_scores{,_ep1}_2026-06-12.json`.
+
+### TOP OF STACK — Phase 1 tasks (plan doc §4, in order)
+1. **TASK P1-1 — swing simulator** `src/beatsaber_automapper/evaluation/swing_sim.py` (extend
+   `evaluation/playability.py`): per-hand parity state machine, swing-angle sequence, reset /
+   wrist-break detection, swing-EBPM; per-map scorecard + per-seam entry/exit hand state. Port
+   JoshaParity concepts (github.com/Joshabi/JoshaParity). Author tiny known-violation fixtures as
+   unit tests. **DoD: 0 violations on human Expert maps; >0 on raw PRE-postprocess V7 output
+   (use the `BS_PREPOST_OUT` env dump in `generation/generate.py`).**
+2. **TASK P1-2 — renderer** `scripts/render_map.py` (matplotlib, no GPU): (a) mapper's-eye
+   lattice panels, 8–16 beats each — time on x, 4×3 grid unrolled on y, cut-direction arrows,
+   hand colors, beat lines, RMS strip; (b) whole-song density-vs-RMS strip w/ section overlay;
+   (c) per-hand swing-path trace from P1-1. Output PNGs for Claude vision eval.
+3. **TASK P1-3 — calibration gate**: render 5 human + 5 V7 maps blind-shuffled; Claude ranks +
+   states reasons. **DoD: ranking separates human/V7 AND reasons match the known complaints
+   (diagonals, monotony, dead drops).** If FAIL → fix perception before any generation work.
+4. **TASK P1-4 (gated on 1–3) — Phase-2 kickoff PoC**: best-of-N (N=16) phrase rerank on ONE song
+   using early-stopped feel-disc (rule above) + swing-sim hard filter; ArcViewer the winner vs a
+   no-rerank control.
+
+### Standing decisions (do not relitigate; rationale in plan doc)
+- **NO arcs/chains at generation** — mask kinds 39–42 (ARC/CHAIN_HEAD/TAIL,
+  `swing_tokenizer.py`) in constrained sampling; arc decorator = optional postprocess later.
+- Eval protocol = 3 tiers: sim+reward over 100% of timeline; 1 whole-song macro strip; ~12–20
+  stratified vision panels (unique section types + seams + drop + judge-flagged worst windows).
+  Vision scoring is COMPARATIVE vs same-section human references, never absolute.
+- NOT doing: V9 rebuild, whole-song attention, per-slot-F1 retrains, new per-slot features.
+
+### Housekeeping
+- ⚠️ **`git push origin main` still pending (needs user auth)** — 22+ commits + ALL of
+  06-10→06-12 uncommitted (feel_disc/gen_v7_cohort/overnight scripts, plan doc, leak fix).
+  Suggested: one "phase-0: reward gate at scale + fresh-eyes plan" commit, then push.
+- FIXED 2026-06-12: `eval_contour_follow._load_notes_with_direction` leaked 15MB tempdir per zip
+  load (filled root partition w/ 1,610 dirs ≈ 24GB). Cleanup now in `finally`. If disk fills
+  again, check `/tmp/contour_eval_*` first. `CLAUDE_CODE_TMPDIR=/mnt/giga_speed/claude_tmp` is in
+  user Claude settings (active from next session).
+
+## ✅ 2026-06-09 — MACHINE-SWAP HANDOFF (RESOLVED — dual-boot done, repo/data intact; push to origin STILL pending)
 
 **You are migrating machines. NOTHING since 2026-05-25 is committed** — `git log` shows the last
 commit is `a51022c` (Run-6 prep), which predates ALL the V7-harness / scoped-V8 / reward-gate work.
@@ -84,6 +221,61 @@ below). User pivoted to a **whole-map "feel" objective** (learned reward / prefe
 The de-risk gate for that pivot **PASSED GREEN today** (see next section) — so the next real build
 is the preference/reward model. Production inference ckpts remain version_10 (layout) + version_4
 (beat), `section_gate="loud_only"`.
+
+---
+
+## 2026-06-10 — GATE HARDENED @ n=1500 → DoD-B COLLAPSES (GREEN→AMBER): handcrafted reward CAN'T rank our maps
+
+Ran build-step 1 (`reward_gate_poc.py --n 1500`, full Expert cohort, CPU; out `outputs/reward_gate_n1500.json`,
+log `logs/overnight/reward_gate_n1500_2026-06-10.log`). **The 06-09 GREEN does NOT survive scaling:**
+- **DoD-A HOLDS/STRENGTHENS:** AUC(human vs corrupt) = **0.9199** (was 0.905 @ n=80). The cheap feel
+  signal vs RANDOM corruptions is real & robust. Top features stable (`ini_cv +1.91`, `horiz_dot_frac
+  −1.29`, `parity_viol_proxy −0.84`, `contour_follow +0.84`, `density_corr_drum +0.75`).
+- **DoD-B COLLAPSES → FAIL:** the SAME 4 V7 maps that scored ~0.33 @ n=80 now score **0.79–0.87**
+  (human mean 0.77) → Δ = **−0.055** (needs ≥+0.25). Verdict flipped **GREEN → AMBER**. The
+  handcrafted featurizer rates our V7 maps as ~human (slightly MORE human than avg) — it CANNOT
+  distinguish human from our generator, even though we KNOW (ArcViewer) the maps are bad.
+- **Root cause of the flip:** n=80 used the alphabetically-first ~80 .pt (biased, non-representative
+  human set); the logistic boundary overfit it. n=1500 is representative → V7 maps land INSIDE the
+  human cloud. **The smoke GREEN was a small-sample artifact — exactly the original caveat ("corrupt
+  negatives are EASY; AUC vs easy negatives ≠ reward can rank two plausible maps").** Note the gen
+  maps are even handicapped (featurized with `drum_density=None` → density_corr=0, an anti-human
+  value) and STILL score human — so the can't-separate conclusion is if anything understated.
+- **IMPLICATION:** build option 2a (calibrated handcrafted-feature reward) is **DEAD as a ranking
+  reward** — it would score our bad maps as human → useless for best-of-N / RL. Per the build plan's
+  own gate ("if it collapses, the handcrafted features can't tell bad-but-plausible from human →
+  escalate to a learned map encoder"), the path forward is **2b: a learned map encoder** (reuse
+  `src/.../training/style_discriminator.py`, swap AudioEncoder→pooled MERT, head→human-vs-generated).
+
+**NEW UNLOCK (kills a long-standing false blocker):** the "only one test song" limit was ILLUSORY for
+this. `data/raw/*.zip` (5374 maps) each bundle `Song.egg` (audio) + `Info.dat` (BPM). `generate.py`
+takes a positional audio (accepts .ogg) + `--bpm` → V7 cohort over MANY real songs is buildable.
+New harness `scripts/gen_v7_cohort.py` (extracts egg→ogg + `_beatsPerMinute`; production config: beat
+v4 + layout v10, `loud_only`). Generated **60 V7 Expert maps from 60 distinct real songs in ~24min,
+0 failures** (~24s/map — fast, NOT an overnight job) → `outputs/v7_cohort_2026-06-10/`.
+
+**RIGOROUS CONFIRMATION DONE (user chose "confirm first") — handcrafted reward 2a is DEAD.** Extended
+`reward_gate_poc.py` with `--v7-glob` (reads each map's real BPM → correct `nps`) to compute the
+build-plan's true gate, **AUC(human vs V7)** (out `outputs/reward_gate_auc_v7_2026-06-10.json`):
+- **AUC(human vs V7) = 0.3135** (n=60). Needs ≥0.75. Not just a miss — it's **below 0.5**, i.e. the
+  reward ranks our V7 maps as MORE human than real humans (V7 cohort mean P(human)=**0.918** vs human
+  0.771). Using this as a reward would push generation toward MORE of its current failure mode.
+- **Why:** the classifier was trained to separate human from RANDOM corruptions (shuffle/rand-dir/
+  flatten); those destroy `ini_cv`-type regularity. V7 maps are over-regular → they ace the "is this
+  non-random?" test while still being bad in ways the 11 features never measure (incohesive diagonals,
+  for-sport swings, late-song collapse). The featurizer asks "structured?", not "good?".
+- **VERDICT: option 2a (calibrated handcrafted-feature reward) KILLED.** Per the build plan's own gate,
+  escalate to **2b: a LEARNED map encoder** whose NEGATIVE class is our-own-generated maps (not random
+  corruptions). Repurpose `src/.../training/style_discriminator.py` (already takes soft `[B,S,V]` probs
+  so gradients flow): AudioEncoder→pooled MERT, head→human-vs-V7, train on (human ≻ V7) pairs. We now
+  HAVE the negatives (60 maps; +more at 24s each — likely want ~300–500 for a real train set). **Next
+  experiment = build + train that discriminator; DoD = held-out AUC(human vs V7) ≥0.75 from the LEARNED
+  encoder** (if even a learned encoder can't separate, the human/V7 gap is perceptual, not in
+  measurable map space → deeper rethink). **AWAITING USER GREENLIGHT on the 2b build.**
+
+⚠️ **SAFETY: local `main` is 22 commits AHEAD of `origin/main` (0 behind) — STILL UNPUSHED.** Host is
+still `AI-Mainframe` (Linux; nothing swapped yet, all data/ckpts intact). `git push origin main` is
+the outstanding #1 handoff action.
 
 ---
 
