@@ -19,10 +19,14 @@ Decoder:
 
 from __future__ import annotations
 
+import logging
 import math
+import os
 
 import torch
 import torch.nn as nn
+
+_log = logging.getLogger(__name__)
 
 from beatsaber_automapper.data.layout_dataset import (
     CONTOUR_DIM,
@@ -326,6 +330,21 @@ class LayoutPhraseModel(nn.Module):
             hands  = [HAND_SPECIAL_IDX]
             roles  = [ROLE_SPECIAL]
 
+        # Decode-time layout-diversity penalty (2026-06-30): the model mode-
+        # collapses to row0×{col0,col2} (row_conc 0.94 vs human 0.47) because
+        # beam/nucleus decoding of its peaked per-position logits always picks
+        # the conditional mode. Env-gated frequency penalty: subtract
+        # strength*count(token) from X/Y logits before sampling so already-used
+        # columns/rows get discouraged. Counts are per-phrase. Default OFF.
+        _div_on = os.environ.get("LAYOUT_DIVERSITY") == "1"
+        _diag_on = _div_on or os.environ.get("LAYOUT_DIAG") == "1"
+        _div_x = float(os.environ.get("LAYOUT_DIV_X", "0.0"))
+        _div_y = float(os.environ.get("LAYOUT_DIV_Y", "0.0"))
+        _x_counts = [0] * X_COUNT
+        _y_counts = [0] * Y_COUNT
+        _diag = {"x_pmax": 0.0, "y_pmax": 0.0, "n": 0,  # mean argmax-prob diagnostic
+                 "y_samp": [0] * Y_COUNT, "x_samp": [0] * X_COUNT}  # sampled-token histogram
+
         def _legal_range(role: int, kind: int | None) -> tuple[int, int]:
             """Return (lo, hi) — half-open token-id range allowed at this role."""
             if role == ROLE_KIND:    return (KIND_BASE, KIND_BASE + KIND_COUNT)
@@ -363,7 +382,37 @@ class LayoutPhraseModel(nn.Module):
             mask = torch.full_like(logits, float("-inf"))
             mask[lo:hi] = 0.0
             logits = logits + mask
+
+            # Diagnostic (gated) + diversity penalty on the position roles.
+            if _diag_on and role in (ROLE_X, ROLE_Y):
+                with torch.no_grad():
+                    p = torch.softmax(logits[lo:hi], dim=-1)
+                    _diag["x_pmax" if role == ROLE_X else "y_pmax"] += float(p.max())
+                    if role == ROLE_Y:
+                        _diag["n"] += 1
+            if role in (ROLE_X, ROLE_Y):
+                if _div_on:
+                    counts = _x_counts if role == ROLE_X else _y_counts
+                    strength = _div_x if role == ROLE_X else _div_y
+                    if strength:
+                        pen = torch.zeros_like(logits)
+                        for j in range(hi - lo):
+                            pen[lo + j] = -strength * counts[j]
+                        logits = logits + pen
+
             tok = _nucleus_sample(logits, temperature, top_p)
+            if _diag_on and role in (ROLE_X, ROLE_Y):
+                samp = _diag["x_samp"] if role == ROLE_X else _diag["y_samp"]
+                j = int(tok) - lo
+                if 0 <= j < len(samp):
+                    samp[j] += 1
+                if role == ROLE_Y and kind == NOTE:
+                    _diag.setdefault("y_note", [0] * Y_COUNT)
+                    if 0 <= j < Y_COUNT:
+                        _diag["y_note"][j] += 1
+            if _div_on and role in (ROLE_X, ROLE_Y):
+                counts = _x_counts if role == ROLE_X else _y_counts
+                counts[int(tok) - lo] += 1
             toks.append(int(tok))
             slots.append(slot)
             hands.append(hand)
@@ -383,8 +432,23 @@ class LayoutPhraseModel(nn.Module):
             _step(ROLE_DIR,     slot_in_phrase, hand_idx, kind=kind_tok)
             _step(ROLE_FIELD_D, slot_in_phrase, hand_idx, kind=kind_tok)
 
-        # Strip BOS, no explicit EOS appended (caller knows the schedule).
-        return toks[1:]
+        if (_div_on or os.environ.get("LAYOUT_DIAG") == "1") and _diag["n"]:
+            ys = _diag["y_samp"]; xs = _diag["x_samp"]
+            ytot = max(sum(ys), 1); xtot = max(sum(xs), 1)
+            yn = _diag.get("y_note", [0] * Y_COUNT); yntot = max(sum(yn), 1)
+            _log.info("layout decode: argmax-prob X=%.3f Y=%.3f n=%d | SAMPLED rows=%s "
+                      "NOTE-rows=%s cols=%s",
+                      _diag["x_pmax"] / _diag["n"], _diag["y_pmax"] / _diag["n"], _diag["n"],
+                      [round(c / ytot, 2) for c in ys],
+                      [round(c / yntot, 2) for c in yn], [round(c / xtot, 2) for c in xs])
+
+        # Strip the cross-phrase context prefix (ctx_n tokens) AND the BOS, so the
+        # returned stream starts at the first generated event token. The decoder
+        # `_decode_phrase_tokens` parses from index 0 expecting a KIND token; the
+        # old `toks[1:]` left the ctx_n context tokens in front (off-by-ctx_n
+        # misalignment that read X/Y/DIR from the wrong slots and collapsed every
+        # note to row0 — the "for-sport" bug). ctx_n=0 ⇒ toks[1:] as before.
+        return toks[ctx_n + 1:]
 
 
 def _nucleus_sample(logits: torch.Tensor, temperature: float, top_p: float) -> int:

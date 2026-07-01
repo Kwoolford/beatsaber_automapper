@@ -11,6 +11,7 @@ or running in "random" mode with untrained weights for testing.
 from __future__ import annotations
 
 import logging
+import os
 from pathlib import Path
 from typing import Any
 
@@ -1703,6 +1704,21 @@ def generate_v7_level(
             beat_probs_parts.append(torch.sigmoid(logits_w.squeeze(0)))
     beat_probs = torch.cat(beat_probs_parts, dim=0)   # [N, 2]
 
+    # Oracle-ceiling PoC (2026-06-29): gated dump of raw Stage-1 probs BEFORE any
+    # thresholding/NMS/density-curve, to measure how much density structure is
+    # latent in the model's own probabilities. Env-gated; default behavior unchanged.
+    _bp_dump = os.environ.get("BEAT_PROBS_DUMP")
+    if _bp_dump:
+        np.savez(
+            _bp_dump,
+            beat_probs=beat_probs.detach().cpu().numpy(),  # [N, 2] (left, right)
+            bpm=float(bpm),
+            beat_subdiv=int(BEAT_SUBDIV),
+            n_slots=int(n_slots),
+        )
+        logger.info("BEAT_PROBS_DUMP wrote %s  (beat_probs %s, bpm=%.2f, subdiv=%d)",
+                    _bp_dump, tuple(beat_probs.shape), float(bpm), int(BEAT_SUBDIV))
+
     # ----- Section-aware threshold (replaces flat energy modulation) -----
     # The model outputs a near-uniform probability distribution with no clear
     # bimodal gap, so a fixed threshold produces a metronome. Instead we:
@@ -1766,8 +1782,72 @@ def generate_v7_level(
         keep = keep_mask & (probs >= pooled)
         return set(keep.nonzero(as_tuple=True)[0].tolist())
 
-    left_onsets  = _nms(beat_probs[:, 0].to(device_obj), thr_L, beat_nms_radius)
-    right_onsets = _nms(beat_probs[:, 1].to(device_obj), thr_R, beat_nms_radius)
+    def _density_aware_select(
+        probs: torch.Tensor, slot_sec: "np.ndarray", win_sec: float,
+        gamma: float, budget: int, radius: int,
+    ) -> set[int]:
+        """Density-aware redistribution (2026-06-30 Phase-2 selection PoC).
+
+        Keeps the SAME total count as the threshold method (``budget``) but
+        re-allocates it across ``win_sec`` windows proportional to
+        (window-mean prob)**gamma — so loud/dense windows keep more notes and
+        quiet ones thin out, recovering the ~0.40 density structure the oracle
+        ceiling showed is latent in beat_probs but flattened by the per-slot
+        threshold + NMS. Within each window, picks the top slots by prob with a
+        ``radius``-slot min-distance.
+        """
+        p = probs.detach().cpu().numpy()
+        N = len(p)
+        if budget <= 0 or N == 0:
+            return set()
+        win_idx = (slot_sec / win_sec).astype(int)
+        n_win = int(win_idx.max()) + 1
+        wsum = np.zeros(n_win); wcnt = np.zeros(n_win)
+        np.add.at(wsum, win_idx, p); np.add.at(wcnt, win_idx, 1.0)
+        wmean = wsum / np.clip(wcnt, 1.0, None)
+        weight = np.power(np.clip(wmean, 1e-6, None), gamma)
+        if weight.sum() <= 0:
+            return _nms(probs.to(device_obj), thr_L, radius)  # degenerate fallback
+        raw = budget * weight / weight.sum()
+        alloc = np.floor(raw).astype(int)
+        rem = int(budget - alloc.sum())
+        if rem > 0:
+            frac = raw - np.floor(raw)
+            for w in np.argsort(-frac)[:rem]:
+                alloc[w] += 1
+        selected: set[int] = set()
+        for w in range(n_win):
+            k = int(alloc[w])
+            if k <= 0:
+                continue
+            idxs = np.where(win_idx == w)[0]
+            if len(idxs) == 0:
+                continue
+            order = idxs[np.argsort(-p[idxs])]
+            chosen: list[int] = []
+            for i in order:
+                if len(chosen) >= k:
+                    break
+                if all(abs(int(i) - c) > radius for c in chosen):
+                    chosen.append(int(i))
+            selected.update(chosen)
+        return selected
+
+    left_thr  = _nms(beat_probs[:, 0].to(device_obj), thr_L, beat_nms_radius)
+    right_thr = _nms(beat_probs[:, 1].to(device_obj), thr_R, beat_nms_radius)
+    if os.environ.get("DENSITY_SELECT") == "1":
+        _gamma = float(os.environ.get("DENSITY_SELECT_GAMMA", "1.5"))
+        _win   = float(os.environ.get("DENSITY_SELECT_WIN", "2.0"))
+        _slot_sec = (np.arange(n_slots) / BEAT_SUBDIV) * (60.0 / bpm)
+        left_onsets  = _density_aware_select(
+            beat_probs[:, 0], _slot_sec, _win, _gamma, len(left_thr), beat_nms_radius)
+        right_onsets = _density_aware_select(
+            beat_probs[:, 1], _slot_sec, _win, _gamma, len(right_thr), beat_nms_radius)
+        logger.info("DENSITY_SELECT on (gamma=%.2f win=%.1fs): redistributed "
+                    "L %d->%d, R %d->%d", _gamma, _win,
+                    len(left_thr), len(left_onsets), len(right_thr), len(right_onsets))
+    else:
+        left_onsets, right_onsets = left_thr, right_thr
     logger.info("Stage 1: %d left onsets, %d right onsets across %d slots",
                 len(left_onsets), len(right_onsets), n_slots)
 
@@ -1896,6 +1976,15 @@ def generate_v7_level(
             _prev_ctx_hands = all_ctx_hands[-_ctx_len:]
 
     logger.info("Generated %d events", len(all_events))
+    if os.environ.get("LAYOUT_DIAG") == "1":
+        from beatsaber_automapper.data.swing_tokenizer import NOTE as _NOTE
+        _ny = [0, 0, 0]
+        for _e in all_events:
+            if _e.kind == _NOTE and 0 <= _e.y <= 2:
+                _ny[_e.y] += 1
+        _t = max(sum(_ny), 1)
+        logger.info("all_events NOTE-row dist = %s (n=%d)",
+                    [round(c / _t, 2) for c in _ny], sum(_ny))
 
     # ---- 9. Assemble beatmap ----
     beatmap = _events_to_beatmap(all_events)

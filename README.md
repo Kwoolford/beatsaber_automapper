@@ -266,7 +266,13 @@ bsa-preprocess [options]
 
 ## Evaluation
 
-Generated maps can be evaluated with browser-based tools — no installation needed:
+**Automated research loop** — `scripts/eval_sweep.py` runs many generation configs ("arms")
+across a cached song set, scores them against **human baselines**, and emits a leaderboard +
+`report.md` with metric tables and before/after renders. One artifact judges a night's work.
+See [`docs/eval_harness.md`](docs/eval_harness.md). Quick: `eval_sweep.py build-songset --n 6`,
+`eval_sweep.py human-baseline`, `eval_sweep.py sweep`.
+
+Generated maps can also be inspected with browser-based tools — no installation needed:
 
 | Tool | URL | Purpose |
 |------|-----|---------|

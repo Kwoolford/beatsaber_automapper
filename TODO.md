@@ -1,6 +1,260 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-06-15
+**Last updated:** 2026-06-30 (PM-2)
+
+## 2026-06-30 (PM-2) — EVAL LOOP HARDENED + visibility upgrades (autonomous research cycle)
+
+Spent the back half hardening the eval loop so theories can be tested without hand-holding. All in
+`scripts/eval_sweep.py` + new `scripts/map_metrics.py`; documented in `docs/eval_harness.md`
+(linked from README). Changes:
+- **Shared map-metrics** (`map_metrics.py`): row_conc, col_conc, grid_coverage, dir_entropy,
+  monotony, pattern_repeat, nps — one source of truth, also surfaces NEW gaps (grid coverage,
+  direction variety) the old scorecard hid.
+- **Human baselines baked in**: `eval_sweep.py human-baseline` (40 maps → human_baseline.json,
+  auto-loaded) so every metric prints vs its human target. Baselines: row_conc 0.49, col_conc 0.29,
+  grid_coverage 0.96, dir_entropy 0.80, monotony 0.43.
+- **Composite human-distance** (`h_dist`) auto-ranks arms by overall layout closeness to human.
+- **report.md** per sweep: density_corr + quality-vs-human tables + embedded before/after renders.
+- **Onset-alignment** metric (onset_hit) + **live progress** (line-buffered, per-song lines under nohup).
+- Pruned dead arms (rejected temperature theory); arms now `baseline` + density-select gammas.
+- **17-vs-16 crash FIXED** (same context-prefix root cause as the decode bug; NO-REPRO ×25).
+
+**Post-fix refresh sweep (`logs/overnight/refresh_sweep_2026-06-30.log`, report.md):** row_conc
+0.49-0.50 (=human), col_conc 0.30-0.33 (~human 0.29), monotony 0.49 (human 0.43), viol 0. **density
+DoD: dsel_g2.5 +0.550 (5/6).** Tradeoff now VISIBLE: g2.5 best density; g4.0 best layout-human-dist
+(0.13) via higher grid_cov/dir_ent.
+
+**NEW GAPS the upgraded loop exposes (next research):** grid_coverage ~0.6 vs human 0.96 and
+dir_entropy ~0.6 vs 0.80 — even post-fix the model uses fewer of the 12 cells and less direction
+variety than humans. These are the next layout-quality levers (were invisible before this scorecard).
+
+## 2026-06-30 (PM) — ★ ROW COLLAPSE WAS A ONE-LINE DECODE BUG ★ (off-by-ctx_n; fix → row_conc 0.94→0.48 ≈ human, plain v10, no retrain)
+
+## 2026-06-30 (PM) — ★ ROW COLLAPSE WAS A ONE-LINE DECODE BUG ★ (off-by-ctx_n; fix → row_conc 0.94→0.48 ≈ human, plain v10, no retrain)
+
+**THE "for-sport" bottom-row collapse was a token-misalignment BUG in inference, not the model.**
+`LayoutPhraseModel.generate_phrase` builds `toks = context_tokens(ctx_n=16) + [BOS] + events` but
+returned `toks[1:]` — stripping only ONE token, leaving 15 context tokens + BOS in front of the
+event stream. `_decode_phrase_tokens` parses from index 0 expecting KIND, so EVERY field (KIND/X/
+**Y**/DIR) was read off-by-ctx_n; the garbage Y tokens (mostly < Y_BASE) clamped to row0 → 94% row0
+in every v10 map. **Fix (1 line): `return toks[ctx_n + 1:]`** (ctx_n=0 ⇒ unchanged).
+
+**Localized by instrumentation:** the model SAMPLES diverse rows (NOTE-rows ~[0.30,0.38,0.32]) but
+`all_events` came out [0.78,0.04,0.19] → collapse is between decode and assembly = the misaligned
+parse. Confirmed in raw .dat.
+
+**Result of the fix (1f3d7, plain v10, DEFAULT decode temp0.9/top_p0.85):** row_conc **0.94→0.484**
+(human 0.47), rows [0.48,0.27,0.25] vs human [0.47,0.31,0.21], cols [0.45,.04,.50,.01]→
+[0.31,0.19,0.21,0.29] vs human even, viol 0. **Human-level layout diversity from a 1-line fix, no
+retrain, no top_p change.** **VALIDATED across the 6-song set (plain v10, default decode):
+MEAN row_conc 0.476 (human 0.47!), per-song 0.44-0.51, density_corr 0.528 (5/6 pass, held),
+total_viol 0.** Cols now spread across all 4 (e.g. [.19,.30,.30,.21]) vs old [.45,.04,.50,.01].
+Render `outputs/density_select_2026-06-30/v10_bugfix.png` (sent to Kyle): lattice panels use all 3
+rows + varied directions vs the old bottom-row zigzag. This also un-scrambles KIND/X/DIR → broadly
+better layout quality (directions were also misaligned, previously masked by the parity-fixing
+postprocess). **Both of Kyle's complaints (flat density + for-sport bottom-row) now addressed:
+density-select γ2.5 + the 1-line decode fix.**
+
+**The entropy-reg fine-tune (below) is now SUPERSEDED / unnecessary** — it was treating a symptom;
+with the bug fixed, plain v10 is human-level. (ft model + high top_p over-diversifies: row_conc
+0.34, ~uniform.) Keep `LAYOUT_ENT_REG` as a dormant gated knob; default decode is fine.
+
+### (superseded) earlier PM path: entropy-reg fine-tune + raised top_p
+
+Chased the bottom-row/2-col collapse to its actual mechanism (a chain of negatives that each
+ruled out a layer):
+1. **Tokenizer round-trip is faithful** — encode→decode a human map preserves row_conc 0.46
+   exactly. Representation is innocent.
+2. **Postprocess only touches COLUMNS** — `enforce_color_separation` pushes red→left/blue→right
+   (explains col0/col2); it never changes Y. PRE vs POST `BS_PREPOST_OUT` dump: rows identical.
+3. **The model logits were peaked** — decode diagnostic (`LAYOUT_DIAG=1`, logs mean argmax-prob at
+   X/Y steps in `generate_phrase`): v10 **Y argmax-prob 0.92, X 0.78** → nucleus always picks the
+   mode = row0/col0. Decode-time frequency penalty (`LAYOUT_DIVERSITY`) and temperature both fail
+   against logits this peaked (rejected).
+4. **TWO compounding causes:** peaked logits AND the tight default nucleus `--top-p 0.85` that
+   discards the tail. Fixing either alone isn't enough.
+
+**FIX (working): entropy-reg fine-tune + raised top_p.** Added `LAYOUT_ENT_REG` (env-gated) to
+`layout_module._forward_batch`: an entropy BONUS on the X/Y position softmaxes (over their legal
+ranges) that flattens the over-confident logits. `scripts/finetune_layout_diversity.py` loads v10
+weights and fine-tunes a few epochs (~15 min/epoch, 187k phrases). β=3.0/lr=1e-4 epoch-0 dropped
+decode argmax-prob **Y 0.92→0.36, X 0.78→0.30**. Then at generation `--top-p 0.999` lets the
+flattened tail through. **ft-ep0 + top_p0.999 (1f3d7): row_conc 0.94→0.78, cols
+[.45,.04,.50,.01]→[.37,.13,.43,.07], viol 0.** Both axes moving toward human (row 0.47,
+cols even), playability intact. Epochs 1-3 still training (flatter logits → expect further drop);
+`scripts/eval_layout_ckpt.py` evals each epoch on the song set (row_conc + cols + viol +
+density_corr), log `logs/overnight/ft_epoch_eval_2026-06-30.log`. DoD: row_conc → <0.65 (toward
+0.47) holding density_corr ≥0.41 + viol 0. β=0.5/lr=3e-5 was too weak (row_conc barely moved) —
+needed the stronger β + higher LR.
+
+New code (all UNCOMMITTED): `LAYOUT_ENT_REG` in layout_module.py, `LAYOUT_DIVERSITY`/`LAYOUT_DIAG`
+in layout_model.py (penalty rejected, diag kept), `scripts/{finetune_layout_diversity,
+eval_layout_ckpt}.py`. Recommend raising the generation `--top-p` default (0.85→~0.97+) ONLY paired
+with the entropy-reg model (high top_p on the peaked v10 just adds noise).
+
+## 2026-06-30 — DENSITY-AWARE SELECTION WORKS (DoD GREEN, no retrain) + EVAL LOOP EXPANDED → residual = Stage-2 LAYOUT monotony
+
+**The oracle prediction held: a post-process selection change solves the density DoD — no retrain.**
+Implemented `DENSITY_SELECT` (env-gated, default OFF) in `generation/generate.py`: keeps the SAME
+total note count as the threshold method but RE-ALLOCATES it across 2s windows ∝ (window-mean
+prob)^γ, with NMS spacing (`_density_aware_select`, ~L1773). Knobs: `DENSITY_SELECT_GAMMA`,
+`DENSITY_SELECT_WIN`.
+
+**Built the multi-song/multi-arm eval harness** `scripts/eval_sweep.py` (the "test more theories per
+night" ask): a cached 6-song full-length set (`data/eval_songset/`, refs precomputed once via
+Demucs) × named arms (env+flags) → leaderboard of density_corr + monotony + gen_cv + notes +
+swing-viol. Add a theory = one line in `ARMS`. Results (`outputs/eval_sweep_cache/leaderboard.json`):
+
+| arm | mean Spearman | #pass | monotony↓ | gen_cv↑ | notes | viol |
+|---|---|---|---|---|---|---|
+| control    | +0.260 | 1/6 | 0.622 | 0.290 | 1988 | 0 |
+| dsel γ1.0  | +0.533 | 4/6 | 0.618 | 0.244 | 1908 | 0 |
+| dsel γ1.5  | +0.515 | 5/6 | 0.615 | 0.299 | 1847 | 0 |
+| **dsel γ2.5** | **+0.531** | **5/6** | 0.606 | **0.384** | 1719 | 0 |
+| dsel γ4.0  | +0.495 | 3/5 | 0.596 | 0.454 | 1611 | 0 |
+
+**Selection ~doubles density_corr (0.26→0.53), DoD 1/6→5/6, every song improves, 0 viol.** Sweet
+spot **γ≈2.5** (best cv, 5/6 pass, ~14% fewer notes = quiet windows correctly thinned). ArcViewer
+renders `outputs/density_select_2026-06-30/{control,dsel_g2.5}.png`: control = flat ~8 NPS plateau;
+g2.5 density BREATHES (intro 2 notes vs 10, breakdown dips, outro thins). **Kyle is final judge.**
+
+**RESIDUAL (next lever, now QUANTIFIED): Stage-2 bottom-row collapse.** The monotony complaint =
+**row_concentration**, not pattern repeat (pat_repeat=0.000 — notes aren't literally identical; the
+zigzag alternates). Human-calibrated baseline (12 human maps): **row_conc mean 0.474** (range
+0.41-0.59, notes spread across rows); V7 = **0.94 — ~2× worse, ~94% of notes in ONE row.** Combined
+monotony human 0.424 vs V7 0.606.
+
+**Stage-2 TEMPERATURE sweep RAN (NEGATIVE) — `logs/overnight/stage2_temp_sweep_2026-06-30.log`.**
+density-select γ2.5 held on, temperature ∈ {0, 0.7, 1.0, 1.2}: density_corr holds (~0.52-0.54, all
+5/6 pass) but **row_conc stays pinned 0.941-0.948 at EVERY temperature** — sampling temperature does
+NOTHING to the row collapse. ⇒ the bottom-row stream is baked into Stage-2's learned distribution,
+not a decoding-diversity issue. Temperature is NOT the lever.
+
+**ROOT-CAUSE DIAGNOSED — Stage-2 mode-collapse to a 2-of-12-cell lattice, SYSTEMIC (not checkpoint).**
+Row/col distribution (load_v7): V7 rows **[0.95, 0.04, 0.01]**, cols **[0.45, 0.04, 0.50, 0.01]** →
+notes live almost only in `row0 × {col0, col2}` (red col0 / blue col2, bottom row = the "for-sport"
+zigzag). Human: rows [0.47, 0.31, 0.21], cols [0.26, 0.24, 0.24, 0.26] (all 12 cells even).
+- **Checkpoint-swap RULED OUT:** the EARLIEST available layout ckpt (version_7 epoch-3, acc 0.865)
+  collapses IDENTICALLY (row_conc 0.943, rows [0.94,0.06,0], cols [0.46,0.04,0.48,0.02]). All layout
+  ckpts across versions 0-14 sit in a narrow band (token_acc 0.856-0.870, epoch≥3) and all collapse.
+  So it's NOT late-epoch token-acc saturation — the model collapses by epoch 3. Systemic to the
+  Stage-2 layout objective/representation.
+
+**NEXT THEORY = break the Stage-2 layout collapse via OBJECTIVE/REPRESENTATION, not checkpoint/temp.**
+DoD = row_concentration 0.94 → human ~0.47 (target <0.65) + col spread, holding density_corr ≥0.41 and
+viol 0. Candidate levers (scope next session, needs Kyle's call on a GPU night): (a) Stage-2 retrain
+with an anti-collapse / position-diversity term (current CE/token-acc objective lets the model win by
+emitting the dominant swing token — diversity is unpenalized); (b) inspect the swing-tokenizer
+vocabulary for a dominant `row0×{col0,col2}` token + class-imbalance reweighting; (c) post-hoc layout
+redistribution (riskier — must preserve parity/swing-sim). Harness ready: row_conc + pat_repeat +
+col in scorecard, human baseline 0.47, layout-ckpt swappable per arm via --layout-ckpt.
+
+> **BUGS FOUND:** (1) the `RuntimeError: size of tensor a (17) must match b (16)` crash (17 = ctx_len
+> 16 + BOS) was the SAME context-prefix bug — the misaligned `flat_tokens` made the cross-phrase
+> context slot/hand rebuild mismatch its token count. **FIXED by the 1-line decode fix** (verified:
+> NO-REPRO across ~25 post-fix attempts on the crash songs). (2) harness prints were buffered under
+> nohup — FIXED: `sys.stdout.reconfigure(line_buffering=True)` + per-song progress lines.
+> **GIT:** generate.py (DENSITY_SELECT + earlier BEAT_PROBS_DUMP), `scripts/{eval_sweep,
+> oracle_density_ceiling}.py` all UNCOMMITTED; push still pending Kyle's GitHub auth.
+
+
+
+## 2026-06-29 — DoD density_corr BASELINED + INFERENCE LEVERS EXHAUSTED → Phase-2 must change Stage-1 (training-time), not inference flags
+
+**The TASK-2 DoD metric (`eval_density_corr.py`, Spearman ≥0.41) had NEVER been numbered on a
+real V7 generation** — bon's "monotony" was an internal feature, not this DoD. Now measured.
+Baseline (bon winner cand_16, production loud_only): **Spearman = −0.005, FAIL** (Pearson 0.45,
+gen CV 0.199). The Pearson/Spearman split is the tell: a weak *linear* energy effect exists but
+**zero monotonic rank-tracking** — exactly what the DoD's Spearman choice exposes.
+
+**Decisive in-session lever sweep** (temp=0 deterministic, song=SO TIRED ROCK, all 4 arms,
+`outputs/density_sweep_2026-06-29/`): every exposed inference lever lands at Spearman ≈ 0 →
+
+| arm | Spearman | Pearson | gen notes | CV |
+|---|---|---|---|---|
+| section-gate=loud_only | 0.0005 | 0.449 | 1384 | 0.191 |
+| section-gate=off       | 0.0596 | 0.474 | 1385 | 0.191 |
+| --use-instr (gate off) | 0.0033 | 0.416 | 1386 | 0.189 |
+| --no-use-instr         | −0.0213| 0.438 | 1380 | 0.205 |
+
+**FINDING:** section-gate and the per-instrument layering feature (whose *entire stated purpose*
+is densifying drops) move density_corr by **noise**. Note count pins at ~1380 regardless. ⇒
+**Inference-time structure conditioning is exhausted** — the flat density is learned into Stage-1.
+Reaching ≥0.41 requires a **training-time** change to Stage-1 (structure/density-conditioned onset
+generation), confirming the memory's "STRUCTURE-FIRST GENERATION, NOT selection." Supporting prior:
+`v8_poc_structure.py` already showed per-instrument event density correlates r=0.41 with human note
+density — the signal is IN the features; Stage-1 just isn't learning to use it.
+
+**ORACLE-CEILING PoC RAN (2026-06-29) — QUALIFIED GREEN → the flat density is a POST-PROCESS
+artifact, NOT a model limit → NEXT = density-aware SELECTION (cheaper than a retrain).**
+Built `scripts/oracle_density_ceiling.py` + a flag-gated `BEAT_PROBS_DUMP` in
+`generation/generate.py` (dumps raw Stage-1 `beat_probs[N,2]` BEFORE threshold/NMS/density-curve;
+default behavior unchanged). Non-circular test: bin the continuous per-window prob-mass into the
+same 2s windows and Spearman vs the same reference (librosa drums∪other). Full-length songs
+(short clips were Spearman noise, excluded):
+
+| song | dur | windows | probMEAN Spearman | shipped-map Spearman |
+|---|---|---|---|---|
+| SO TIRED ROCK | 176s | 88 | **+0.437 PASS** | −0.005 |
+| 1f1e1 | 148s | 75 | **+0.468 PASS** | — |
+| 1f333 | 275s | 138 | +0.298 (close) | — |
+
+Mean ≈ **0.40**, 2/3 ≥0.41, all positive — vs the **shipped maps at ≈0**. `prob_any` CV ≈ 0.63
+(NOT flat). ⇒ Stage-1 ALREADY encodes density structure; the per-slot threshold + NMS +
+`_apply_density_curve` EQUALIZE per-window counts and destroy the window-mean signal. The best
+ceiling metric is per-window **mean** prob (probmean > probmass > probmax). Artifacts
+`outputs/density_sweep_2026-06-29/{oracle_*.json,probs_*.npz,beat_probs.npz}`.
+
+**QUEUED NEXT — density-aware selection (recover the ~0.40 ceiling in the actual map):** replace
+the count-equalizing post-process with a per-window **note budget ∝ window-mean prob** (keep the
+existing within-window NMS for placement, but let loud/dense windows KEEP more notes and thin quiet
+ones), gated behind a flag, prior behavior default. DoD: `eval_density_corr.py` Spearman ≥0.41 on
+the 3 full-length songs (currently ≈0). Read the verdict: PASS on ≥2/3 ⇒ Phase-2 density solved by
+selection, no retrain. If selection caps well under the oracle (~0.40) ⇒ fall back to the Stage-1
+density-conditioned retrain (inject per-window target-density + retrain). Cheap; not a GPU night.
+
+## 2026-06-16 — P1-4 BEST-OF-N PoC BUILT + RAN (mechanism GREEN, but finding = best-of-N ALONE can't fix V7 monotony) → NEXT = STRUCTURE-FIRST GENERATION (Phase-2 proper)
+
+**P1-4 best-of-N=16 rerank PoC DONE.** Built `scripts/best_of_n_poc.py` (the Phase-2
+reranker: wraps the ep1 feel-disc to score arbitrary maps + a NEW monotony/structure penalty
++ the swing-sim hard filter) and `scripts/overnight_2026-06-16.sh` (16 stochastic V7 draws of
+ONE song → filter → rank → render winner vs no-rerank control). Ran clean: **16/16 generated,
+0 swing-sim violations (post-process parity-clean, as P1-3 predicted), rerank GREEN by its own
+logic** — winner `cand_16` dominates control `cand_01` on BOTH axes (feel −1.707 > −1.790,
+monotony 0.635 < 0.647). Artifacts in `outputs/bon_2026-06-16/` (`bon_summary.json`,
+`winner.png`, `control.png`).
+
+**THE REAL FINDING (looked at the renders — this is what matters):** the winner and control are
+**visually near-indistinguishable and BOTH deeply monotonous.** Density pins flat at ~8 NPS the
+whole song (the "ignores structure" complaint — present in both); every lattice panel
+(beats 114-122 / 228-236 / 342-350) is the SAME metronomic bottom-row stream (blue-down + red-up
+alternating at row0, perfect zigzag swing trace). The numbers confirm the eye: **N-spread is
+tiny — feel 0.144, monotony only 0.016; all 16 draws sit at monotony 0.63–0.65.** ⇒ Best-of-N
+over plain stochastic resampling of the SAME model **cannot escape V7's systemic monotony floor**
+— every draw shares the same structure, so selection only nudges within a bad basin. The rerank
+*mechanism* is validated (ranker orders correctly, swing-sim/feel/monotony all wired + working);
+the *strategy* of "select over a monotonous generator" is insufficient for Kyle's complaint.
+
+**Kyle is final judge** — ArcViewer `outputs/bon_2026-06-16/{winner,control}.png`; expectation is
+he'll find them ~equally monotonous (matches the metrics). 
+
+### TOP OF STACK — Phase-2 proper: STRUCTURE-FIRST GENERATION (not selection)
+The P1-4 result re-points Phase 2: the lever is the GENERATOR, not the reranker. Options to scope
+next session, in rough priority:
+1. **Phrase-level resampling / diversity** — best-of-N at phrase granularity with an explicit
+   anti-repetition objective (the monotony penalty becomes a *generation* constraint, not just a
+   post-hoc score), so candidates actually differ structurally instead of all collapsing to the
+   bottom-row stream. The cheapest test of "can selection work if candidates have real variance."
+2. **Structure-conditioned generation** — make density TRACK the song (the flat ~8 NPS is the
+   single most legible defect in both renders); condition Stage-1 on section/RMS structure so the
+   density line stops pinning flat. Reuse `eval_density_corr.py` (Spearman ≥0.41) as the DoD.
+3. The monotony penalty (`monotony_features` in best_of_n_poc.py: pattern_repeat,
+   pattern_entropy_inv, density_flatness, row_concentration) is reusable as a reward/constraint in
+   any of the above.
+
+> **GIT:** P1-4 code (best_of_n_poc.py, overnight_2026-06-16.sh) is NOT yet committed; prior
+> phase-1 work + this still need `git push origin main` (push pending since 2026-06-15, needs
+> Kyle's GitHub auth). `outputs/bon_2026-06-16/` are artifacts, not commits.
 
 ## 2026-06-15 — P1-2 RENDERER + P1-3 CALIBRATION GATE DONE (GATE PASSED) → TOP OF STACK = P1-4 BEST-OF-N PoC
 

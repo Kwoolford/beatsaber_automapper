@@ -1,0 +1,423 @@
+#!/usr/bin/env python3
+"""Multi-song / multi-arm evaluation sweep harness (2026-06-30).
+
+Purpose: test many generation theories per night and get a leaderboard, instead
+of hand-running one config at a time. Each ARM is a named set of env vars + CLI
+flags for scripts/generate.py; each SONG is a cached full-length audio file with
+a PRECOMPUTED reference onset density (the expensive Demucs step, cached once).
+For every (arm, song) it generates a map (cached on disk) and scores it with the
+DoD density-corr (+ note count, CV); prints an arm×song Spearman matrix with
+mean and pass-count, and writes a JSON leaderboard.
+
+Subcommands
+-----------
+  build-songset --n N         extract N full-length (>=MIN_DUR s) songs from
+                              data/raw into data/eval_songset/ and cache refs.
+  sweep [--arms a,b,...]       run the arms (default: all defined) over the songset.
+  list-arms                    print the registered arms.
+
+Add a theory = add one entry to ARMS below (name -> env dict + extra flags).
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import pathlib
+import subprocess
+import sys
+import zipfile
+
+import numpy as np
+
+REPO = pathlib.Path(__file__).resolve().parent.parent
+SONGSET = REPO / "data" / "eval_songset"
+CACHE = REPO / "outputs" / "eval_sweep_cache"
+MIN_DUR = 150.0          # seconds; below this, density-corr Spearman is too noisy
+WIN_SEC = 2.0
+SR = 44100
+
+BEAT_CKPT = "logs/beat_classifier/version_4/checkpoints/beat-epoch=11-val_f1_avg_tol=0.603.ckpt"
+LAYOUT_CKPT = "logs/layout_phrase/version_10/checkpoints/layout-epoch=09-val_token_acc=0.865.ckpt"
+
+# ---- ARMS: name -> (env overrides, extra generate flags). Add theories here. ----
+_DS25 = {"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "2.5"}
+# A theory = one entry: name -> (env overrides, extra generate.py flags).
+# History (2026-06-30): the density-select gamma sweep found g2.5 best (5/6 pass);
+# a Stage-2 temperature sweep was a dead end (layout collapse was a decode bug, now
+# fixed in generate_phrase). Keep the live comparison set lean.
+ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
+    "baseline":   ({}, []),                                                 # flat density, fixed layout
+    "dsel_g1.5":  ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "1.5"}, []),
+    "dsel_g2.5":  (_DS25, []),                                              # recommended production config
+    "dsel_g4.0":  ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "4.0"}, []),
+}
+
+sys.path.insert(0, str(REPO / "scripts"))
+from eval_alignment import _separate_stems, _detect_onsets_librosa, _load_generated_beatmap, _beat_to_seconds  # noqa: E402
+from eval_density_corr import _bin_counts, _spearman, _pearson  # noqa: E402
+
+# Map-only quality axes (no Demucs): row/col spread, grid coverage, dir variety,
+# monotony (the original complaint) + playability. Shared with the human-baseline
+# command via scripts/map_metrics.py so every metric is computed identically.
+try:
+    from map_metrics import map_metrics, HUMAN_TARGET, BETTER  # noqa: E402
+    from best_of_n_poc import swing_violations  # noqa: E402
+    _HAVE_MAP = True
+except Exception as _e:  # noqa: BLE001
+    print(f"(map-quality axes unavailable: {_e})")
+    _HAVE_MAP = False
+    HUMAN_TARGET, BETTER = {}, {}
+
+
+def _list_songs() -> list[pathlib.Path]:
+    return sorted(p for p in SONGSET.glob("*") if p.suffix.lower() in (".ogg", ".mp3"))
+
+
+def _ref_npz(song: pathlib.Path) -> pathlib.Path:
+    return song.with_suffix(".ref.npz")
+
+
+def _get_ref(song: pathlib.Path) -> tuple[np.ndarray, float]:
+    """Reference onset times (drums∪other librosa) + duration; cached per song."""
+    cache = _ref_npz(song)
+    if cache.exists():
+        d = np.load(cache)
+        return d["ref_times"], float(d["duration"])
+    import librosa
+    dur = float(librosa.get_duration(path=str(song)))
+    stems = _separate_stems(song, SR)
+    drum_on = _detect_onsets_librosa(stems.get("drums", np.zeros(1)), SR)
+    other_on = _detect_onsets_librosa(stems.get("other", np.zeros(1)), SR)
+    ref_times = np.union1d(drum_on, other_on)
+    np.savez(cache, ref_times=ref_times, duration=dur)
+    return ref_times, dur
+
+
+def build_songset(n: int) -> None:
+    SONGSET.mkdir(parents=True, exist_ok=True)
+    import librosa
+    have = _list_songs()
+    print(f"songset has {len(have)} songs; target {n}")
+    raw = sorted((REPO / "data" / "raw").glob("*.zip"))
+    for zp in raw:
+        if len(_list_songs()) >= n:
+            break
+        name = zp.stem
+        dst = SONGSET / f"{name}.ogg"
+        if dst.exists():
+            continue
+        try:
+            with zipfile.ZipFile(zp) as zf:
+                egg = next((m for m in zf.namelist() if m.lower().endswith((".egg", ".ogg"))), None)
+                if not egg:
+                    continue
+                data = zf.read(egg)
+            dst.write_bytes(data)
+            dur = float(librosa.get_duration(path=str(dst)))
+            if dur < MIN_DUR:
+                dst.unlink()
+                continue
+            print(f"  + {name}  dur={dur:.0f}s  — computing ref onsets …")
+            _get_ref(dst)
+        except Exception as e:
+            print(f"  ! {name}: {e}")
+            if dst.exists():
+                dst.unlink()
+    final = _list_songs()
+    print(f"songset now {len(final)} songs: {[s.stem for s in final]}")
+
+
+def _gen(arm: str, song: pathlib.Path, force: bool) -> pathlib.Path | None:
+    env_over, extra = ARMS[arm]
+    CACHE.mkdir(parents=True, exist_ok=True)
+    out = CACHE / f"{arm}__{song.stem}.zip"
+    if out.exists() and not force:
+        return out
+    env = dict(os.environ)
+    env.update(env_over)
+    cmd = [
+        sys.executable, "scripts/generate.py", str(song), "--v7", "--difficulty", "Expert",
+        "--beat-ckpt", BEAT_CKPT, "--layout-ckpt", LAYOUT_CKPT,
+        "--section-gate", "loud_only", "--temperature", "0.0",
+        "--output", str(out), *extra,
+    ]
+    r = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
+    if r.returncode != 0 or not out.exists():
+        print(f"  ! gen failed {arm}/{song.stem}: {r.stderr.strip().splitlines()[-1] if r.stderr.strip() else 'rc='+str(r.returncode)}")
+        return None
+    return out
+
+
+def _score(zip_path: pathlib.Path, ref_times: np.ndarray, duration: float) -> dict:
+    notes, bpm = _load_generated_beatmap(zip_path, "Expert")
+    gen_times = np.array(sorted(_beat_to_seconds(b, bpm) for b, _x, _c in notes), dtype=np.float64)
+    dur = float(max(duration, gen_times.max() if len(gen_times) else 0.0))
+    gen_d = _bin_counts(gen_times, dur, WIN_SEC)
+    ref_d = _bin_counts(ref_times, dur, WIN_SEC)
+    n = min(len(gen_d), len(ref_d))
+    gen_d, ref_d = gen_d[:n], ref_d[:n]
+    # onset-alignment proxy: fraction of generated notes within 50 ms of a real
+    # reference onset (are notes placed on actual musical events?).
+    onset_hit = None
+    if len(ref_times) and len(gen_times):
+        ref_sorted = np.sort(ref_times)
+        idx = np.searchsorted(ref_sorted, gen_times).clip(1, len(ref_sorted) - 1)
+        dl = np.abs(gen_times - ref_sorted[idx - 1])
+        dr = np.abs(gen_times - ref_sorted[idx])
+        onset_hit = float((np.minimum(dl, dr) <= 0.05).mean())
+    rec = {
+        "spearman": _spearman(gen_d, ref_d),
+        "pearson": _pearson(gen_d, ref_d),
+        "gen_cv": float(gen_d.std() / gen_d.mean()) if gen_d.mean() else 0.0,
+        "n_windows": int(n),
+        "onset_hit": onset_hit,
+        "monotony": None, "row_conc": None, "viol": None,
+    }
+    if _HAVE_MAP:
+        try:
+            rec.update(map_metrics(zip_path, "Expert"))  # row_conc, col_conc, grid_coverage, dir_entropy, monotony, pattern_repeat, nps, n_notes
+        except Exception:  # noqa: BLE001
+            pass
+        try:
+            rec["viol"] = swing_violations(zip_path, "Expert")
+        except Exception:  # noqa: BLE001
+            pass
+    return rec
+
+
+def _load_human_baseline() -> None:
+    """Refresh HUMAN_TARGET from a cached human-baseline run, if present."""
+    f = CACHE / "human_baseline.json"
+    if _HAVE_MAP and f.exists():
+        try:
+            for k, v in json.loads(f.read_text()).items():
+                if isinstance(v, dict) and "mean" in v:
+                    HUMAN_TARGET[k] = round(v["mean"], 3)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def sweep(arms: list[str], force: bool) -> None:
+    songs = _list_songs()
+    if not songs:
+        print("no songs — run: eval_sweep.py build-songset --n 6")
+        return
+    _load_human_baseline()
+    print(f"sweep: {len(arms)} arms × {len(songs)} songs\n")
+    refs = {s: _get_ref(s) for s in songs}
+    results: dict[str, dict[str, dict]] = {}
+    import time as _time
+    for ai, arm in enumerate(arms, 1):
+        results[arm] = {}
+        for si, s in enumerate(songs, 1):
+            t0 = _time.time()
+            zp = _gen(arm, s, force)
+            if zp is None:
+                continue
+            try:
+                rec = _score(zp, *refs[s])
+                results[arm][s.stem] = rec
+                print(f"  [{ai}/{len(arms)} {arm}] [{si}/{len(songs)} {s.stem[:14]}] "
+                      f"row_conc={rec.get('row_conc')} spear={rec.get('spearman'):+.2f} "
+                      f"viol={rec.get('viol')} ({_time.time()-t0:.0f}s)")
+            except Exception as e:
+                print(f"  ! score failed {arm}/{s.stem}: {e}")
+        done = results[arm]
+        sp = [v["spearman"] for v in done.values()]
+        print(f"  [{arm}] scored {len(done)}/{len(songs)}  mean Spearman={np.mean(sp):+.3f}" if sp else f"  [{arm}] none scored")
+
+    song_names = [s.stem for s in songs]
+    print("\n=== density_corr Spearman (DoD >= 0.41) ===")
+    hdr = "arm".ljust(12) + "".join(s[:10].rjust(11) for s in song_names) + "      mean   #pass"
+    print(hdr); print("-" * len(hdr))
+    summary = {}
+    for arm in arms:
+        row = results[arm]
+        cells, sp, npass = [], [], 0
+        for s in song_names:
+            if s in row and row[s].get("spearman") is not None:
+                v = row[s]["spearman"]; sp.append(v); npass += int(v >= 0.41)
+                cells.append(f"{v:+.3f}".rjust(11))
+            else:
+                cells.append("    --     ")
+        mean = float(np.mean(sp)) if sp else float("nan")
+        summary[arm] = {
+            "mean_spearman": mean, "n_pass": npass, "n_scored": len(sp),
+            "per_song": {s: results[arm].get(s) for s in song_names},
+        }
+        # aggregate every numeric map/audio metric as a mean over songs
+        for k in ("row_conc", "col_conc", "grid_coverage", "dir_entropy", "monotony",
+                  "pattern_repeat", "onset_hit", "gen_cv", "nps", "n_notes"):
+            vals = [r[k] for r in row.values() if r.get(k) is not None]
+            summary[arm][f"mean_{k}"] = float(np.mean(vals)) if vals else None
+        viol = [r["viol"] for r in row.values() if r.get("viol") is not None]
+        summary[arm]["total_viol"] = int(np.sum(viol)) if viol else None
+        # composite human-distance: mean |arm - human| / human over the map-shape
+        # metrics that have a human target. Lower = more human-like layout.
+        dists = []
+        for k in ("row_conc", "col_conc", "grid_coverage", "dir_entropy", "monotony"):
+            mv, hv = summary[arm].get(f"mean_{k}"), HUMAN_TARGET.get(k)
+            if mv is not None and hv:
+                dists.append(abs(mv - hv) / abs(hv))
+        summary[arm]["human_dist"] = round(float(np.mean(dists)), 3) if dists else None
+        print("".join([arm.ljust(12)] + cells) + f"   {mean:+.3f}    {npass}/{len(sp)}")
+
+    # quality-vs-human table — every metric with its human target + arrow
+    cols = [  # (summary key, header, human-target key in HUMAN_TARGET)
+        ("mean_row_conc", "row_conc", "row_conc"), ("mean_col_conc", "col_conc", "col_conc"),
+        ("mean_grid_coverage", "grid_cov", "grid_coverage"), ("mean_dir_entropy", "dir_ent", "dir_entropy"),
+        ("mean_monotony", "monoton", "monotony"), ("mean_onset_hit", "onset_hit", None),
+        ("mean_gen_cv", "gen_cv", None), ("mean_nps", "nps", None), ("total_viol", "viol", None),
+        ("human_dist", "h_dist↓", None),  # composite layout distance to human (lower=better)
+    ]
+    def arrow(htk):
+        return {"low": "↓", "high": "↑"}.get(BETTER.get(htk), "") if htk else ""
+    print("\n=== quality vs human (mean over songs) ===")
+    print("arm".ljust(12) + "".join(f"{h}{arrow(tk)}".rjust(10) for _k, h, tk in cols))
+    tgt = "HUMAN".ljust(12) + "".join(
+        (f"{HUMAN_TARGET[tk]:.2f}" if tk and HUMAN_TARGET.get(tk) is not None else "·").rjust(10)
+        for _k, _h, tk in cols)
+    print(tgt); print("-" * (12 + 10 * len(cols)))
+    for arm in arms:
+        s = summary[arm]
+        def _f(k, fmt="{:.3f}"):
+            return (fmt.format(s[k]) if s.get(k) is not None else "--").rjust(10)
+        print(arm.ljust(12) + "".join(
+            _f(k, "{:.0f}" if k in ("total_viol",) else "{:.2f}") for k, _h, _tk in cols))
+
+    out = CACHE / "leaderboard.json"
+    out.write_text(json.dumps(summary, indent=2))
+    print(f"\nwrote {out}")
+    _write_report(summary, results, song_names, arms, cols)
+    return summary, results, song_names
+
+
+def _render(arm: str, song: str) -> str | None:
+    """Render an arm's cached map for `song`; return a repo-relative png path."""
+    zp = CACHE / f"{arm}__{song}.zip"
+    if not zp.exists():
+        return None
+    rdir = CACHE / "renders"; rdir.mkdir(exist_ok=True)
+    png = rdir / f"{arm}__{song}.png"
+    if not png.exists():
+        r = subprocess.run(
+            [sys.executable, "scripts/render_map.py", str(zp), "--difficulty", "Expert",
+             "--out", str(png), "--no-audio"], cwd=REPO, capture_output=True, text=True)
+        if not png.exists():
+            return None
+    return str(png.relative_to(CACHE))
+
+
+def _write_report(summary, results, song_names, arms, cols) -> None:
+    """Emit a single self-contained report.md: tables vs human + embedded renders
+    of the headline arm vs the control, so a sweep is judged at a glance."""
+    import datetime
+    lines = [f"# Eval sweep report — {datetime.datetime.now():%Y-%m-%d %H:%M}",
+             f"\n{len(arms)} arms × {len(song_names)} songs. DoD: density_corr Spearman ≥ 0.41.\n"]
+    # density_corr table
+    lines.append("## density_corr (Spearman, DoD ≥ 0.41)\n")
+    lines.append("| arm | " + " | ".join(s[:10] for s in song_names) + " | mean | #pass |")
+    lines.append("|" + "---|" * (len(song_names) + 3))
+    for arm in arms:
+        per = summary[arm]["per_song"]
+        cellvals = [(f"{per[s]['spearman']:+.2f}" if per.get(s) and per[s].get("spearman") is not None else "—") for s in song_names]
+        lines.append(f"| {arm} | " + " | ".join(cellvals)
+                     + f" | **{summary[arm]['mean_spearman']:+.3f}** | {summary[arm]['n_pass']}/{summary[arm]['n_scored']} |")
+    # quality vs human table
+    lines.append("\n## quality vs human (mean over songs)\n")
+    hdr = [h for _k, h, _tk in cols]
+    lines.append("| arm | " + " | ".join(hdr) + " |")
+    lines.append("|" + "---|" * (len(cols) + 1))
+    humanrow = [(f"{HUMAN_TARGET[tk]:.2f}" if tk and HUMAN_TARGET.get(tk) is not None else "·") for _k, _h, tk in cols]
+    lines.append("| **HUMAN** | " + " | ".join(humanrow) + " |")
+    for arm in arms:
+        s = summary[arm]
+        vals = [(f"{s[k]:.0f}" if k == "total_viol" and s.get(k) is not None
+                 else f"{s[k]:.2f}" if s.get(k) is not None else "—") for k, _h, _tk in cols]
+        lines.append(f"| {arm} | " + " | ".join(vals) + " |")
+    # headline arm (best mean_spearman) vs first/control arm, rendered
+    headline = max(arms, key=lambda a: summary[a]["mean_spearman"] if not np.isnan(summary[a]["mean_spearman"]) else -9)
+    ctrl = "control" if "control" in arms else arms[0]
+    song0 = song_names[0]
+    lines.append(f"\n## renders — {song0}\n")
+    for label, ra in (("control", ctrl), ("headline (best density_corr)", headline)):
+        p = _render(ra, song0)
+        lines.append(f"**{label}** (`{ra}`)\n" + (f"\n![{ra}]({p})\n" if p else "\n_(render unavailable)_\n"))
+    (CACHE / "report.md").write_text("\n".join(lines))
+    print(f"wrote {CACHE / 'report.md'}")
+
+
+def human_baseline(n: int) -> dict:
+    """Compute map-only metric distributions over n human maps from data/raw.
+
+    Writes outputs/eval_sweep_cache/human_baseline.json and prints mean/p10/p90 so
+    every metric in the leaderboard has a real human reference (not a hard-coded
+    guess). Refreshes map_metrics.HUMAN_TARGET for this process.
+    """
+    if not _HAVE_MAP:
+        print("map_metrics unavailable"); return {}
+    raw = sorted((REPO / "data" / "raw").glob("*.zip"))
+    rows: list[dict] = []
+    for zp in raw:
+        if len(rows) >= n:
+            break
+        for diff in ("Expert", "ExpertPlus", "Hard"):
+            try:
+                m = map_metrics(zp, diff)
+                if m.get("n_notes", 0) > 20:
+                    rows.append(m); break
+            except Exception:  # noqa: BLE001
+                continue
+    if not rows:
+        print("no human maps scored"); return {}
+    keys = ("row_conc", "col_conc", "grid_coverage", "dir_entropy", "monotony",
+            "pattern_repeat", "nps", "n_notes")
+    base = {}
+    print(f"\n=== HUMAN baseline (n={len(rows)} maps) ===")
+    print("metric".ljust(16) + "mean".rjust(9) + "p10".rjust(9) + "p90".rjust(9))
+    for k in keys:
+        vals = np.array([r[k] for r in rows if r.get(k) is not None], dtype=float)
+        if not len(vals):
+            continue
+        base[k] = {"mean": float(vals.mean()), "p10": float(np.percentile(vals, 10)),
+                   "p90": float(np.percentile(vals, 90))}
+        HUMAN_TARGET[k] = round(float(vals.mean()), 3)
+        print(f"{k:16s}{vals.mean():9.3f}{np.percentile(vals,10):9.3f}{np.percentile(vals,90):9.3f}")
+    CACHE.mkdir(parents=True, exist_ok=True)
+    (CACHE / "human_baseline.json").write_text(json.dumps(base, indent=2))
+    print(f"\nwrote {CACHE / 'human_baseline.json'}")
+    return base
+
+
+def main() -> None:
+    try:  # line-buffer stdout so nohup/background sweeps show live progress
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:  # noqa: BLE001
+        pass
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    b = sub.add_parser("build-songset"); b.add_argument("--n", type=int, default=6)
+    sw = sub.add_parser("sweep")
+    sw.add_argument("--arms", default=None, help="comma list; default all")
+    sw.add_argument("--force", action="store_true", help="regenerate even if cached")
+    hb = sub.add_parser("human-baseline"); hb.add_argument("--n", type=int, default=40)
+    sub.add_parser("list-arms")
+    a = ap.parse_args()
+    if a.cmd == "build-songset":
+        build_songset(a.n)
+    elif a.cmd == "human-baseline":
+        human_baseline(a.n)
+    elif a.cmd == "list-arms":
+        for k, (e, x) in ARMS.items():
+            print(f"  {k:14s} env={e} flags={x}")
+    elif a.cmd == "sweep":
+        arms = a.arms.split(",") if a.arms else list(ARMS)
+        bad = [x for x in arms if x not in ARMS]
+        if bad:
+            sys.exit(f"unknown arms: {bad}")
+        sweep(arms, a.force)
+
+
+if __name__ == "__main__":
+    main()

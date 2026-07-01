@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import logging
 import math
+import os
 
 import lightning
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from beatsaber_automapper.data.swing_tokenizer import (
+    X_BASE, X_COUNT, Y_BASE, Y_COUNT,
+)
 from beatsaber_automapper.data.layout_dataset import (
     IGNORE_INDEX, LAYOUT_PAD, LAYOUT_VOCAB_SIZE,
     N_ROLES, ROLE_DIR, ROLE_FIELD_D, ROLE_KIND, ROLE_X, ROLE_Y,
@@ -173,6 +177,25 @@ class LayoutPhraseLitModule(lightning.LightningModule):
         )
         valid   = target != IGNORE_INDEX                         # [B, S]
         loss    = (per_tok * weights * valid).sum() / weights[valid].sum().clamp_min(1.0)
+
+        # Anti-collapse entropy bonus (2026-06-30, env-gated, fine-tune only).
+        # The model mode-collapses to row0×{col0,col2} (decode argmax-prob Y≈0.92,
+        # X≈0.78 → row_conc 0.94 vs human 0.47). Maximise the entropy of the
+        # predicted X/Y position distributions (over their fixed legal ranges) at
+        # X/Y target positions to flatten the over-confident logits so nucleus
+        # decoding spreads across rows/cols. β=0 ⇒ identical to prior behaviour.
+        beta = float(os.environ.get("LAYOUT_ENT_REG", "0") or 0)
+        if beta > 0 and self.training:
+            ent_terms = []
+            for role_id, lo, hi in ((ROLE_X, X_BASE, X_BASE + X_COUNT),
+                                    (ROLE_Y, Y_BASE, Y_BASE + Y_COUNT)):
+                m = (role_out == role_id) & valid
+                if m.any():
+                    p = torch.softmax(logits[m][:, lo:hi], dim=-1)
+                    ent = -(p * torch.log(p + 1e-9)).sum(-1)      # [K]
+                    ent_terms.append(ent.mean())
+            if ent_terms:
+                loss = loss - beta * torch.stack(ent_terms).mean()
         return logits, loss
 
     def training_step(self, batch: dict, batch_idx: int) -> torch.Tensor:
