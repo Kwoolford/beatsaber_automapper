@@ -97,8 +97,9 @@ def main() -> None:
     parser.add_argument(
         "--temperature",
         type=float,
-        default=0.8,
-        help="Sampling temperature (lower = less random, 0.8 recommended)",
+        default=0.9,
+        help="Sampling temperature (lower = less random). 0.9 = prod default "
+        "(promoted 2026-07-23: closes grid_cov/dir_entropy gap vs human, h_dist 0.19->0.05).",
     )
     parser.add_argument(
         "--nucleus-sampling",
@@ -116,9 +117,10 @@ def main() -> None:
     parser.add_argument(
         "--top-p",
         type=float,
-        default=0.85,
+        default=0.97,
         dest="top_p",
-        help="Top-p threshold for nucleus sampling (0.85 = tighter nucleus)",
+        help="Top-p threshold for nucleus sampling. 0.97 = prod default "
+        "(promoted 2026-07-23 with temp 0.9: lets the tail through for human-like cell/dir coverage).",
     )
     parser.add_argument(
         "--repetition-penalty",

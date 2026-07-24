@@ -126,6 +126,26 @@ _EVENT_GRAMMAR: dict[int, list[tuple[str, int, int]]] = {
     ],
 }
 
+# Exclusive upper token index each event type's grammar needs. An event is only
+# selectable if this fits within the model's output vocab (logits width): a
+# vocab-118 sequence model literally cannot represent WALL (needs up to 167) or
+# CHAIN (up to 183) attribute tokens, so offering those event types drives
+# apply_constraints to index the mask past its end. Masking un-completable events
+# at selection time turns a stochastic IndexError crash (→ empty maps) into
+# never emitting an event the model can't finish. See _selectable_events().
+_EVENT_MAX_END: dict[int, int] = {
+    ev: max((off + cnt) for (_n, off, cnt) in grammar) if grammar else 0
+    for ev, grammar in _EVENT_GRAMMAR.items()
+}
+
+
+def _selectable_events(vocab_size: int) -> tuple[int, ...]:
+    """Event types whose full grammar fits within `vocab_size` output logits."""
+    return tuple(
+        et for et in (NOTE, BOMB, WALL, ARC_START, ARC_END, CHAIN)
+        if _EVENT_MAX_END.get(et, 0) <= vocab_size
+    )
+
 
 # ---------------------------------------------------------------------------
 # Constraint state
@@ -201,9 +221,12 @@ def apply_constraints(logits: torch.Tensor, state: ConstraintState) -> torch.Ten
     mask = torch.full_like(logits, float("-inf"))
 
     if state.phase == "event_type":
-        # Valid: event type tokens or EOS
+        # Valid: event type tokens or EOS. Only offer events whose attribute
+        # grammar fits the model's actual vocab width — a smaller-vocab model
+        # cannot complete WALL/CHAIN, and offering them crashes apply_constraints
+        # on the out-of-range attribute mask writes below.
         mask[EOS] = 0.0
-        for et in (NOTE, BOMB, WALL, ARC_START, ARC_END, CHAIN):
+        for et in _selectable_events(logits.shape[0]):
             mask[et] = 0.0
 
         # Hard constraint: cap total notes
@@ -239,8 +262,11 @@ def apply_constraints(logits: torch.Tensor, state: ConstraintState) -> torch.Ten
         if state.attr_idx < len(grammar):
             attr_name, offset, count = grammar[state.attr_idx]
 
-            # Base grammar: allow only tokens in the correct attribute range
-            for i in range(count):
+            # Base grammar: allow only tokens in the correct attribute range.
+            # Clamp to the logits width defensively — _selectable_events() should
+            # already keep every reachable event in-range, but never index past
+            # the mask end (that was the vocab-mismatch crash → empty maps).
+            for i in range(min(count, mask.shape[0] - offset)):
                 mask[offset + i] = 0.0
 
             # --- NOTE-specific semantic constraints ---

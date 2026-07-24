@@ -1,6 +1,161 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-06-30 (PM-2)
+**Last updated:** 2026-07-23 (closed via /close before restart)
+
+## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-23)
+
+**State at close:** no jobs running, GPU idle, the anti-repeat sweep **finished with a winner**
+(`ar_w1_s2`, see today's retro below). Nothing to resume — the sweep is done, not paused. All
+this session's code + docs are committed (push status noted at bottom of this block).
+
+**Resume commands (only if you want to re-verify, nothing is mid-flight):**
+```bash
+cd /home/kyle/repos/beatsaber_automapper && source .venv/bin/activate
+# re-read the sweep verdict:
+sed -n '/=== VERDICT/,/COMPLETE/p' logs/overnight/antirepeat_2026-07-23.log
+# re-run the whole sweep from scratch if needed (~30 min, 5 arms × 6 songs):
+nohup bash scripts/overnight_2026-07-23_antirepeat.sh >/dev/null 2>&1 &
+```
+
+**Next tasks (highest-value first):**
+1. **Promote `ar_w1_s2` to production + render vs prod for Kyle** (the sweep's DoD payoff).
+   Set `LAYOUT_ANTIREPEAT=1` / `LAYOUT_AR_STRENGTH=2.0` as the production layout default (bake into
+   the v7 generate path, not just an env flag), then render W1 vs prod on 2 songs and send to Kyle.
+   *DoD:* rendered comparison delivered + prod default flipped; regression-check h_dist still ≈0.02.
+   Cached maps already exist under `outputs/eval_sweep_cache/ar_w1_s2__*.zip` — can render straight
+   from those without regenerating.
+2. **Decide W=1 vs W=2.** ar_w1_s2 (h_dist 0.020, dens 4/6) vs ar_w2_s2 (h_dist 0.038 but dens 5/6).
+   W=1 is more human-like on layout; W=2 passes one more density song. *Open question for Kyle below.*
+3. **If layout is "done", pivot to the last untouched key-note: late-song / final-chorus collapse**
+   (~160-164s). No metric exists for it yet — build a per-section late-window density/quality check
+   into eval_sweep, then diagnose Stage-1 probs vs Stage-2 context drift. This is the remaining
+   original complaint after drop-@-13s (fixed) and flat-density (fixed via density-select).
+
+**Open follow-up questions for Kyle:**
+- Promote **W=1** (best layout human-likeness) or **W=2** (slightly better density pass-rate)? Lean W=1.
+- After this, is layout quality "good enough to ship" so we move to the late-song-collapse item —
+  or do you want a targeted diversity-reg fine-tune first (the no-retrain levers are now exhausted)?
+
+**Landmines:**
+- `scripts/generate.py` needs `--v7` or it silently uses **untrained** models (0-note garbage).
+  eval_sweep passes it; manual runs must too.
+- Prod decode defaults are now **temp 0.9 / top_p 0.97** (changed this session).
+- The WALL/CHAIN vocab-118 crash fix only touches the **non-v7** `beam_search` path; v7 was never affected.
+- `pattern_repeat` is already ~human (~0.0) — don't chase it; the real residual was grid/dir coverage.
+- **git push status: see bottom of the 2026-07-23 retro / the /close report — may be pending Kyle's GitHub auth.**
+
+---
+
+## 2026-07-23 — ★ TEMP NUDGE PROMOTED TO PROD ★ + fixed a latent 0-note crash + ANTI-REPEAT sweep WON (ar_w1_s2)
+
+Kyle's two calls this session: (1) **promote the decode nudge** and (2) target **monotony / pattern_repeat** next.
+
+**DONE — decode nudge shipped to production.** `scripts/generate.py` defaults bumped
+temp 0.8→**0.9**, top_p 0.85→**0.97** (the g2.5_temp arm that won the 06-30 sweep: grid_cov
+0.85→0.93, dir_ent 0.69→0.74, h_dist 0.19→0.05, density/viol unchanged). Rendered prod-vs-temp
+for Kyle first (`outputs/temp_nudge_2026-07-23/`). `eval_sweep._gen` hardcoded decode also moved
+to 0.9/0.97 so the sweep control = new prod.
+
+**BUG FOUND + FIXED (latent, pre-existing) — stochastic 0-note maps / IndexError.** The NON-v7
+path (`generate_level` → `nucleus_sampling_decode` → `beam_search.apply_constraints`) crashes
+whenever the sequence model samples a **WALL or CHAIN** event: those events' grammar attribute
+ranges reach token idx 162–182 but the model vocab is only **118**, so `mask[offset+i]` indexes
+past the tensor → fatal IndexError (or, when it EOS'd first, a near-empty map). Stochastic, so
+06-30 got lucky. FIX in `beam_search.py`: added `_selectable_events(vocab_size)` — only offer
+event types whose grammar fits the model's logit width (NOTE/BOMB/ARC fit; WALL/CHAIN don't at
+vocab 118) + a defensive `min(count, mask.width-offset)` clamp on the grammar write. NOTE: the
+**v7 production path is unaffected** (uses `generate_v7_level`, not this), so this didn't block
+the sweep — but it's a real robustness fix for the v6/untrained path. (Also: `--v7` is REQUIRED
+on scripts/generate.py or it silently falls to untrained models — eval_sweep passes it; manual
+runs must too.)
+
+**NEW LEVER built (gated, default OFF) — windowed adjacency anti-repeat.** In
+`models/layout_model.py`: `LAYOUT_ANTIREPEAT`=W (recent-window size) + `LAYOUT_AR_STRENGTH`=S
+penalize only tokens emitted in the last-W steps PER ROLE (X/Y/DIR) — breaks back-to-back loops
+WITHOUT flattening the whole-phrase distribution (unlike the cumulative LAYOUT_DIV_* penalty,
+which over-flattens: div10 → col_conc 0.26, rows 0.35). Smoke (1f333, W1/S2, v7): 512 notes,
+grid_cov 0.67→**1.0**, dir_ent 0.72→**0.80 (=human)**, monotony **0.43 (=human)**, col_conc
+**0.29 (~human)**, viol 0. ⚠️ **Smoke surfaced that `pattern_repeat` is ALREADY ~human (~0.0)** in
+shipped maps — so the real residual is grid/dir coverage + composite monotony, not literal repeats.
+Also surfaced `pattern_repeat` as its own scorecard column (was hidden inside the monotony composite).
+
+**SWEEP COMPLETE — WINNER `ar_w1_s2` (`scripts/overnight_2026-07-23_antirepeat.sh`,
+`logs/overnight/antirepeat_2026-07-23.log`).** The windowed adjacency anti-repeat at **W=1 /
+S=2.0** is the most human-like layout config measured — **h_dist 0.020 < prod 0.039** while holding
+every guard (density_corr 0.521 4/6, monotony 0.43=human, pattern_repeat 0.00, col_conc 0.29~human,
+row_conc 0.47, viol 0). Full leaderboard:
+
+| arm | h_dist↓ | grid_cov | dir_ent | monot | col_conc | row_conc | dens (#pass) | viol | verdict |
+|---|---|---|---|---|---|---|---|---|---|
+| HUMAN | — | 0.96 | 0.80 | 0.43 | 0.29 | 0.49 | — | — | — |
+| prod (0.9/0.97) | 0.039 | 0.92 | 0.80 | 0.44 | 0.31 | 0.46 | 0.511 (4/6) | 0 | control |
+| **ar_w1_s2** | **0.020** | 0.93 | 0.80 | 0.43 | 0.29 | 0.47 | 0.521 (4/6) | 0 | ★ **DoD MET** |
+| ar_w2_s2 | 0.038 | 0.93 | 0.81 | 0.43 | 0.27 | 0.45 | 0.524 (5/6) | 0 | DoD MET (marginal) |
+| ar_w3_s3 | 0.086 | 1.00 | 0.88 | 0.41 | 0.27 | 0.40 | 0.539 (5/6) | 0 | over-diversifies, no h_dist gain |
+| g2.5_div10 | 0.145 | 1.00 | 0.94 | 0.38 | 0.26 | 0.35 | 0.531 (5/6) | 0 | over-flatten ref (as expected) |
+
+Takeaway: gentle **W=1** (forbid only the immediate per-role repeat) nudges toward human without
+the over-diversification that W≥3 and the cumulative div penalty cause (grid→1.0, dir→0.88-0.94 ≫
+human 0.80, rows collapse to 0.35-0.40). **NOT yet promoted** — promotion + render-for-Kyle is the
+top next-session task (see handoff). The lever stays default-OFF until then.
+
+**Code UNCOMMITTED** (generate.py defaults, beam_search event-selection fix, layout_model
+anti-repeat knob, eval_sweep arms+pattern_repeat column+prod decode, overnight script, this retro).
+
+## 2026-06-30 (PM-3) — ★ THE grid_cov/dir_entropy "GAPS" WERE A GREEDY-DECODE HARNESS ARTIFACT ★ (+ eval_sweep now decodes at prod temp)
+
+**RESULT (sweep ran, `logs/overnight/layoutdiv_2026-06-30.log`):** the PM-2 scorecard measured layout
+diversity while `eval_sweep` forced `--temperature 0.0` (greedy → nucleus collapses to argmax), which
+UNDERSTATED the shipped maps. Production `generate.py` defaults to **temp 0.8 / top_p 0.85**, not greedy.
+Measured at those exact prod defaults: **grid_cov 0.85 (not 0.64), dir_ent 0.69 (not 0.62)**, col_conc
+0.31 ≈ human 0.29, row_conc 0.48 ≈ human 0.49, density +0.54 (5/6), viol 0. So shipped maps are already
+near-human on cell/direction coverage; the residual is a modest dir_entropy 0.69→0.80.
+
+| arm (all dsel_g2.5) | grid_cov | dir_ent | col_conc | row_conc | dens | pass | viol |
+|---|---|---|---|---|---|---|---|
+| HUMAN | 0.96 | 0.80 | 0.29 | 0.49 | — | — | — |
+| greedy (old harness) | 0.64 | 0.62 | 0.36 | 0.48 | 0.53 | 4/6 | 0 |
+| **PROD (0.8/0.85)** | **0.85** | **0.69** | 0.31 | 0.48 | 0.54 | 5/6 | 0 |
+| **temp (0.9/0.97)** | **0.93** | **0.74** | 0.30 | 0.47 | 0.53 | 5/6 | 0 |
+| div05 penalty | 0.94 | 0.91 | 0.27 | 0.39 | 0.54 | 5/6 | 0 |
+| div10 penalty | 1.00 | 0.94 | 0.26 | 0.35 | 0.53 | 4/6 | 0 |
+
+**Two takeaways:** (1) **HARNESS FIX (shipped):** `eval_sweep._gen` now decodes at prod defaults
+(temp 0.8/top_p 0.85) instead of temp 0.0 — the layout-quality axes were systematically wrong before.
+Density conclusions (Stage-1 note counts) are unaffected by layout temp, so the gamma sweep still holds.
+(2) **OPTIONAL prod nudge (Kyle's call):** temp 0.8→0.9 + top_p 0.85→0.97 (`g2.5_temp`) pushes grid
+0.85→0.93 / dir 0.69→0.74 while KEEPING human-like col/row conc — a clean, structure-preserving gain.
+The DIR-penalty (`LAYOUT_DIV_D`, new gated knob) works but OVER-diversifies (dir_ent 0.91-0.94 ≫ human
+0.80, rows flatten to 0.35-0.39) → keep dormant, don't ship. **NEXT SESSION:** render `g2.5_temp` vs
+prod for Kyle; if he likes it, bump generate.py decode defaults to 0.9/0.97. Code UNCOMMITTED
+(layout_model `LAYOUT_DIV_D`, eval_sweep temp fix + arms, overnight script).
+
+### (superseded plan — kept for context) originally QUEUED: LAYOUT-DIVERSITY sweep
+
+Old Scoped-V8 TASK stack (TASK 0-5) is fully DONE/DEAD/no-premise (unchanged since 06-09) — no
+live architecture items there. The **live research items are the two gaps the PM-2 hardened
+scorecard exposed** and that survived the decode-bug fix:
+- **grid_coverage** ~0.61-0.68 vs human 0.96 (model under-uses the 12 grid cells)
+- **dir_entropy** ~0.58-0.63 vs human 0.80 (model under-uses the 9 cut directions)
+
+**Key realization:** the sweep decodes layout GREEDILY — `eval_sweep.py` passes `--temperature 0.0`,
+which makes `_nucleus_sample` collapse to argmax (top_p irrelevant). So those numbers are the model's
+*argmax* diversity, and raising top_p alone does nothing. Two no-retrain levers, both on the
+production density config (dsel_g2.5 = control):
+- **(a) stochastic decode** `g2.5_temp` (temp 0.9, top_p 0.97) — let the tail through.
+- **(b) frequency penalty** `g2.5_div05/10` — deterministic anti-repeat. Was X/Y only (grid_cov);
+  **extended to the DIR role** via new env `LAYOUT_DIV_D` (default 0.0) so it can move dir_entropy.
+  Smoke test (div10, temp 0.0, 1f333): despite peaked argmax (Y~0.85) it spread SAMPLED rows to
+  [0.33,0.33,0.33] and cols to ~[0.25×4] — the anti-repeat rotates cells/dirs deterministically, rc=0.
+
+Code (UNCOMMITTED): `LAYOUT_DIV_D` + `_div_counts_for` helper generalizing the X/Y penalty to
+ROLE_DIR in `models/layout_model.py`; 4-arm ARMS refresh in `scripts/eval_sweep.py`;
+`scripts/overnight_2026-06-30_layoutdiv.sh`. Launched detached → `logs/overnight/layoutdiv_2026-06-30.log`.
+**DoD (per the script's verdict block):** an arm reaching **grid_coverage ≥ 0.80 AND dir_entropy ≥ 0.72**
+while HOLDING density_corr ≥ 0.41, row_conc ≤ 0.60, col_conc ≥ 0.20 (not over-flattened), viol == 0
+⇒ promote to production layout config + render vs control for Kyle. If every lever over-flattens
+(col_conc < 0.20 / monotony spikes) without closing the gap ⇒ logits are the ceiling ⇒ next step is
+a *targeted* diversity-reg fine-tune (distinct from the superseded entropy-reg, which over-diversified).
 
 ## 2026-06-30 (PM-2) — EVAL LOOP HARDENED + visibility upgrades (autonomous research cycle)
 

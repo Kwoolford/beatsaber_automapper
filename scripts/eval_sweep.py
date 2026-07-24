@@ -46,11 +46,35 @@ _DS25 = {"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "2.5"}
 # History (2026-06-30): the density-select gamma sweep found g2.5 best (5/6 pass);
 # a Stage-2 temperature sweep was a dead end (layout collapse was a decode bug, now
 # fixed in generate_phrase). Keep the live comparison set lean.
+# 2026-06-30 (PM-3): the hardened scorecard exposed two layout-quality gaps that
+# survived the decode-bug fix — grid_coverage ~0.65 vs human 0.96 and dir_entropy
+# ~0.60 vs 0.80: the model under-uses the 12 grid cells and the 9 cut directions.
+# The sweep decodes layout GREEDILY (temp 0.0 → nucleus collapses to argmax), so
+# those numbers are the model's *argmax* diversity. Two no-retrain levers, both on
+# the production density config (dsel_g2.5): (a) stochastic decode (raise temp+top_p
+# lets the tail through); (b) the env-gated frequency penalty (deterministic
+# anti-repeat), now extended to the DIR role via LAYOUT_DIV_D so it can move
+# dir_entropy, not just grid_coverage.
+_DIV = {"LAYOUT_DIVERSITY": "1"}
+# 2026-07-23: grid_cov/dir_entropy gaps CLOSED (temp 0.9/top_p 0.97 promoted to
+# generate.py prod defaults; composite monotony 0.44 ≈ human 0.43). Remaining
+# layout-quality residual is the HIDDEN sub-signal `pattern_repeat` (adjacent-
+# identical (x,y,dir) tuples; human ≈ 0.002) now surfaced as its own column.
+# The cumulative LAYOUT_DIV_* penalty over-flattens the whole distribution
+# (div10 → grid 1.0 / rows 0.35, past human) so it's the wrong tool for adjacency.
+# NEW lever = windowed ADJACENCY anti-repeat (LAYOUT_ANTIREPEAT window +
+# LAYOUT_AR_STRENGTH): penalize only tokens seen in the last-W emissions per role,
+# breaking back-to-back loops WITHOUT touching global cell/dir spread. Sweep the
+# window/strength; `prod` (new 0.9/0.97 defaults) is the control; keep g2.5_div10
+# as the over-flatten failure-mode reference.
+def _ar(w: str, s: str) -> dict[str, str]:
+    return {**_DS25, "LAYOUT_ANTIREPEAT": w, "LAYOUT_AR_STRENGTH": s}
 ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
-    "baseline":   ({}, []),                                                 # flat density, fixed layout
-    "dsel_g1.5":  ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "1.5"}, []),
-    "dsel_g2.5":  (_DS25, []),                                              # recommended production config
-    "dsel_g4.0":  ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "4.0"}, []),
+    "prod":        (_DS25, []),                                             # control = NEW PRODUCTION (temp 0.9/top_p 0.97 defaults)
+    "ar_w1_s2":    (_ar("1", "2.0"), []),                                   # pure adjacency (W=1): forbid immediate repeat
+    "ar_w2_s2":    (_ar("2", "2.0"), []),                                   # 2-step window, moderate
+    "ar_w3_s3":    (_ar("3", "3.0"), []),                                   # 3-step window, stronger loop-break
+    "g2.5_div10":  ({**_DS25, **_DIV, "LAYOUT_DIV_X": "1.0", "LAYOUT_DIV_Y": "1.0", "LAYOUT_DIV_D": "1.0"}, []),  # over-flatten reference
 }
 
 sys.path.insert(0, str(REPO / "scripts"))
@@ -139,7 +163,10 @@ def _gen(arm: str, song: pathlib.Path, force: bool) -> pathlib.Path | None:
     cmd = [
         sys.executable, "scripts/generate.py", str(song), "--v7", "--difficulty", "Expert",
         "--beat-ckpt", BEAT_CKPT, "--layout-ckpt", LAYOUT_CKPT,
-        "--section-gate", "loud_only", "--temperature", "0.0",
+        # Decode at production generate.py defaults. Promoted 2026-07-23 to
+        # temp 0.9/top_p 0.97 (closes grid_cov/dir_entropy vs human at h_dist 0.05).
+        # Arms can still override via extra flags.
+        "--section-gate", "loud_only", "--temperature", "0.9", "--top-p", "0.97",
         "--output", str(out), *extra,
     ]
     r = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
@@ -267,7 +294,8 @@ def sweep(arms: list[str], force: bool) -> None:
     cols = [  # (summary key, header, human-target key in HUMAN_TARGET)
         ("mean_row_conc", "row_conc", "row_conc"), ("mean_col_conc", "col_conc", "col_conc"),
         ("mean_grid_coverage", "grid_cov", "grid_coverage"), ("mean_dir_entropy", "dir_ent", "dir_entropy"),
-        ("mean_monotony", "monoton", "monotony"), ("mean_onset_hit", "onset_hit", None),
+        ("mean_monotony", "monoton", "monotony"), ("mean_pattern_repeat", "prep", "pattern_repeat"),
+        ("mean_onset_hit", "onset_hit", None),
         ("mean_gen_cv", "gen_cv", None), ("mean_nps", "nps", None), ("total_viol", "viol", None),
         ("human_dist", "h_dist↓", None),  # composite layout distance to human (lower=better)
     ]

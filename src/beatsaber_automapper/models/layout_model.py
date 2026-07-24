@@ -340,8 +340,27 @@ class LayoutPhraseModel(nn.Module):
         _diag_on = _div_on or os.environ.get("LAYOUT_DIAG") == "1"
         _div_x = float(os.environ.get("LAYOUT_DIV_X", "0.0"))
         _div_y = float(os.environ.get("LAYOUT_DIV_Y", "0.0"))
+        _div_d = float(os.environ.get("LAYOUT_DIV_D", "0.0"))  # DIR (cut-direction) penalty; default OFF
         _x_counts = [0] * X_COUNT
         _y_counts = [0] * Y_COUNT
+        _dir_counts = [0] * DIR_COUNT
+
+        # Windowed ADJACENCY anti-repeat (targets the map_metrics `pattern_repeat`
+        # sub-signal = adjacent-identical (x,y,dir) tuples). Unlike the cumulative
+        # LAYOUT_DIV_* penalty above (which flattens the WHOLE-phrase distribution
+        # and over-diversifies grid/rows past human), this only penalizes tokens
+        # emitted in the last W steps *for the same role*, so it breaks back-to-back
+        # loops without touching the global cell/dir spread. Default OFF (W=0).
+        _ar_w = int(os.environ.get("LAYOUT_ANTIREPEAT", "0"))       # recent-window size
+        _ar_s = float(os.environ.get("LAYOUT_AR_STRENGTH", "0.0"))  # penalty per in-window hit
+        _ar_on = _ar_w > 0 and _ar_s > 0.0
+        _ar_hist = {ROLE_X: [], ROLE_Y: [], ROLE_DIR: []}          # per-role recent token ids
+
+        def _div_counts_for(role: int):
+            """(per-phrase used-token counts, penalty strength) for a penalized role."""
+            if role == ROLE_X:   return _x_counts, _div_x
+            if role == ROLE_Y:   return _y_counts, _div_y
+            return _dir_counts, _div_d  # ROLE_DIR
         _diag = {"x_pmax": 0.0, "y_pmax": 0.0, "n": 0,  # mean argmax-prob diagnostic
                  "y_samp": [0] * Y_COUNT, "x_samp": [0] * X_COUNT}  # sampled-token histogram
 
@@ -390,15 +409,22 @@ class LayoutPhraseModel(nn.Module):
                     _diag["x_pmax" if role == ROLE_X else "y_pmax"] += float(p.max())
                     if role == ROLE_Y:
                         _diag["n"] += 1
-            if role in (ROLE_X, ROLE_Y):
-                if _div_on:
-                    counts = _x_counts if role == ROLE_X else _y_counts
-                    strength = _div_x if role == ROLE_X else _div_y
-                    if strength:
-                        pen = torch.zeros_like(logits)
-                        for j in range(hi - lo):
-                            pen[lo + j] = -strength * counts[j]
-                        logits = logits + pen
+            if _div_on and role in (ROLE_X, ROLE_Y, ROLE_DIR):
+                counts, strength = _div_counts_for(role)
+                if strength:
+                    pen = torch.zeros_like(logits)
+                    for j in range(hi - lo):
+                        pen[lo + j] = -strength * counts[j]
+                    logits = logits + pen
+            # Windowed adjacency anti-repeat: penalize token ids seen in the last
+            # _ar_w emissions for this role (weighted by in-window multiplicity).
+            if _ar_on and role in _ar_hist:
+                hist = _ar_hist[role]
+                if hist:
+                    pen = torch.zeros_like(logits)
+                    for prev in hist:
+                        pen[prev] -= _ar_s
+                    logits = logits + pen
 
             tok = _nucleus_sample(logits, temperature, top_p)
             if _diag_on and role in (ROLE_X, ROLE_Y):
@@ -410,9 +436,14 @@ class LayoutPhraseModel(nn.Module):
                     _diag.setdefault("y_note", [0] * Y_COUNT)
                     if 0 <= j < Y_COUNT:
                         _diag["y_note"][j] += 1
-            if _div_on and role in (ROLE_X, ROLE_Y):
-                counts = _x_counts if role == ROLE_X else _y_counts
+            if _div_on and role in (ROLE_X, ROLE_Y, ROLE_DIR):
+                counts, _ = _div_counts_for(role)
                 counts[int(tok) - lo] += 1
+            if _ar_on and role in _ar_hist:
+                h = _ar_hist[role]
+                h.append(int(tok))
+                if len(h) > _ar_w:
+                    del h[0]
             toks.append(int(tok))
             slots.append(slot)
             hands.append(hand)
