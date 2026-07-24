@@ -350,9 +350,14 @@ class LayoutPhraseModel(nn.Module):
         # LAYOUT_DIV_* penalty above (which flattens the WHOLE-phrase distribution
         # and over-diversifies grid/rows past human), this only penalizes tokens
         # emitted in the last W steps *for the same role*, so it breaks back-to-back
-        # loops without touching the global cell/dir spread. Default OFF (W=0).
-        _ar_w = int(os.environ.get("LAYOUT_ANTIREPEAT", "0"))       # recent-window size
-        _ar_s = float(os.environ.get("LAYOUT_AR_STRENGTH", "0.0"))  # penalty per in-window hit
+        # loops without touching the global cell/dir spread.
+        # PROMOTED TO PRODUCTION 2026-07-23: the antirepeat_2026-07-23 sweep winner
+        # ar_w1_s2 (W=1/S=2.0) is now the default — h_dist 0.020 < prev prod 0.039
+        # while holding density (4/6), monotony 0.43=human, col_conc 0.29~human,
+        # 0 parity violations. Env still overrides (set LAYOUT_ANTIREPEAT=0 to disable
+        # for a no-antirepeat control / ablation).
+        _ar_w = int(os.environ.get("LAYOUT_ANTIREPEAT", "1"))       # recent-window size
+        _ar_s = float(os.environ.get("LAYOUT_AR_STRENGTH", "2.0"))  # penalty per in-window hit
         _ar_on = _ar_w > 0 and _ar_s > 0.0
         _ar_hist = {ROLE_X: [], ROLE_Y: [], ROLE_DIR: []}          # per-role recent token ids
 

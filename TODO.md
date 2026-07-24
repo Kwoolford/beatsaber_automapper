@@ -1,50 +1,105 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-23 (closed via /close before restart)
+**Last updated:** 2026-07-23 (session 2 — anti-repeat PROMOTED to prod + late-window metric built)
 
-## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-23)
+## ⏭️ NEXT SESSION — pick up here (written 2026-07-23 session 2)
 
-**State at close:** no jobs running, GPU idle, the anti-repeat sweep **finished with a winner**
-(`ar_w1_s2`, see today's retro below). Nothing to resume — the sweep is done, not paused. All
-this session's code + docs are committed (push status noted at bottom of this block).
+**State:** no jobs running, GPU idle. This session PROMOTED the anti-repeat winner (`ar_w1_s2`,
+W=1/S=2.0) to the production layout default and confirmed it live; then built the late-song-collapse
+metric and found that complaint does NOT reproduce on the eval set (likely already fixed). Nothing to
+resume. All code committed + pushed (see bottom of this block).
 
-**Resume commands (only if you want to re-verify, nothing is mid-flight):**
-```bash
-cd /home/kyle/repos/beatsaber_automapper && source .venv/bin/activate
-# re-read the sweep verdict:
-sed -n '/=== VERDICT/,/COMPLETE/p' logs/overnight/antirepeat_2026-07-23.log
-# re-run the whole sweep from scratch if needed (~30 min, 5 arms × 6 songs):
-nohup bash scripts/overnight_2026-07-23_antirepeat.sh >/dev/null 2>&1 &
-```
+**What Kyle decided this session (via AskUserQuestion):** promote **W=1/S=2.0** (done); next research
+target = **late-song collapse** (built the metric + diagnosed — see below).
 
 **Next tasks (highest-value first):**
-1. **Promote `ar_w1_s2` to production + render vs prod for Kyle** (the sweep's DoD payoff).
-   Set `LAYOUT_ANTIREPEAT=1` / `LAYOUT_AR_STRENGTH=2.0` as the production layout default (bake into
-   the v7 generate path, not just an env flag), then render W1 vs prod on 2 songs and send to Kyle.
-   *DoD:* rendered comparison delivered + prod default flipped; regression-check h_dist still ≈0.02.
-   Cached maps already exist under `outputs/eval_sweep_cache/ar_w1_s2__*.zip` — can render straight
-   from those without regenerating.
-2. **Decide W=1 vs W=2.** ar_w1_s2 (h_dist 0.020, dens 4/6) vs ar_w2_s2 (h_dist 0.038 but dens 5/6).
-   W=1 is more human-like on layout; W=2 passes one more density song. *Open question for Kyle below.*
-3. **If layout is "done", pivot to the last untouched key-note: late-song / final-chorus collapse**
-   (~160-164s). No metric exists for it yet — build a per-section late-window density/quality check
-   into eval_sweep, then diagnose Stage-1 probs vs Stage-2 context drift. This is the remaining
-   original complaint after drop-@-13s (fixed) and flat-density (fixed via density-select).
+1. **Validate the late-song-collapse verdict with Kyle on a real song.** New diagnostic
+   `scripts/eval_late_window.py` (per-song: gen vs human note-share in the final tail + tail-only
+   density corr) says current prod does NOT collapse late — mean `late_gap` **−0.024** (final 20%) /
+   **−0.018** (final 10%), i.e. gen puts *slightly more* notes in the tail than the human map, and
+   tail density still tracks the song (late_corr +0.32/+0.46). Strong hypothesis: `section_gate=
+   loud_only` + density-select-γ2.5 already fixed it (both post-date the original ~160-164s complaint).
+   BUT the 6-song eval set may not include a song Kyle actually perceived collapse on. **Ask Kyle for
+   a specific song/timestamp he remembers dying at the end**, run `eval_late_window.py --map <gen.zip>
+   --ref <song.ref.npz>` on it; if late_gap stays ≤0.03 there too, mark late-collapse CLOSED. If it
+   reproduces, THEN diagnose Stage-1 probs vs Stage-2 context drift in the tail.
+   *DoD for a fix (only if it reproduces):* mean late_gap ≤ 0.03 AND late_corr ≥ 0.30, holding
+   whole-song density_corr + monotony + viol.
+2. **If late-collapse is confirmed closed, the three original complaints are ALL addressed**
+   (drop-@-13s via loud_only; flat-density via density-select; monotony/grid-coverage via
+   anti-repeat) → this is a "ship it / step back" fork for Kyle. Optional remaining lever = a
+   targeted diversity-reg fine-tune (the no-retrain levers are now exhausted), but the renders +
+   metrics say we're at ~human on the map-only axes. Get Kyle's judgment on shipped feel.
 
 **Open follow-up questions for Kyle:**
-- Promote **W=1** (best layout human-likeness) or **W=2** (slightly better density pass-rate)? Lean W=1.
-- After this, is layout quality "good enough to ship" so we move to the late-song-collapse item —
-  or do you want a targeted diversity-reg fine-tune first (the no-retrain levers are now exhausted)?
+- Give a specific song + timestamp where a map "died at the end" so I can confirm the late-collapse
+  metric on it — or is late-collapse subjectively gone for you now?
+- With all three original complaints addressed, is the layout good enough to ship, or do you want the
+  diversity-reg fine-tune tried first?
 
 **Landmines:**
 - `scripts/generate.py` needs `--v7` or it silently uses **untrained** models (0-note garbage).
   eval_sweep passes it; manual runs must too.
-- Prod decode defaults are now **temp 0.9 / top_p 0.97** (changed this session).
+- Prod decode defaults are **temp 0.9 / top_p 0.97**; prod layout now also has **anti-repeat W=1/S=2.0
+  baked in** as the default in `layout_model.py` (env `LAYOUT_ANTIREPEAT=0` disables it for ablation).
+- `eval_sweep.py` `prod` arm now = new production (inherits the baked anti-repeat default); the new
+  **`noar`** arm is the pre-promotion baseline for regression.
 - The WALL/CHAIN vocab-118 crash fix only touches the **non-v7** `beam_search` path; v7 was never affected.
 - `pattern_repeat` is already ~human (~0.0) — don't chase it; the real residual was grid/dir coverage.
-- **git push status: see bottom of the 2026-07-23 retro / the /close report — may be pending Kyle's GitHub auth.**
+- h_dist wanders ~[0.02,0.05] across fresh temp-0.9 draws — read the ON-vs-OFF *gap*, not absolutes.
 
 ---
+
+## 2026-07-23 (session 2) — ★ ANTI-REPEAT PROMOTED TO PROD ★ + late-song-collapse metric built → complaint doesn't reproduce
+
+Kyle greenlit (via AskUserQuestion): promote **W=1/S=2.0**, then target **late-song collapse** next.
+
+**DONE — anti-repeat W=1/S=2.0 baked into the production layout default.** In
+`src/beatsaber_automapper/models/layout_model.py` the `LAYOUT_ANTIREPEAT`/`LAYOUT_AR_STRENGTH` env
+reads now default to **"1"/"2.0"** (were "0"/"0.0"), so the plain v7 generate path gets the sweep
+winner without any env flag. Env still overrides (`LAYOUT_ANTIREPEAT=0` = ablation/off). `eval_sweep.py`
+ARMS updated: `prod` = new production (inherits the baked default), added **`noar`** (anti-repeat OFF)
+as the pre-promotion regression baseline; `ar_w1_s2` kept as the explicit-equals-default sanity arm.
+
+**Rendered W1 vs prod for Kyle** (`outputs/antirepeat_promote_2026-07-23/`, 2 songs, SO TIRED ROCK +
+1f333, sent). The beats-114–122 panel is the clearest win: old prod locks into a rigid 2-row
+blue-right/red-left loop; W1 uses all 3 rows + varied cut directions, density curve + parity unchanged.
+
+**Regression check PASS** (`scripts/eval_sweep.py sweep --arms prod,noar --force`,
+`logs/overnight/promote_regcheck_2026-07-23.log`, `outputs/eval_sweep_cache/leaderboard.json`):
+
+| config | h_dist↓ | grid_cov↑ | dir_ent↑ | col_conc | row_conc | monotony | density (#pass) | viol |
+|---|---|---|---|---|---|---|---|---|
+| HUMAN | — | 0.96 | 0.80 | 0.29 | 0.49 | 0.43 | — | — |
+| **prod (NEW, anti-repeat ON)** | **0.036** | 0.972 | 0.792 | 0.297 | 0.45 | 0.42 | 0.513 (5/6) | 0 |
+| noar (OFF baseline) | 0.048 | 0.889 | 0.711 | 0.290 | 0.49 | 0.45 | 0.538 (4/6) | 0 |
+
+Plain prod path (no env) now produces the anti-repeat gain: ON is more human than OFF (grid_cov
+0.97 vs 0.89, dir_ent 0.79 vs 0.71), density + parity hold. (Absolute h_dist 0.036 vs the sweep's
+0.020 is temp-0.9 draw noise — the whole scale shifted up this draw; noar OFF = 0.048, so ON<OFF
+holds. Read the gap, not the absolute.)
+
+**BUILT the late-song-collapse metric — the last untouched original complaint.** New
+`scripts/eval_late_window.py`: per song, gen vs HUMAN-reference note-share in the final tail
+(`late_gap = ref_late_frac − gen_late_frac`; positive = gen under-produces the tail = collapse) plus
+a tail-only density Spearman (`late_corr`). Reuses the eval_songset refs — no regeneration needed.
+
+**FINDING — late collapse does NOT reproduce in current production.** On all 6 eval songs, at both
+final-20% and final-10% tails, mean `late_gap` is **negative** (−0.024 / −0.018): gen actually puts a
+*slightly higher* note-share in the tail than the human map, and tail density still tracks the song
+(late_corr +0.32 / +0.46, above the 0.30 bar). No song shows a meaningful positive gap. Strong
+hypothesis: the original ~160-164s collapse was already fixed as a side-effect of `section_gate=
+loud_only` (final chorus is loud → kept dense) + density-select-γ2.5. **Caveat:** the 6-song set may
+not include a song Kyle actually saw collapse on → next session, get a specific song from Kyle and
+confirm before declaring it CLOSED (see handoff task 1).
+
+**Net:** all three original complaints now addressed — drop-@-13s (loud_only), flat-density
+(density-select), monotony/grid-coverage (anti-repeat promoted this session) — and the late-collapse
+complaint appears already resolved (metric built to prove/catch it). Next = Kyle validates late-collapse
+on a real song, then a ship-it/step-back fork.
+
+**Code committed + pushed** (layout_model default flip, eval_sweep noar arm, eval_late_window.py, this
+retro, memory). `git push origin main` works (gh auth resolved 2026-07-23).
 
 ## 2026-07-23 — ★ TEMP NUDGE PROMOTED TO PROD ★ + fixed a latent 0-note crash + ANTI-REPEAT sweep WON (ar_w1_s2)
 

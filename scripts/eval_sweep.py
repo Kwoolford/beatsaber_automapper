@@ -64,14 +64,18 @@ _DIV = {"LAYOUT_DIVERSITY": "1"}
 # (div10 → grid 1.0 / rows 0.35, past human) so it's the wrong tool for adjacency.
 # NEW lever = windowed ADJACENCY anti-repeat (LAYOUT_ANTIREPEAT window +
 # LAYOUT_AR_STRENGTH): penalize only tokens seen in the last-W emissions per role,
-# breaking back-to-back loops WITHOUT touching global cell/dir spread. Sweep the
-# window/strength; `prod` (new 0.9/0.97 defaults) is the control; keep g2.5_div10
-# as the over-flatten failure-mode reference.
+# breaking back-to-back loops WITHOUT touching global cell/dir spread.
+# 2026-07-23 PROMOTED: the sweep winner ar_w1_s2 (W=1/S=2.0) is now the baked-in
+# LAYOUT_ANTIREPEAT/LAYOUT_AR_STRENGTH default in layout_model.py, so `prod` (the
+# density-select-only config) now inherits anti-repeat and IS the new production
+# control. `noar` (LAYOUT_ANTIREPEAT=0) preserves the pre-promotion baseline for
+# regression; keep g2.5_div10 as the over-flatten failure-mode reference.
 def _ar(w: str, s: str) -> dict[str, str]:
     return {**_DS25, "LAYOUT_ANTIREPEAT": w, "LAYOUT_AR_STRENGTH": s}
 ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
-    "prod":        (_DS25, []),                                             # control = NEW PRODUCTION (temp 0.9/top_p 0.97 defaults)
-    "ar_w1_s2":    (_ar("1", "2.0"), []),                                   # pure adjacency (W=1): forbid immediate repeat
+    "prod":        (_DS25, []),                                             # control = NEW PRODUCTION (W1/S2 baked default + temp 0.9/top_p 0.97)
+    "noar":        ({**_DS25, "LAYOUT_ANTIREPEAT": "0"}, []),               # pre-promotion baseline (anti-repeat OFF) — regression reference
+    "ar_w1_s2":    (_ar("1", "2.0"), []),                                   # promoted config, explicit (== prod default now)
     "ar_w2_s2":    (_ar("2", "2.0"), []),                                   # 2-step window, moderate
     "ar_w3_s3":    (_ar("3", "3.0"), []),                                   # 3-step window, stronger loop-break
     "g2.5_div10":  ({**_DS25, **_DIV, "LAYOUT_DIV_X": "1.0", "LAYOUT_DIV_Y": "1.0", "LAYOUT_DIV_D": "1.0"}, []),  # over-flatten reference
