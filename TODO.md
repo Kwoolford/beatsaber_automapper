@@ -1,8 +1,90 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-27 — ★ HAND-ROLE (A6) IS THE HEADLINE: our worst axis, found by READING ★
+**Last updated:** 2026-07-27 (/close) — Kyle's review redirected the work; Track A + Track B live
 
-## ⏭️ NEXT SESSION — pick up here (written 2026-07-27, autonomous loop)
+## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-27)
+
+**State at close: nothing running, GPU idle, working tree clean, everything committed AND pushed.**
+No job needs resuming. The only untracked paths are `logs/layout_ft_ent0.5/` and
+`logs/layout_ft_ent3.0/`, which are intentionally-untracked artifacts.
+
+### What changed at the end of the session (read this before anything else)
+
+**Kyle played the maps and the suite was wrong.** He reviewed `outputs/review_2026-07-27/`
+(prod / ho03 / ho05) and found **all three busy, unmusical and unplayable as Expert** — right
+after the suite had called ho05's rhythm "essentially solved". Every complaint was then confirmed
+numerically, and **none of them was gated by any existing axis**. Details in PROGRESS.md; the
+short version is in "KYLE'S MANUAL REVIEW" below.
+
+**The work is now split into two tracks (both sections are below in this file):**
+- **TRACK A — squeeze this architecture** (cheap, no retrain): difficulty calibration, direction
+  idiom, drop dynamics.
+- **TRACK B — rebuild Stage-1 around the instrument discovery**: full plan in
+  `docs/stage1_instrument_rebuild.md`.
+
+**Shipped this session, after the review:** axis **A7 `evaluation/playfeel.py`** — the gate that
+was missing. The scorecard now has **five** axes and is validated both ways:
+
+| axis | human Expert (held-out) | prod |
+|---|---|---|
+| flow | 0.37 PASS | 0.71 |
+| rhythm | 0.20 PASS | 2.37 |
+| idiom | 0.39 PASS | 1.85 |
+| handrole | 0.36 PASS | 3.23 |
+| **playfeel** | **0.31 PASS** | **2.29** |
+| parity | 0 viol | 0 viol |
+
+### Next tasks, highest-value first
+
+1. **A-1 difficulty lever.** We generate **6.18 NPS** against human Expert **3.91**. Scale the
+   Stage-1 note budget (the multiplier goes in `_density_aware_select`, the budget already
+   exists). *DoD:* cohort NPS median inside the human Expert range with density_corr, parity and
+   the other four axes held.
+2. **A-2 direction lever.** Humans lead up/down 0.563 and use diagonals 0.358; we are inverted
+   (0.513 / 0.468). Add a decode bias toward the vertical axis, **and re-examine the promoted
+   anti-repeat W1/S2 default** — applying it to the `ROLE_DIR` role is what pushed us toward
+   diagonals, so try narrowing it to X/Y only. *DoD:* diagonal share inside the human range
+   without `dir_entropy` collapsing back to the pre-2026-07-23 monotony — watch both ends.
+3. **A-3 drop dynamics.** At the 15 s drop on SO TIRED ROCK, RMS energy doubles (0.20 → 0.78) and
+   our density *falls* (5-7/s → 4-6/s). Build a section-transition metric (correlation of energy
+   *change* vs density *change*) then a lever that makes the per-window budget respond to section
+   energy. *DoD:* more notes after the drop than before it, on that song specifically.
+4. **B-0 (cheap, do alongside A):** re-evaluate the shelved `version_7` per-instrument checkpoint
+   on the v2 suite — check `logs/beat_classifier/version_7/` still exists. TASK 2 killed it on
+   `val_f1_avg_tol`, which we have since established anti-correlates with map quality. Hours, not
+   a GPU night. *DoD:* version_7 scored on all five axes against version_4.
+5. **B-1:** retrain Stage-1 with `instr_dim=10` (preprocessing already cached on all 5320 `.pt`).
+   **Select the checkpoint by the v2 suite, NEVER by `val_f1`.**
+
+### Open follow-up questions for Kyle
+
+- **A7 will now fail every arm swept on 2026-07-27, including ones reported as wins.** That is the
+  axis being new evidence, not a regression — but worth confirming he wants the scorecard harsher
+  rather than flattering.
+- Does he want a fresh playable batch after A-1/A-2 land (difficulty + diagonals fixed), before
+  any Track B GPU time is spent?
+- He mentioned some notes in that song are "longer and played out" (sustained guitar) and thought
+  it trips the model up. Not yet investigated — worth a look in `map_view` with stem lanes.
+
+### Landmines
+
+- **`scripts/generate.py` needs `--v7`** or it silently uses untrained models (0-note garbage).
+- **Never run two sweeps against one cache** — `eval_sweep` now takes a lock (`.sweep.lock`), added
+  after a double-launch corrupted 11 map zips. If a sweep dies hard, delete the stale lock.
+- **Validate every lever on the full 24-song set.** Two levers this session looked good on one
+  song and failed on all 24; one of those probes was on `1f333`, which is half-tempo.
+- **Noise floor** (two identical `prod` runs): flow 0.03 / rhythm 0.08 / idiom 0.09 / handrole 0.29.
+  Differences smaller than the axis floor are not results. Re-run `prod_rep` if decode defaults change.
+- **A7 must stay Expert-only.** `scripts/calibrate_playfeel.py` deliberately does NOT fall back to
+  ExpertPlus; the other calibrators do. Contaminating it would tell us our too-dense maps are fine.
+- **All the 2026-07-27 levers are default-OFF and production is unchanged** — `BEAT_HAND_OFFSET`,
+  `BEAT_HAND_ROLE`, `BEAT_IOI_PRIOR`, `LAYOUT_TRAVEL_PENALTY`, `LAYOUT_IDIOM_BONUS`,
+  `COLOR_SEP_MODE`. Verified by rescoring `prod` after each change.
+- Review set for Kyle is at `outputs/review_2026-07-27/` (gitignored, survives reboot on disk).
+
+---
+
+## (previous handoff) NEXT SESSION — written 2026-07-27, autonomous loop
 
 # ★★ THE ORGANISING DISCOVERY: HANDS HAVE ROLES ★★
 
