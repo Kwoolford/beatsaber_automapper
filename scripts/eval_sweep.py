@@ -80,6 +80,24 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     # regeneration at near-identical BPM moved the idiom gap 2.41 -> 1.76, which
     # is larger than several differences that had been read as signal.
     "prod_rep":    (_DS25, []),
+    # --- STAGE-1 IOI PRIOR (2026-07-27) — the rhythm gap is onset SELECTION ---
+    # Part D ruled out tempo detection: correcting BPM moves rhythm 2.41 -> 2.37
+    # and makes it WORSE on the songs that were actually mis-detected. rule_mapper
+    # showed rhythm is inherited entirely from the onset layer. So this changes
+    # WHICH slots Stage-1 picks: within each density-allocated window, maximise
+    # model prob + lambda * human P(interval | previous interval) instead of
+    # taking the top-k by probability, which just reproduces the audio's own
+    # periodicity. Window allocation is untouched, so density_corr is preserved.
+    # Single-song probe at lambda=1: dominant_share 0.924 -> 0.653 (human 0.509),
+    # switch rate 1.2 -> 4.3 (human 13.7), viol 0, note count held -- but it
+    # over-produces 1/16 and under-produces 1/4, so sweep the strength.
+    "ioi05":       ({**_DS25, "BEAT_IOI_PRIOR": "0.5"}, []),
+    "ioi1":        ({**_DS25, "BEAT_IOI_PRIOR": "1.0"}, []),
+    "ioi2":        ({**_DS25, "BEAT_IOI_PRIOR": "2.0"}, []),
+    "ioi4":        ({**_DS25, "BEAT_IOI_PRIOR": "4.0"}, []),
+    # the rhythm fix combined with the proven flow/idiom levers
+    "ioi2_best":   ({**_DS25, "BEAT_IOI_PRIOR": "2.0",
+                     "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
     "noar":        ({**_DS25, "LAYOUT_ANTIREPEAT": "0"}, []),               # pre-promotion baseline (anti-repeat OFF) — regression reference
     "ar_w1_s2":    (_ar("1", "2.0"), []),                                   # promoted config, explicit (== prod default now)
     "ar_w2_s2":    (_ar("2", "2.0"), []),                                   # 2-step window, moderate
