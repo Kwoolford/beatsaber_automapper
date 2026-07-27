@@ -283,6 +283,41 @@ Stop using them as the objective; retire `h_dist` as the ranking scalar once A1�
 
 ---
 
+## 3b. The no-ML mapper — does the suite actually specify one? (2026-07-27)
+
+`scripts/rule_mapper.py` is the direct test of the project goal. It contains **no model, no
+checkpoint, no learned weights** — only the measured rules above, plus the mined idiom
+vocabulary. Given onset times and a BPM it produces a map by: alternating hands with ~17.5%
+doubles (A2), sampling the human idiom vocabulary conditioned on the hand's previous note (A3),
+preferring travel near 4 grid-units/sec (A1), alternating parity with `swing_sim`'s 0.30 s
+wrist-break floor, and keeping hands on their own side except ~20% crossovers.
+
+**Scored on the same 24-map cohort protocol:**
+
+| onsets from | flow | rhythm | idiom | parity |
+|---|---|---|---|---|
+| our prod maps | 1.00 | 2.41 | **1.22** | 0 viol |
+| held-out human maps | 1.45 | **0.25 PASS** | **0.99** (bar 1.00) | 0 viol |
+| *(our ML model, for reference)* | *0.81* | *2.41* | *1.84* | *0 viol* |
+
+Three findings:
+
+1. **The suite is prescriptive enough to build a competitive non-ML mapper.** With correct
+   onsets it reaches human-range rhythm and near-bar idiom usage with zero parity violations,
+   and it beats our trained model on the idiom axis (1.22 vs 1.84) — from rules alone.
+2. **Rhythm is inherited entirely from the onset layer.** The same rule mapper scores 2.41 on
+   prod onsets and 0.25 on human onsets, having changed nothing about how it places notes.
+   This independently confirms the A2 diagnosis: the rhythm gap lives in Stage-1 selection and
+   hand assignment, *not* in the pattern layer.
+3. **The suite does NOT yet prescribe variety.** Every rule-based cohort is mode-collapsed
+   (spread 0.13–0.30 against a 0.35 bar). Widening the per-note sampling makes it *worse*, not
+   better — width 6→60 degrades flow 1.45→1.77 and idiom 0.99→1.37, drops spread 0.30→0.17, and
+   introduces parity violations. Per-note randomness is not cohort diversity: sampling further
+   down a ranked candidate list picks systematically worse options rather than different ones.
+   Real human variety is **map-level style** (different mappers, different songs, different
+   characteristic vocabularies), and nothing in the suite currently expresses that. **This is
+   the most important open gap in the suite.**
+
 ## 4. Build order
 
 1. `audit_eval_suite.py` — **DONE** (2026-07-26). The gate every new metric must pass.
