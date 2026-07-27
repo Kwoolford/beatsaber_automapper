@@ -1,8 +1,79 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-23 (session 2 — anti-repeat PROMOTED to prod + late-window metric built)
+**Last updated:** 2026-07-26 (late-collapse CLOSED at 24 songs; STRATEGIC PIVOT to eval-suite v2)
 
-## ⏭️ NEXT SESSION — pick up here (written 2026-07-23 session 2)
+## ⏭️ NEXT SESSION — pick up here (written 2026-07-26)
+
+**State:** no jobs running, GPU idle. Nothing to resume. All code committed + pushed.
+
+**★ KYLE'S STRATEGIC REDIRECT THIS SESSION (supersedes the old ship-it/step-back fork) ★**
+Asked whether to ship / try the diversity-reg fine-tune / step back, Kyle chose none of them:
+
+> *"Continue to update evaluation suite so I do not have to be the judge anymore on whether our
+> training is working. You have significantly more collective knowledge but are handicapped by
+> evaluation suite. I want to get to a point where our evaluation suite is so good I could give an
+> agent a set of instructions to build it by itself without machine learning, which has the benefit
+> of you being able to audit the architecture as well."*
+
+**The work is now the EVALUATION SUITE, not the generator.** Full design doc:
+**`docs/eval_suite_v2.md`** (read this first next session). Two things landed this session:
+
+1. **Late-song collapse CLOSED.** Scaled the eval songset 6 → **24 songs** and added a *true
+   human-map* comparison to `scripts/eval_late_window.py` (`human_gap`, loaded from the human
+   map in `data/raw`, not just the audio-onset reference). Result: **0/24 songs collapse** at
+   both final-20% and final-10% tails; mean `late_gap` −0.027/−0.015, mean `human_gap`
+   −0.014/−0.013 (gen puts *slightly more* in the tail than the human map), `late_corr`
+   +0.38/+0.52. Log `logs/overnight/late_window_scale_2026-07-26.log`. All four original
+   complaints are now addressed. Kyle has NOT played recent maps, so this is confirmed by
+   metric, not by ear — which is exactly the gap the pivot is about.
+2. **Audited the eval suite itself → it is saturated.** New `scripts/audit_eval_suite.py` scores
+   human maps, our maps, and four degenerate controls (`random`, `shuffled`, `metronome`,
+   `zigzag`). Headline numbers (`outputs/eval_audit_2026-07-26.json`):
+   - **`h_dist` — the scalar the sweep ranks arms by — puts our maps (0.033) AHEAD of real human
+     maps (0.060).** Textbook Goodhart: we tuned until we matched the target statistics and the
+     metric lost all resolution. This explains why recent wins were real on paper and invisible
+     to Kyle.
+   - **A `shuffled` human map (all sequencing destroyed, 51.8 parity violations) scores h_dist
+     0.067 ≈ human 0.060.** All five `h_dist` keys are permutation-invariant histograms, so they
+     *cannot* see sequencing.
+   - **`random` beats human on `grid_coverage` (1.000 vs 0.986) and `dir_entropy` (0.997 vs
+     0.759)** — the suite's "more diversity = more human" assumption is false and we have no
+     headroom left there. Do NOT push anti-repeat/diversity further.
+   - Only `swing_sim` and `pattern_repeat` catch the shuffled control. **The swing simulator is
+     doing nearly all the real work.**
+
+**Next tasks (highest-value first) — from `docs/eval_suite_v2.md` §4:**
+1. **A1 — flow/ergonomics metric.** `swing_sim` says "parity-legal"; nothing says "comfortable".
+   Per hand: angle continuity between swings, wrist travel, hand crossovers, awkward inward
+   pairs, EBPM stability. Extends the already-validated swing_sim. *DoD: passes the control
+   battery (human beats all four controls by > the human cohort's own spread).*
+2. **A2 — rhythm / beat-grid sanity.** Are notes on clean subdivisions (1/4, 1/8, 1/12, 1/16),
+   consistent within a phrase? Cheap, map-only, currently unmeasured (`onset_hit` only asks
+   "within 50 ms of *any* onset", which a dense random map passes).
+3. **A3 — pattern-idiom vocabulary.** Mine the human corpus for the idiom n-grams, score what
+   fraction of a map's transitions are human idioms. **This is the axis that makes the non-ML
+   mapper Kyle described buildable** — the idiom inventory is that mapper's building blocks.
+4. **Consolidate the three parallel scoring systems** (see doc §1 Finding 4): the live loop
+   (`map_metrics`+`swing_sim`+`eval_sweep`), `research/metrics.py::composite_score`, and the
+   dead-but-still-exported `evaluation/{map_quality,playability}.py` (which has a second, older
+   parity implementation as the package's public API). One module, one entry point.
+
+**Open follow-up questions for Kyle:**
+- None blocking. He has not played recent maps; if he does, a specific "this felt bad here"
+  report is still the best calibration data for the v2 suite.
+
+**Landmines:**
+- `scripts/generate.py` needs `--v7` or it silently uses **untrained** models (0-note garbage).
+- Prod decode defaults **temp 0.9 / top_p 0.97**; prod layout has **anti-repeat W=1/S=2.0** baked
+  in (`LAYOUT_ANTIREPEAT=0` disables). **Do not tune these further** — see Finding 3 above.
+- `map_metrics.map_metrics()` now delegates to `map_metrics_from_seq()` so synthetic control maps
+  can be scored without writing zips. Behaviour for zip inputs is unchanged.
+- Any new metric must be added to `audit_eval_suite.py`'s battery and pass it *before* being used
+  to steer the generator.
+
+---
+
+## (superseded 2026-07-26 by the eval-suite pivot) NEXT SESSION — written 2026-07-23 session 2
 
 **State:** no jobs running, GPU idle. This session PROMOTED the anti-repeat winner (`ar_w1_s2`,
 W=1/S=2.0) to the production layout default and confirmed it live; then built the late-song-collapse

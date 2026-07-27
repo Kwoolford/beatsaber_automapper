@@ -41,7 +41,15 @@ HUMAN_TARGET = {
 
 def map_metrics(zip_or_dir: str | pathlib.Path, difficulty: str = "Expert") -> dict:
     """Map-only quality metrics from a beatmap zip/dir (no audio needed)."""
-    seq = load_v7(str(zip_or_dir), difficulty)
+    return map_metrics_from_seq(load_v7(str(zip_or_dir), difficulty))
+
+
+def map_metrics_from_seq(seq: np.ndarray) -> dict:
+    """Same metrics, straight from the [L,12] feel-disc feature sequence.
+
+    Split out so synthetic/degenerate control maps (see scripts/audit_eval_suite.py)
+    can be scored without round-tripping through a zip on disk.
+    """
     n = len(seq)
     if n == 0:
         return {"n_notes": 0}
