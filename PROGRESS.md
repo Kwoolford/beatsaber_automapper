@@ -82,6 +82,44 @@ maps score *better* on all axes, because A2 measures intervals in the beat domai
 | `BEAT_HAND_INTERLEAVE` | ❌ **rhythm worse** (2.99/2.81 vs 2.41), breaks parity |
 | `BEAT_HAND_ROLE=0.5` | ~ fixes idiom (2.34 → **0.59 PASS**), improves flow/handrole, but **rhythm 2.41 → 4.05**, spread collapses, −24% notes |
 
+### ★ Kyle's manual review — the suite was still wrong, and our own optimisation caused harm
+
+Kyle played prod / ho03 / ho05 and found **all three busy, unmusical and unplayable as Expert** —
+immediately after the suite had called ho05's rhythm "essentially solved". That disagreement is
+the single most valuable result of the day: it is exactly what the v2 suite exists to surface, and
+it says the suite is still measuring the wrong things.
+
+Every complaint confirmed with numbers:
+
+| complaint | measurement | human | prod | ho05 |
+|---|---|---|---|---|
+| "obsessed with 45-degree notes" | diagonal share | **0.370** | 0.513 | **0.589** |
+| | up/down share | **0.562** | 0.468 | 0.381 |
+| "this is Expert, not Expert+" | NPS | **4.46** | **6.18** | 6.13 |
+| (unnoted, also true) | dot-note share | 0.042 | 0.001 | 0.000 |
+| "2 notes at the drop, tons before" | notes/s intro → drop | — | **5-7 → 4-6** | 6-9 → 4-5 |
+
+1. **A difficulty tier too dense** — 6.18 NPS against human Expert 4.46, and nothing in the
+   scorecard gates it (`nps` sits in `HUMAN_TARGET` but enters no composite).
+2. **We invert the human direction idiom, and our own "diversity" work caused it.** Humans lead
+   up/down and use diagonals as deviation. The anti-repeat lever promoted 2026-07-23 and every
+   `dir_entropy` push rewarded spreading across all nine directions, which means diagonals. The
+   original "for-sport diagonals" complaint was never fixed — **it was made worse and logged as
+   progress**.
+3. **The drop is not built into.** At the 15 s drop RMS energy roughly doubles (0.20 → 0.78) while
+   our note density *falls*. `section_gate=loud_only` only stopped us silencing drops; it never
+   made us build. `density_corr` passes because it is a whole-song rank correlation, blind to the
+   most musically important moment in the song.
+4. **Stage-1 cannot hear the guitar.** The production beat model (`version_4`) has exactly two
+   input projections: `drum_proj` (MERT of the Demucs drum stem) and `mix_proj` (MERT of the full
+   mix). No `instr_proj`. A guitar-driven song is smeared inside the undifferentiated mix channel.
+   The per-instrument features exist (TASK 2) but were shelved for not moving `val_f1` — a
+   yardstick since proven wrong. Kyle's hypothesis was correct.
+
+**Consequence:** the hand-offset work is parked default-OFF. It genuinely fixed the rhythm
+*statistics* while making the map worse to play — the cleanest demonstration in this project that
+matching a distribution is not the same as being musical.
+
 ### Hand offset — the rhythm axis essentially solved, and two axes unified
 
 After four rejected rhythm hypotheses, the answer came from *looking* rather than theorising:

@@ -83,21 +83,76 @@ exist and were built in TASK 2, but were shelved because they did not move `val_
 we have since established is wrong. Kyle's hypothesis that "our beat onset is not distinguishing
 between instruments" is **correct**.
 
-**⇒ NEW PRIORITIES, replacing the lever sweeps:**
-1. **Difficulty calibration.** Add an NPS/difficulty axis to the scorecard with the human Expert
-   distribution as the target, and cut generated density to match. This is the cheapest fix and
-   the most legible to a player.
-2. **Direction idiom.** Add an up/down-vs-diagonal balance metric; **stop rewarding raw
-   `dir_entropy`**, which is what drove the diagonal soup. Consider reverting or re-tuning the
-   anti-repeat default.
-3. **Drop/section dynamics.** A metric that weights section transitions rather than whole-song
-   rank correlation, then make density actually build into high-energy sections.
-4. **Instrument-aware Stage-1** — revive `instr_proj` (TASK 2), judged on the v2 suite and Kyle's
-   ear rather than `val_f1`. This is the expensive one and the likely root fix for "no flow".
-
 **HAND-OFFSET WORK IS PARKED, NOT PROMOTED.** It genuinely fixed the rhythm *statistics* while
 making the map worse to play — a clean demonstration that matching a distribution is not the same
-as being musical. Keep it default-OFF; revisit only after 1-3 above.
+as being musical. Keep it default-OFF.
+
+---
+
+# TRACK A — squeeze this architecture (cheap, do now)
+
+These three attack "unplayable as Expert" directly and need no retrain. **Metric first, then
+lever, then sweep** — and every new metric goes through `audit_eval_suite.py` before it is allowed
+to steer anything.
+
+### A-1. Difficulty calibration ⟵ start here, most legible to a player
+We generate **6.18 NPS** against human Expert **4.46** — a full tier too dense, and nothing in the
+scorecard gates it (`nps` is in `HUMAN_TARGET` but enters no composite).
+- **Metric:** a difficulty axis scored like the others (cohort shift + spread) on NPS, plus peak
+  NPS, against the human **Expert** distribution specifically.
+- **Lever:** scale the Stage-1 note budget to hit the target. The budget already exists in
+  `_density_aware_select`; this is a multiplier, not new machinery.
+- **DoD:** cohort NPS median inside the human Expert range with density_corr, parity and the four
+  existing axes held.
+
+### A-2. Direction idiom — stop rewarding diagonal soup
+Humans lead **up/down 0.562** and use diagonals as deviation (**0.370**). We are inverted
+(0.513, and 0.589 with hand-offset). **Our own optimisation caused this**: the anti-repeat lever
+and every `dir_entropy` push rewarded spreading across all nine directions.
+- **Metric:** up/down-vs-diagonal balance + dot-note share (we emit 0.001 vs human 0.042), scored
+  against the human distribution.
+- **Lever:** a decode bias toward the vertical axis; **and re-examine the promoted anti-repeat
+  default (W1/S2)** — it may need reverting or narrowing to X/Y only, since applying it to the DIR
+  role is what pushes toward diagonals.
+- **DoD:** diagonal share inside the human range without collapsing `dir_entropy` back to the
+  pre-2026-07-23 monotony. Watch both ends.
+
+### A-3. Drop / section dynamics
+At the 15 s drop, RMS energy roughly doubles (0.20 → 0.78) and our density *falls* (5-7/s →
+4-6/s). `loud_only` stopped us silencing drops; it never made us build into them.
+- **Metric:** density response at section transitions — correlation between per-section energy
+  *change* and note-density *change*. `density_corr` cannot see this: it is a whole-song rank
+  correlation and passes at 0.40 on exactly the song Kyle called out.
+- **Lever:** make the per-window budget respond to section energy, not just within-window prob
+  mass. The `γ` in density-select operates on 2 s windows; sections are the right unit.
+- **DoD:** density rises into high-energy sections on the eval set, and the 15 s drop on
+  SO TIRED ROCK specifically shows more notes after the drop than before.
+
+---
+
+# TRACK B — rebuild Stage-1 around the instrument discovery
+
+**Full plan: `docs/stage1_instrument_rebuild.md`.** This is the likely root fix for "no flow" and
+the reason no decode lever has worked: **no lever can recover information the encoder never
+received.**
+
+`version_4` sees only `drum_proj` (MERT of the drum stem) and `mix_proj` (MERT of the full mix) —
+drums, and everything else averaged together. A lead guitar is indistinguishable inside `mix`.
+
+- **B-0 (cheap, overlap with Track A):** the shelved `version_7` per-instrument checkpoint may
+  still be on disk. Generate from it and score on the v2 suite. TASK 2 killed it on
+  `val_f1_avg_tol`, which we have since established anti-correlates with map quality — so this is
+  re-running a shelved experiment against a yardstick that actually works, for hours not a night.
+- **B-1:** retrain Stage-1 with `instr_dim=10` (preprocessing already cached on all 5320 `.pt`).
+  **Select the checkpoint by the v2 suite, never `val_f1`.**
+- **B-2:** per-stem MERT — give the lead its own projection the way drums already have one. The
+  honest generalisation of the current architecture.
+- **B-3:** build **A4 musical-role** (planned, never built): which instrument is the map
+  following, and does it switch at section boundaries? Without it we cannot *measure* "follows the
+  guitar", which is what Kyle actually asked for.
+
+**Sequencing:** B-0 and B-3 are cheap and overlap Track A. B-1 is the first GPU night worth
+spending after Track A lands. Do not start B-2 until B-1 shows instrument input helps at all.
 
 ---
 
