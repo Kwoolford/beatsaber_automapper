@@ -194,12 +194,41 @@ def build_songset(n: int) -> None:
     print(f"songset now {len(final)} songs: {[s.stem for s in final]}")
 
 
-def _gen(arm: str, song: pathlib.Path, force: bool) -> pathlib.Path | None:
+def _true_bpm(song: pathlib.Path) -> float | None:
+    """BPM declared in the human map for this song, if we have it.
+
+    Tempo detection is wrong on 30% of the eval set (7/23 songs; see
+    scripts/bpm_octave_probe.py), including two at exactly half tempo, where the
+    beat grid is twice as coarse in real time and the fast notes cannot be
+    represented at all. Worse, the mis-tempo maps score BETTER on the beat-domain
+    rhythm axis, so the confound actively distorts our measurements.
+
+    Passing the human-declared BPM removes tempo detection as a confound from
+    evaluation. This is an EVALUATION-ONLY fix — production has no human map to
+    read a BPM from, and the detector itself still needs real work.
+    """
+    src = REPO / "data" / "raw" / f"{song.stem}.zip"
+    if not src.exists():
+        return None
+    try:
+        from feel_disc_poc import _zip_bpm
+        b = _zip_bpm(str(src))
+        return float(b) if b else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _gen(arm: str, song: pathlib.Path, force: bool,
+         true_bpm: bool = False) -> pathlib.Path | None:
     env_over, extra = ARMS[arm]
     CACHE.mkdir(parents=True, exist_ok=True)
     out = CACHE / f"{arm}__{song.stem}.zip"
     if out.exists() and not force:
         return out
+    if true_bpm:
+        b = _true_bpm(song)
+        if b:
+            extra = [*extra, "--bpm", str(b)]
     env = dict(os.environ)
     env.update(env_over)
     cmd = [
@@ -293,7 +322,7 @@ def _load_human_baseline() -> None:
             pass
 
 
-def sweep(arms: list[str], force: bool) -> None:
+def sweep(arms: list[str], force: bool, true_bpm: bool = False) -> None:
     songs = _list_songs()
     if not songs:
         print("no songs — run: eval_sweep.py build-songset --n 6")
@@ -307,7 +336,7 @@ def sweep(arms: list[str], force: bool) -> None:
         results[arm] = {}
         for si, s in enumerate(songs, 1):
             t0 = _time.time()
-            zp = _gen(arm, s, force)
+            zp = _gen(arm, s, force, true_bpm)
             if zp is None:
                 continue
             try:
@@ -547,6 +576,11 @@ def main() -> None:
     sw = sub.add_parser("sweep")
     sw.add_argument("--arms", default=None, help="comma list; default all")
     sw.add_argument("--force", action="store_true", help="regenerate even if cached")
+    sw.add_argument("--true-bpm", action="store_true",
+                    help="generate with the human map's declared BPM. Tempo detection is "
+                         "wrong on 30%% of the eval set and the beat-domain rhythm axis "
+                         "REWARDS the error, so this removes a real confound. Evaluation "
+                         "only -- production has no human BPM to read.")
     hb = sub.add_parser("human-baseline"); hb.add_argument("--n", type=int, default=40)
     sub.add_parser("list-arms")
     a = ap.parse_args()
