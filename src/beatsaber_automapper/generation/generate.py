@@ -1841,10 +1841,28 @@ def generate_v7_level(
         _slot_sec = (np.arange(n_slots) / BEAT_SUBDIV) * (60.0 / bpm)
         left_onsets  = _density_aware_select(
             beat_probs[:, 0], _slot_sec, _win, _gamma, len(left_thr), beat_nms_radius)
-        right_onsets = _density_aware_select(
-            beat_probs[:, 1], _slot_sec, _win, _gamma, len(right_thr), beat_nms_radius)
-        logger.info("DENSITY_SELECT on (gamma=%.2f win=%.1fs): redistributed "
-                    "L %d->%d, R %d->%d", _gamma, _win,
+        # HAND INTERLEAVE (eval-suite v2 axis A2, 2026-07-27). The two hands are
+        # selected from two probability channels driven by the SAME audio, so they
+        # pick the same slots: our maps fire both hands simultaneously on 85.6% of
+        # beats, against a human rate of 17.5%. That lockstep is what makes the
+        # union rhythm metronomic — 75% of our intervals land on exactly 1/8,
+        # vs 41% for humans — even though our PER-HAND intervals are already
+        # human-like. Penalising the right hand on slots the left hand took lets
+        # the hands interleave and the union rhythm breathe.
+        # Strength 0.0 = OFF (prior behaviour). Human maps still play ~17.5% real
+        # doubles, so this must be a soft penalty, never a hard exclusion.
+        _il = float(os.environ.get("BEAT_HAND_INTERLEAVE", "0.0"))
+        if _il > 0.0 and left_onsets:
+            rp = beat_probs[:, 1].clone()
+            idx = torch.tensor(sorted(left_onsets), dtype=torch.long, device=rp.device)
+            rp[idx] = rp[idx] * (1.0 - min(_il, 1.0))
+            right_onsets = _density_aware_select(
+                rp, _slot_sec, _win, _gamma, len(right_thr), beat_nms_radius)
+        else:
+            right_onsets = _density_aware_select(
+                beat_probs[:, 1], _slot_sec, _win, _gamma, len(right_thr), beat_nms_radius)
+        logger.info("DENSITY_SELECT on (gamma=%.2f win=%.1fs interleave=%.2f): "
+                    "redistributed L %d->%d, R %d->%d", _gamma, _win, _il,
                     len(left_thr), len(left_onsets), len(right_thr), len(right_onsets))
     else:
         left_onsets, right_onsets = left_thr, right_thr

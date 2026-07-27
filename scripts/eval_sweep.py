@@ -79,6 +79,19 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "ar_w2_s2":    (_ar("2", "2.0"), []),                                   # 2-step window, moderate
     "ar_w3_s3":    (_ar("3", "3.0"), []),                                   # 3-step window, stronger loop-break
     "g2.5_div10":  ({**_DS25, **_DIV, "LAYOUT_DIV_X": "1.0", "LAYOUT_DIV_Y": "1.0", "LAYOUT_DIV_D": "1.0"}, []),  # over-flatten reference
+    # --- eval-suite v2 axis A1 (flow/ergonomics) levers, added 2026-07-27 ---
+    # travel: our hands move ~50% further per second than human hands (flow
+    # `travel` shift +2.48 human-MADs). Penalize long jumps in short windows.
+    "tp1":         ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "1.0"}, []),
+    "tp2":         ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "2.0"}, []),
+    "tp4":         ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "4.0"}, []),
+    # crossover: enforce_color_separation moves EVERY wrong-side note, so we
+    # measure crossover 0.000 vs a human median of 0.218. "extreme" keeps the
+    # mild one-column crossovers the model chose; "off" is the ablation.
+    "xsep_ext":    ({**_DS25, "COLOR_SEP_MODE": "extreme"}, []),
+    "xsep_off":    ({**_DS25, "COLOR_SEP_MODE": "off"}, []),
+    # do the two levers compose, or fight?
+    "tp2_xsep":    ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "2.0", "COLOR_SEP_MODE": "extreme"}, []),
 }
 
 sys.path.insert(0, str(REPO / "scripts"))
@@ -214,7 +227,33 @@ def _score(zip_path: pathlib.Path, ref_times: np.ndarray, duration: float) -> di
             rec["viol"] = swing_violations(zip_path, "Expert")
         except Exception:  # noqa: BLE001
             pass
+    # eval-suite v2 axis A1 — flow/ergonomics (sequence-aware). Reported per map
+    # here; the ARM is ranked by the COHORT statistic (flow_gap), never by a mean
+    # of per-map distances — see docs/eval_suite_v2.md §A1 lesson 1.
+    try:
+        rec.update(_flow_metrics_for(zip_path))
+    except Exception:  # noqa: BLE001
+        pass
     return rec
+
+
+def _flow_metrics_for(zip_path: pathlib.Path) -> dict:
+    from beatsaber_automapper.data.beatmap import ColorNote
+    from beatsaber_automapper.evaluation import flow as _fl
+    from eval_contour_follow import _load_notes_with_direction
+    from feel_disc_poc import _zip_bpm
+
+    recs = _load_notes_with_direction(zip_path, "Expert")
+    if not recs:
+        return {}
+    notes = [ColorNote(beat=b, x=int(x), y=int(y), color=int(c), direction=int(d))
+             for (b, x, y, c, d) in recs]
+
+    class _BM:
+        color_notes = notes
+        bomb_notes: list = []
+
+    return dict(_fl.flow_metrics(_BM(), bpm=float(_zip_bpm(str(zip_path)) or 120.0)).metrics)
 
 
 def _load_human_baseline() -> None:
@@ -317,6 +356,32 @@ def sweep(arms: list[str], force: bool) -> None:
             return (fmt.format(s[k]) if s.get(k) is not None else "--").rjust(10)
         print(arm.ljust(12) + "".join(
             _f(k, "{:.0f}" if k in ("total_viol",) else "{:.2f}") for k, _h, _tk in cols))
+
+    # ---- v2 axis A1: flow/ergonomics, ranked by the COHORT statistic ----
+    try:
+        from beatsaber_automapper.evaluation import flow as _fl
+        fcols = _fl.SEQUENCE_KEYS
+        print("\n=== flow / ergonomics (v2 axis A1) — shift = median offset in human MADs ===")
+        print("rank arms by flow_gap (mean |shift|); spread <1 = under-dispersed vs human")
+        print("arm".ljust(12) + "".join(f"{k:>20s}" for k in fcols)
+              + "crossover".rjust(11) + "flow_gap".rjust(10) + "min_spr".rjust(9))
+        for arm in arms:
+            rows = [r for r in results[arm].values() if r]
+            cc = _fl.cohort_comparison(rows)
+            if "_summary" not in cc:
+                continue
+            cells = "".join(
+                f"{cc[k]['shift']:+9.2f}/{cc[k]['spread']:<10.2f}" if k in cc
+                else f"{'--':>20s}" for k in fcols)
+            xo = cc.get("crossover", {}).get("median")
+            s = cc["_summary"]
+            print(arm.ljust(12) + cells
+                  + (f"{xo:11.3f}" if xo is not None else f"{'--':>11s}")
+                  + f"{s['flow_gap']:10.2f}{s['min_spread']:9.2f}")
+        print(f"{'HUMAN':12s}" + "".join(f"{'+0.00/1.00':>20s}" for _ in fcols)
+              + f"{0.218:11.3f}{0.0:10.2f}{1.0:9.2f}")
+    except Exception as e:  # noqa: BLE001
+        print(f"(flow axis unavailable: {e})")
 
     out = CACHE / "leaderboard.json"
     out.write_text(json.dumps(summary, indent=2))

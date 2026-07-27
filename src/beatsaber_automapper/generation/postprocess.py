@@ -19,6 +19,7 @@ Pipeline order (each step depends on clean input from previous):
 from __future__ import annotations
 
 import logging
+import os
 import random
 from collections import Counter
 
@@ -241,7 +242,26 @@ def enforce_color_separation(
 
     Only moves notes that are on the "wrong" side and not at the same beat
     as another note of the opposite color in the target position.
+
+    Mode is selected by env ``COLOR_SEP_MODE`` (eval-suite v2 axis A1, 2026-07-27):
+
+      ``full``    (default, prior behaviour) — move every wrong-side note. This is
+                  why our maps measure ``crossover`` == 0.000 exactly, against a
+                  human corpus median of 0.218: human mappers cross hands over on
+                  ~22% of notes as a deliberate device, and we never do it at all.
+      ``extreme`` — only move notes that are *fully* on the wrong side (red at
+                  col 3, blue at col 0), leaving the mild one-column-over
+                  crossover the model chose. Human crossovers are typically mild
+                  rather than full-width, so this admits the human-like case while
+                  still preventing hand tangles.
+      ``off``     — no separation at all (ablation).
     """
+    mode = os.environ.get("COLOR_SEP_MODE", "full").lower()
+    if mode == "off":
+        return beatmap
+    red_wrong = 3 if mode == "extreme" else 2      # red moved when x >= this
+    blue_wrong = 0 if mode == "extreme" else 1     # blue moved when x <= this
+
     notes = beatmap.color_notes
     if len(notes) < 10:
         return beatmap
@@ -253,8 +273,8 @@ def enforce_color_separation(
 
     moved = 0
     for n in notes:
-        # Red in cols 2-3 → try to move to cols 0-1
-        if n.color == 0 and n.x >= 2:
+        # Red on the wrong side → try to move to cols 0-1
+        if n.color == 0 and n.x >= red_wrong:
             group = beat_groups[n.beat]
             occupied = {(m.x, m.y) for m in group if m is not n}
             # Try col 1, then col 0 (same row)
@@ -263,8 +283,8 @@ def enforce_color_separation(
                     n.x = target_col
                     moved += 1
                     break
-        # Blue in cols 0-1 → try to move to cols 2-3
-        elif n.color == 1 and n.x <= 1:
+        # Blue on the wrong side → try to move to cols 2-3
+        elif n.color == 1 and n.x <= blue_wrong:
             group = beat_groups[n.beat]
             occupied = {(m.x, m.y) for m in group if m is not n}
             for target_col in (2, 3):

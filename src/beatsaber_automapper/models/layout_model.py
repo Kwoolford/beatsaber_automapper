@@ -361,6 +361,16 @@ class LayoutPhraseModel(nn.Module):
         _ar_on = _ar_w > 0 and _ar_s > 0.0
         _ar_hist = {ROLE_X: [], ROLE_Y: [], ROLE_DIR: []}          # per-role recent token ids
 
+        # Travel penalty (eval-suite v2 axis A1, 2026-07-27). The flow metrics show
+        # our hands move ~50% further per second than human hands (travel shift
+        # +2.48 human-MADs). Penalize placing a note far from the SAME HAND's
+        # previous note, scaled by how little time there is to get there — which is
+        # exactly the quantity `flow.travel` measures (grid distance / second).
+        # Default 0.0 = OFF, prior behaviour unchanged.
+        _tp_s = float(os.environ.get("LAYOUT_TRAVEL_PENALTY", "0.0"))
+        _tp_on = _tp_s > 0.0
+        _last_pos: dict[int, tuple[int, int, int]] = {}   # hand -> (x_idx, y_idx, slot)
+
         def _div_counts_for(role: int):
             """(per-phrase used-token counts, penalty strength) for a penalized role."""
             if role == ROLE_X:   return _x_counts, _div_x
@@ -421,6 +431,19 @@ class LayoutPhraseModel(nn.Module):
                     for j in range(hi - lo):
                         pen[lo + j] = -strength * counts[j]
                     logits = logits + pen
+            # Travel penalty: discourage long hand jumps in short time windows.
+            # Penalty is proportional to grid distance from this hand's previous
+            # note and INVERSELY proportional to the slot gap, so a wide move is
+            # cheap when the hand has time and expensive when it does not.
+            if _tp_on and role in (ROLE_X, ROLE_Y) and kind == NOTE:
+                prev = _last_pos.get(hand)
+                if prev is not None:
+                    pj = prev[0] if role == ROLE_X else prev[1]
+                    gap = max(slot - prev[2], 1)
+                    pen = torch.zeros_like(logits)
+                    for j in range(hi - lo):
+                        pen[lo + j] = -_tp_s * abs(j - pj) / gap
+                    logits = logits + pen
             # Windowed adjacency anti-repeat: penalize token ids seen in the last
             # _ar_w emissions for this role (weighted by in-window multiplicity).
             if _ar_on and role in _ar_hist:
@@ -457,8 +480,10 @@ class LayoutPhraseModel(nn.Module):
 
         for slot_in_phrase, hand_idx in onset_schedule:
             kind_tok = _step(ROLE_KIND, slot_in_phrase, hand_idx, kind=None)
-            _step(ROLE_X, slot_in_phrase, hand_idx, kind=kind_tok)
-            _step(ROLE_Y, slot_in_phrase, hand_idx, kind=kind_tok)
+            x_tok = _step(ROLE_X, slot_in_phrase, hand_idx, kind=kind_tok)
+            y_tok = _step(ROLE_Y, slot_in_phrase, hand_idx, kind=kind_tok)
+            if _tp_on and kind_tok == NOTE:
+                _last_pos[hand_idx] = (x_tok - X_BASE, y_tok - Y_BASE, slot_in_phrase)
 
             if kind_tok == BOMB:
                 continue

@@ -50,6 +50,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from beatsaber_automapper.data.beatmap import ColorNote  # noqa: E402
 from beatsaber_automapper.evaluation import flow as fl  # noqa: E402
+from beatsaber_automapper.evaluation import rhythm as rh  # noqa: E402
 from beatsaber_automapper.evaluation import swing_sim as ss  # noqa: E402
 from map_metrics import HUMAN_TARGET, map_metrics_from_seq  # noqa: E402
 
@@ -66,6 +67,11 @@ AXES = ["row_conc", "col_conc", "grid_coverage", "dir_entropy", "monotony",
 # are NOT invariant to shuffling the notes. `flow_dist` is the composite.
 FLOW_AXES = ["angle_change", "angle_harsh_frac", "travel", "crossover",
              "handedness", "ebpm_burst", "flow_dist"]
+
+# v2 axis A2 (evaluation/rhythm.py) — computed over note TIMES, so the only
+# controls that can move these are the timing_* ones.
+RHYTHM_AXES = ["pulse_stability", "ioi_cond_entropy", "ioi_switch_rate",
+               "dominant_share", "ioi_entropy", "offgrid_frac"]
 
 # The five metrics eval_sweep.py actually composites into `human_dist` — the
 # scalar the sweep leaderboard ranks arms by. Reproduced here so the audit can
@@ -193,11 +199,36 @@ def make_zigzag(notes: list[ColorNote], rng: random.Random) -> list[ColorNote]:
     return out
 
 
+def make_timing_random(notes: list[ColorNote], rng: random.Random) -> list[ColorNote]:
+    """Human patterns, note TIMES randomised over the same span.
+
+    Every control above preserves the human note times, so no rhythm metric can
+    possibly catch them — rhythm is invisible to attribute-shuffling. Axis A2
+    needs a control that destroys timing and nothing else.
+    """
+    if not notes:
+        return []
+    lo, hi = notes[0].beat, notes[-1].beat
+    beats = sorted(rng.uniform(lo, hi) for _ in notes)
+    # keep the 1/16 grid so this tests RHYTHM, not off-grid placement
+    beats = [round(b * 16.0) / 16.0 for b in beats]
+    return [ColorNote(beat=b, x=n.x, y=n.y, color=n.color, direction=n.direction)
+            for b, n in zip(beats, notes)]
+
+
+def make_timing_jitter(notes: list[ColorNote], rng: random.Random) -> list[ColorNote]:
+    """Human map nudged OFF the beat grid — tests the offgrid guard."""
+    return [ColorNote(beat=n.beat + rng.uniform(-0.04, 0.04), x=n.x, y=n.y,
+                      color=n.color, direction=n.direction) for n in notes]
+
+
 CONTROLS = {
     "random": make_random,
     "shuffled": make_shuffled,
     "metronome": make_metronome,
     "zigzag": make_zigzag,
+    "timing_random": make_timing_random,
+    "timing_jitter": make_timing_jitter,
 }
 
 
@@ -220,6 +251,10 @@ def score(notes: list[ColorNote], bpm: float) -> dict:
         frep = fl.flow_metrics(bm, bpm=bpm)
         rec.update(frep.metrics)
         rec["flow_dist"] = frep.flow_dist
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        rec.update(rh.rhythm_metrics(bm).metrics)
     except Exception:  # noqa: BLE001
         pass
     return rec
@@ -269,7 +304,8 @@ def main() -> None:
         vals = [r[k] for r in rows if r.get(k) is not None]
         return float(np.mean(vals)) if vals else float("nan")
 
-    order = ["human", "prod(ours)", "random", "shuffled", "metronome", "zigzag"]
+    order = ["human", "prod(ours)", "random", "shuffled", "metronome", "zigzag",
+             "timing_random", "timing_jitter"]
     order = [o for o in order if cohorts.get(o)]
 
     print(f"=== EVAL-SUITE AUDIT — {used} human maps + degenerate controls ===\n")
@@ -315,6 +351,22 @@ def main() -> None:
             s = cc["_summary"]
             print(f"{name:14s}{cells}{s['flow_gap']:11.2f}{s['min_spread']:12.2f}")
 
+    # ---- v2 axis A2: rhythm (only the timing_* controls can move these) ----
+    print("\n\n=== A2 RHYTHM cohort comparison vs the human DISTRIBUTION ===")
+    rhdr = (f"{'cohort':14s}" + "".join(f"{k:>22s}" for k in rh.SEQUENCE_KEYS)
+            + f"{'rhythm_gap':>13s}{'min_spread':>12s}")
+    print(rhdr)
+    print("-" * len(rhdr))
+    for name in order:
+        cc = rh.cohort_comparison(cohorts[name])
+        if "_summary" not in cc:
+            continue
+        cells = "".join(
+            f"{cc[k]['shift']:+10.2f}/{cc[k]['spread']:<11.2f}" if k in cc
+            else f"{'--':>22s}" for k in rh.SEQUENCE_KEYS)
+        s = cc["_summary"]
+        print(f"{name:14s}{cells}{s['rhythm_gap']:13.2f}{s['min_spread']:12.2f}")
+
     # ---- what does the sweep's OWN ranking scalar say about each control? ----
     print("\n\n=== eval_sweep's ranking metric (h_dist, lower = 'more human') ===")
     print("this is the number the sweep leaderboard picks winning arms by\n")
@@ -328,14 +380,25 @@ def main() -> None:
 
     # ---- the actual audit: does each metric rank human above each control? ----
     print("\n\n=== BLIND SPOTS — metrics that FAIL to rank human above a control ===")
-    print("(a metric only earns its place if human beats every degenerate control)\n")
+    print("(a metric earns its place if human beats the controls it is RESPONSIBLE for)")
+    print("Responsibility is per axis, because each control destroys one thing:")
+    print("  attribute controls (random/shuffled/metronome/zigzag) -> layout + flow axes")
+    print("  timing controls    (timing_random/timing_jitter)      -> rhythm axis (A2)")
+    print("A rhythm metric scoring `shuffled` == human is CORRECT, not blind: that")
+    print("control preserves every note time. Only the mismatches below are real.\n")
+    RESPONSIBLE = {
+        **{k: {"random", "shuffled", "metronome", "zigzag"} for k in AXES + ["viol"] + FLOW_AXES},
+        **{k: {"timing_random", "timing_jitter", "metronome"} for k in RHYTHM_AXES},
+    }
     hum = cohorts["human"]
     blind: dict[str, list[str]] = {}
-    for k in AXES + ["viol"] + FLOW_AXES:
+    for k in AXES + ["viol"] + FLOW_AXES + RHYTHM_AXES:
         h = mean(hum, k)
         for name in order:
             if name in ("human", "prod(ours)"):
                 continue
+            if name not in RESPONSIBLE.get(k, set()):
+                continue  # this control does not attack what this metric measures
             c = mean(cohorts[name], k)
             if np.isnan(h) or np.isnan(c):
                 continue
@@ -353,8 +416,8 @@ def main() -> None:
 
     caught_by = {name: [] for name in order if name not in ("human", "prod(ours)")}
     for name in caught_by:
-        for k in AXES + ["viol"] + FLOW_AXES:
-            if name not in blind.get(k, []):
+        for k in AXES + ["viol"] + FLOW_AXES + RHYTHM_AXES:
+            if name in RESPONSIBLE.get(k, set()) and name not in blind.get(k, []):
                 caught_by[name].append(k)
     print("\n=== per-control: which metrics catch it? ===")
     for name, ks in caught_by.items():
