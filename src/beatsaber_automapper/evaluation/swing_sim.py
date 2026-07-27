@@ -94,6 +94,13 @@ class Swing:
     is_reset: bool = False        # parity did NOT alternate from the previous swing
     reset_kind: str = ""          # "" | "bomb" | "intentional" | "violation"
     note_count: int = 1
+    # Grid cell of the first/last note of the swing. Parity does not need these,
+    # but the flow/ergonomics metrics (evaluation/flow.py) do — hand travel and
+    # crossovers are positional, not directional.
+    x: int = 0
+    y: int = 0
+    end_x: int = 0
+    end_y: int = 0
 
 
 @dataclass(slots=True)
@@ -190,6 +197,10 @@ def _swing_from_group(group: list, color: int) -> Swing:
         direction=direction,
         flexible=flexible,
         note_count=len(group),
+        x=group[0].x,
+        y=group[0].y,
+        end_x=group[-1].x,
+        end_y=group[-1].y,
     )
 
 

@@ -1,10 +1,70 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-26 (late-collapse CLOSED at 24 songs; STRATEGIC PIVOT to eval-suite v2)
+**Last updated:** 2026-07-27 (eval-suite v2 axis A1 flow/ergonomics BUILT — DoD met)
 
-## ⏭️ NEXT SESSION — pick up here (written 2026-07-26)
+## ⏭️ NEXT SESSION — pick up here (written 2026-07-27)
 
-**State:** no jobs running, GPU idle. Nothing to resume. All code committed + pushed.
+**State:** no jobs running, GPU idle (this axis is CPU-only). Nothing to resume. Committed + pushed.
+
+## 2026-07-27 — ★ A1 FLOW/ERGONOMICS BUILT, DoD MET ★ (first metric to catch all four controls)
+
+Built axis A1 of the v2 eval suite (`docs/eval_suite_v2.md` has the full write-up):
+`src/beatsaber_automapper/evaluation/flow.py` + `scripts/calibrate_flow.py` +
+`tests/test_flow.py` (10 tests). `swing_sim` says "parity-legal"; flow says "comfortable".
+
+**Control-battery result (the DoD), ranked by `flow_gap` — human < prod < every degenerate:**
+
+| cohort | flow_gap | min_spread |
+|---|---|---|
+| human | **0.21** | 0.52 |
+| prod (ours) | **0.89** | 0.44 |
+| shuffled | 1.54 | 0.51 |
+| zigzag | 2.57 | 0.00 |
+| metronome | 3.21 | 0.00 |
+| random | 11.68 | 0.19 |
+
+**First metric in the suite to catch all four controls, and the first to rank our maps BELOW
+human** (h_dist still ranks prod 0.038 *ahead of* human 0.060 — that saturation is unchanged
+and is why A2/A3 still matter).
+
+**Two design lessons — read these before building A2/A3:**
+1. **Rank generators by cohort `flow_gap`, NOT per-map `flow_dist`.** The first version scored
+   per-map distance-to-human-median and our maps came out at 1.37 vs human 1.54 — "more human
+   than human", the exact h_dist failure reproduced in a brand-new metric. Cause: a
+   mode-collapsed cohort sits *nearer the median* than typical human maps do. Fix =
+   `flow.cohort_comparison()`, which reports per metric a `shift` (median offset in human MADs)
+   AND a `spread` (cohort MAD / human MAD). Mode collapse is invisible to shift, obvious in
+   spread. **Any future axis must be scored this way.**
+2. **Order-invariant terms dilute a sequence-aware composite.** `crossover`/`handedness` are
+   unchanged by the `shuffled` control by construction; including them in the composite weakened
+   the very detection the axis exists for. Only `flow.SEQUENCE_KEYS` enter `flow_gap`.
+
+**Real quality gaps in our production maps that the old scorecard could not see:**
+- **`travel` +2.48 human-MADs** — our hands move ~50% further per second than human hands
+  (6.0 vs 4.0/s). Most actionable flow defect. Do NOT act on it yet (see "don't tune blind").
+- **`crossover` 0.000 vs human 0.218** — `enforce_color_separation` in the postprocess forces
+  red-left/blue-right, so our maps *never* cross over; humans do on ~22% of notes.
+- **`angle_harsh_frac` spread 0.44** — under-dispersed; uniformly smooth where humans vary.
+
+**Next tasks (highest-value first) — `docs/eval_suite_v2.md` §4:**
+1. **A2 — rhythm / beat-grid sanity.** Are notes on clean subdivisions (1/4, 1/8, 1/12, 1/16),
+   consistent within a phrase? Cheap, map-only, no audio. Must pass the control battery and be
+   scored via `cohort_comparison`-style shift/spread.
+2. **A3 — pattern-idiom vocabulary.** Mine the human corpus for idiom n-grams over
+   (Δposition, Δdirection, Δtime); score what fraction of a map's transitions are human idioms.
+   **This is the axis that makes Kyle's non-ML mapper buildable** — the idiom inventory is that
+   mapper's building blocks.
+3. **Consolidate the three parallel scoring systems** (doc §1 Finding 4).
+4. **Only after A2+A3:** act on the `travel`/`crossover` gaps above. Fixing them now would be
+   tuning against a single axis — the same mistake that saturated h_dist.
+
+**Landmines (in addition to the ones below):**
+- `flow_dist` (per-map) is a sanity/outlier check ONLY. `flow_gap` (cohort) is the ranking stat.
+- The flow reference must stay DISJOINT from the cohort it judges: `calibrate_flow.py --skip 32`
+  skips the head of the same seed-0 shuffle `audit_eval_suite.py` draws its human cohort from.
+  Re-running calibration without `--skip` silently makes the human score in-sample flattery.
+- `swing_sim.Swing` gained `x/y/end_x/end_y` (additive, defaults) because flow needs positions;
+  `_swing_ebpm_p95` is swings-per-BEAT (tempo-blind) — flow multiplies by bpm.
 
 **★ KYLE'S STRATEGIC REDIRECT THIS SESSION (supersedes the old ship-it/step-back fork) ★**
 Asked whether to ship / try the diversity-reg fine-tune / step back, Kyle chose none of them:

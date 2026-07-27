@@ -49,6 +49,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 sys.path.insert(0, str(REPO / "src"))
 
 from beatsaber_automapper.data.beatmap import ColorNote  # noqa: E402
+from beatsaber_automapper.evaluation import flow as fl  # noqa: E402
 from beatsaber_automapper.evaluation import swing_sim as ss  # noqa: E402
 from map_metrics import HUMAN_TARGET, map_metrics_from_seq  # noqa: E402
 
@@ -60,6 +61,11 @@ CACHE = REPO / "outputs" / "eval_sweep_cache"
 # (which is exactly the assumption the `random` control is designed to break).
 AXES = ["row_conc", "col_conc", "grid_coverage", "dir_entropy", "monotony",
         "pattern_repeat", "nps"]
+
+# v2 axis A1 (evaluation/flow.py) — sequence-aware, so unlike the AXES above these
+# are NOT invariant to shuffling the notes. `flow_dist` is the composite.
+FLOW_AXES = ["angle_change", "angle_harsh_frac", "travel", "crossover",
+             "handedness", "ebpm_burst", "flow_dist"]
 
 # The five metrics eval_sweep.py actually composites into `human_dist` — the
 # scalar the sweep leaderboard ranks arms by. Reproduced here so the audit can
@@ -133,6 +139,22 @@ def _load_human(zip_path: pathlib.Path) -> tuple[list[ColorNote], float] | None:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _load_generated(zip_path: pathlib.Path) -> tuple[list[ColorNote], float] | None:
+    """Notes + bpm from one of OUR generated map zips."""
+    sys.path.insert(0, str(REPO / "scripts"))
+    from eval_contour_follow import _load_notes_with_direction  # noqa: PLC0415
+    from feel_disc_poc import _zip_bpm  # noqa: PLC0415
+    try:
+        recs = _load_notes_with_direction(zip_path, "Expert")
+    except Exception:  # noqa: BLE001
+        return None
+    if not recs:
+        return None
+    notes = [ColorNote(beat=b, x=int(x), y=int(y), color=int(c), direction=int(d))
+             for (b, x, y, c, d) in recs]
+    return notes, float(_zip_bpm(str(zip_path)) or 120.0)
+
+
 # --------------------------------------------------------------------------
 # degenerate controls — each keeps the human note TIMES, varies what's placed
 # --------------------------------------------------------------------------
@@ -189,11 +211,17 @@ class _BM:
 
 def score(notes: list[ColorNote], bpm: float) -> dict:
     rec = map_metrics_from_seq(_seq_from_notes(notes, bpm))
+    bm = _BM(sorted(notes, key=lambda n: n.beat))
     try:
-        card = ss.simulate(_BM(sorted(notes, key=lambda n: n.beat)), bpm=bpm)
-        rec["viol"] = int(card.violations)
+        rec["viol"] = int(ss.simulate(bm, bpm=bpm).violations)
     except Exception:  # noqa: BLE001
         rec["viol"] = None
+    try:
+        frep = fl.flow_metrics(bm, bpm=bpm)
+        rec.update(frep.metrics)
+        rec["flow_dist"] = frep.flow_dist
+    except Exception:  # noqa: BLE001
+        pass
     return rec
 
 
@@ -225,20 +253,15 @@ def main() -> None:
             cohorts[name].append(score(fn(notes, rng), bpm))
         used += 1
 
-    # our production maps, for reference
+    # our production maps, for reference — scored through the same `score()` path
+    # as every other cohort so the comparison is apples-to-apples
     prod = []
     for m in sorted(glob.glob(str(CACHE / "prod__*.zip")))[: a.n]:
-        try:
-            from map_metrics import map_metrics
-            rec = map_metrics(m, "Expert")
-            from eval_sweep import swing_violations  # noqa: PLC0415
-            try:
-                rec["viol"] = swing_violations(pathlib.Path(m), "Expert")
-            except Exception:  # noqa: BLE001
-                rec["viol"] = None
-            prod.append(rec)
-        except Exception:  # noqa: BLE001
-            pass
+        loaded = _load_generated(pathlib.Path(m))
+        if loaded is None:
+            continue
+        notes, bpm = loaded
+        prod.append(score(notes, bpm))
     if prod:
         cohorts["prod(ours)"] = prod
 
@@ -261,6 +284,37 @@ def main() -> None:
     print(f"\n{'(human target)':14s}" +
           "".join(f"{HUMAN_TARGET.get(k) or float('nan'):15.3f}" for k in AXES))
 
+    # ---- v2 axis A1: flow / ergonomics (sequence-aware) ----
+    if any(cohorts[n] and cohorts[n][0].get("flow_dist") is not None for n in order):
+        print("\n\n=== v2 axis A1 — FLOW / ERGONOMICS (sequence-aware) ===")
+        print("flow_dist = mean |robust z| vs the human corpus; LOWER = more human\n")
+        fhdr = f"{'cohort':14s}" + "".join(f"{k:>18s}" for k in FLOW_AXES)
+        print(fhdr)
+        print("-" * len(fhdr))
+        for name in order:
+            rows = cohorts[name]
+            print(f"{name:14s}" + "".join(f"{mean(rows, k):18.3f}" for k in FLOW_AXES))
+
+    # ---- cohort-level distribution comparison (the mode-collapse-proof view) ----
+    if cohorts.get("prod(ours)"):
+        print("\n\n=== A1 cohort comparison vs the human DISTRIBUTION ===")
+        print("shift  = (cohort median - human median) / human MAD  (0 = human-like)")
+        print("spread = cohort MAD / human MAD  (<1 = under-dispersed / mode-collapsed)\n")
+        chdr = (f"{'cohort':14s}" +
+                "".join(f"{k:>22s}" for k in fl.SEQUENCE_KEYS) +
+                f"{'flow_gap':>11s}{'min_spread':>12s}")
+        print(chdr)
+        print("-" * len(chdr))
+        for name in order:
+            cc = fl.cohort_comparison(cohorts[name])
+            if "_summary" not in cc:
+                continue
+            cells = "".join(
+                f"{cc[k]['shift']:+10.2f}/{cc[k]['spread']:<11.2f}" if k in cc
+                else f"{'--':>22s}" for k in fl.SEQUENCE_KEYS)
+            s = cc["_summary"]
+            print(f"{name:14s}{cells}{s['flow_gap']:11.2f}{s['min_spread']:12.2f}")
+
     # ---- what does the sweep's OWN ranking scalar say about each control? ----
     print("\n\n=== eval_sweep's ranking metric (h_dist, lower = 'more human') ===")
     print("this is the number the sweep leaderboard picks winning arms by\n")
@@ -277,7 +331,7 @@ def main() -> None:
     print("(a metric only earns its place if human beats every degenerate control)\n")
     hum = cohorts["human"]
     blind: dict[str, list[str]] = {}
-    for k in AXES + ["viol"]:
+    for k in AXES + ["viol"] + FLOW_AXES:
         h = mean(hum, k)
         for name in order:
             if name in ("human", "prod(ours)"):
@@ -299,7 +353,7 @@ def main() -> None:
 
     caught_by = {name: [] for name in order if name not in ("human", "prod(ours)")}
     for name in caught_by:
-        for k in AXES + ["viol"]:
+        for k in AXES + ["viol"] + FLOW_AXES:
             if name not in blind.get(k, []):
                 caught_by[name].append(k)
     print("\n=== per-control: which metrics catch it? ===")

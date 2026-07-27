@@ -120,14 +120,62 @@ and the superseded one is still the package's public API.
 Ordered by expected value. Axes 1–3 are the ones that would actually let the suite replace the
 human judge; they are all sequence-aware, and all four controls fail them by construction.
 
-### A1 — Flow / ergonomics (beyond legality) — **highest value**
-`swing_sim` answers *"is this parity-legal?"*. It does not answer *"is this comfortable?"* —
-the difference between a map that passes and a map that is fun. Measure per hand: angle
-continuity between consecutive swings, wrist travel distance, hand crossovers, inward-facing
-awkward pairs, and swing-speed (EBPM) stability. Human maps have a tight, characteristic
-distribution here; `shuffled` will be wildly outside it.
-*Prescriptive form:* "consecutive swings of one hand differ by ≤ X°, except at deliberate
-resets; hands do not cross the centre line more than Y times per phrase."
+### A1 — Flow / ergonomics (beyond legality) — ✅ **BUILT 2026-07-27**
+`src/beatsaber_automapper/evaluation/flow.py`, calibrated by `scripts/calibrate_flow.py`
+(200 human maps, median/MAD reference at `outputs/flow_human_reference.json`), tested in
+`tests/test_flow.py` (10 tests).
+
+`swing_sim` answers *"is this parity-legal?"*. Flow answers *"is this comfortable?"*. Metrics,
+all computed from *consecutive* swings so none can be satisfied by matching marginals:
+`angle_change` (wrist rotation between swings, in the parity-aware frame — a clean down/up
+stream is 0°), `angle_harsh_frac` (fraction of transitions above 90°), `travel` (grid distance
+per second between swings), `ebpm_burst` (95th-pct burst rate, converted to **wall-clock**
+swings/minute — `swing_sim` reports it per beat, which is tempo-blind), plus `crossover` and
+`handedness` as order-invariant guards.
+
+**Human reference (200 maps):** `angle_change` 19.1° (MAD 4.5), `angle_harsh_frac` 0.004,
+`travel` 4.0/s, `crossover` 0.218, `handedness` 0.012, `ebpm_burst` 250/min.
+
+**DoD — MET.** Control battery (`--n 12`, reference held disjoint from the audit cohort via
+`calibrate_flow.py --skip 32`), ranked by `flow_gap`:
+
+| cohort | flow_gap | min_spread |
+|---|---|---|
+| human | **0.21** | 0.52 |
+| prod (ours) | **0.89** | 0.44 |
+| shuffled | 1.54 | 0.51 |
+| zigzag | 2.57 | 0.00 |
+| metronome | 3.21 | 0.00 |
+| random | 11.68 | 0.19 |
+
+`flow_dist`/`flow_gap` is the **first metric in the suite to catch all four controls**, and the
+first to rank our maps *below* human rather than above.
+
+**Two design lessons, both learned the hard way here:**
+
+1. *A per-map distance to the human median re-creates the h_dist failure.* The first version
+   scored `flow_dist` per map; our maps came out at 1.37 vs human 1.54 — "more human than
+   human" again — because a mode-collapsed cohort sits nearer the median than typical human
+   maps do. The fix is `flow.cohort_comparison()`: compare **distributions**, reporting per
+   metric a `shift` (median offset in human MADs) *and* a `spread` (cohort MAD / human MAD).
+   Mode collapse is invisible to shift and obvious in spread. **Rank generators by `flow_gap`,
+   not by per-map `flow_dist`.**
+2. *Order-invariant terms dilute a sequence-aware composite.* `crossover` and `handedness` are
+   unchanged by the `shuffled` control by construction, so including them in the composite
+   weakened exactly the detection this axis exists for. Only `SEQUENCE_KEYS` enter `flow_gap`.
+
+**Real quality gaps this exposed in our production maps** (invisible to the old scorecard):
+- **`travel` shift +2.48 human-MADs** — our hands move ~50% further per second than human
+  hands (6.0 vs 4.0). The single most actionable flow defect.
+- **`crossover` 0.000 vs human 0.218** — `enforce_color_separation` in the postprocess forces
+  red-left/blue-right, so our maps *never* cross over; human mappers do on ~22% of notes.
+- **`angle_harsh_frac` spread 0.44** — under-dispersed; our maps are uniformly smooth where
+  human maps vary.
+
+*Prescriptive form:* successive swings of a hand continue the current swing plane (median
+rotation ~19°, harsh >90° transitions on <1% of transitions); a hand travels ~4 grid-units/sec
+between swings; hands stay on their own side except for deliberate crossovers on ~20% of notes;
+burst rate stays near ~250 swings/min.
 
 ### A2 — Rhythmic placement / beat-grid sanity
 Do notes sit on musically meaningful subdivisions (1/4, 1/8, 1/12, 1/16) of the beat, and does
@@ -172,7 +220,7 @@ Stop using them as the objective; retire `h_dist` as the ranking scalar once A1�
 ## 4. Build order
 
 1. `audit_eval_suite.py` — **DONE** (2026-07-26). The gate every new metric must pass.
-2. **A1 flow/ergonomics** — biggest single gain; extends the already-validated `swing_sim`.
+2. **A1 flow/ergonomics** — **DONE** (2026-07-27). DoD met; see above.
 3. **A2 rhythm/grid** — cheap, map-only, no audio.
 4. **A3 idiom vocabulary** — needs a corpus pass over `data/raw`; unlocks the non-ML mapper.
 5. **Consolidate** the three scoring systems into one module + one report; delete or clearly
