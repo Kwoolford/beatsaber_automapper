@@ -44,6 +44,63 @@ hand a *contiguous* block overshot run length to 6.7 (human 1.36) and read as on
 
 ---
 
+# ★★★ KYLE'S MANUAL REVIEW (2026-07-27) — THE SUITE IS STILL WRONG. STOP TUNING LEVERS. ★★★
+
+Kyle played `outputs/review_2026-07-27/` (prod / ho03 / ho05). Verdict: **all of them are busy,
+unmusical and not playable as Expert.** My suite had just called ho05's rhythm "essentially
+solved". **That disagreement is the finding** — it is exactly what the v2 suite was built to
+surface, and it means the suite is still measuring the wrong things.
+
+His observations, each now confirmed with numbers:
+
+| complaint | measurement | human | prod | ho05 |
+|---|---|---|---|---|
+| "obsessed with 45-degree notes" | diagonal share | **0.370** | 0.513 | **0.589** |
+| | up/down share | **0.562** | 0.468 | 0.381 |
+| "this is Expert, not Expert+" | NPS | **4.46** | **6.18** | 6.13 |
+| (never noted, but true) | dot-note share | 0.042 | 0.001 | 0.000 |
+| "2 notes at the 15s drop, tons before" | notes/sec intro → drop | — | **5-7 → 4-6** | 6-9 → 4-5 |
+
+**1. We are a difficulty tier too dense.** 6.18 NPS vs human Expert 4.46. Nothing in the scorecard
+gates this — `nps` sits in `HUMAN_TARGET` but enters no gap composite.
+
+**2. We invert the human direction idiom.** Humans lead up/down (0.562) and use diagonals as
+*deviation* (0.370). We do the opposite. **Worse: our own "diversity" optimisation caused this** —
+the anti-repeat lever promoted 2026-07-23 and every `dir_entropy` push rewarded spreading across
+all 9 directions, which means diagonals. Kyle's original "for-sport diagonals" complaint was never
+fixed; **we made it worse and called it progress.**
+
+**3. The drop is not built into.** At the 15s drop RMS energy roughly DOUBLES (0.20 → 0.78) and our
+note density *falls* (5-7/s → 4-6/s). `section_gate=loud_only` only stopped us silencing drops; it
+never made us build. `density_corr` (0.40, "passing") is a whole-song rank correlation and is blind
+to the single most musically important moment in the song.
+
+**4. Stage-1 cannot hear the guitar.** The production beat model (`version_4`) has exactly two
+input projections: `drum_proj` (MERT of the Demucs drum stem) and `mix_proj` (MERT of the full
+mix). **No `instr_proj`.** For a song driven by a heavy guitar, that instrument is smeared inside
+the undifferentiated mix channel. The per-instrument features (kick/snare/hat/bass/vocals/lead)
+exist and were built in TASK 2, but were shelved because they did not move `val_f1` — a yardstick
+we have since established is wrong. Kyle's hypothesis that "our beat onset is not distinguishing
+between instruments" is **correct**.
+
+**⇒ NEW PRIORITIES, replacing the lever sweeps:**
+1. **Difficulty calibration.** Add an NPS/difficulty axis to the scorecard with the human Expert
+   distribution as the target, and cut generated density to match. This is the cheapest fix and
+   the most legible to a player.
+2. **Direction idiom.** Add an up/down-vs-diagonal balance metric; **stop rewarding raw
+   `dir_entropy`**, which is what drove the diagonal soup. Consider reverting or re-tuning the
+   anti-repeat default.
+3. **Drop/section dynamics.** A metric that weights section transitions rather than whole-song
+   rank correlation, then make density actually build into high-energy sections.
+4. **Instrument-aware Stage-1** — revive `instr_proj` (TASK 2), judged on the v2 suite and Kyle's
+   ear rather than `val_f1`. This is the expensive one and the likely root fix for "no flow".
+
+**HAND-OFFSET WORK IS PARKED, NOT PROMOTED.** It genuinely fixed the rhythm *statistics* while
+making the map worse to play — a clean demonstration that matching a distribution is not the same
+as being musical. Keep it default-OFF; revisit only after 1-3 above.
+
+---
+
 # ★★ HAND OFFSET — THE RHYTHM AXIS IS ESSENTIALLY SOLVED (and A2 + A6 are ONE defect) ★★
 
 **Found by looking, not by theorising.** Dumped `beat_probs` next to the human note times on the
