@@ -102,9 +102,21 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "il5":         ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.5"}, []),
     "il7":         ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.7"}, []),
     "il9":         ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.9"}, []),
+    # --- eval-suite v2 axis A3 (idiom) lever, added 2026-07-27 ---
+    # Boost cut directions that COMPLETE a known human idiom given this hand's
+    # previous note. Single-song probe at strength 2.0: coverage 0.759 -> 0.946
+    # (human 0.919), top50 0.337 -> 0.398 (human 0.386), viol still 0, travel
+    # untouched. Slight overshoot past human suggests ~1.0-1.5 is the sweet spot.
+    "ib1":         ({**_DS25, "LAYOUT_IDIOM_BONUS": "1.0"}, []),
+    "ib2":         ({**_DS25, "LAYOUT_IDIOM_BONUS": "2.0"}, []),
+    "ib3":         ({**_DS25, "LAYOUT_IDIOM_BONUS": "3.0"}, []),
     # rhythm lever + the best-guess flow levers, to check the axes do not fight
     "il7_tp1_xsep": ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.7",
                       "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
+    # everything that looked good, together — the candidate next production config
+    "combo":       ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.7",
+                     "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme",
+                     "LAYOUT_IDIOM_BONUS": "1.5"}, []),
 }
 
 sys.path.insert(0, str(REPO / "scripts"))

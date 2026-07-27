@@ -371,6 +371,27 @@ class LayoutPhraseModel(nn.Module):
         _tp_on = _tp_s > 0.0
         _last_pos: dict[int, tuple[int, int, int]] = {}   # hand -> (x_idx, y_idx, slot)
 
+        # Idiom bonus (eval-suite v2 axis A3, 2026-07-27). Human mapping draws on a
+        # small vocabulary: 130k human transitions collapse to 2510 idioms, the top
+        # 500 covering ~90% of everything human mappers do. Our maps use that
+        # vocabulary measurably less (coverage shift -2.73 human-MADs). At the DIR
+        # step we know this hand's previous note, so we know which cut directions
+        # would COMPLETE a known human idiom — boost those. A bonus, never a hard
+        # constraint: humans use out-of-vocabulary transitions ~8% of the time, and
+        # forcing coverage to 1.0 would be its own non-human artifact.
+        _ib_s = float(os.environ.get("LAYOUT_IDIOM_BONUS", "0.0"))
+        _ib_on = _ib_s > 0.0
+        _ib_vocab: set = set()
+        _last_note: dict[int, tuple[int, int, int, int]] = {}  # hand->(x,y,dir,slot)
+        if _ib_on:
+            try:
+                from beatsaber_automapper.evaluation import idiom as _idm
+                _, _ranked, _ = _idm.load_vocab()
+                _ib_vocab = set(_ranked[: _idm.TOP_K])
+                _ib_dt_class = _idm.dt_class
+            except Exception:  # noqa: BLE001
+                _ib_on = False
+
         def _div_counts_for(role: int):
             """(per-phrase used-token counts, penalty strength) for a penalized role."""
             if role == ROLE_X:   return _x_counts, _div_x
@@ -444,6 +465,21 @@ class LayoutPhraseModel(nn.Module):
                     for j in range(hi - lo):
                         pen[lo + j] = -_tp_s * abs(j - pj) / gap
                     logits = logits + pen
+            # Idiom bonus: at DIR we know (dx, dy, dir_from, dt_class), so each
+            # candidate direction either completes a known human idiom or does not.
+            if _ib_on and role == ROLE_DIR and kind == NOTE:
+                prev = _last_note.get(hand)
+                cur = _last_pos.get(hand)
+                if prev is not None and cur is not None:
+                    dx, dy = cur[0] - prev[0], cur[1] - prev[1]
+                    dt_beats = max(cur[2] - prev[3], 0) / 4.0   # BEAT_SUBDIV = 4
+                    if 0.0 < dt_beats <= 2.0:
+                        cls = _ib_dt_class(dt_beats)
+                        bon = torch.zeros_like(logits)
+                        for j in range(hi - lo):
+                            if (dx, dy, prev[2], j, cls) in _ib_vocab:
+                                bon[lo + j] = _ib_s
+                        logits = logits + bon
             # Windowed adjacency anti-repeat: penalize token ids seen in the last
             # _ar_w emissions for this role (weighted by in-window multiplicity).
             if _ar_on and role in _ar_hist:
@@ -482,7 +518,7 @@ class LayoutPhraseModel(nn.Module):
             kind_tok = _step(ROLE_KIND, slot_in_phrase, hand_idx, kind=None)
             x_tok = _step(ROLE_X, slot_in_phrase, hand_idx, kind=kind_tok)
             y_tok = _step(ROLE_Y, slot_in_phrase, hand_idx, kind=kind_tok)
-            if _tp_on and kind_tok == NOTE:
+            if (_tp_on or _ib_on) and kind_tok == NOTE:
                 _last_pos[hand_idx] = (x_tok - X_BASE, y_tok - Y_BASE, slot_in_phrase)
 
             if kind_tok == BOMB:
@@ -490,7 +526,11 @@ class LayoutPhraseModel(nn.Module):
             if kind_tok == CHAIN_TAIL:
                 _step(ROLE_FIELD_D, slot_in_phrase, hand_idx, kind=kind_tok)
                 continue
-            _step(ROLE_DIR,     slot_in_phrase, hand_idx, kind=kind_tok)
+            dir_tok = _step(ROLE_DIR, slot_in_phrase, hand_idx, kind=kind_tok)
+            if _ib_on and kind_tok == NOTE:
+                # this note becomes the idiom's "from" end for the next one
+                _last_note[hand_idx] = (x_tok - X_BASE, y_tok - Y_BASE,
+                                        dir_tok - DIR_BASE, slot_in_phrase)
             _step(ROLE_FIELD_D, slot_in_phrase, hand_idx, kind=kind_tok)
 
         if (_div_on or os.environ.get("LAYOUT_DIAG") == "1") and _diag["n"]:
