@@ -67,16 +67,42 @@ P(1/8→1/8) 0.714). Three formulations, all failed, each for a different and in
    window's quota.
 3. **The budget guard re-creates regularity** by forcing picks early and densely.
 
-**★ STRUCTURAL DIAGNOSIS: a fixed note budget in a fixed 2s window IS the regularity.** With k
-notes required in a window of fixed span, the mean interval is pinned at span/k and only the
-variance is free — near-uniform spacing is forced no matter how you select within it. Human
-interval variety comes from **density varying across time**, not from reshuffling inside a quota.
+**⚠️ MY "fixed window budget is the regularity" DIAGNOSIS WAS WRONG.** Checked before building the
+phrase-aligned allocator, and the data rejects it:
 
-**⇒ The next lever is the window ALLOCATION, not the within-window pick.** Options, in order:
-(a) let the allocator use finer, *variable-length* windows tied to musical phrase boundaries
-rather than a fixed 2 s grid; (b) allow per-window budgets to vary more sharply (the density-select
-γ already does this at 2 s — try γ on a beat-aligned bar grid); (c) a Stage-1 retrain with a
-rhythm-aware objective, which is the expensive fallback.
+| | human | ours |
+|---|---|---|
+| **within-window** IOI variation (CV) | **0.327** | **0.180** |
+| across-window note-count variation (CV) | 0.258 | 0.216 |
+| distinct intervals per window | 2.22 | 1.60 |
+
+Across-window density variation is already near human. The gap is **inside** the window, where
+variance is free — so variable-length / phrase-aligned windows would NOT have fixed it, and that
+experiment is cancelled. My three implementations were wrong, not the frame.
+
+**Three further hypotheses tested and REJECTED this iteration** (all cheap, all measured before
+building anything):
+1. *"We are too faithful to a periodic onset envelope."* **False, and backwards** — humans land
+   **0.833** of notes within 50 ms of a detected onset, we land **0.555**. Humans follow the
+   audio more closely than we do.
+2. *"Humans place notes on weaker/syncopated onsets."* **False** — mean onset strength at note
+   positions is 0.074 human vs 0.068 ours; effectively identical.
+3. *"We take too many of the available onsets."* **False, and backwards** — humans use **0.640**
+   of detected onsets, we use **0.560**.
+
+**What IS established (a real, documented trade-off):** turning density-select OFF makes us
+onset-faithful at human levels (onset_hit 0.629 → **0.866**, vs human 0.850) but the spacing goes
+*perfectly uniform* (within-window CV 0.102 → **0.003**, switch rate 1.2 → **0.0**). Turning it ON
+buys a little interval variety at the cost of onset fidelity. **Neither setting comes near human
+variety (0.354).** So the two axes we care about are in direct tension in the current selector,
+and no setting of it reaches human on both.
+
+**⇒ Next, and do NOT skip the premise check again:** the open question is *which* onsets humans
+choose, given they hit the same strengths, use a similar fraction, and follow the audio more
+closely — yet end up non-uniform. The next step is a direct comparison on one song: dump the
+human note times and our beat_probs on the same grid and look at the disagreement in `map_view`,
+rather than proposing another selector. If that shows no learnable rule, the fallback is a Stage-1
+retrain with a rhythm-aware objective.
 `BEAT_IOI_PRIOR` stays in the tree, default OFF (0.0), with `BEAT_IOI_TEMP` — production is
 unchanged. Arms `ioi05/ioi1/ioi2` are the maximiser's record; `iois*` were never run to completion.
 
