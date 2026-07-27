@@ -251,9 +251,25 @@ layer and switch at section boundaries. We already compute per-stem onsets (Demu
 instrument features, so this is mostly wiring. This is the root of the original "for-sport"
 complaint: mapping *nothing in particular*.
 
-### A5 — Structural self-consistency
-Repeated musical sections (chorus 1 vs chorus 2) should get *similar but not identical*
-patterns. We have song-memory in the model and no metric for it.
+### A5 — Structural self-consistency — ❌ **NEGATIVE RESULT 2026-07-27, not shipped**
+`src/beatsaber_automapper/evaluation/structure.py` exists but is **dormant** — it does not
+discriminate, so by the suite's own rule it does not earn a place on the scorecard.
+
+Premise tested: human maps echo themselves at bar-aligned lags (8/16/32 bars) more than at
+arbitrary lags. **False as measured.** Across three similarity tokens (rhythm-only, rhythm+hand,
+full note tuple), `struct_lift` was ≈ 0 for *every* cohort including human (+0.001 / +0.007 /
++0.003; metronome −0.002).
+
+Why the shortcut fails: you cannot assume *where* repeated sections are. Song structure does not
+sit at fixed bar multiples across genres, so a fixed-lag probe cannot find it. **A5 needs
+audio-derived section boundaries** — identify which sections actually repeat, then ask whether
+the map echoes them. The machinery already exists (`detect_sections`, phrase boundaries in
+generation); re-spec on top of it rather than on fixed lags.
+
+Worth keeping from the attempt: with a rhythm+hand token our maps' `struct_recall` is 0.587
+against human 0.329 — we repeat ourselves far more than humans do. But with lift ≈ 0 that
+repetition is *uniform*, not structural, making it a restatement of the A2 rhythm finding rather
+than a new axis.
 
 ### A6 — Difficulty calibration & pacing
 Does the map match its claimed difficulty by community norms, and does it have a shape
