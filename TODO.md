@@ -1,8 +1,84 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-27 (eval-suite v2 axis A1 flow/ergonomics BUILT — DoD met)
+**Last updated:** 2026-07-27 (v2 axes A1/A2/A3 + scorecard; two negative results; BPM defect found)
 
-## ⏭️ NEXT SESSION — pick up here (written 2026-07-27)
+## ⏭️ NEXT SESSION — pick up here (written 2026-07-27, autonomous loop)
+
+**★ THE SUITE NOW JUDGES WITHOUT KYLE ★** `evaluation/scorecard.py` — one command, one verdict.
+Validated both ways on disjoint data: a **held-out human cohort PASSES** every axis
+(flow 0.13 / rhythm 0.25 / idiom 0.31 vs bars 0.50/0.70/1.00); **current production FAILS all
+three** (0.81 / 2.41 / 1.84), parity clean. Axes: A1 flow (`evaluation/flow.py`), A2 rhythm
+(`rhythm.py`), A3 idiom (`idiom.py`), all scored by cohort **shift + spread** via `_dist.py`.
+
+**LEVER RESULTS (24-song sweeps, `logs/overnight/flow_levers_2026-07-27.log` + `rhythm_idiom_*`):**
+| lever | result |
+|---|---|
+| `LAYOUT_TRAVEL_PENALTY=1` (`tp1`) | ✅ **flow 0.81 → 0.30 PASS** |
+| `COLOR_SEP_MODE=extreme` (`xsep_ext`) | ✅ **idiom 1.84 → 0.30 PASS** |
+| `LAYOUT_TRAVEL_PENALTY=4` (`tp4`) | ❌ over-corrects: flow 1.77, **spread 0.00** (all maps identical) |
+| `COLOR_SEP_MODE=off` | ❌ overshoots: flow 1.04 |
+| `BEAT_HAND_INTERLEAVE` (`il5`/`il7`) | ❌ **rhythm WORSE** (2.99 / 2.81 vs prod 2.41), spread collapses, il7 breaks parity |
+| `LAYOUT_IDIOM_BONUS` (`ib*`), `combo` | ⏳ still running |
+
+**⚠️ WHY THE INTERLEAVE LEVER LOOKED GOOD AND ISN'T — READ THIS BEFORE TRUSTING ANY PROBE.**
+I designed it from a **single-song probe on 1f333**, which turns out to be one of the two
+**half-tempo** songs. A2 measures intervals in the BEAT domain, so on a half-tempo song the
+beat-domain intervals are stretched and *manufacture* apparent rhythmic variety. The probe was
+measured in a distorted frame. **Rule: validate every lever on the full 24-song set before
+believing it. Single-song probes are for smoke-testing the code path, not for evidence.**
+
+**★ NEW DEFECT: 30% OF SONGS GENERATE AT THE WRONG TEMPO ★** (`scripts/bpm_octave_probe.py`)
+Found by *reading a map next to its human counterpart* in the new `scripts/map_view.py` — ours
+said 94 BPM, the human map said 188. Against human-declared BPM as ground truth, raw librosa
+detection is correct on only **16/23**; 2 songs at exactly half tempo, 3 at a 2:3 misread. At
+half tempo the finest grid slot is **twice as coarse in real time**, so the fast notes cannot be
+represented at all. **And the metrics REWARD it** — mis-tempo maps score better on all three
+axes (flow 0.73 vs 0.93, rhythm 1.96 vs 2.54, idiom 1.36 vs 1.91).
+- Both fix attempts FAILED (octave rescoring 10/23; conservative doubling 14/23) — the
+  hypothesis that the true metrical level has balanced odd/even beat energy is false.
+  `detect_bpm` left alone; needs a real tempo model, not a heuristic.
+- Added `eval_sweep --true-bpm` (uses the human map's BPM) to remove the confound from
+  evaluation. **Not a production fix** — production has no human map.
+
+**Next tasks (highest-value first):**
+1. **Harvest the `ib*` / `combo` arms** when part B finishes, then promote. Expected winner is
+   **`tp1` + `xsep_ext` + an idiom bonus** — the two proven levers are complementary (one fixes
+   flow, one fixes idiom) and orthogonal by construction. **Do NOT include the interleave lever.**
+2. **Re-run the sweep with `--true-bpm`** and compare. This is the cleanest available estimate of
+   how much of our remaining gap is tempo detection vs map quality. Invalidates the cache, so
+   budget a full regeneration.
+3. **A2 needs a wall-clock guard.** It is gameable by tempo error (proven above). Add
+   seconds-domain interval metrics alongside the beat-domain ones, and a tempo-sanity check.
+4. **Hand-role axis (new, from direct reading).** Human maps give the two hands different
+   musical jobs within a passage — one carries a sustained run, the other punctuates, alternating
+   at 1/16 offsets. Ours run both hands at identical density with no role division. No axis
+   measures this. See `docs/map_authoring_plan.md`.
+5. **Map-level style/variety** — the top open gap. Every rule-based cohort is mode-collapsed and
+   per-note randomness does NOT fix it (widening sampling made everything worse). Human variety
+   is map-level style; nothing in the suite expresses it.
+6. **A4 musical-role** (per-stem onsets: is the map following kick/snare/vocal/lead?) — the last
+   unbuilt planned axis. A5 structural self-consistency is a **documented negative** (see below).
+
+**NEGATIVE RESULTS — do not re-attempt as written:**
+- **A5 structural self-consistency**: human maps are NOT more self-similar at bar-aligned lags
+  than at arbitrary ones (`struct_lift` ≈ 0 for every cohort incl. human, 3 similarity tokens).
+  Needs audio-derived section boundaries, not fixed lags. `evaluation/structure.py` is dormant.
+- **BPM octave correction** via onset-energy balance (see above).
+- **`BEAT_HAND_INTERLEAVE`** (see above).
+
+**Landmines (in addition to those below):**
+- **Validate levers on the full 24-song set**, never a single song (the 1f333 half-tempo trap).
+- `flow_dist`/per-map distance is a sanity check ONLY; rank by cohort `*_gap` + spread.
+- Keep calibration references DISJOINT from the cohorts they judge (`--skip 32`).
+- `scripts/map_view.py` reads a map as a text score (hands side by side, stem lanes) — the
+  independent channel for auditing when metrics lie. It already found the tempo bug.
+- `scripts/rule_mapper.py` is a no-ML mapper built from the suite's rules; on human onsets it
+  passes rhythm (0.25) and nearly passes idiom (0.99). Useful as a baseline and as a test of
+  whether the suite is prescriptive.
+
+---
+
+## (superseded) NEXT SESSION — written 2026-07-27 (A1 only)
 
 **State:** no jobs running, GPU idle (this axis is CPU-only). Nothing to resume. Committed + pushed.
 
