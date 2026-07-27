@@ -100,6 +100,22 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "ioi05":       ({**_DS25, "BEAT_IOI_PRIOR": "0.5"}, []),
     "ioi1":        ({**_DS25, "BEAT_IOI_PRIOR": "1.0"}, []),
     "ioi2":        ({**_DS25, "BEAT_IOI_PRIOR": "2.0"}, []),
+    # --- HAND OFFSET (2026-07-27) — the unified fix for A2 rhythm + A6 hand role ---
+    # Dumping beat_probs next to human note times showed our maps NEVER place a
+    # note on an odd 16th (0 of 679 slots); the human map puts 248 there, and
+    # those are exactly the slots we miss. Cause: hand lockstep. Human hands are
+    # interleaved by a 16th 32% of the time, ours 0.2%, and the union can only
+    # reach an odd 16th if the hands are offset. So A2 and A6 are ONE defect.
+    # This MOVES one hand by a 16th at shared slots instead of deleting it (which
+    # is what BEAT_HAND_ROLE did, costing 24% of the notes).
+    # Single-song probe at 0.5: within-window IOI CV 0.102 -> 0.377 (human 0.354),
+    # pulse 0.874 -> 0.588 (human 0.591), switch 1.2 -> 16.0 (human 13.5),
+    # note count and parity held. 0.8 overshoots.
+    "ho03":        ({**_DS25, "BEAT_HAND_OFFSET": "0.3"}, []),
+    "ho05":        ({**_DS25, "BEAT_HAND_OFFSET": "0.5"}, []),
+    "ho07":        ({**_DS25, "BEAT_HAND_OFFSET": "0.7"}, []),
+    "ho05_best":   ({**_DS25, "BEAT_HAND_OFFSET": "0.5",
+                     "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
     # ---- corrected: SAMPLE the prior instead of maximising it ----
     "iois1":       ({**_DS25, "BEAT_IOI_PRIOR": "1.0"}, []),
     "iois2":       ({**_DS25, "BEAT_IOI_PRIOR": "2.0"}, []),

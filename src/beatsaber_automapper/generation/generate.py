@@ -1886,6 +1886,53 @@ def generate_v7_level(
             last = pick
         return chosen, cur
 
+    def _offset_hands(left: set[int], right: set[int], probs, rate: float,
+                      seed: int = 0) -> tuple[set[int], set[int]]:
+        """Where both hands share a slot, MOVE one by a 16th instead of deleting it.
+
+        Found 2026-07-27 by dumping beat_probs next to the human note times on the
+        same grid. Our maps never place a note on an odd 16th — not once in 679
+        slots; every note lands on a beat or an 8th. The human map puts 248 notes
+        on odd 16ths, and those are exactly the slots we miss.
+
+        The cause is hand LOCKSTEP. Nearest-right-hand-note offsets in 16ths:
+
+            offset      -1      0     +1
+            human     0.220  0.398  0.099     <- interleaved 32% of the time
+            ours      0.002  0.945  0.000     <- lockstep
+
+        The union of two hands can only reach an odd 16th if the hands are
+        offset, and we never offset them. That makes the A2 rhythm gap and the A6
+        hand-role gap **the same defect**: with both hands on the same slots the
+        union rhythm is confined to the 8th-note grid, so intervals are forced to
+        multiples of two slots and interval variety is impossible.
+
+        This is also why BEAT_HAND_ROLE hurt rhythm — it DELETED one hand's note
+        at a shared slot, leaving the odd slot empty and dropping ~24% of the
+        notes. Moving preserves the note count and fills the odd slot.
+        """
+        import random as _random
+
+        rng = _random.Random(seed)
+        shared = sorted(left & right)
+        if not shared or rate <= 0.0:
+            return left, right
+        new_right = set(right)
+        n = len(probs)
+        for s in shared:
+            if rng.random() > rate:
+                continue
+            # prefer whichever neighbouring slot the model likes better for this
+            # hand, and never collide with a note either hand already holds
+            cands = [d for d in (-1, 1)
+                     if 0 <= s + d < n and (s + d) not in new_right and (s + d) not in left]
+            if not cands:
+                continue
+            d = max(cands, key=lambda dd: float(probs[s + dd]))
+            new_right.discard(s)
+            new_right.add(s + d)
+        return left, new_right
+
     def _assign_hand_roles(left: set[int], right: set[int], bpm: float,
                            strength: float = 1.0,
                            target_asym: float = 0.115,
@@ -2066,6 +2113,13 @@ def generate_v7_level(
         # unaffected and only the role structure changes. That is the difference
         # from the failed BEAT_HAND_INTERLEAVE lever, which pushed the hands apart
         # without giving either one a job and made rhythm worse.
+        # HAND OFFSET (2026-07-27): shift one hand by a 16th at shared slots so
+        # the union rhythm can reach odd-16th positions at all. Human hands are
+        # interleaved 32% of the time; ours 0.2%. Default 0.0 = OFF.
+        _ho = float(os.environ.get("BEAT_HAND_OFFSET", "0.0"))
+        if _ho > 0.0 and left_onsets and right_onsets:
+            left_onsets, right_onsets = _offset_hands(
+                left_onsets, right_onsets, beat_probs[:, 1].detach().cpu().numpy(), _ho)
         _hr = float(os.environ.get("BEAT_HAND_ROLE", "0.0"))
         if _hr > 0.0 and (left_onsets or right_onsets):
             left_onsets, right_onsets = _assign_hand_roles(
