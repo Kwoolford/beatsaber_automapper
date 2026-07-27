@@ -7,6 +7,107 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## Eval-suite v2: four axes, a working judge, and the "locally wrong" principle (2026-07-27)
+
+A single long autonomous session. The strategic frame (set 2026-07-26) is that the **evaluation
+suite is the work**, not the generator — the goal is a suite good enough that Kyle no longer has
+to be the judge, and prescriptive enough that an agent could build a mapper from it without ML.
+
+### The organising principle discovered today
+
+**Our failures are consistently "globally right, locally wrong."** Three independent instances:
+
+| | global statistic (looks fine) | local structure (broken) |
+|---|---|---|
+| sequencing | `h_dist` histograms pass | a *shuffled* map scores like a human one |
+| hand balance | `flow.handedness` 0.012 for **both** | local asymmetry 0.115 human vs **0.031** ours |
+| idiom vocabulary | 238 distinct idioms vs human 219 | 0.861 human vs **0.703** ours per 16-transition window |
+
+This is why the original scorecard was blind for months: every metric in it was a whole-map
+histogram, and whole-map histograms are exactly where this generator looks good. It is also why
+the direct-reading channel (below) keeps finding things the aggregates cannot.
+
+### What was built
+
+**Four scored axes**, all using one shared distribution-scoring core (`evaluation/_dist.py`) that
+compares a **cohort** against the human distribution by median *shift* and *spread*:
+
+| axis | module | human | prod |
+|---|---|---|---|
+| A1 flow / ergonomics | `evaluation/flow.py` | 0.13 | 0.81 |
+| A2 rhythm / beat-grid | `evaluation/rhythm.py` | 0.25 | 2.41 |
+| A3 pattern idiom | `evaluation/idiom.py` | 0.31 | 2.34 |
+| A6 hand role | `evaluation/handrole.py` | 0.34 | **3.50** |
+
+**`evaluation/scorecard.py`** — the single entry point. One command, one verdict. Validated both
+ways on disjoint data: a held-out human cohort **passes every axis**; current production **fails
+all four** with parity clean.
+
+**`scripts/audit_eval_suite.py`** — the control battery every axis must pass before it is allowed
+to steer anything: human maps vs our maps vs six degenerate controls (`random`, `shuffled`,
+`metronome`, `zigzag`, `timing_random`, `timing_jitter`). Blind-spot reporting is axis-aware,
+because each control only attacks what it destroys.
+
+**`scripts/map_view.py`** — read a map as a **text score**: time down, hands side by side, per-stem
+audio lanes from the same transcription the model trains on, inline idiom rank + corpus frequency,
+`--find` for violations/OOV/doubles with context, `--vs` for two maps aligned in **seconds**.
+
+**`scripts/rule_mapper.py`** — a mapper with **no ML**, built only from the suite's rules. Given
+human onsets it passes rhythm (0.25) and nearly passes idiom (0.99) with zero parity violations,
+and beats our trained model on idiom. The suite is prescriptive enough to specify a mapper.
+
+### The two biggest findings, both from *reading* rather than statistics
+
+**1. Hands have roles.** In a human map, within a passage one hand carries a sustained run while
+the other punctuates, and they swap. Ours run both hands at identical density. Human maps are
+balanced *globally* but lopsided *locally*; ours are balanced at every scale, which is the
+unnatural thing. A6 measures it: prod 3.50 vs human 0.34 — **worse than a uniformly random map
+(2.64)**, the largest single-axis defect ever measured in this project.
+
+**2. 30% of songs generate at the wrong tempo.** Spotted because the score header prints BPM and
+the human map for the same song said 188 where ours said 94. Against human-declared BPM, raw
+librosa detection is correct on only 16/23. At half tempo the finest grid slot is twice as coarse
+in real time, so the fast notes cannot be represented. **The metrics reward the bug** — mis-tempo
+maps score *better* on all axes, because A2 measures intervals in the beat domain.
+
+### Levers tested (24-song sweeps)
+
+| lever | verdict |
+|---|---|
+| `LAYOUT_TRAVEL_PENALTY=1` | ✅ flow 0.81 → **0.30 PASS** |
+| `COLOR_SEP_MODE=extreme` | ✅ idiom 1.84 → **0.30 PASS** (the postprocess was destroying idioms wholesale) |
+| `LAYOUT_TRAVEL_PENALTY=4` | ❌ over-corrects: flow 1.77, spread **0.00** — every map identical |
+| `COLOR_SEP_MODE=off` | ❌ overshoots (flow 1.04); `extreme` is the right setting |
+| `LAYOUT_IDIOM_BONUS` | ~ helps idiom (1.84 → 1.20) but weaker than `xsep_ext` at the same job |
+| `BEAT_HAND_INTERLEAVE` | ❌ **rhythm worse** (2.99/2.81 vs 2.41), breaks parity |
+| `BEAT_HAND_ROLE=0.5` | ~ fixes idiom (2.34 → **0.59 PASS**), improves flow/handrole, but **rhythm 2.41 → 4.05**, spread collapses, −24% notes |
+
+### Negative results — recorded so they are not re-attempted as written
+
+- **A5 structural self-consistency**: human maps are *not* more self-similar at bar-aligned lags
+  than at arbitrary ones (`struct_lift` ≈ 0 for every cohort including human, across three
+  similarity tokens). Needs audio-derived section boundaries, not fixed lags.
+  `evaluation/structure.py` is dormant.
+- **BPM octave correction**: both attempts made detection *worse* (10/23 and 14/23 vs a 16/23
+  baseline). The hypothesis that the true metrical level has balanced odd/even beat energy is
+  false — real music has backbeat asymmetry at its true tempo. `detect_bpm` left alone.
+- **`BEAT_HAND_INTERLEAVE`**: see above.
+
+### Method lessons
+
+- **Validate every lever on the full 24-song set.** `BEAT_HAND_INTERLEAVE` was designed from a
+  single-song probe on **1f333 — one of the two half-tempo songs**. A2 is beat-domain, so the
+  probe was measured in a distorted frame and the lever failed on all 24 songs. Single-song runs
+  smoke-test a code path; they are not evidence.
+- **Rank cohorts by shift *and* spread, never per-map distance-to-median.** The first version of
+  the flow metric reproduced the `h_dist` failure exactly — our maps scored "more human than
+  human" — because a mode-collapsed cohort sits nearer the median than typical human maps do.
+- **Never run two sweeps against one cache.** An overnight script was launched twice; both wrote
+  the same `outputs/eval_sweep_cache/<arm>__<song>.zip` paths and 11 zips came out corrupt.
+  `eval_sweep` now takes a lock. Earlier arms were unaffected.
+
+---
+
 ## V7-5b Stage 2 Run 1 + Run 2 Launch (2026-05-21)
 
 ### Run 1 result (logs/layout_phrase/version_0/)

@@ -44,13 +44,47 @@ hand a *contiguous* block overshot run length to 6.7 (human 1.36) and read as on
 
 ---
 
+# ★ THE UNIFYING PRINCIPLE: GLOBALLY RIGHT, LOCALLY WRONG ★
+
+Three independent findings now share one shape. **Every metric in the original scorecard was a
+whole-map histogram, and whole-map histograms are exactly where this generator looks good.**
+
+| | global statistic (looks fine) | local structure (broken) |
+|---|---|---|
+| sequencing | `h_dist` histograms pass | a *shuffled* map scores like a human one |
+| hand balance | `flow.handedness` **0.012 for both** | local asymmetry 0.115 human vs **0.031** ours |
+| idiom vocabulary | 238 distinct idioms vs human **219** | 0.861 human vs **0.703** ours per 16-note window |
+
+**Design rule going forward: when adding an axis, measure it inside a window before measuring it
+over a map.** The whole-map version will usually look fine and tell you nothing. This is also why
+the direct-reading channel keeps finding what the aggregates cannot — `map_view.py` shows local
+structure by construction.
+
+Latest instance: with inline idiom annotation, the right hand was visibly alternating between
+exactly **two** idioms (`#51 → #50 → #51 → #50`) for bars at a time, while the whole-map idiom
+count looked *better than human*. Added as `idiom_local`, which raised our idiom gap 1.84 → 2.34.
+
+---
+
 ## Immediate stack, curated around A6
 
-1. **Harvest part C and promote.** Expected winner `best_hr` = `LAYOUT_TRAVEL_PENALTY=1` +
-   `COLOR_SEP_MODE=extreme` + `BEAT_HAND_ROLE≈0.5`. The first two are PROVEN (flow 0.81→0.30
-   PASS; idiom 1.84→0.30 PASS) and orthogonal. **Check note counts** — hand-role de-doubles the
-   map, and the budget compensation only partly restores density (866 vs human 1112 on the probe
-   song). If density regresses, tune the inflation factor rather than dropping the lever.
+1. **Harvest part C's remaining arms (`hr10`, `best`, `best_hr`) and promote.**
+   **`hr05`/`hr075` are already in and are NOT promotable as they stand:**
+
+   | arm | flow | rhythm | idiom | handrole | notes |
+   |---|---|---|---|---|---|
+   | prod | 0.81 | 2.41 | 2.34 | 3.50 | 1375 |
+   | hr05 | 0.61 | **4.05** ❌ | **0.59 PASS** | 2.27 | 1041 |
+   | hr075 | 0.60 | **3.97** ❌ | 0.80 | 2.73 | 1040 |
+
+   `BEAT_HAND_ROLE` **trades rhythm for idiom**: it fixes idiom outright and improves flow and
+   hand-role, but rhythm goes 2.41 → 4.05, spread collapses to 0.16–0.25 on every axis, and note
+   count drops 24%. Parity stays clean. Two things to try before abandoning it: (a) the spread
+   collapse is likely because `_assign_hand_roles` uses a fixed seed for every song — vary it;
+   (b) de-doubling changes the union IOI distribution, which is what moves rhythm, so the budget
+   inflation needs to add slots that *preserve* the interval mix rather than any slots.
+   **`best` (= `tp1` + `xsep_ext`, the two proven levers alone) is the honest promotion candidate
+   until hand-role stops costing rhythm.**
 2. **Work `docs/map_authoring_plan.md` Phase 1→2** (this is now the priority channel, having
    produced both A6 and the tempo bug):
    - annotate each transition inline with its **idiom id + human corpus frequency**

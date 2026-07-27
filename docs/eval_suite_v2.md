@@ -97,6 +97,25 @@ and the superseded one is still the package's public API.
 
 ---
 
+## 1b. The unifying principle: globally right, locally wrong (2026-07-27)
+
+Three independent findings share one shape:
+
+| | global statistic (looks fine) | local structure (broken) |
+|---|---|---|
+| sequencing | `h_dist` histograms pass | a *shuffled* map scores like a human one |
+| hand balance | `flow.handedness` **0.012 for both** | local asymmetry 0.115 human vs **0.031** ours |
+| idiom vocabulary | 238 distinct idioms vs human **219** | 0.861 human vs **0.703** ours per 16-note window |
+
+**Every metric in the original scorecard was a whole-map histogram, and whole-map histograms are
+exactly where this generator looks good.** That is the root cause of Finding 1 above, not a
+coincidence of which five keys `h_dist` happened to use.
+
+**Design rule: measure inside a window before measuring over a map.** The whole-map version of a
+quantity will usually look fine and tell you nothing. `idiom_local` was added on exactly this
+basis after reading showed one hand alternating between two idioms for bars at a time while the
+whole-map idiom count looked *better than human*; adding it raised our idiom gap 1.84 → 2.34.
+
 ## 2. Design principles for v2
 
 1. **Every metric must pass the control battery.** A metric earns its place only if human maps
