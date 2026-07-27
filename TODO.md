@@ -44,6 +44,64 @@ hand a *contiguous* block overshot run length to 6.7 (human 1.36) and read as on
 
 ---
 
+# ★★ HAND OFFSET — THE RHYTHM AXIS IS ESSENTIALLY SOLVED (and A2 + A6 are ONE defect) ★★
+
+**Found by looking, not by theorising.** Dumped `beat_probs` next to the human note times on the
+same slot grid (`BEAT_PROBS_DUMP`). Our maps place a note on an **odd 16th ZERO times in 679
+slots** — every note lands on a beat or an 8th. The human map puts **248** notes on odd 16ths,
+and those are exactly the slots we miss.
+
+| slots | our prob | on-beat | 1/16 | 1/8 | 3/16 |
+|---|---|---|---|---|---|
+| both took (616) | 0.784 | 0.497 | **0.000** | 0.503 | **0.000** |
+| we took only (63) | 0.757 | 0.349 | **0.000** | 0.651 | **0.000** |
+| **human only (248)** | 0.374 | 0.121 | **0.456** | 0.048 | **0.375** |
+
+**Cause: hand lockstep.** Nearest right-hand note relative to each left-hand note, in 16ths:
+
+| offset | −1 | 0 | +1 |
+|---|---|---|---|
+| human | 0.220 | **0.398** | 0.099 |
+| ours | 0.002 | **0.945** | 0.000 |
+
+The union of two hands can only reach an odd 16th if the hands are **offset**, and we never offset
+them. With both hands on the same slots the union rhythm is confined to the 8th-note grid, so
+intervals are forced to multiples of two slots and interval variety is *impossible*.
+**⇒ The A2 rhythm gap and the A6 hand-role gap are the same defect.** This also explains why
+`BEAT_HAND_ROLE` hurt rhythm: it **deleted** the second hand's note at a shared slot, leaving the
+odd slot empty and costing 24% of the notes. **Move it, don't delete it.**
+
+**`BEAT_HAND_OFFSET` (new, default OFF)** shifts one hand by a 16th at shared slots, preferring
+whichever neighbour the model scores higher, never colliding. 24-song sweep vs the noise floor
+(flow .03 / rhythm .08 / idiom .09 / handrole .29):
+
+| arm | flow | rhythm | idiom | handrole | viol | notes |
+|---|---|---|---|---|---|---|
+| prod | 0.71 | 2.37 | 1.85 | 3.23 | 0 | 1377 |
+| **ho03** | 1.36 ▼ | **0.50** ▲ | 1.85 = | **2.11** ▲ | **0** | 1373 |
+| ho05 | 1.68 ▼ | **0.26** ▲ | 2.55 ▼ | 2.19 ▲ | **3** | 1374 |
+| ho07 | 1.78 ▼ | 1.27 ▲ | 2.62 ▼ | **1.70 PASS** | 1 | 1370 |
+
+**ho05 puts every rhythm sub-metric on the human value** — pulse 0.542 (human 0.551), cond-entropy
+0.509 (0.536), switch rate 14.97 (13.65). Rhythm gap **2.37 → 0.26**, the largest single
+improvement measured in this project. Density (Spearman 0.402 → 0.390) and note count hold.
+
+**It is NOT promotable yet — three real costs:**
+1. **Flow regresses** 0.71 → 1.36–1.78. The cause is `angle_change` (19.8 → 23.1), **not**
+   `travel` (5.73 → 5.67, unchanged) — moving a note changes which hand plays when, altering the
+   wrist-rotation sequence. **So `tp1` will NOT fix this**; it targets travel.
+2. **Parity breaks** at ho05 (3 violations) and ho07 (1). Only **ho03 stays clean at 0**.
+3. **Spread stays under-dispersed** (0.23–0.25 vs the 0.35 bar), though prod was already 0.32 —
+   this predates the lever and is the standing map-level-variety gap.
+
+**⇒ Next:** (a) harvest `ho05_best` (ho05 + tp1 + xsep) — already running; (b) the honest
+candidate today is **ho03**, which wins rhythm and hand-role with parity clean and idiom
+unchanged, at the cost of flow; (c) to recover flow, the offset should prefer the neighbour that
+*also* keeps the angle sequence smooth, not just the higher-probability one — that is a small,
+well-specified change to `_offset_hands`.
+
+---
+
 # ❌ STAGE-1 IOI PRIOR — NEGATIVE (3 formulations). The window BUDGET is the constraint.
 
 The rhythm gap is Stage-1 onset selection (part D ruled out tempo; `rule_mapper` ruled out

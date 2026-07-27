@@ -1887,7 +1887,7 @@ def generate_v7_level(
         return chosen, cur
 
     def _offset_hands(left: set[int], right: set[int], probs, rate: float,
-                      seed: int = 0) -> tuple[set[int], set[int]]:
+                      seed: int = 0, spacing_aware: bool = False) -> tuple[set[int], set[int]]:
         """Where both hands share a slot, MOVE one by a 16th instead of deleting it.
 
         Found 2026-07-27 by dumping beat_probs next to the human note times on the
@@ -1928,7 +1928,21 @@ def generate_v7_level(
                      if 0 <= s + d < n and (s + d) not in new_right and (s + d) not in left]
             if not cands:
                 continue
-            d = max(cands, key=lambda dd: float(probs[s + dd]))
+            if spacing_aware:
+                # Prefer the neighbour that leaves this hand's spacing more even.
+                # Moving a note changes which hand plays when, which shifts the
+                # wrist-rotation sequence: the 24-song sweep showed flow
+                # regressing via angle_change (19.8 -> 23.1) while travel was
+                # unchanged (5.73 -> 5.67). Choosing the side that keeps the
+                # hand's own gaps regular is the cheapest available proxy for
+                # keeping that sequence smooth.
+                def _cost(dd: int) -> float:
+                    t = s + dd
+                    near = [abs(t - o) for o in new_right if abs(t - o) <= 8]
+                    return -min(near) if near else -8.0
+                d = min(cands, key=lambda dd: (_cost(dd), -float(probs[s + dd])))
+            else:
+                d = max(cands, key=lambda dd: float(probs[s + dd]))
             new_right.discard(s)
             new_right.add(s + d)
         return left, new_right
@@ -2119,7 +2133,8 @@ def generate_v7_level(
         _ho = float(os.environ.get("BEAT_HAND_OFFSET", "0.0"))
         if _ho > 0.0 and left_onsets and right_onsets:
             left_onsets, right_onsets = _offset_hands(
-                left_onsets, right_onsets, beat_probs[:, 1].detach().cpu().numpy(), _ho)
+                left_onsets, right_onsets, beat_probs[:, 1].detach().cpu().numpy(), _ho,
+                spacing_aware=os.environ.get("BEAT_HAND_OFFSET_SPACING") == "1")
         _hr = float(os.environ.get("BEAT_HAND_ROLE", "0.0"))
         if _hr > 0.0 and (left_onsets or right_onsets):
             left_onsets, right_onsets = _assign_hand_roles(

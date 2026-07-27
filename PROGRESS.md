@@ -82,6 +82,29 @@ maps score *better* on all axes, because A2 measures intervals in the beat domai
 | `BEAT_HAND_INTERLEAVE` | ❌ **rhythm worse** (2.99/2.81 vs 2.41), breaks parity |
 | `BEAT_HAND_ROLE=0.5` | ~ fixes idiom (2.34 → **0.59 PASS**), improves flow/handrole, but **rhythm 2.41 → 4.05**, spread collapses, −24% notes |
 
+### Hand offset — the rhythm axis essentially solved, and two axes unified
+
+After four rejected rhythm hypotheses, the answer came from *looking* rather than theorising:
+dump `beat_probs` next to the human note times on the same slot grid.
+
+**Our maps place a note on an odd 16th zero times in 679 slots.** Every note lands on a beat or an
+8th. The human map puts 248 notes on odd 16ths — exactly the slots we miss. The cause is hand
+lockstep: human hands are interleaved by a 16th 32% of the time (offsets −1/0/+1 = 0.220/0.398/
+0.099), ours 0.2% (0.002/0.945/0.000). **The union of two hands can only reach an odd 16th if the
+hands are offset**, so with both hands on the same slots the union rhythm is confined to the
+8th-note grid and interval variety is impossible. The A2 rhythm gap and the A6 hand-role gap are
+one defect — which also explains why `BEAT_HAND_ROLE` hurt rhythm: it *deleted* the second hand's
+note instead of *moving* it.
+
+`BEAT_HAND_OFFSET` shifts one hand by a 16th at shared slots. On the 24-song sweep it takes every
+rhythm sub-metric to the human value — pulse 0.542 (human 0.551), conditional IOI entropy 0.509
+(0.536), switch rate 14.97 (13.65) — for a rhythm gap of **2.37 → 0.26**, the largest single
+improvement measured in this project, with density and note count held.
+
+Not promoted: flow regresses (via `angle_change`, not `travel`), parity breaks at the higher
+strengths, and cohort spread stays under-dispersed. `ho03` is the clean-parity variant that wins
+rhythm and hand-role at the cost of flow.
+
 ### Stage-1 IOI prior — negative, and the diagnosis is structural
 
 Having ruled out tempo (part D) and layout (`rule_mapper`), the rhythm gap had to be onset

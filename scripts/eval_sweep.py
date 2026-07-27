@@ -114,6 +114,16 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "ho03":        ({**_DS25, "BEAT_HAND_OFFSET": "0.3"}, []),
     "ho05":        ({**_DS25, "BEAT_HAND_OFFSET": "0.5"}, []),
     "ho07":        ({**_DS25, "BEAT_HAND_OFFSET": "0.7"}, []),
+    # spacing-aware variant: pick the neighbour that keeps the hand's own gaps
+    # even, to recover the flow regression (which came from angle_change, not
+    # travel, so the travel penalty cannot fix it)
+    "ho03s":       ({**_DS25, "BEAT_HAND_OFFSET": "0.3",
+                     "BEAT_HAND_OFFSET_SPACING": "1"}, []),
+    "ho05s":       ({**_DS25, "BEAT_HAND_OFFSET": "0.5",
+                     "BEAT_HAND_OFFSET_SPACING": "1"}, []),
+    "ho03s_best":  ({**_DS25, "BEAT_HAND_OFFSET": "0.3",
+                     "BEAT_HAND_OFFSET_SPACING": "1",
+                     "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
     "ho05_best":   ({**_DS25, "BEAT_HAND_OFFSET": "0.5",
                      "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
     # ---- corrected: SAMPLE the prior instead of maximising it ----
