@@ -50,6 +50,7 @@ sys.path.insert(0, str(REPO / "src"))
 
 from beatsaber_automapper.data.beatmap import ColorNote  # noqa: E402
 from beatsaber_automapper.evaluation import flow as fl  # noqa: E402
+from beatsaber_automapper.evaluation import idiom as idm  # noqa: E402
 from beatsaber_automapper.evaluation import rhythm as rh  # noqa: E402
 from beatsaber_automapper.evaluation import swing_sim as ss  # noqa: E402
 from map_metrics import HUMAN_TARGET, map_metrics_from_seq  # noqa: E402
@@ -72,6 +73,10 @@ FLOW_AXES = ["angle_change", "angle_harsh_frac", "travel", "crossover",
 # controls that can move these are the timing_* ones.
 RHYTHM_AXES = ["pulse_stability", "ioi_cond_entropy", "ioi_switch_rate",
                "dominant_share", "ioi_entropy", "offgrid_frac"]
+
+# v2 axis A3 (evaluation/idiom.py) — per-hand transitions drawn from the mined
+# human vocabulary. Sequence-aware, so the attribute controls attack it.
+IDIOM_AXES = ["idiom_coverage", "idiom_top50", "idiom_jsd", "idiom_entropy"]
 
 # The five metrics eval_sweep.py actually composites into `human_dist` — the
 # scalar the sweep leaderboard ranks arms by. Reproduced here so the audit can
@@ -257,6 +262,10 @@ def score(notes: list[ColorNote], bpm: float) -> dict:
         rec.update(rh.rhythm_metrics(bm).metrics)
     except Exception:  # noqa: BLE001
         pass
+    try:
+        rec.update(idm.idiom_metrics(bm).metrics)
+    except Exception:  # noqa: BLE001
+        pass
     return rec
 
 
@@ -367,6 +376,21 @@ def main() -> None:
         s = cc["_summary"]
         print(f"{name:14s}{cells}{s['rhythm_gap']:13.2f}{s['min_spread']:12.2f}")
 
+    # ---- v2 axis A3: idiom vocabulary ----
+    print("\n\n=== A3 IDIOM cohort comparison vs the human DISTRIBUTION ===")
+    ihdr = (f"{'cohort':14s}" + "".join(f"{k:>22s}" for k in idm.SEQUENCE_KEYS)
+            + f"{'idiom_gap':>12s}{'min_spread':>12s}")
+    print(ihdr); print("-" * len(ihdr))
+    for name in order:
+        cc = idm.cohort_comparison(cohorts[name])
+        if "_summary" not in cc:
+            continue
+        cells = "".join(
+            f"{cc[k]['shift']:+10.2f}/{cc[k]['spread']:<11.2f}" if k in cc
+            else f"{'--':>22s}" for k in idm.SEQUENCE_KEYS)
+        s2 = cc["_summary"]
+        print(f"{name:14s}{cells}{s2['idiom_gap']:12.2f}{s2['min_spread']:12.2f}")
+
     # ---- what does the sweep's OWN ranking scalar say about each control? ----
     print("\n\n=== eval_sweep's ranking metric (h_dist, lower = 'more human') ===")
     print("this is the number the sweep leaderboard picks winning arms by\n")
@@ -389,10 +413,11 @@ def main() -> None:
     RESPONSIBLE = {
         **{k: {"random", "shuffled", "metronome", "zigzag"} for k in AXES + ["viol"] + FLOW_AXES},
         **{k: {"timing_random", "timing_jitter", "metronome"} for k in RHYTHM_AXES},
+        **{k: {"random", "shuffled", "metronome", "zigzag"} for k in IDIOM_AXES},
     }
     hum = cohorts["human"]
     blind: dict[str, list[str]] = {}
-    for k in AXES + ["viol"] + FLOW_AXES + RHYTHM_AXES:
+    for k in AXES + ["viol"] + FLOW_AXES + RHYTHM_AXES + IDIOM_AXES:
         h = mean(hum, k)
         for name in order:
             if name in ("human", "prod(ours)"):
@@ -416,7 +441,7 @@ def main() -> None:
 
     caught_by = {name: [] for name in order if name not in ("human", "prod(ours)")}
     for name in caught_by:
-        for k in AXES + ["viol"] + FLOW_AXES + RHYTHM_AXES:
+        for k in AXES + ["viol"] + FLOW_AXES + RHYTHM_AXES + IDIOM_AXES:
             if name in RESPONSIBLE.get(k, set()) and name not in blind.get(k, []):
                 caught_by[name].append(k)
     print("\n=== per-control: which metrics catch it? ===")

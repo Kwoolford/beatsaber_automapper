@@ -177,13 +177,42 @@ rotation ~19°, harsh >90° transitions on <1% of transitions); a hand travels ~
 between swings; hands stay on their own side except for deliberate crossovers on ~20% of notes;
 burst rate stays near ~250 swings/min.
 
-### A2 — Rhythmic placement / beat-grid sanity
-Do notes sit on musically meaningful subdivisions (1/4, 1/8, 1/12, 1/16) of the beat, and does
-the map keep a *consistent* subdivision within a phrase? Human maps are overwhelmingly on clean
-subdivisions and change subdivision at section boundaries. Currently unmeasured — `onset_hit`
-only asks "within 50 ms of any onset", which a random-but-dense map passes.
-*Prescriptive form:* "quantize to the phrase's dominant subdivision; change it only at
-section boundaries."
+### A2 — Rhythm / beat-grid — ✅ **BUILT 2026-07-27** — ★ our largest measured gap ★
+`src/beatsaber_automapper/evaluation/rhythm.py`, calibrated by `scripts/calibrate_rhythm.py`
+(200 human maps), tested in `tests/test_rhythm.py` (7 tests).
+
+Nothing in the suite measured note **times** — every existing metric is computed over note
+*attributes*. That turned out to be the biggest blind spot in the whole suite.
+
+**Result: `rhythm_gap` 2.30 for our maps vs 0.31 for human** — far worse than the flow axis
+(0.89). Our maps are metronomic: `pulse_stability` +2.17 human-MADs, `ioi_cond_entropy` −2.92,
+`ioi_switch_rate` −1.81, `min_spread` 0.31 (collapsed). 75% of our inter-onset intervals land on
+exactly 1/8, against 41% for humans.
+
+**Diagnosis — it is hand LOCKSTEP, not the note grid.** Our *per-hand* intervals are already
+human-like. The defect is that **our two hands fire simultaneously on 85.6% of beats, against a
+human rate of 17.5%**: the two probability channels are driven by the same audio and select the
+same slots, so the union rhythm collapses onto one repeated spacing. (The first hypothesis —
+that the NMS min-distance in `_density_aware_select` imposed a 1/8 floor — was wrong; per-hand
+1/16 intervals are ~0.6% in *both* human and our maps.)
+
+Metrics: `pulse_stability`, `ioi_cond_entropy`, `ioi_switch_rate` (sequence-aware, in the
+composite); `dominant_share`, `ioi_entropy`, `offgrid_frac` (guards). Human reference:
+pulse 0.551, cond-entropy 0.536, switch-rate 13.7/100 notes, dominant share 0.509.
+
+Deliberately *not* measured: on-grid purity. V7 emits on a 1/16 grid by construction and human
+maps are 94–99% on that same grid, so it cannot discriminate.
+
+**The control battery needed extending.** Every pre-existing control preserves note times, so
+none of them can test a rhythm metric — `random`, `shuffled` and `zigzag` score *identically to
+human* on A2, which is correct rather than blind. Added `timing_random` (times randomised on the
+grid) and `timing_jitter` (times nudged off-grid); A2 catches both hard (6.30 / 8.90) plus
+`metronome` (5.21). Blind-spot reporting in `audit_eval_suite.py` is now **axis-aware**: each
+metric is only judged against the controls that attack what it measures.
+
+*Prescriptive form:* hold a pulse about half the time and break it the rest
+(`pulse_stability` ≈ 0.55); change rhythmic gear ~14 times per 100 notes; play both hands
+together on ~18% of beats, not 86%.
 
 ### A3 — Pattern vocabulary / idiom
 Human maps are built from a small vocabulary of recognizable idioms (streams, stacks, towers,

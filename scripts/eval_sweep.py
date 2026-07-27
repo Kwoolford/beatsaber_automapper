@@ -92,6 +92,19 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "xsep_off":    ({**_DS25, "COLOR_SEP_MODE": "off"}, []),
     # do the two levers compose, or fight?
     "tp2_xsep":    ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "2.0", "COLOR_SEP_MODE": "extreme"}, []),
+    # --- eval-suite v2 axis A2 (rhythm) lever, added 2026-07-27 ---
+    # Our hands fire simultaneously on 85.6% of beats (human 17.5%), which is what
+    # makes the union rhythm metronomic. Soft-penalise the right hand on slots the
+    # left hand already took. Single-song probe: il0.5 -> simultaneity 0.12 (human
+    # 0.175) but little rhythm gain; il0.9 -> simultaneity 0.02 (too far) but
+    # cond-entropy 0.49 and switch-rate 12.2, both near human (0.54 / 13.7). The
+    # sweet spot is somewhere between, hence three strengths.
+    "il5":         ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.5"}, []),
+    "il7":         ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.7"}, []),
+    "il9":         ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.9"}, []),
+    # rhythm lever + the best-guess flow levers, to check the axes do not fight
+    "il7_tp1_xsep": ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.7",
+                      "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
 }
 
 sys.path.insert(0, str(REPO / "scripts"))
@@ -382,6 +395,30 @@ def sweep(arms: list[str], force: bool) -> None:
               + f"{0.218:11.3f}{0.0:10.2f}{1.0:9.2f}")
     except Exception as e:  # noqa: BLE001
         print(f"(flow axis unavailable: {e})")
+
+    # ---- v2 axis A2: rhythm, also ranked by the cohort statistic ----
+    try:
+        from beatsaber_automapper.evaluation import rhythm as _rh
+        print("\n=== rhythm (v2 axis A2) — our largest measured gap ===")
+        print("arm".ljust(12) + "".join(f"{k:>20s}" for k in _rh.SEQUENCE_KEYS)
+              + "dom_share".rjust(11) + "rhy_gap".rjust(9) + "min_spr".rjust(9))
+        for arm in arms:
+            rows = [r for r in results[arm].values() if r]
+            cc = _rh.cohort_comparison(rows)
+            if "_summary" not in cc:
+                continue
+            cells = "".join(
+                f"{cc[k]['shift']:+9.2f}/{cc[k]['spread']:<10.2f}" if k in cc
+                else f"{'--':>20s}" for k in _rh.SEQUENCE_KEYS)
+            ds = cc.get("dominant_share", {}).get("median")
+            s = cc["_summary"]
+            print(arm.ljust(12) + cells
+                  + (f"{ds:11.3f}" if ds is not None else f"{'--':>11s}")
+                  + f"{s['rhythm_gap']:9.2f}{s['min_spread']:9.2f}")
+        print(f"{'HUMAN':12s}" + "".join(f"{'+0.00/1.00':>20s}" for _ in _rh.SEQUENCE_KEYS)
+              + f"{0.509:11.3f}{0.0:9.2f}{1.0:9.2f}")
+    except Exception as e:  # noqa: BLE001
+        print(f"(rhythm axis unavailable: {e})")
 
     out = CACHE / "leaderboard.json"
     out.write_text(json.dumps(summary, indent=2))
