@@ -189,18 +189,31 @@ def render(notes, bpm: float, b0: float, b1: float,
 
 
 def sections(notes, bpm: float) -> list[str]:
-    """Coarse section view: notes and density per 8 bars."""
+    """Coarse section view: notes, density, and HAND ROLE per 8 bars.
+
+    The `lead` column is the axis-A6 view: which hand carries the passage and by
+    how much. Human maps show one hand leading with a mild margin and the lead
+    rotating; ours show `--` almost everywhere, because both hands play every
+    beat. That pattern is what the whole hand-role discovery came from, so the
+    reading channel that found it should display it.
+    """
     max_beat = max((n.beat for n in notes), default=0.0)
     span = 8 * BEATS_PER_BAR
-    out = [f"{'bars':>10s} {'beat':>13s} {'notes':>6s} {'nps':>6s}  density"]
+    out = [f"{'bars':>10s} {'beat':>13s} {'notes':>6s} {'nps':>6s} {'lead':>7s}  density"]
     b = 0.0
     while b < max_beat:
         seg = [n for n in notes if b <= n.beat < b + span]
         secs = span * 60.0 / bpm
         nps = len(seg) / secs if secs else 0.0
         bar = BLOCKS[min(int(nps / 12.0 * 8), 8)] * max(1, int(nps))
+        if seg:
+            left = sum(1 for n in seg if n.color == 0)
+            asym = abs(2 * left - len(seg)) / len(seg)
+            lead = "--" if asym < 0.02 else f"{'L' if left * 2 > len(seg) else 'R'}{asym:.2f}"
+        else:
+            lead = "--"
         out.append(f"{int(b // BEATS_PER_BAR) + 1:>4d}-{int((b + span) // BEATS_PER_BAR):<5d} "
-                   f"{b:>6.0f}-{b + span:<6.0f} {len(seg):>6d} {nps:>6.2f}  {bar}")
+                   f"{b:>6.0f}-{b + span:<6.0f} {len(seg):>6d} {nps:>6.2f} {lead:>7s}  {bar}")
         b += span
     return out
 

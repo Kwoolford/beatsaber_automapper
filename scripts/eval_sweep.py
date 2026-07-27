@@ -305,7 +305,34 @@ def _score(zip_path: pathlib.Path, ref_times: np.ndarray, duration: float) -> di
         rec.update(_flow_metrics_for(zip_path))
     except Exception:  # noqa: BLE001
         pass
+    # A3 idiom + A6 hand role. These were missing from the sweep for a while, so
+    # a sweep report showed only two of the four scored axes and hand role -- our
+    # largest defect -- was invisible unless you ran the scorecard separately.
+    try:
+        rec.update(_axis_metrics_for(zip_path))
+    except Exception:  # noqa: BLE001
+        pass
     return rec
+
+
+def _axis_metrics_for(zip_path: pathlib.Path) -> dict:
+    from beatsaber_automapper.data.beatmap import ColorNote
+    from beatsaber_automapper.evaluation import handrole as _hro
+    from beatsaber_automapper.evaluation import idiom as _idm
+    from eval_contour_follow import _load_notes_with_direction
+
+    recs = _load_notes_with_direction(zip_path, "Expert")
+    if not recs:
+        return {}
+    notes = [ColorNote(beat=b, x=int(x), y=int(y), color=int(c), direction=int(d))
+             for (b, x, y, c, d) in recs]
+
+    class _BM:
+        color_notes = sorted(notes, key=lambda n: n.beat)
+        bomb_notes: list = []
+
+    bm = _BM()
+    return {**_idm.idiom_metrics(bm).metrics, **_hro.handrole_metrics(bm).metrics}
 
 
 def _flow_metrics_for(zip_path: pathlib.Path) -> dict:
@@ -518,6 +545,34 @@ def _sweep_inner(arms: list[str], force: bool, true_bpm: bool = False) -> None:
               + f"{0.509:11.3f}{0.0:9.2f}{1.0:9.2f}")
     except Exception as e:  # noqa: BLE001
         print(f"(rhythm axis unavailable: {e})")
+
+    # ---- v2 axes A3 (idiom) + A6 (hand role), same cohort statistic ----
+    for _title, _mod, _gapkey in (
+        ("idiom (v2 axis A3)", "idiom", "idiom_gap"),
+        ("HAND ROLE (v2 axis A6) — our worst axis", "handrole", "handrole_gap"),
+    ):
+        try:
+            import importlib
+            _m = importlib.import_module(f"beatsaber_automapper.evaluation.{_mod}")
+            print(f"\n=== {_title} ===")
+            print("arm".ljust(12) + "".join(f"{k:>20s}" for k in _m.SEQUENCE_KEYS)
+                  + "gap".rjust(9) + "min_spr".rjust(9))
+            for arm in arms:
+                rows = [r for r in results[arm].values() if r]
+                cc = _m.cohort_comparison(rows)
+                if "_summary" not in cc:
+                    continue
+                cells = "".join(
+                    f"{cc[k]['shift']:+9.2f}/{cc[k]['spread']:<10.2f}" if k in cc
+                    else f"{'--':>20s}" for k in _m.SEQUENCE_KEYS)
+                sm = cc["_summary"]
+                print(arm.ljust(12) + cells
+                      + f"{sm[_gapkey]:9.2f}{sm['min_spread']:9.2f}")
+            print(f"{'HUMAN':12s}" + "".join(f"{'+0.00/1.00':>20s}"
+                                             for _ in _m.SEQUENCE_KEYS)
+                  + f"{0.0:9.2f}{1.0:9.2f}")
+        except Exception as e:  # noqa: BLE001
+            print(f"({_title} unavailable: {e})")
 
     out = CACHE / "leaderboard.json"
     out.write_text(json.dumps(summary, indent=2))
