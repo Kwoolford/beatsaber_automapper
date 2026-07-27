@@ -214,7 +214,28 @@ metric is only judged against the controls that attack what it measures.
 (`pulse_stability` ≈ 0.55); change rhythmic gear ~14 times per 100 notes; play both hands
 together on ~18% of beats, not 86%.
 
-### A3 — Pattern vocabulary / idiom
+### A3 — Pattern vocabulary / idiom — ✅ **BUILT 2026-07-27**
+`src/beatsaber_automapper/evaluation/idiom.py`, mined by `scripts/calibrate_idiom.py`,
+tested in `tests/test_idiom.py` (7 tests).
+
+**The premise held.** Over 181 human maps, **130,395 per-hand transitions collapse to 2,510
+distinct idioms**; the top 200 cover **74.8%** of everything human mappers do, the top 500
+cover 89.5%, the top 1000 cover 96.4%. Human mapping is a small vocabulary deployed
+deliberately — the direct rebuttal to the "more diversity = more human" assumption in §1
+Finding 3. **This vocabulary is the artifact a rule-based mapper can sample from**, which is
+the project goal; it is checked in at `outputs/idiom_vocab_human.json`.
+
+An idiom is one hand's transition `(dx, dy, dir_from, dir_to, dt_class)`, with dt bucketed to
+{stack, 1/16, 1/8, 1/4, slow} — the same geometric move is a different pattern at a different
+speed. Metrics: `idiom_coverage` (share drawn from the top-500), `idiom_top50` (share from the
+50-idiom core), `idiom_jsd` (is the *mix* human?), `idiom_entropy` (guard).
+
+Control battery: human **0.50**, prod **1.84**, shuffled 5.45, zigzag 5.63, random **9.69**,
+metronome 10.73. A3 is the only axis that correctly ranks a uniform-random map near the bottom.
+Vocabulary and reference are mined from **disjoint** corpus slices so a map's own idioms cannot
+inflate its coverage.
+
+### (original plan for A3, kept for context) Pattern vocabulary / idiom
 Human maps are built from a small vocabulary of recognizable idioms (streams, stacks, towers,
 sliders, crossovers, doubles) — not from maximum entropy. Build the idiom inventory from the
 human corpus (n-gram over (Δposition, Δdirection, Δtime) triples), then measure what fraction of
