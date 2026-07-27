@@ -77,6 +77,34 @@ def _parity_map(notes, bpm: float) -> dict:
     return out, card
 
 
+def _idiom_map(notes) -> dict:
+    """(beat, color) -> (rank, per-mille corpus frequency) of the idiom ENDING here.
+
+    Naming each transition against the mined human vocabulary is what turns the
+    score from "some notes" into something diagnosable: a transition is either a
+    pattern human mappers actually use (and how often), or it is out of
+    vocabulary entirely, which is usually where a map reads wrong.
+    """
+    try:
+        from beatsaber_automapper.evaluation import idiom as idm
+        counts, ranked, probs = idm.load_vocab()
+    except Exception:  # noqa: BLE001
+        return {}
+    if not ranked:
+        return {}
+    rank = {k: i for i, k in enumerate(ranked)}
+    out = {}
+    for color in (0, 1):
+        ns = sorted((n for n in notes if n.color == color), key=lambda n: n.beat)
+        for a, b in zip(ns, ns[1:]):
+            dt = round(b.beat - a.beat, 3)
+            if dt <= 0 or dt > idm.MAX_DT:
+                continue
+            key = (b.x - a.x, b.y - a.y, a.direction, b.direction, idm.dt_class(dt))
+            out[(round(b.beat, 3), color)] = (rank.get(key), probs.get(key, 0.0) * 1000.0)
+    return out
+
+
 def _stem_lanes(audio_path: pathlib.Path, bpm: float, max_beat: float):
     """Per-stem energy per slot, from the same features the model trains on."""
     try:
@@ -102,8 +130,9 @@ def _bar_range(spec: str) -> tuple[float, float]:
 
 
 def render(notes, bpm: float, b0: float, b1: float,
-           feats=None, names=None, label: str = "") -> list[str]:
+           feats=None, names=None, label: str = "", idioms: bool = False) -> list[str]:
     par, _card = _parity_map(notes, bpm)
+    idi = _idiom_map(notes) if idioms else {}
     by_slot: dict[tuple[int, int], list] = {}
     for n in notes:
         if b0 <= n.beat < b1:
@@ -111,8 +140,9 @@ def render(notes, bpm: float, b0: float, b1: float,
 
     idx = {nm: i for i, nm in enumerate(names or [])}
     has_audio = feats is not None
+    w = 19 if idioms else 10
 
-    head = f"{'bar':>4s} {'beat':>7s} │ {'L':<10s} │ {'R':<10s}"
+    head = f"{'bar':>4s} {'beat':>7s} │ {'L':<{w}s} │ {'R':<{w}s}"
     if has_audio:
         head += " │ K S H │ bass lead"
     lines = []
@@ -129,12 +159,18 @@ def render(notes, bpm: float, b0: float, b1: float,
         for color in (0, 1):
             ns = by_slot.get((s, color), [])
             if not ns:
-                cells.append(" " * 10)
+                cells.append(" " * w)
                 continue
             n = ns[0]
             tag = par.get((round(n.beat, 3), color), "")
             extra = f"+{len(ns) - 1}" if len(ns) > 1 else ""
-            cells.append(f"{n.x},{n.y} {ARROW.get(n.direction, '?')} {tag:<3s}{extra}"[:10].ljust(10))
+            cell = f"{n.x},{n.y} {ARROW.get(n.direction, '?')} {tag:<3s}{extra}"
+            if idioms:
+                r, pm = idi.get((round(n.beat, 3), color), (None, None))
+                # "#12 4.1‰" = the 12th most common human idiom, used 4.1 per
+                # mille of the time. "OOV" = not in the human vocabulary at all.
+                cell += f" {'OOV' if r is None else f'#{r} {pm:.1f}'}"[:9]
+            cells.append(cell[:w].ljust(w))
         # only print empty rows on the beat, to keep the score compact
         if not any(c.strip() for c in cells) and s % SUB != 0:
             continue
@@ -169,6 +205,68 @@ def sections(notes, bpm: float) -> list[str]:
     return out
 
 
+def find(notes, bpm: float, what: str, context: float = 2.0,
+         limit: int = 8) -> list[str]:
+    """Locate every occurrence of something, with surrounding context.
+
+    `what` is one of:
+      violations  — swing-simulator wrist-breaks
+      oov         — transitions outside the human idiom vocabulary
+      doubles     — beats where both hands fire together
+    """
+    hits: list[float] = []
+    if what == "violations":
+        _par, card = _parity_map(notes, bpm)
+        hits = sorted(card.violation_beats)
+    elif what == "oov":
+        idi = _idiom_map(notes)
+        hits = sorted({b for (b, _c), (r, _p) in idi.items() if r is None})
+    elif what == "doubles":
+        by: dict[float, set] = {}
+        for n in notes:
+            by.setdefault(round(n.beat, 3), set()).add(n.color)
+        hits = sorted(b for b, cs in by.items() if len(cs) == 2)
+    else:
+        return [f"unknown --find target: {what}"]
+
+    out = [f"# {what}: {len(hits)} occurrence(s)"]
+    if not hits:
+        return out
+    # collapse hits that fall inside the same context window
+    shown, last = 0, -1e9
+    for b in hits:
+        if b - last < context or shown >= limit:
+            continue
+        last, shown = b, shown + 1
+        out.append("")
+        out.extend(render(notes, bpm, b - context, b + context,
+                          label=f"— around beat {b:.2f} —", idioms=(what == "oov")))
+    if len(hits) > shown:
+        out.append(f"\n(+{len(hits) - shown} more, showing first {shown})")
+    return out
+
+
+def vs(a_notes, a_bpm, b_notes, b_bpm, t0: float, t1: float,
+       labels=("A", "B")) -> list[str]:
+    """Two maps side by side aligned in SECONDS, not bars.
+
+    Bar numbers do NOT align between our maps and the human ones: tempo detection
+    is wrong on 30% of the eval set, so the same bar index is a different moment
+    in the song. Aligning on wall-clock time is the only honest comparison.
+    """
+    left = render(a_notes, a_bpm, t0 * a_bpm / 60.0, t1 * a_bpm / 60.0,
+                  label=f"{labels[0]} @ {a_bpm:.0f}bpm  {t0:.0f}-{t1:.0f}s")
+    right = render(b_notes, b_bpm, t0 * b_bpm / 60.0, t1 * b_bpm / 60.0,
+                   label=f"{labels[1]} @ {b_bpm:.0f}bpm  {t0:.0f}-{t1:.0f}s")
+    w = max((len(x) for x in left), default=0) + 3
+    out = []
+    for i in range(max(len(left), len(right))):
+        l = left[i] if i < len(left) else ""
+        r = right[i] if i < len(right) else ""
+        out.append(f"{l:<{w}}{r}")
+    return out
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -178,6 +276,16 @@ def main() -> None:
     ap.add_argument("--sections", action="store_true", help="whole-song overview")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"),
                     help="two bar ranges to print side by side")
+    ap.add_argument("--idioms", action="store_true",
+                    help="annotate each note with the rank + corpus frequency of the "
+                         "human idiom it completes, or OOV if out of vocabulary")
+    ap.add_argument("--find", choices=("violations", "oov", "doubles"),
+                    help="show every occurrence of something, with context")
+    ap.add_argument("--vs", metavar="OTHER_MAP",
+                    help="second map to read alongside, aligned in SECONDS "
+                         "(bar numbers do not align across different tempi)")
+    ap.add_argument("--secs", default="60-75",
+                    help="time range for --vs, e.g. 60-75")
     a = ap.parse_args()
 
     notes, bpm = load(pathlib.Path(a.map))
@@ -185,6 +293,17 @@ def main() -> None:
 
     if a.sections:
         print("\n".join(sections(notes, bpm)))
+        return
+
+    if a.find:
+        print("\n".join(find(notes, bpm, a.find)))
+        return
+
+    if a.vs:
+        o_notes, o_bpm = load(pathlib.Path(a.vs))
+        s0, _, s1 = a.secs.partition("-")
+        print("\n".join(vs(notes, bpm, o_notes, o_bpm, float(s0), float(s1),
+                           labels=(pathlib.Path(a.map).stem, pathlib.Path(a.vs).stem))))
         return
 
     if a.compare:
@@ -206,7 +325,7 @@ def main() -> None:
     feats = names = None
     if a.audio:
         feats, names = _stem_lanes(pathlib.Path(a.audio), bpm, b1)
-    print("\n".join(render(notes, bpm, b0, b1, feats, names)))
+    print("\n".join(render(notes, bpm, b0, b1, feats, names, idioms=a.idioms)))
 
 
 if __name__ == "__main__":

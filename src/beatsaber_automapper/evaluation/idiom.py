@@ -52,13 +52,16 @@ import ast
 import json
 import math
 import pathlib
+import statistics
 from collections import Counter
 from dataclasses import dataclass, field
 
 from beatsaber_automapper.evaluation import _dist
 
-KEYS = ["idiom_coverage", "idiom_top50", "idiom_jsd", "idiom_entropy"]
-SEQUENCE_KEYS = ["idiom_coverage", "idiom_top50", "idiom_jsd"]
+KEYS = ["idiom_coverage", "idiom_top50", "idiom_jsd", "idiom_entropy", "idiom_local"]
+SEQUENCE_KEYS = ["idiom_coverage", "idiom_top50", "idiom_jsd", "idiom_local"]
+
+LOCAL_WINDOW = 16   # consecutive transitions
 
 VOCAB_PATH = (
     pathlib.Path(__file__).resolve().parents[3] / "outputs" / "idiom_vocab_human.json"
@@ -159,11 +162,31 @@ def idiom_metrics(beatmap) -> IdiomReport:
     c = Counter(seq)
     map_p = {k: v / n for k, v in c.items()}
 
+    # LOCAL vocabulary breadth: distinct idioms inside a sliding window of
+    # consecutive transitions. Added 2026-07-27 after READING a map showed the
+    # right hand alternating between exactly two idioms (#51/#50) for bars at a
+    # time. Whole-map counts miss this entirely — our maps use MORE distinct
+    # idioms overall than human ones (238 vs 219) while recycling a handful
+    # locally (0.703 vs 0.861 distinct per 16-transition window).
+    #
+    # This is the third instance of the same failure shape: globally right,
+    # locally wrong. The same is true of hand balance (identical globally,
+    # 4x off locally) and of sequencing itself (h_dist histograms pass while a
+    # shuffled map scores like a human one). Global statistics are where this
+    # generator looks good; local structure is where it is broken.
+    w = LOCAL_WINDOW
+    if len(seq) >= w * 3:
+        local = statistics.fmean(
+            len(set(seq[i:i + w])) / w for i in range(0, len(seq) - w, w // 2))
+    else:
+        local = float("nan")
+
     rep.metrics = {
         "idiom_coverage": sum(1 for s in seq if s in top) / n,
         "idiom_top50": sum(1 for s in seq if s in core) / n,
         "idiom_jsd": _jsd(map_p, human_p),
         "idiom_entropy": _dist_entropy(list(c.values())),
+        "idiom_local": local,
     }
     rep.idiom_dist = _dist.score_map(rep.metrics, load_reference(), SEQUENCE_KEYS)
     return rep

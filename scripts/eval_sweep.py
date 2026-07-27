@@ -339,7 +339,48 @@ def _load_human_baseline() -> None:
             pass
 
 
+def _acquire_cache_lock() -> pathlib.Path:
+    """Refuse to run two sweeps against the same cache directory.
+
+    Learned the hard way 2026-07-27: an overnight script was accidentally
+    launched twice, both instances wrote the same `outputs/eval_sweep_cache/
+    <arm>__<song>.zip` paths concurrently, and 11 map zips came out corrupt
+    ("Bad CRC-32", "Bad magic number for central directory"). The scores for
+    those maps were silently lost. A lock is cheaper than re-running a sweep.
+    """
+    CACHE.mkdir(parents=True, exist_ok=True)
+    lock = CACHE / ".sweep.lock"
+    if lock.exists():
+        try:
+            pid = int(lock.read_text().strip())
+        except Exception:  # noqa: BLE001
+            pid = -1
+        alive = False
+        if pid > 0:
+            try:
+                os.kill(pid, 0)
+                alive = True
+            except OSError:
+                alive = False
+        if alive:
+            raise SystemExit(
+                f"another sweep is already running (pid {pid}). Concurrent sweeps "
+                f"corrupt the cached maps — wait for it, or remove {lock} if that "
+                f"process is definitely dead.")
+        print(f"(clearing stale lock from dead pid {pid})")
+    lock.write_text(str(os.getpid()))
+    return lock
+
+
 def sweep(arms: list[str], force: bool, true_bpm: bool = False) -> None:
+    lock = _acquire_cache_lock()
+    try:
+        _sweep_inner(arms, force, true_bpm)
+    finally:
+        lock.unlink(missing_ok=True)
+
+
+def _sweep_inner(arms: list[str], force: bool, true_bpm: bool = False) -> None:
     songs = _list_songs()
     if not songs:
         print("no songs — run: eval_sweep.py build-songset --n 6")
