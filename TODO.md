@@ -94,11 +94,30 @@ improvement measured in this project. Density (Spearman 0.402 → 0.390) and not
 3. **Spread stays under-dispersed** (0.23–0.25 vs the 0.35 bar), though prod was already 0.32 —
    this predates the lever and is the standing map-level-variety gap.
 
-**⇒ Next:** (a) harvest `ho05_best` (ho05 + tp1 + xsep) — already running; (b) the honest
-candidate today is **ho03**, which wins rhythm and hand-role with parity clean and idiom
-unchanged, at the cost of flow; (c) to recover flow, the offset should prefer the neighbour that
-*also* keeps the angle sequence smooth, not just the higher-probability one — that is a small,
-well-specified change to `_offset_hands`.
+**⚠️ CORRECTION — the flow cost is `ebpm_burst`, NOT `angle_change`.** Isolating the sub-metrics:
+
+| | angle_change | travel | **ebpm_burst** |
+|---|---|---|---|
+| prod | 19.81 (+0.15) | 5.73 (+2.09) | **243/min (-0.17)** |
+| ho03 | 19.39 (**+0.06**, better) | 5.67 (+2.01) | **360/min (+2.76)** |
+| human | 19.1 | 4.0 | 250/min |
+
+Offsetting a hand by a 16th can drop that note right beside the same hand's next note, so the
+95th-percentile burst rate spikes to ~6 swings/second. Wrist rotation actually *improved*. Two
+consequences: the `tp1` travel penalty was never going to help (confirmed by ho05_best), and the
+**spacing-aware variant also failed** - ho03s flow 1.42 (vs ho03 1.36) and idiom worse at 2.41.
+
+**Fix implemented:** `BEAT_HAND_OFFSET_MINGAP` (default 2) - only offset when the moved note stays
+>=N slots from that hand's other notes. Arms `ho03g`/`ho05g`/`ho05g3` **RUNNING**.
+
+**=> NOT PROMOTING pending Kyle's manual review.** He is listening to `outputs/review_2026-07-27/`
+(prod vs ho03 vs ho05 on 3 songs) right now, and the open question - does the burst-y feel
+actually matter - is exactly what his ears answer and my metrics cannot. Promoting the production
+default before that lands would be premature, especially as the trade is our *best* axis (flow,
+0.71, nearest to passing) for our two worst.
+
+Standing candidate if his verdict is "feels better": **ho03** - rhythm 0.50, hand-role 2.11,
+idiom unchanged, parity clean, density and note count held, flow 1.36.
 
 ---
 

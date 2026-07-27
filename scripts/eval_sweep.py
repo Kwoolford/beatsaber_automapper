@@ -126,6 +126,12 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
                      "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
     "ho05_best":   ({**_DS25, "BEAT_HAND_OFFSET": "0.5",
                      "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme"}, []),
+    # min-gap guard: only offset when the moved note stays >=2 slots from this
+    # hand's other notes. The flow regression was ebpm_burst (243 -> 360
+    # swings/min vs a human 250), NOT angle_change which slightly improved.
+    "ho03g":       ({**_DS25, "BEAT_HAND_OFFSET": "0.3", "BEAT_HAND_OFFSET_MINGAP": "2"}, []),
+    "ho05g":       ({**_DS25, "BEAT_HAND_OFFSET": "0.5", "BEAT_HAND_OFFSET_MINGAP": "2"}, []),
+    "ho05g3":      ({**_DS25, "BEAT_HAND_OFFSET": "0.5", "BEAT_HAND_OFFSET_MINGAP": "3"}, []),
     # ---- corrected: SAMPLE the prior instead of maximising it ----
     "iois1":       ({**_DS25, "BEAT_IOI_PRIOR": "1.0"}, []),
     "iois2":       ({**_DS25, "BEAT_IOI_PRIOR": "2.0"}, []),

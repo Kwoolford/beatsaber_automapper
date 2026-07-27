@@ -1887,7 +1887,8 @@ def generate_v7_level(
         return chosen, cur
 
     def _offset_hands(left: set[int], right: set[int], probs, rate: float,
-                      seed: int = 0, spacing_aware: bool = False) -> tuple[set[int], set[int]]:
+                      seed: int = 0, spacing_aware: bool = False,
+                      min_gap: int = 2) -> tuple[set[int], set[int]]:
         """Where both hands share a slot, MOVE one by a 16th instead of deleting it.
 
         Found 2026-07-27 by dumping beat_probs next to the human note times on the
@@ -1924,8 +1925,15 @@ def generate_v7_level(
                 continue
             # prefer whichever neighbouring slot the model likes better for this
             # hand, and never collide with a note either hand already holds
+            # MIN-GAP guard. Moving a note by a 16th can drop it right beside this
+            # hand's neighbouring note, which spikes burst speed: the 24-song sweep
+            # showed ebpm_burst going 243 -> 360 swings/min against a human 250,
+            # and THAT -- not angle_change, which actually improved slightly -- is
+            # what the flow regression was. Only offset when the moved note stays
+            # at least `min_gap` slots away from this hand's other notes.
             cands = [d for d in (-1, 1)
-                     if 0 <= s + d < n and (s + d) not in new_right and (s + d) not in left]
+                     if 0 <= s + d < n and (s + d) not in new_right and (s + d) not in left
+                     and min((abs(s + d - o) for o in new_right if o != s), default=99) >= min_gap]
             if not cands:
                 continue
             if spacing_aware:
@@ -2134,7 +2142,8 @@ def generate_v7_level(
         if _ho > 0.0 and left_onsets and right_onsets:
             left_onsets, right_onsets = _offset_hands(
                 left_onsets, right_onsets, beat_probs[:, 1].detach().cpu().numpy(), _ho,
-                spacing_aware=os.environ.get("BEAT_HAND_OFFSET_SPACING") == "1")
+                spacing_aware=os.environ.get("BEAT_HAND_OFFSET_SPACING") == "1",
+                min_gap=int(os.environ.get("BEAT_HAND_OFFSET_MINGAP", "2")))
         _hr = float(os.environ.get("BEAT_HAND_ROLE", "0.0"))
         if _hr > 0.0 and (left_onsets or right_onsets):
             left_onsets, right_onsets = _assign_hand_roles(
