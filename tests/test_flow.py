@@ -118,3 +118,18 @@ def test_cohort_comparison_detects_mode_collapse():
     cc = flow.cohort_comparison(collapsed, ref)
     assert cc["_summary"]["flow_gap"] == pytest.approx(0.0)
     assert cc["_summary"]["min_spread"] == pytest.approx(0.0)
+
+
+def test_scorecard_passes_human_and_fails_a_degenerate_cohort():
+    """The suite must judge without a human in the loop: a human cohort passes,
+    a metronomic cohort fails. Bars live in evaluation/scorecard.py."""
+    from beatsaber_automapper.evaluation import scorecard as sc
+
+    metronomic = []
+    for _ in range(6):
+        notes = [ColorNote(beat=i * 0.5, x=1, y=0, color=i % 2, direction=1)
+                 for i in range(200)]
+        metronomic.append((_BM(notes), 120.0))
+    res = sc.score_cohort(metronomic, "metronomic")
+    assert not res["passed"]
+    assert "OVERALL: FAIL" in sc.report(res)
