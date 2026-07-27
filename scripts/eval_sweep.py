@@ -74,6 +74,12 @@ def _ar(w: str, s: str) -> dict[str, str]:
     return {**_DS25, "LAYOUT_ANTIREPEAT": w, "LAYOUT_AR_STRENGTH": s}
 ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "prod":        (_DS25, []),                                             # control = NEW PRODUCTION (W1/S2 baked default + temp 0.9/top_p 0.97)
+    # Byte-identical config to `prod`. Decode is stochastic (temp 0.9/top_p 0.97)
+    # and generate.py has no seed flag, so prod vs prod_rep measures the NOISE
+    # FLOOR of every arm comparison in this file. Added 2026-07-27 after a
+    # regeneration at near-identical BPM moved the idiom gap 2.41 -> 1.76, which
+    # is larger than several differences that had been read as signal.
+    "prod_rep":    (_DS25, []),
     "noar":        ({**_DS25, "LAYOUT_ANTIREPEAT": "0"}, []),               # pre-promotion baseline (anti-repeat OFF) — regression reference
     "ar_w1_s2":    (_ar("1", "2.0"), []),                                   # promoted config, explicit (== prod default now)
     "ar_w2_s2":    (_ar("2", "2.0"), []),                                   # 2-step window, moderate

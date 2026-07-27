@@ -101,10 +101,34 @@ count looked *better than human*. Added as `idiom_local`, which raised our idiom
    **RHYTHM IS THE WALL.** It sits at ~2.4 for every arm and no lever improves it.
    `rule_mapper.py` already proved rhythm is inherited *entirely* from the onset layer (2.41 on
    our onsets, 0.25 on human onsets, identical placement code), so this is Stage-1 selection,
-   not layout. **Part D (`overnight_2026-07-27d.sh`, RUNNING) regenerates prod+best with
-   `--true-bpm`** to separate how much of that gap is our 30% tempo-detection error from how
-   much is genuine map quality. That measurement decides where the next GPU night goes: a real
-   tempo model, or a Stage-1 retrain.
+   not layout.
+
+2. **★ PART D VERDICT: TEMPO IS NOT THE CAUSE. The rhythm gap is Stage-1. ★**
+   Regenerated prod + best with `--true-bpm` (the human map's declared BPM) and compared:
+
+   | cohort | | rhythm | flow | idiom | handrole |
+   |---|---|---|---|---|---|
+   | all 24 (prod) | detected | 2.41 | 0.81 | 2.34 | 3.50 |
+   | | true BPM | **2.37** | 0.71 | 1.85 | 3.23 |
+   | **mis-tempo only (n=6)** | detected | 1.96 | 0.73 | 1.94 | 2.84 |
+   | | true BPM | **2.13** | 0.69 | 1.85 | 2.95 |
+   | correct-tempo (n=17) | detected | 2.54 | 0.93 | 2.41 | 3.42 |
+   | | true BPM | 2.38 | 0.96 | 1.76 | 3.25 |
+
+   Rhythm moves 2.41 → 2.37 overall, and **on the songs that actually had wrong tempo it gets
+   slightly WORSE** (1.96 → 2.13) — correcting the tempo removes the artificial inflation that
+   beat-domain metrics get from tempo error, which gives the honest (worse) number. Fixing tempo
+   would make our *measurements* more truthful; it would not fix the maps.
+   **⇒ The next GPU night is a Stage-1 onset-selection change, not a tempo model.** The tempo
+   defect stays on the backlog as a correctness issue, not as the rhythm fix.
+
+3. **⚠️ NOISE FLOOR UNKNOWN — measure before trusting any arm comparison.** Regenerating with a
+   near-identical BPM moved the idiom gap 2.41 → 1.76, which is *larger than several differences
+   in the table above that were read as signal*. Decode is stochastic (temp 0.9 / top_p 0.97)
+   and `generate.py` has **no seed flag**, so every run differs. A `prod_rep` arm (byte-identical
+   config to `prod`) is RUNNING to measure it. **Until that lands, treat arm differences below
+   ~0.5 as unresolved**, which puts most of today's lever verdicts back in question except the
+   large ones (hand-role's rhythm 2.41 → 4.05, tp1's flow 0.81 → 0.30).
 2. **Work `docs/map_authoring_plan.md` Phase 1→2** (this is now the priority channel, having
    produced both A6 and the tempo bug):
    - annotate each transition inline with its **idiom id + human corpus frequency**
