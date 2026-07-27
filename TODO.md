@@ -122,13 +122,30 @@ count looked *better than human*. Added as `idiom_local`, which raised our idiom
    **⇒ The next GPU night is a Stage-1 onset-selection change, not a tempo model.** The tempo
    defect stays on the backlog as a correctness issue, not as the rhythm fix.
 
-3. **⚠️ NOISE FLOOR UNKNOWN — measure before trusting any arm comparison.** Regenerating with a
-   near-identical BPM moved the idiom gap 2.41 → 1.76, which is *larger than several differences
-   in the table above that were read as signal*. Decode is stochastic (temp 0.9 / top_p 0.97)
-   and `generate.py` has **no seed flag**, so every run differs. A `prod_rep` arm (byte-identical
-   config to `prod`) is RUNNING to measure it. **Until that lands, treat arm differences below
-   ~0.5 as unresolved**, which puts most of today's lever verdicts back in question except the
-   large ones (hand-role's rhythm 2.41 → 4.05, tp1's flow 0.81 → 0.30).
+3. **✅ NOISE FLOOR MEASURED — most verdicts survive.** `prod_rep` is a byte-identical config to
+   `prod`; decode is stochastic (temp 0.9 / top_p 0.97) and `generate.py` has **no seed flag**,
+   so two runs of it bound the noise on every comparison in this file:
+
+   | axis | prod | prod_rep | **noise** |
+   |---|---|---|---|
+   | flow | 0.71 | 0.74 | **0.03** |
+   | rhythm | 2.37 | 2.45 | **0.08** |
+   | idiom | 1.85 | 1.76 | **0.09** |
+   | handrole | 3.23 | 2.94 | **0.29** |
+
+   **Read arm differences against these, not against a guess.** A difference above ~0.1 on
+   flow/rhythm/idiom, or above ~0.3 on handrole, is signal; below is noise.
+   This *corrects* the earlier caution in this file that differences under ~0.5 were unresolved —
+   the 2.41 → 1.76 idiom swing that prompted it came from the **BPM change** (a different beat
+   grid), not from stochastic decode.
+
+   Consequences for today's table: `tp1` flow (Δ0.51) ✅ real; `best` flow (Δ0.35) ✅ real;
+   `xsep_ext` idiom (Δ1.27) ✅ real; hand-role's rhythm damage (Δ1.64) and its hand-role gain
+   (Δ1.23) ✅ both real. But `prod` vs `best` on handrole (3.50 vs 3.52, Δ0.02) is **noise** —
+   the travel/crossover levers do nothing for hand role, as expected.
+
+   **Standing rule: any future arm claim must clear the noise floor for that axis.** Re-run
+   `prod_rep` whenever decode defaults change, since the floor is a property of the config.
 2. **Work `docs/map_authoring_plan.md` Phase 1→2** (this is now the priority channel, having
    produced both A6 and the tempo bug):
    - annotate each transition inline with its **idiom id + human corpus frequency**
