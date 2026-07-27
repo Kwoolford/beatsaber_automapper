@@ -44,6 +44,44 @@ hand a *contiguous* block overshot run length to 6.7 (human 1.36) and read as on
 
 ---
 
+# ❌ STAGE-1 IOI PRIOR — NEGATIVE (3 formulations). The window BUDGET is the constraint.
+
+The rhythm gap is Stage-1 onset selection (part D ruled out tempo; `rule_mapper` ruled out
+layout). So I changed **which slots Stage-1 picks** within each density-allocated window, using an
+interval bigram mined from 300 human maps (`outputs/ioi_human_model.json`, strongly diagonal:
+P(1/8→1/8) 0.714). Three formulations, all failed, each for a different and instructive reason:
+
+| formulation | notes | switch rate (human 13.7) | outcome |
+|---|---|---|---|
+| prod (top-k by prob) | 1295 | 1.2 | baseline |
+| **maximise** prob + prior | 1376 | cohort **3.18** | ❌ rhythm gap 2.37 → **2.80**, flow 0.71 → 2.59, idiom 1.85 → 4.57 |
+| **free sample** the prior | **437** | 26.7 | ❌ loses 66% of notes, far too random |
+| sample + **budget guard** | 1387 | **0.3** | ❌ regular again |
+
+1. **Maximising a diagonal-dominant bigram makes rhythm WORSE.** Its argmax is "keep the current
+   interval", so ML selection takes the diagonal nearly always and emits long homogeneous runs.
+   The interval *histogram* moved toward human (1/16 went 0.3% → 29.7%) while the *sequence* got
+   more regular. **The argmax of a distribution is not a sample from it** — the same error the
+   whole v2 effort exists to prevent, made one level down.
+2. **Free sampling breaks the budget**: a distant pick leaves too few candidates to fill the
+   window's quota.
+3. **The budget guard re-creates regularity** by forcing picks early and densely.
+
+**★ STRUCTURAL DIAGNOSIS: a fixed note budget in a fixed 2s window IS the regularity.** With k
+notes required in a window of fixed span, the mean interval is pinned at span/k and only the
+variance is free — near-uniform spacing is forced no matter how you select within it. Human
+interval variety comes from **density varying across time**, not from reshuffling inside a quota.
+
+**⇒ The next lever is the window ALLOCATION, not the within-window pick.** Options, in order:
+(a) let the allocator use finer, *variable-length* windows tied to musical phrase boundaries
+rather than a fixed 2 s grid; (b) allow per-window budgets to vary more sharply (the density-select
+γ already does this at 2 s — try γ on a beat-aligned bar grid); (c) a Stage-1 retrain with a
+rhythm-aware objective, which is the expensive fallback.
+`BEAT_IOI_PRIOR` stays in the tree, default OFF (0.0), with `BEAT_IOI_TEMP` — production is
+unchanged. Arms `ioi05/ioi1/ioi2` are the maximiser's record; `iois*` were never run to completion.
+
+---
+
 # ★ THE UNIFYING PRINCIPLE: GLOBALLY RIGHT, LOCALLY WRONG ★
 
 Three independent findings now share one shape. **Every metric in the original scorecard was a

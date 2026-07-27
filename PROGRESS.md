@@ -82,6 +82,30 @@ maps score *better* on all axes, because A2 measures intervals in the beat domai
 | `BEAT_HAND_INTERLEAVE` | ❌ **rhythm worse** (2.99/2.81 vs 2.41), breaks parity |
 | `BEAT_HAND_ROLE=0.5` | ~ fixes idiom (2.34 → **0.59 PASS**), improves flow/handrole, but **rhythm 2.41 → 4.05**, spread collapses, −24% notes |
 
+### Stage-1 IOI prior — negative, and the diagnosis is structural
+
+Having ruled out tempo (part D) and layout (`rule_mapper`), the rhythm gap had to be onset
+selection, so the within-window pick was changed to use an interval bigram mined from 300 human
+maps. Three formulations, all failed:
+
+| formulation | notes | switch rate (human 13.7) | outcome |
+|---|---|---|---|
+| prod (top-k by prob) | 1295 | 1.2 | baseline |
+| maximise prob + prior | 1376 | cohort 3.18 | rhythm 2.37 → **2.80**, flow 0.71 → 2.59, idiom 1.85 → 4.57 |
+| free sample the prior | **437** | 26.7 | loses 66% of notes |
+| sample + budget guard | 1387 | **0.3** | regular again |
+
+Maximising a diagonal-dominant bigram (P(1/8→1/8) 0.714) makes rhythm *worse*: its argmax is
+"keep the current interval", so the map gets long homogeneous runs. The interval histogram moved
+toward human while the sequence got more regular. **The argmax of a distribution is not a sample
+from it** — the same error the v2 suite exists to prevent, made one level down.
+
+**The structural finding: a fixed note budget in a fixed 2 s window IS the regularity.** With k
+notes required in a fixed span the mean interval is pinned at span/k; only the variance is free.
+Human interval variety comes from density varying *across* time, not from reshuffling inside a
+quota. The next lever is therefore the window **allocation** (variable-length, phrase-aligned
+windows) rather than the within-window pick.
+
 ### Negative results — recorded so they are not re-attempted as written
 
 - **A5 structural self-consistency**: human maps are *not* more self-similar at bar-aligned lags

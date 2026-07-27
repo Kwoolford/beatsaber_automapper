@@ -1813,20 +1813,30 @@ def generate_v7_level(
         return logp, back
 
     def _ioi_dp_select(p_arr, idxs: list[int], k: int, prev_cls: int, model,
-                       lam: float) -> tuple[list[int], int]:
-        """Pick k slots from `idxs` maximising model prob + the human interval prior.
+                       lam: float, rng=None) -> tuple[list[int], int]:
+        """Pick k slots from `idxs` by SAMPLING model prob + the human interval prior.
 
-        Selecting purely by probability is what makes a map metronomic: the top-k
-        slots of a periodic audio signal are themselves periodic, so the interval
-        distribution collapses onto one value. Adding the prior lets a slightly
-        less probable slot win when it produces a more human interval sequence.
+        Selecting purely by probability makes a map metronomic: the top-k slots of
+        a periodic audio signal are themselves periodic, so the interval
+        distribution collapses onto one value.
 
-        Beam over (last chosen index, previous interval class); exact DP would be
-        O(n^2 k) per window which is affordable, but the beam keeps it flat when
-        a window is dense.
+        The first version of this MAXIMISED prob + prior, and that was wrong in an
+        instructive way. The human bigram is strongly diagonal (P(1/8→1/8) 0.714),
+        so its argmax is "keep the current interval" — maximum-likelihood selection
+        takes the diagonal nearly always and produces long homogeneous runs. On the
+        24-song sweep it made rhythm WORSE than the baseline it was meant to fix
+        (switch rate 5.38 → 3.18 against a human 13.65), even though the interval
+        HISTOGRAM moved toward human. **The argmax of a distribution is not a
+        sample from it**, and the human data switches 29% of the time.
+
+        So this samples forward instead: at each step draw the next slot from
+        softmax(log p + lam * log P(interval | previous)). That reproduces the
+        prior's switching mass rather than collapsing onto its mode.
         """
         import math as _math
+        import random as _random
         logp, back = model
+        rng = rng or _random.Random(0)
         n = len(idxs)
         if k <= 0 or n == 0:
             return [], prev_cls
@@ -1837,23 +1847,44 @@ def generate_v7_level(
             return (row or back).get(cur, -9.0)
 
         lp = [_math.log(max(float(p_arr[s]), 1e-9)) for s in idxs]
-        best: dict[tuple[int, int], tuple[float, list[int]]] = {
-            (i, prev_cls): (lp[i], [i]) for i in range(n)
-        }
-        for _ in range(1, k):
-            nxt: dict[tuple[int, int], tuple[float, list[int]]] = {}
-            for (i, c), (sc, path) in best.items():
-                for i2 in range(i + 1, n):
-                    cls = min(max(idxs[i2] - idxs[i], 1), 8)
-                    s = sc + lp[i2] + lam * bi(c, cls)
-                    key = (i2, cls)
-                    if key not in nxt or s > nxt[key][0]:
-                        nxt[key] = (s, path + [i2])
-            if not nxt:
+        temp = float(os.environ.get("BEAT_IOI_TEMP", "0.35"))
+        chosen: list[int] = []
+        cur = prev_cls
+        last = -1
+        for step in range(k):
+            # BUDGET GUARD: leave room for the notes still owed. Without it the
+            # sampler can jump to a distant slot, run out of candidates and
+            # under-fill the window -- free sampling lost 66% of the notes.
+            need = k - step - 1
+            hi = n - need
+            cands = [i for i in range(last + 1, hi)]
+            if not cands:
                 break
-            best = dict(sorted(nxt.items(), key=lambda kv: -kv[1][0])[:192])
-        (_i, c_end), (_s, path) = max(best.items(), key=lambda kv: kv[1][0])
-        return [idxs[i] for i in path], c_end
+            scores = []
+            for i in cands:
+                s = lp[i]
+                if last >= 0:
+                    s += lam * bi(cur, min(max(idxs[i] - idxs[last], 1), 8))
+                scores.append(s)
+            m = max(scores)
+            # TEMPERATURE interpolates between the two failure modes: temp -> 0 is
+            # the maximiser (too regular; long homogeneous runs), temp = 1 is a
+            # free sample from the prior (too random). Human rhythm is neither.
+            w = [_math.exp((s - m) / max(temp, 1e-3)) for s in scores]
+            tot = sum(w) or 1.0
+            r = rng.random() * tot
+            acc = 0.0
+            pick = cands[-1]
+            for i, wi in zip(cands, w):
+                acc += wi
+                if acc >= r:
+                    pick = i
+                    break
+            if last >= 0:
+                cur = min(max(idxs[pick] - idxs[last], 1), 8)
+            chosen.append(idxs[pick])
+            last = pick
+        return chosen, cur
 
     def _assign_hand_roles(left: set[int], right: set[int], bpm: float,
                            strength: float = 1.0,
