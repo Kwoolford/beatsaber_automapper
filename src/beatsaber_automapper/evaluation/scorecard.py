@@ -34,7 +34,9 @@ import pathlib
 import sys
 from dataclasses import dataclass, field
 
-from beatsaber_automapper.evaluation import flow, handrole, idiom, rhythm, swing_sim
+from beatsaber_automapper.evaluation import (
+    flow, handrole, idiom, playfeel, rhythm, swing_sim,
+)
 
 # (module, gap key, gap bar, min-spread bar). Bars are ~2x the human cohort's own
 # gap; spread bar catches mode collapse independently of the gap.
@@ -47,6 +49,11 @@ AXES = [
     # is itself the point. Our maps sit at 3.07, worse than a uniformly random
     # map, so the bar is nowhere near the binding constraint.
     ("handrole", handrole, "handrole_gap", 2.00, 0.35),
+    # A7 difficulty + direction idiom. Added 2026-07-27 after Kyle found the maps
+    # unplayable as Expert: nothing in the scorecard gated note density or the
+    # up/down-vs-diagonal balance, so the suite was scoring rhythm and flow while
+    # the map was a difficulty tier too dense and made of diagonals.
+    ("playfeel", playfeel, "playfeel_gap", 1.00, 0.35),
 ]
 
 
@@ -93,6 +100,10 @@ def _metrics_for(bm, bpm: float) -> dict:
         pass
     try:
         rec.update(handrole.handrole_metrics(bm).metrics)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        rec.update(playfeel.playfeel_metrics(bm, bpm=bpm).metrics)
     except Exception:  # noqa: BLE001
         pass
     try:
