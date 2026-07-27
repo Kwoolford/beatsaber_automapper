@@ -68,23 +68,43 @@ count looked *better than human*. Added as `idiom_local`, which raised our idiom
 
 ## Immediate stack, curated around A6
 
-1. **Harvest part C's remaining arms (`hr10`, `best`, `best_hr`) and promote.**
-   **`hr05`/`hr075` are already in and are NOT promotable as they stand:**
+1. **★ NOTHING IS PROMOTABLE. No arm passes, and the levers TRADE AGAINST EACH OTHER. ★**
+   All arms re-scored on one consistent metric set (bars: flow 0.50 / rhythm 0.70 / idiom 1.00 /
+   handrole 2.00; `*` = passes):
 
-   | arm | flow | rhythm | idiom | handrole | notes |
-   |---|---|---|---|---|---|
-   | prod | 0.81 | 2.41 | 2.34 | 3.50 | 1375 |
-   | hr05 | 0.61 | **4.05** ❌ | **0.59 PASS** | 2.27 | 1041 |
-   | hr075 | 0.60 | **3.97** ❌ | 0.80 | 2.73 | 1040 |
+   | arm | flow | rhythm | idiom | handrole | viol | notes |
+   |---|---|---|---|---|---|---|
+   | prod | 0.81 | 2.41 | 2.34 | 3.50 | 0 | 1375 |
+   | tp1 | **0.30\*** | 2.54 | 2.29 | 3.24 | 0 | 1371 |
+   | xsep_ext | 0.86 | 2.52 | **1.07** | 3.39 | 0 | 1375 |
+   | tp2_xsep | 0.68 | 2.43 | 2.98 | 3.06 | 0 | 1378 |
+   | best (tp1+xsep) | **0.46\*** | 2.44 | 2.06 | 3.52 | 0 | 1381 |
+   | ib1 | 0.66 | 2.32 | 1.98 | 3.15 | 0 | 1373 |
+   | hr05 | 0.61 | **4.05** | **0.59\*** | **2.27** | 0 | 1041 |
+   | hr10 | 0.66 | 4.04 | 0.80 | 2.94 | 0 | 1038 |
 
-   `BEAT_HAND_ROLE` **trades rhythm for idiom**: it fixes idiom outright and improves flow and
-   hand-role, but rhythm goes 2.41 → 4.05, spread collapses to 0.16–0.25 on every axis, and note
-   count drops 24%. Parity stays clean. Two things to try before abandoning it: (a) the spread
-   collapse is likely because `_assign_hand_roles` uses a fixed seed for every song — vary it;
-   (b) de-doubling changes the union IOI distribution, which is what moves rhythm, so the budget
-   inflation needs to add slots that *preserve* the interval mix rather than any slots.
-   **`best` (= `tp1` + `xsep_ext`, the two proven levers alone) is the honest promotion candidate
-   until hand-role stops costing rhythm.**
+   **Two corrections to earlier reporting in this file:**
+   - `xsep_ext` idiom is **1.07, not 0.30**. The 0.30 was measured *before* `idiom_local` was
+     added to A3. Any number recorded earlier in this session against the pre-`idiom_local`
+     suite is not comparable — always re-score all arms after changing a metric.
+   - `tp1` and `xsep_ext` are **NOT orthogonal**, contrary to what was claimed when they were
+     first promoted as a pair. Alone they give idiom 2.29 and 1.07; together **2.06** — the
+     travel penalty undoes most of the crossover fix. Levers must be validated *in combination*,
+     not assumed to compose.
+
+   `BEAT_HAND_ROLE` **trades rhythm for idiom**: best idiom (0.59) and best hand-role (2.27) of
+   any arm, but rhythm 2.41 → 4.05, spread collapses to 0.16–0.25 everywhere, and note count
+   drops 24%. Before abandoning it: (a) `_assign_hand_roles` uses a fixed seed for every song,
+   which likely explains the spread collapse — vary it; (b) de-doubling changes the union IOI
+   distribution, so the budget inflation must add slots that *preserve* the interval mix.
+
+   **RHYTHM IS THE WALL.** It sits at ~2.4 for every arm and no lever improves it.
+   `rule_mapper.py` already proved rhythm is inherited *entirely* from the onset layer (2.41 on
+   our onsets, 0.25 on human onsets, identical placement code), so this is Stage-1 selection,
+   not layout. **Part D (`overnight_2026-07-27d.sh`, RUNNING) regenerates prod+best with
+   `--true-bpm`** to separate how much of that gap is our 30% tempo-detection error from how
+   much is genuine map quality. That measurement decides where the next GPU night goes: a real
+   tempo model, or a Stage-1 retrain.
 2. **Work `docs/map_authoring_plan.md` Phase 1→2** (this is now the priority channel, having
    produced both A6 and the tempo bug):
    - annotate each transition inline with its **idiom id + human corpus frequency**
