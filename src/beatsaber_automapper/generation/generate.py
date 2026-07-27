@@ -1782,6 +1782,63 @@ def generate_v7_level(
         keep = keep_mask & (probs >= pooled)
         return set(keep.nonzero(as_tuple=True)[0].tolist())
 
+    def _assign_hand_roles(left: set[int], right: set[int], bpm: float,
+                           strength: float = 1.0,
+                           target_asym: float = 0.115,
+                           swap_rate: float = 0.461,
+                           double_rate: float = 0.175,
+                           window_beats: float = 8.0,
+                           seed: int = 0) -> tuple[set[int], set[int]]:
+        """Give one hand the lead per 2-bar window, then swap — human role division.
+
+        Onset TIMES are preserved exactly; only the hand each onset belongs to
+        changes, so density and rhythm are untouched. Targets the measured human
+        reference (`evaluation/handrole.py`): local asymmetry 0.115, dominant-hand
+        swap rate 0.461. `strength` interpolates from current behaviour (0) to the
+        full human target (1).
+        """
+        import random as _random
+
+        rng = _random.Random(seed)
+        slots_per_window = max(int(window_beats * BEAT_SUBDIV), 1)
+        allslots = sorted(left | right)
+        if not allslots:
+            return left, right
+        both = left & right          # slots where BOTH hands currently play
+
+        by_win: dict[int, list[int]] = {}
+        for s in allslots:
+            by_win.setdefault(s // slots_per_window, []).append(s)
+
+        new_left: set[int] = set()
+        new_right: set[int] = set()
+        lead = 0
+        asym = target_asym * max(0.0, min(strength, 1.0))
+        lead_share = (1.0 + asym) / 2.0
+        for w in sorted(by_win):
+            slots = by_win[w]
+            n_lead = 0
+            for i, s in enumerate(slots):
+                # Keep genuine doubles at roughly the human rate. Taking the union
+                # naively would collapse every simultaneous pair onto one hand and
+                # silently delete ~45% of the notes (our maps are 85.6% doubles).
+                if s in both and rng.random() < double_rate:
+                    new_left.add(s)
+                    new_right.add(s)
+                    continue
+                # Give the lead hand a majority SHARE, distributed through the
+                # window rather than as one contiguous block: humans alternate
+                # mostly (run length 1.36) while one hand takes more of the work.
+                # A contiguous block overshoots run length to ~6.7 and reads as
+                # one hand idling, which is not what human maps do.
+                take_lead = (n_lead / (i + 1)) < lead_share if i else True
+                to_left = (lead == 0) == take_lead
+                (new_left if to_left else new_right).add(s)
+                n_lead += take_lead
+            if rng.random() < swap_rate:
+                lead ^= 1
+        return new_left, new_right
+
     def _density_aware_select(
         probs: torch.Tensor, slot_sec: "np.ndarray", win_sec: float,
         gamma: float, budget: int, radius: int,
@@ -1839,8 +1896,21 @@ def generate_v7_level(
         _gamma = float(os.environ.get("DENSITY_SELECT_GAMMA", "1.5"))
         _win   = float(os.environ.get("DENSITY_SELECT_WIN", "2.0"))
         _slot_sec = (np.arange(n_slots) / BEAT_SUBDIV) * (60.0 / bpm)
+        # If hand-role reassignment is on it will de-double most slots (our maps
+        # currently play both hands on ~86% of beats vs a human 17.5%), which by
+        # itself would delete ~38% of the notes and push density BELOW human.
+        # Compensate by selecting proportionally more DISTINCT slots up front, so
+        # the note budget survives and the extra notes buy rhythmic positions
+        # rather than doubles.
+        _hr_pre = float(os.environ.get("BEAT_HAND_ROLE", "0.0"))
+        _bL, _bR = len(left_thr), len(right_thr)
+        if _hr_pre > 0.0:
+            _union = len(left_thr | right_thr) or 1
+            _D = len(left_thr & right_thr) / _union
+            _infl = (1.0 + _D) / (1.0 + 0.175)
+            _bL, _bR = int(round(_bL * _infl)), int(round(_bR * _infl))
         left_onsets  = _density_aware_select(
-            beat_probs[:, 0], _slot_sec, _win, _gamma, len(left_thr), beat_nms_radius)
+            beat_probs[:, 0], _slot_sec, _win, _gamma, _bL, beat_nms_radius)
         # HAND INTERLEAVE (eval-suite v2 axis A2, 2026-07-27). The two hands are
         # selected from two probability channels driven by the SAME audio, so they
         # pick the same slots: our maps fire both hands simultaneously on 85.6% of
@@ -1857,12 +1927,30 @@ def generate_v7_level(
             idx = torch.tensor(sorted(left_onsets), dtype=torch.long, device=rp.device)
             rp[idx] = rp[idx] * (1.0 - min(_il, 1.0))
             right_onsets = _density_aware_select(
-                rp, _slot_sec, _win, _gamma, len(right_thr), beat_nms_radius)
+                rp, _slot_sec, _win, _gamma, _bR, beat_nms_radius)
         else:
             right_onsets = _density_aware_select(
-                beat_probs[:, 1], _slot_sec, _win, _gamma, len(right_thr), beat_nms_radius)
-        logger.info("DENSITY_SELECT on (gamma=%.2f win=%.1fs interleave=%.2f): "
-                    "redistributed L %d->%d, R %d->%d", _gamma, _win, _il,
+                beat_probs[:, 1], _slot_sec, _win, _gamma, _bR, beat_nms_radius)
+        # HAND ROLE (eval-suite v2 axis A6, 2026-07-27). Discovered by reading a
+        # map next to its human counterpart: within a passage a human mapper gives
+        # ONE hand the lead — a sustained run — while the other punctuates, then
+        # they swap. Our maps split every bar evenly, so they are balanced at every
+        # scale; human maps are balanced GLOBALLY but lopsided LOCALLY. Measured:
+        # role_asymmetry 0.115 human vs 0.031 ours, swap rate 0.461 vs 0.269, and
+        # A6 is our worst axis (3.50 vs a human 0.34).
+        #
+        # This REASSIGNS which hand plays each already-selected onset, per 2-bar
+        # window, leaving the onset TIMES untouched — so rhythm and density are
+        # unaffected and only the role structure changes. That is the difference
+        # from the failed BEAT_HAND_INTERLEAVE lever, which pushed the hands apart
+        # without giving either one a job and made rhythm worse.
+        _hr = float(os.environ.get("BEAT_HAND_ROLE", "0.0"))
+        if _hr > 0.0 and (left_onsets or right_onsets):
+            left_onsets, right_onsets = _assign_hand_roles(
+                left_onsets, right_onsets, bpm, strength=_hr)
+        logger.info("DENSITY_SELECT on (gamma=%.2f win=%.1fs interleave=%.2f "
+                    "role=%.2f): redistributed L %d->%d, R %d->%d",
+                    _gamma, _win, _il, _hr,
                     len(left_thr), len(left_onsets), len(right_thr), len(right_onsets))
     else:
         left_onsets, right_onsets = left_thr, right_thr

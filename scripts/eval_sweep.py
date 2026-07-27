@@ -117,6 +117,23 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "combo":       ({**_DS25, "BEAT_HAND_INTERLEAVE": "0.7",
                      "LAYOUT_TRAVEL_PENALTY": "1.0", "COLOR_SEP_MODE": "extreme",
                      "LAYOUT_IDIOM_BONUS": "1.5"}, []),
+    # --- eval-suite v2 axis A6 (HAND ROLE) lever, added 2026-07-27 ---
+    # Our worst axis by far: handrole_gap 3.50 vs a human 0.34, and worse than a
+    # uniformly random map. Human mappers give ONE hand the lead in a passage then
+    # swap; we split every bar evenly. BEAT_HAND_ROLE reassigns which hand plays
+    # each already-selected onset (times untouched), targeting the measured human
+    # reference: asymmetry 0.115, swap rate 0.461, doubles 0.175.
+    # Single-song probe at strength 1.0 OVERSHOOTS asymmetry (0.241), so sweep down.
+    "hr05":        ({**_DS25, "BEAT_HAND_ROLE": "0.5"}, []),
+    "hr075":       ({**_DS25, "BEAT_HAND_ROLE": "0.75"}, []),
+    "hr10":        ({**_DS25, "BEAT_HAND_ROLE": "1.0"}, []),
+    # the two PROVEN levers on their own (flow PASS + idiom PASS), no interleave,
+    # no idiom bonus — this is the honest promotion candidate
+    "best":        ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "1.0",
+                     "COLOR_SEP_MODE": "extreme"}, []),
+    # proven pair + hand role = candidate to pass all four axes
+    "best_hr":     ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "1.0",
+                     "COLOR_SEP_MODE": "extreme", "BEAT_HAND_ROLE": "0.5"}, []),
 }
 
 sys.path.insert(0, str(REPO / "scripts"))

@@ -245,6 +245,35 @@ current metric does.
 *Prescriptive form:* the idiom inventory **is** the mapper's building blocks — this axis makes
 the non-ML mapper Kyle described directly buildable.
 
+### A6 — Hand-role division — ✅ **BUILT 2026-07-27** — ★ our worst axis ★
+`src/beatsaber_automapper/evaluation/handrole.py`, calibrated by `scripts/calibrate_handrole.py`
+(200 human maps).
+
+**Found by reading, not by statistics.** Putting a generated map next to its human counterpart in
+`scripts/map_view.py` showed that human mappers give **one hand the lead within a passage** — a
+sustained run — while the other punctuates, then they swap. Ours run both hands at identical
+density throughout.
+
+| metric | human | ours |
+|---|---|---|
+| `role_asymmetry` (per 2 bars) | 0.115 | 0.031 |
+| `role_swap_rate` | 0.461 | 0.269 |
+| `role_run_len` (guard) | 1.364 | 1.05 |
+| **`handrole_gap`** | **0.34** | **3.50** |
+
+**"Globally balanced, locally lopsided."** Both cohorts are near-perfectly balanced over a whole
+song — `flow.handedness` is 0.012 for both, so the existing hand metric sees nothing. Human maps
+get that balance by rotating the lead; ours by splitting every bar evenly. Balance at *every*
+scale is the unnatural thing.
+
+Control battery: human **0.34**, prod **3.50**, random 2.64, shuffled 2.43, zigzag 2.33,
+metronome 21.50. **Our maps are further from human hand-role behaviour than a uniformly random
+map is** — the largest single-axis defect measured anywhere in this project.
+
+`role_run_len` is a **guard, not a composite driver**: notes on the same beat are ordered
+L-then-R, so a map whose hands fire simultaneously has run length ~1.0 by construction, making it
+largely a restatement of the A2 simultaneity finding rather than independent evidence.
+
 ### A4 — Musical-role correctness
 Which instrument is the map following — kick, snare, vocal, lead? Human mappers follow one
 layer and switch at section boundaries. We already compute per-stem onsets (Demucs) and per-slot

@@ -34,14 +34,19 @@ import pathlib
 import sys
 from dataclasses import dataclass, field
 
-from beatsaber_automapper.evaluation import flow, idiom, rhythm, swing_sim
+from beatsaber_automapper.evaluation import flow, handrole, idiom, rhythm, swing_sim
 
 # (module, gap key, gap bar, min-spread bar). Bars are ~2x the human cohort's own
 # gap; spread bar catches mode collapse independently of the gap.
 AXES = [
-    ("flow",   flow,   "flow_gap",   0.50, 0.35),
-    ("rhythm", rhythm, "rhythm_gap", 0.70, 0.35),
-    ("idiom",  idiom,  "idiom_gap",  1.00, 0.35),
+    ("flow",     flow,     "flow_gap",     0.50, 0.35),
+    ("rhythm",   rhythm,   "rhythm_gap",   0.70, 0.35),
+    ("idiom",    idiom,    "idiom_gap",    1.00, 0.35),
+    # A6 has a looser bar because the human cohort's own gap is higher here
+    # (0.96 on 12 maps) — role division varies a lot between human mappers, which
+    # is itself the point. Our maps sit at 3.07, worse than a uniformly random
+    # map, so the bar is nowhere near the binding constraint.
+    ("handrole", handrole, "handrole_gap", 2.00, 0.35),
 ]
 
 
@@ -84,6 +89,10 @@ def _metrics_for(bm, bpm: float) -> dict:
         pass
     try:
         rec.update(idiom.idiom_metrics(bm).metrics)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        rec.update(handrole.handrole_metrics(bm).metrics)
     except Exception:  # noqa: BLE001
         pass
     try:

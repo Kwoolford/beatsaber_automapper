@@ -1,8 +1,77 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-27 (v2 axes A1/A2/A3 + scorecard; two negative results; BPM defect found)
+**Last updated:** 2026-07-27 — ★ HAND-ROLE (A6) IS THE HEADLINE: our worst axis, found by READING ★
 
 ## ⏭️ NEXT SESSION — pick up here (written 2026-07-27, autonomous loop)
+
+# ★★ THE ORGANISING DISCOVERY: HANDS HAVE ROLES ★★
+
+Found by **reading a map next to its human counterpart** in the new `scripts/map_view.py` — not
+by any statistic, and not by any metric we had. In a human map, **within a passage one hand
+carries a sustained run while the other punctuates**, and the two swap that job between passages.
+Our maps run both hands at identical density throughout, with no role division at all.
+
+| metric | human | ours |
+|---|---|---|
+| local asymmetry (per 2 bars) | 0.115 | **0.031** |
+| dominant-hand swap rate | 0.461 | 0.269 |
+| same-hand run length | 1.364 | 1.05 |
+| **`handrole_gap` (A6)** | **0.34 PASS** | **3.50 FAIL** |
+
+**The key insight is "globally balanced, locally lopsided."** Both cohorts are near-perfectly
+balanced over a whole song, so the existing `flow.handedness` metric (0.012 for both) sees
+nothing. Human maps earn that balance by giving one hand the lead for a stretch then swapping;
+ours earn it by splitting every single bar down the middle. **Balance at every scale is the
+unnatural thing.**
+
+**A6 is now our worst axis — 3.50 against a human 0.34, and worse than a uniformly random map
+(2.64).** On hand-role division our maps are less human-like than noise. Built as
+`evaluation/handrole.py`, calibrated on 200 human maps, passes the control battery, wired into
+`evaluation/scorecard.py` (which now has four axes; a held-out human cohort passes all four).
+
+**Why this discovery matters beyond the metric:** it is the first thing found by the *direct
+reading* channel rather than by aggregate statistics, and it validates the whole
+`docs/map_authoring_plan.md` direction. The metrics had been averaging this away for months.
+
+**The lever (`BEAT_HAND_ROLE`, new, default OFF):** reassigns *which hand* plays each
+already-selected onset per 2-bar window, leaving onset TIMES untouched, targeting the measured
+human reference (asymmetry 0.115, swap 0.461, doubles 0.175). Two bugs already caught in
+smoke-testing and fixed: (a) taking the union of the two hands' selections collapsed every
+simultaneous double onto one hand and silently deleted ~38% of the notes; (b) giving the lead
+hand a *contiguous* block overshot run length to 6.7 (human 1.36) and read as one hand idling —
+"carrying a passage" means a majority **share** distributed through alternation, not a solo.
+**RUNNING NOW** as part C (`scripts/overnight_2026-07-27c.sh`, arms hr05/hr075/hr10/best/best_hr).
+
+---
+
+## Immediate stack, curated around A6
+
+1. **Harvest part C and promote.** Expected winner `best_hr` = `LAYOUT_TRAVEL_PENALTY=1` +
+   `COLOR_SEP_MODE=extreme` + `BEAT_HAND_ROLE≈0.5`. The first two are PROVEN (flow 0.81→0.30
+   PASS; idiom 1.84→0.30 PASS) and orthogonal. **Check note counts** — hand-role de-doubles the
+   map, and the budget compensation only partly restores density (866 vs human 1112 on the probe
+   song). If density regresses, tune the inflation factor rather than dropping the lever.
+2. **Work `docs/map_authoring_plan.md` Phase 1→2** (this is now the priority channel, having
+   produced both A6 and the tempo bug):
+   - annotate each transition inline with its **idiom id + human corpus frequency**
+   - mark swing violations and flow outliers inline
+   - `--find` queries (every occurrence of an idiom / a violation, with context)
+   - **`--vs` time-aligned comparison** against the human map for the same song — note bar
+     numbers do NOT align, because 30% of our maps are at the wrong tempo
+   - cache per-song stem features so the audio lanes are instant
+3. **Phase 3 authoring** — parse the score text back through the existing `export.py` write
+   path; compose at the **idiom/phrase level** (a 3-min map is 1300+ notes). Then the `/map`
+   skill. DoD: a hand-authored map scores human-range AND plays well to Kyle; any disagreement
+   between those two is the next blind spot.
+4. **A2 wall-clock guard** — beat-domain rhythm is provably gameable by tempo error.
+5. **Map-level style/variety** — still the top *unmeasured* gap (every rule-based cohort
+   mode-collapses; per-note randomness makes it worse).
+6. **A4 musical-role** (per-stem onsets: which instrument is the map following?) — last unbuilt
+   planned axis.
+
+---
+
+## (previous framing, kept for the lever/negative-result record)
 
 **★ THE SUITE NOW JUDGES WITHOUT KYLE ★** `evaluation/scorecard.py` — one command, one verdict.
 Validated both ways on disjoint data: a **held-out human cohort PASSES** every axis
