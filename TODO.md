@@ -1,7 +1,64 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-29 (/todo, autonomous loop) — two 4/5-axis candidates (ds055, ar_xy_ds055)
-rendered + sent to Kyle for review; ar_xy_ds055 additionally flips handrole (his stated priority)
+**Last updated:** 2026-07-29 (/close) — B-1 retrain finished clean; two Track A candidates awaiting
+Kyle's review; nothing running, GPU idle, tree clean except gitignored checkpoint dirs
+
+## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-29)
+
+**State at close: nothing running, GPU idle (~19% desktop/Steam overhead only), working tree clean
+except gitignored artifact dirs (`logs/beat_classifier/version_8/`, `logs/layout_ft_ent0.5/`,
+`logs/layout_ft_ent3.0/` — checkpoints/lightning-logs are gitignored by design, nothing to
+resume/commit).** No job needs resuming — B-1 finished entirely on its own before this close.
+
+### The two open threads, in priority order
+
+**1. Track A: two 4/5-axis candidates are sitting with Kyle, waiting on his ears.**
+`ds055` (`BEAT_DIFFICULTY_SCALE=0.55` alone) and `ar_xy_ds055` (+ `LAYOUT_ANTIREPEAT_ROLES=xy`)
+were rendered (`outputs/ds055_review_2026-07-29/`) and sent to him via SendUserFile earlier this
+session — **check if he responded** before doing anything else. They trade which axis's spread
+fails (idiom vs handrole) — see the "★★★ 2026-07-29" sections below for the full table. **Do NOT
+bake either into `generate.py` defaults without his read** — that's the standing rule since the
+2026-07-27 review found a lever that scored well on paper was unplayable in practice.
+- If he picks one (or neither): that decision, plus optionally one more sweep narrowing the exact
+  scale/lever combo he liked, then promote (mirror how anti-repeat/temp-nudge were baked in) +
+  regression-check against the old `prod` baseline.
+- If he hasn't responded: don't re-render or re-litigate, just ask directly next session.
+
+**2. Track B: B-1 retrain is DONE, needs scoring — this is the highest-value unstarted work.**
+`scripts/train_beats.py --use-instr --d-model 512 --n-layers 4 --n-heads 8 --batch-size 64
+--max-epochs 18 --patience 20 --save-top-k -1 --difficulties Expert ExpertPlus --monitor
+val_f1_avg_tol` ran clean, no crash, full 18 epochs, log at
+`logs/overnight/b1_instr_retrain_2026-07-29.log`. **All 18 epoch checkpoints saved** (the
+`--save-top-k -1` fix from this session — the confounded B-0 checkpoint (`version_7`) only had 3
+saved epochs because of the old hardcoded `save_top_k=3` + early-stopping on `val_f1_avg_tol`,
+which is exactly what B-1 was built to avoid): `logs/beat_classifier/version_8/checkpoints/
+beat-epoch={00..17}-val_f1_avg_tol=*.ckpt`. Best-by-val_f1 is epoch 14 (0.599) — **ignore that
+number for selection, it's the metric we don't trust.**
+- **DoD / next task**: generate + score EVERY epoch checkpoint (or a spaced subset — 0, 3, 6, 9,
+  12, 15, 17 is probably enough to find the shape of the curve) against the v2 suite
+  (`scorecard.py`, all 5 axes) on the 24-song set, exactly like the B-0 comparison. Compare the
+  best-by-suite epoch against `version_4` (baseline, no instrument features) AND against whichever
+  Track-A candidate Kyle picked (density scale composes with everything, so score
+  `instr_ckpt + ds055`-equivalent together, not instrument features in isolation at prod density).
+  - `eval_sweep.py`'s `BEAT_CKPT_V7INSTR` constant currently points at the old `version_7` epoch-0
+    ckpt — add fresh arms pointing at `version_8`'s epochs instead (or generalize the constant).
+  - Val_f1 across version_8's epochs oscillates in a narrow band (0.562-0.599) with no clean
+    monotonic trend — expect the SAME kind of "the suite disagrees with val_f1" story as B-0, that
+    is the whole point of scoring by suite instead.
+
+### Landmines
+- `eval_sweep.py`'s own built-in rhythm-axis leaderboard table is broken (always prints `nan` —
+  never wires rhythm records into its per-song results dict). Use
+  `python -m beatsaber_automapper.evaluation.scorecard <zips> --label X` directly instead; its
+  flow/idiom/handrole tables are fine.
+- **`scripts/generate.py` needs `--v7`** or it silently uses untrained models.
+- **Never run two sweeps against one cache** (`.sweep.lock` in `outputs/eval_sweep_cache/`).
+- **Validate every lever on the full 24-song set** — single-song probes lie (1f333 is half-tempo).
+- Noise floor: flow ±0.03 / rhythm ±0.08 / idiom ±0.09 / handrole ±0.29 (re-check if this drifts).
+- All Track A levers from this session (`BEAT_DIFFICULTY_SCALE`, `LAYOUT_ANTIREPEAT_ROLES`) are
+  **default OFF** — `prod` is byte-identical to before this session until Kyle approves a change.
+
+---
 
 ## A-3 RECONCILED (2026-07-29) — the "density falls into the drop" complaint was a 1-SECOND DIP, not
 a sustained thinning
