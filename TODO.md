@@ -1,7 +1,7 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-29 (/todo, autonomous loop) — A-3 reconciled (a 1s pickup dip, not a
-sustained fall); A-1 difficulty scale is the biggest single lever of the project
+**Last updated:** 2026-07-29 (/todo, autonomous loop) — ds055 (BEAT_DIFFICULTY_SCALE=0.55) passes
+4/5 axes, rendered + sent to Kyle for review before any promotion to generate.py defaults
 
 ## A-3 RECONCILED (2026-07-29) — the "density falls into the drop" complaint was a 1-SECOND DIP, not
 a sustained thinning
@@ -29,6 +29,46 @@ this at the cohort level: on `prod`, density ROSE at the single biggest energy j
 and the real residual (if Kyle still hears it after A-1/A-2 land) is a narrow one-slot silence gate,
 not a broad density-shape problem. Worth a quick re-render of the SAME song under `ds065` (once
 scored) to see if Kyle's ear still catches anything at that exact second.
+
+## ★★★ 2026-07-29 — ds055 (BEAT_DIFFICULTY_SCALE=0.55) PASSES 4/5 AXES — SENT TO KYLE FOR REVIEW ★★★
+
+Follow-up sweep (`ds05/ds055/ds06/ds065_hr05/ds06_hr05`, 24 songs, scored with `scorecard.py`):
+
+| axis (bar) | prod | ds05 (0.50) | **ds055 (0.55)** | ds06 (0.60) |
+|---|---|---|---|---|
+| flow (0.50) | 0.71 FAIL | 0.34 PASS | **0.30 PASS** | 0.69 FAIL |
+| rhythm (0.70) | 2.37 FAIL | 0.79 FAIL | **0.36 PASS** | 0.17 PASS |
+| idiom (1.00) | 1.85 FAIL | 0.57 FAIL(spread) | **0.52 PASS** | 0.78 FAIL(spread) |
+| handrole (2.00) | 3.23 FAIL | 2.22 FAIL | **1.92 (gap PASSES; spread 0.27<0.35 fails)** | 2.22 FAIL |
+| playfeel (1.00) | 2.29 FAIL | 0.78 PASS | **0.74 PASS** | 1.02 FAIL |
+
+**`ds055` clears flow, rhythm, idiom and playfeel outright — 4 of 5 axes — and its handrole GAP
+(1.92) is actually inside the 2.00 bar; it only fails the separate spread/mode-collapse check
+(0.27 < 0.35).** This is comfortably the best result of the whole project, from ONE lever. Note:
+this is non-monotonic — ds05 (more aggressive, 0.50) is WORSE than ds055 on rhythm/idiom, so 0.55
+looks like a real sweet spot, not "lower is always better." **Adding `BEAT_HAND_ROLE` on top
+(`ds065_hr05`, `ds06_hr05`) made things WORSE across the board** (rhythm blew back up to
+2.59-2.75) — do not combine it with difficulty scaling as currently implemented.
+
+**Rendered `ds055` vs `prod` for two songs** (SO TIRED ROCK + 1f333,
+`outputs/ds055_review_2026-07-29/`) and eyeballed both: `ds055`'s density line visibly BREATHES
+with the RMS envelope (peaks/valleys track the grey band) where `prod`'s plateaus flat at the
+ceiling for long stretches — this is the "Expert not Expert+" complaint visibly fixed, not just a
+number. Note count dropped ~35-40% (SO TIRED 1175→756, 1f333 1314→838). Direction mix looks
+qualitatively similar between the two (expected — this lever doesn't touch direction, that's A-2).
+**Sent to Kyle for the human-eyes check — do NOT bake this into `generate.py` defaults until he's
+looked/played, per the 2026-07-27 lesson** (a lever that scores well on paper was unplayable in
+practice; this project doesn't skip that step again).
+
+**Next if Kyle approves:** promote `BEAT_DIFFICULTY_SCALE` default 1.0→0.55 in `generate.py`
+(mirroring how anti-repeat/temp-nudge were baked in previously), keep the env override for
+ablation, re-run the regression check (`prod_rep`-style) against the new baseline. Handrole is the
+only clean remaining axis — worth its own small investigation (why does spread collapse exactly at
+scale 0.55? is it just fewer notes -> less map-to-map handrole variance, or something specific to
+this arm) rather than pairing with the hand-role lever, which made things worse. **A-2's direction
+lever (`ar_xy`) has NOT been combined with ds055 yet** — worth one more arm (`ar_xy_ds055`) to see
+if it closes the small remaining flow/idiom gaps further without regressing anything, though ds055
+alone may already be good enough.
 
 ## ★★ 2026-07-29 — A-1 DIFFICULTY SCALE ALONE FLIPS 2/5 AXES TO PASS ★★
 
