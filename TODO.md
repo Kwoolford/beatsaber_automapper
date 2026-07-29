@@ -1,8 +1,48 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-28 (/todo) — B-0 done (mixed result), Track A levers built + sweeping
+**Last updated:** 2026-07-29 (/todo, autonomous loop) — A-1 difficulty scale is the biggest single
+lever of the project: alone it flips flow+idiom to PASS and nearly clears rhythm+playfeel
 
-## ⏭️ IN PROGRESS (2026-07-28) — B-0 answered, Track A sweep running
+## ★★ 2026-07-29 — A-1 DIFFICULTY SCALE ALONE FLIPS 2/5 AXES TO PASS ★★
+
+Scored the Track A sweep (`prod, ds065, ds07, ds075, ar_xy, ar_xy_ds07`, 24 songs each) with
+`scorecard.py` on the full 24-map cohorts (NOT eval_sweep's own tables, which are missing playfeel
+and have a broken rhythm column):
+
+| axis | prod | **ds065** (scale 0.65 alone) | ds07 | ar_xy (direction alone) | ar_xy_ds07 |
+|---|---|---|---|---|---|
+| flow | 0.71 FAIL | **0.28 PASS** | 0.57 FAIL | 0.74 FAIL | 0.49 PASS |
+| rhythm (bar 0.70) | 2.37 FAIL | **0.71** (right at the line) | 1.11 FAIL | 2.51 FAIL | 1.02 FAIL |
+| idiom | 1.85 FAIL | **0.58 PASS** | 0.77 PASS | 2.13 FAIL | 0.83 PASS |
+| handrole (bar 2.00) | 3.23 FAIL | 2.54 FAIL | 2.51 FAIL | 3.34 FAIL | 2.52 FAIL |
+| playfeel (bar 1.00) | 2.29 FAIL | 1.23 FAIL | 1.61 FAIL | 2.05 FAIL | 1.22 FAIL |
+| NPS | 6.31 | 4.66 | 5.01 | 6.32 | 5.01 |
+
+**The single act of scaling down the note budget (`BEAT_DIFFICULTY_SCALE`) is worth more than every
+lever built on 2026-07-27 combined** — most of what looked like independent rhythm/idiom/flow
+defects were downstream symptoms of being crammed a difficulty tier too dense: too many notes per
+window forces homogeneous placement (bad idiom), leaves hands no time to travel comfortably (bad
+flow), and leaves no slack for rhythmic variety (bad rhythm). **`ar_xy` (the direction lever) barely
+helps ALONE and even makes idiom/rhythm slightly worse** — it only earns its keep paired with
+difficulty scaling (compare `ar_xy_ds07`'s flow 0.49/playfeel 1.22 to `ds07`'s 0.57/1.61 at the same
+scale). Density_corr held everywhere (0.39-0.42, all still passing the 0.41ish bar). 0 parity
+violations on every arm.
+
+**rhythm/playfeel/handrole all improve MONOTONICALLY as the scale drops further** (ds065 rhythm
+0.71 beats ds07's 1.11), and ds065's NPS (4.66) is still slightly above the human Expert ceiling
+(4.46) — so a lower scale should push further. **Sweep running now**: `ds05`/`ds055`/`ds06` (push
+the scale further) + `ds065_hr05`/`ds06_hr05` (pair with the previously-built, never-promoted
+`BEAT_HAND_ROLE` lever, since difficulty scaling alone plateaus handrole around 2.5, still short of
+the 2.00 bar — hand-role needs its own targeted lever, scaling density won't fix it alone).
+
+**When that lands:** score with `scorecard.py`, look for a scale (0.50-0.65) + hand-role combo
+that clears rhythm + playfeel + handrole while KEEPING flow/idiom PASS and density_corr ≥0.41. If
+one clears all 5, that is a genuine promotion candidate — render it for Kyle before touching
+`generate.py` defaults (never skip the human-eyes step, that's what the whole 2026-07-27 review
+was about). If handrole alone remains stuck, it may need a real fix beyond both levers (Track A-2
+of the original A6 investigation still applies: hand offset / role assignment quality).
+
+## ⏭️ (2026-07-28) — B-0 answered, Track A sweep running
 
 **B-0 DONE: re-evaluated the shelved `version_7` instrument checkpoint on the full v2 suite,
 24 songs, `scripts/eval_sweep.py sweep --arms prod,v7instr` + `scorecard.py` on both 24-map

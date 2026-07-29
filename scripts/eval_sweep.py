@@ -230,6 +230,22 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "ar_xy":       ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy"}, []),
     "ar_xy_ds07":  ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy",
                      "BEAT_DIFFICULTY_SCALE": "0.70"}, []),
+    # --- 2026-07-28/29 follow-up: ds065 alone was the biggest single-lever win
+    # of the whole session -- scorecard.py on the 24-map cohorts: flow 0.71->0.28
+    # PASS, idiom 1.85->0.58 PASS, rhythm 2.37->0.71 (bar 0.70, essentially at the
+    # line), playfeel 2.29->1.23 (bar 1.00), handrole 3.23->2.54 (bar 2.00).
+    # rhythm/playfeel/handrole all improve MONOTONICALLY as the scale drops
+    # (ds07 rhythm 1.11 > ds065 rhythm 0.71), and NPS at ds065 (4.66) is still
+    # slightly above the human Expert ceiling (4.46) -- so push the scale lower
+    # to see if rhythm/playfeel cross their bars, and pair with the previously-
+    # built BEAT_HAND_ROLE lever (default OFF, strength 0.5 was the honest
+    # candidate from 2026-07-27) since difficulty scaling alone plateaus
+    # handrole around 2.5, still short of the 2.00 bar.
+    "ds05":        ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.50"}, []),
+    "ds055":       ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55"}, []),
+    "ds06":        ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.60"}, []),
+    "ds065_hr05":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.65", "BEAT_HAND_ROLE": "0.5"}, []),
+    "ds06_hr05":   ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.60", "BEAT_HAND_ROLE": "0.5"}, []),
 }
 
 sys.path.insert(0, str(REPO / "scripts"))
