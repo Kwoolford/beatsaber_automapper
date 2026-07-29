@@ -246,6 +246,10 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "ds06":        ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.60"}, []),
     "ds065_hr05":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.65", "BEAT_HAND_ROLE": "0.5"}, []),
     "ds06_hr05":   ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.60", "BEAT_HAND_ROLE": "0.5"}, []),
+    # ds055 alone already clears 4/5 axes (2026-07-29) -- check whether the A-2
+    # direction lever adds anything on top before considering this "done".
+    "ar_xy_ds055": ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy",
+                     "BEAT_DIFFICULTY_SCALE": "0.55"}, []),
 }
 
 sys.path.insert(0, str(REPO / "scripts"))
