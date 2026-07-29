@@ -1,7 +1,7 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-29 (/todo, autonomous loop) — ds055 (BEAT_DIFFICULTY_SCALE=0.55) passes
-4/5 axes, rendered + sent to Kyle for review before any promotion to generate.py defaults
+**Last updated:** 2026-07-29 (/todo, autonomous loop) — two 4/5-axis candidates (ds055, ar_xy_ds055)
+rendered + sent to Kyle for review; ar_xy_ds055 additionally flips handrole (his stated priority)
 
 ## A-3 RECONCILED (2026-07-29) — the "density falls into the drop" complaint was a 1-SECOND DIP, not
 a sustained thinning
@@ -29,6 +29,31 @@ this at the cohort level: on `prod`, density ROSE at the single biggest energy j
 and the real residual (if Kyle still hears it after A-1/A-2 land) is a narrow one-slot silence gate,
 not a broad density-shape problem. Worth a quick re-render of the SAME song under `ds065` (once
 scored) to see if Kyle's ear still catches anything at that exact second.
+
+## ★★★ 2026-07-29 (cont.) — ar_xy_ds055 MAY BE THE STRONGER CANDIDATE: FLIPS HANDROLE TOO ★★★
+
+Follow-up: does the A-2 direction lever add anything on top of `ds055`? Yes — a different trade:
+
+| axis (bar) | ds055 (scale alone) | **ar_xy_ds055** (+ direction lever) |
+|---|---|---|
+| flow (0.50) | 0.30 PASS | 0.27 PASS |
+| rhythm (0.70) | 0.36 PASS | 0.32 PASS |
+| idiom (1.00) | 0.52 PASS | 0.83 (gap PASSES; spread 0.30<0.35 FAILS) |
+| handrole (2.00) | 1.92 (gap PASSES; spread 0.27<0.35 FAILS) | **1.81 PASS** (spread 0.39 clears) |
+| playfeel (1.00) | 0.74 PASS | **0.43 PASS** (better) |
+
+**`ar_xy_ds055` flips HANDROLE to a clean pass** — the axis that's been our worst, "worse than
+random noise," and explicitly Kyle's stated priority since the 2026-07-27 hand-role discovery — at
+the cost of idiom's spread (same kind of failure ds055 had on handrole: gap is fine, spread
+collapses). Also improves playfeel further (0.74→0.43). **Both `ds055` and `ar_xy_ds055` clear 4/5
+axes; they just trade WHICH axis's spread collapses.** Given handrole was called out as the
+headline discovery and Kyle's priority, `ar_xy_ds055` may be the better one to promote, but this
+is exactly the kind of trade-off a human ear should weigh in on, not a scorecard tiebreak.
+Rendered both for the same 2 songs (`outputs/ds055_review_2026-07-29/*_ar_xy_ds055.png`) — visually
+similar to `ds055`, notably more vertical (up/down) arrows in the 1f333 zoom panels, consistent
+with the direction lever doing its job. **Sent to Kyle alongside the ds055 renders** — he now has
+both candidates to compare; whichever he prefers (or neither, if both still don't feel right)
+determines what gets promoted, not the axis count.
 
 ## ★★★ 2026-07-29 — ds055 (BEAT_DIFFICULTY_SCALE=0.55) PASSES 4/5 AXES — SENT TO KYLE FOR REVIEW ★★★
 
