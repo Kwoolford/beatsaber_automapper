@@ -39,6 +39,11 @@ SR = 44100
 
 BEAT_CKPT = "logs/beat_classifier/version_4/checkpoints/beat-epoch=11-val_f1_avg_tol=0.603.ckpt"
 LAYOUT_CKPT = "logs/layout_phrase/version_10/checkpoints/layout-epoch=09-val_token_acc=0.865.ckpt"
+# Shelved per-instrument Stage-1 ckpt (TASK 2, 2026-06-05). Killed at the time on
+# val_f1_avg_tol (0.600 vs the 0.603 baseline) -- a metric we've since established
+# anti-correlates with map quality three separate times. Re-evaluating on the v2
+# suite per docs/stage1_instrument_rebuild.md Phase 0, B-0 (2026-07-28).
+BEAT_CKPT_V7INSTR = "logs/beat_classifier/version_7/checkpoints/beat-epoch=00-val_f1_avg_tol=0.600.ckpt"
 
 # ---- ARMS: name -> (env overrides, extra generate flags). Add theories here. ----
 _DS25 = {"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "2.5"}
@@ -198,6 +203,33 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     # proven pair + hand role = candidate to pass all four axes
     "best_hr":     ({**_DS25, "LAYOUT_TRAVEL_PENALTY": "1.0",
                      "COLOR_SEP_MODE": "extreme", "BEAT_HAND_ROLE": "0.5"}, []),
+    # --- TRACK B / Phase 0 (2026-07-28): cheap re-eval of the shelved per-
+    # instrument Stage-1 ckpt (version_7). Same layout/decode config as `prod`,
+    # only the beat classifier + --use-instr change, so any axis delta is
+    # attributable to the instrument representation, not to Track A levers.
+    "v7instr":     (_DS25, ["--beat-ckpt", BEAT_CKPT_V7INSTR, "--use-instr"]),
+    # --- TRACK A-1 (2026-07-28) — DIFFICULTY (axis A7 playfeel, nps sub-metric).
+    # Kyle: "this is Expert, not Expert+" -- we generate 6.18 NPS against a human
+    # Expert median 3.91-4.46. BEAT_DIFFICULTY_SCALE scales the total note budget
+    # that DENSITY_SELECT allocates across windows, so the density-tracks-song-
+    # structure shape is preserved and only its overall level drops. Single-song
+    # smoke test (1f333, NOTE: a known half-tempo probe trap, verify on all 24):
+    # scale 0.68 took nps 4.78 -> 3.71, diagonal_share ~unchanged (0.518->0.505,
+    # as expected -- this lever only touches budget, not direction, that's A-2).
+    "ds065":       ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.65"}, []),
+    "ds07":        ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.70"}, []),
+    "ds075":       ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.75"}, []),
+    # --- TRACK A-2 (2026-07-28) -- DIRECTION IDIOM. Kyle: "obsessed with 45-
+    # degree notes" -- diagonal_share 0.513 vs human 0.358, up/down inverted
+    # (0.468 vs human 0.563). Traced to LAYOUT_ANTIREPEAT running on ROLE_DIR:
+    # penalizing a repeated up/down cut pushes the model toward diagonals as the
+    # least-recently-used escape. LAYOUT_ANTIREPEAT_ROLES=xy narrows the penalty
+    # to X/Y only, leaving DIR to the model's own distribution. DoD: diagonal
+    # share inside the human range without dir_entropy collapsing back to the
+    # pre-2026-07-23 monotony (watch both ends).
+    "ar_xy":       ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy"}, []),
+    "ar_xy_ds07":  ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy",
+                     "BEAT_DIFFICULTY_SCALE": "0.70"}, []),
 }
 
 sys.path.insert(0, str(REPO / "scripts"))

@@ -1,8 +1,73 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-27 (/close) — Kyle's review redirected the work; Track A + Track B live
+**Last updated:** 2026-07-28 (/todo) — B-0 done (mixed result), Track A levers built + sweeping
 
-## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-27)
+## ⏭️ IN PROGRESS (2026-07-28) — B-0 answered, Track A sweep running
+
+**B-0 DONE: re-evaluated the shelved `version_7` instrument checkpoint on the full v2 suite,
+24 songs, `scripts/eval_sweep.py sweep --arms prod,v7instr` + `scorecard.py` on both 24-map
+cohorts. Verdict is MIXED, not a resurrection:**
+
+| axis | prod (version_4) | v7instr (version_7) | direction |
+|---|---|---|---|
+| density_corr (Track B's own target metric) | +0.402 (14/24 pass) | **+0.453** (13/24 pass) | better mean, similar pass-rate |
+| flow | 0.71 | 0.67 | slightly better (near noise floor) |
+| rhythm | 2.37 | **3.58** | WORSE |
+| idiom | 1.85 | **2.45** | WORSE |
+| handrole (our worst axis) | 3.23 | **5.41** | WORSE, and it was already worst |
+| playfeel | 2.29 | 2.44 | slightly worse |
+
+**Confound: this is NOT a clean instrument-vs-no-instrument comparison.** `version_4` is an
+epoch-11 checkpoint; `version_7`'s only saved checkpoints are epochs 0/2/7, and val_f1 got
+*worse* each epoch (0.600 → 0.583 → 0.582) — we used epoch 0, the least-trained one available.
+So we don't know whether the axis regressions are caused by the instrument representation or
+simply by using a far less-trained model. **Do not conclude "instrument features hurt map
+quality"** from this alone.
+
+**Implication for Track B: B-0 does NOT resurrect `version_7` as a production swap, but it also
+doesn't kill the instrument direction** — density-tracking genuinely improved, which was the
+whole point of Track B. The honest next step is still **B-1: retrain from scratch with
+`instr_dim=10` for a full run, and select the checkpoint by the v2 suite** (never `val_f1`) so the
+comparison isn't confounded by undertraining. B-0's result is a reason to do B-1 properly, not a
+reason to skip it or a reason it's already won.
+
+New code: `scripts/eval_sweep.py` arm `v7instr` (BEAT_CKPT_V7INSTR + `--use-instr`). Found in
+passing: `eval_sweep.py`'s own built-in rhythm-axis printer is broken (never wires rhythm records
+into its per-song results dict, unrelated to this session's changes) — use
+`python -m beatsaber_automapper.evaluation.scorecard <zips> --label X` for a trustworthy 5-axis
+readout instead; the sweep's flow/idiom/handrole tables are fine, its "rhythm" table always prints
+`nan`.
+
+**Track A levers built this session (code done, smoke-tested, sweeping on the 24-song set now):**
+- **A-1 difficulty** (`BEAT_DIFFICULTY_SCALE` env, default 1.0=OFF, in
+  `generate.py::_density_aware_select` call site): scales the total note budget the density-select
+  window allocation competes for, without touching the allocation shape. Single-song smoke test
+  (1f333, a known half-tempo probe — verify on the full set before trusting): scale 0.68 took NPS
+  4.78→3.71. Arms `ds065`/`ds07`/`ds075` sweeping now.
+- **A-2 direction idiom** (`LAYOUT_ANTIREPEAT_ROLES` env, default `"xyd"`=OFF/unchanged, in
+  `layout_model.py`): confirmed the suspected cause from the 2026-07-27 handoff — the promoted
+  anti-repeat lever runs on `ROLE_DIR` too, so penalizing a repeated up/down cut pushes the model
+  toward diagonals as the least-recently-used escape. `LAYOUT_ANTIREPEAT_ROLES=xy` narrows the
+  penalty off DIR, leaving direction choice to the model's own distribution. Arm `ar_xy` (and
+  `ar_xy_ds07` = composed with the difficulty lever) sweeping now.
+- **A-3 drop dynamics**: new `scripts/eval_section_dynamics.py` (energy-change vs density-change
+  correlation, + biggest-single-jump check per song). Ran on the `prod` baseline as a sanity check:
+  **density actually ROSE at the single biggest energy jump in 23/24 songs** (mean delta-Spearman
+  +0.21) — this does not cleanly reproduce the specific 15s-drop-falls complaint from the
+  2026-07-27 review at the aggregate level (decode is stochastic — this may be a different draw
+  than what Kyle watched, or the complaint may be more specific/local than a single biggest-jump
+  proxy captures). Needs reconciling once the A-1/A-2 sweep lands: rerun on the exact same draw
+  Kyle saw, and consider a metric closer to "the specific transition Kyle pointed at" rather than
+  "the single biggest jump in the whole song."
+
+**Next when the Track A sweep lands:** score each arm with `scorecard.py` (not just eval_sweep's
+built-in tables, which don't include playfeel/A7 or working rhythm), pick the ds+ar_xy combination
+that lands NPS/diagonal-share inside human range while holding the other 4 axes, and re-run
+`eval_section_dynamics.py --cache-arm <winner>` to check A-3 didn't regress.
+
+---
+
+## (previous handoff) NEXT SESSION — written by /close 2026-07-27
 
 **State at close: nothing running, GPU idle, working tree clean, everything committed AND pushed.**
 No job needs resuming. The only untracked paths are `logs/layout_ft_ent0.5/` and

@@ -2095,6 +2095,17 @@ def generate_v7_level(
         # rather than doubles.
         _hr_pre = float(os.environ.get("BEAT_HAND_ROLE", "0.0"))
         _bL, _bR = len(left_thr), len(right_thr)
+        # DIFFICULTY SCALE (eval-suite v2 axis A7, 2026-07-28). Kyle played the
+        # maps and called them "Expert+, not Expert": generated NPS is 6.18
+        # against a human Expert median of 3.91-4.46. The window ALLOCATION
+        # logic above already does the hard part (making density track song
+        # structure); this only scales the TOTAL note budget those windows
+        # compete for, so the shape of the density curve is preserved and only
+        # its overall level drops. Default 1.0 = OFF (current behaviour).
+        _diff_scale = float(os.environ.get("BEAT_DIFFICULTY_SCALE", "1.0"))
+        if _diff_scale != 1.0:
+            _bL = max(0, int(round(_bL * _diff_scale)))
+            _bR = max(0, int(round(_bR * _diff_scale)))
         if _hr_pre > 0.0:
             _union = len(left_thr | right_thr) or 1
             _D = len(left_thr & right_thr) / _union
@@ -2149,8 +2160,8 @@ def generate_v7_level(
             left_onsets, right_onsets = _assign_hand_roles(
                 left_onsets, right_onsets, bpm, strength=_hr)
         logger.info("DENSITY_SELECT on (gamma=%.2f win=%.1fs interleave=%.2f "
-                    "role=%.2f): redistributed L %d->%d, R %d->%d",
-                    _gamma, _win, _il, _hr,
+                    "role=%.2f diff_scale=%.2f): redistributed L %d->%d, R %d->%d",
+                    _gamma, _win, _il, _hr, _diff_scale,
                     len(left_thr), len(left_onsets), len(right_thr), len(right_onsets))
     else:
         left_onsets, right_onsets = left_thr, right_thr

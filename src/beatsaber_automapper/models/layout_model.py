@@ -359,7 +359,23 @@ class LayoutPhraseModel(nn.Module):
         _ar_w = int(os.environ.get("LAYOUT_ANTIREPEAT", "1"))       # recent-window size
         _ar_s = float(os.environ.get("LAYOUT_AR_STRENGTH", "2.0"))  # penalty per in-window hit
         _ar_on = _ar_w > 0 and _ar_s > 0.0
-        _ar_hist = {ROLE_X: [], ROLE_Y: [], ROLE_DIR: []}          # per-role recent token ids
+        # Which roles the adjacency anti-repeat applies to. Default "xyd" (all
+        # three) preserves the 2026-07-23 promoted behaviour. eval-suite v2 axis
+        # A7 (2026-07-27/28) found we invert the human direction idiom -- diagonal
+        # share 0.513 vs human 0.358 -- and traced it to this penalty running on
+        # ROLE_DIR: penalizing a repeated up/down cut pushes the model toward
+        # diagonals as the "least recently used" escape, which is the opposite of
+        # what a human mapper does (diagonals are the deviation, not the norm).
+        # LAYOUT_ANTIREPEAT_ROLES=xy narrows the penalty to X/Y only, leaving DIR
+        # to the model's own (human-trained) distribution.
+        _ar_roles_str = os.environ.get("LAYOUT_ANTIREPEAT_ROLES", "xyd")
+        _ar_hist: dict[int, list[int]] = {}
+        if "x" in _ar_roles_str:
+            _ar_hist[ROLE_X] = []
+        if "y" in _ar_roles_str:
+            _ar_hist[ROLE_Y] = []
+        if "d" in _ar_roles_str:
+            _ar_hist[ROLE_DIR] = []
 
         # Travel penalty (eval-suite v2 axis A1, 2026-07-27). The flow metrics show
         # our hands move ~50% further per second than human hands (travel shift
