@@ -63,6 +63,14 @@ def main() -> None:
     parser.add_argument("--monitor",        default="val_f1_avg_tol",
                         help="Metric to monitor for checkpointing/early-stopping "
                              "(default: tolerance F1)")
+    parser.add_argument("--save-top-k",     type=int,   default=3,
+                        help="Checkpoints to keep by --monitor (Lightning "
+                             "ModelCheckpoint semantics: -1 = keep every epoch). "
+                             "val_f1_avg_tol anti-correlates with generated map "
+                             "quality (established repeatedly -- see TODO.md), so "
+                             "any retrain meant to be checkpoint-selected by the "
+                             "v2 eval suite instead of val_f1 needs -1 here, or "
+                             "epochs the suite would have picked are never saved.")
     parser.add_argument("--device",         default="auto")
     args = parser.parse_args()
 
@@ -142,7 +150,7 @@ def main() -> None:
         ModelCheckpoint(
             monitor=args.monitor,
             mode="max",
-            save_top_k=3,
+            save_top_k=args.save_top_k,
             save_last=True,
             filename="beat-{epoch:02d}-{" + args.monitor + ":.3f}",
         ),

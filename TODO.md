@@ -1,7 +1,34 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-29 (/todo, autonomous loop) — A-1 difficulty scale is the biggest single
-lever of the project: alone it flips flow+idiom to PASS and nearly clears rhythm+playfeel
+**Last updated:** 2026-07-29 (/todo, autonomous loop) — A-3 reconciled (a 1s pickup dip, not a
+sustained fall); A-1 difficulty scale is the biggest single lever of the project
+
+## A-3 RECONCILED (2026-07-29) — the "density falls into the drop" complaint was a 1-SECOND DIP, not
+a sustained thinning
+
+Re-ran `eval_section_dynamics.py` directly on the EXACT map Kyle reviewed
+(`outputs/review_2026-07-27/SO TIRED ROCK - NUEKI__prod.zip`, still on disk) at 1-second
+resolution instead of 2-second bins, side by side with RMS:
+
+```
+t=12s nps=6 rms=0.316   t=13s nps=5 rms=0.282   t=14s nps=2 rms=0.131 <- dip
+t=15s nps=4 rms=0.284   t=16s nps=6 rms=0.469   t=17s nps=4 rms=0.470
+t=18s nps=6 rms=0.489   ... (stays 4-8 nps through the whole drop section)
+```
+
+**There is a real 1-second dip exactly at the transition (t=14, nps 5->2), but density fully
+recovers by t=15 and the post-drop average (t=15-29, ~5.6 nps) is if anything HIGHER than the
+pre-drop build (t=5-13, ~5.3 nps).** This does not match the memory's "notes/s 5-7 -> 4-6 FALLS"
+as a sustained effect — it looks like that read was of the single quiet pickup second, not the
+drop itself. **A-3 is very likely a smaller/different defect than originally scoped**: a one-beat
+silence exactly on the transition (probably the section-energy detector or the beat-probability
+gate treating a quiet pickup/anacrusis beat as "low energy = sparse" for a moment) rather than the
+whole post-drop section being under-dense. `eval_section_dynamics.py --cache-arm <arm>` corroborates
+this at the cohort level: on `prod`, density ROSE at the single biggest energy jump in 23/24 songs.
+**Downgrade A-3's priority** — it may already be adequately handled by `section_gate=loud_only`,
+and the real residual (if Kyle still hears it after A-1/A-2 land) is a narrow one-slot silence gate,
+not a broad density-shape problem. Worth a quick re-render of the SAME song under `ds065` (once
+scored) to see if Kyle's ear still catches anything at that exact second.
 
 ## ★★ 2026-07-29 — A-1 DIFFICULTY SCALE ALONE FLIPS 2/5 AXES TO PASS ★★
 
