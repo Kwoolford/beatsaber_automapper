@@ -45,6 +45,28 @@ LAYOUT_CKPT = "logs/layout_phrase/version_10/checkpoints/layout-epoch=09-val_tok
 # suite per docs/stage1_instrument_rebuild.md Phase 0, B-0 (2026-07-28).
 BEAT_CKPT_V7INSTR = "logs/beat_classifier/version_7/checkpoints/beat-epoch=00-val_f1_avg_tol=0.600.ckpt"
 
+# B-1 (2026-07-29): the honest instrument retrain. version_7 was confounded -- its
+# only surviving ckpts were epochs 0/2/7 (old hardcoded save_top_k=3 + early stop on
+# val_f1_avg_tol), so B-0 compared an epoch-0 model against version_4's epoch-11 and
+# could not separate "instrument features hurt" from "less training". version_8 ran
+# 18 full epochs with --save-top-k -1, so EVERY epoch survived. val_f1_avg_tol
+# oscillates in a narrow band (0.562-0.599) with no trend -- deliberately NOT the
+# selection metric here; the v2 suite selects.
+B1_DIR = REPO / "logs" / "beat_classifier" / "version_8" / "checkpoints"
+
+
+def _b1_ckpt(epoch: int) -> str:
+    """Resolve a version_8 epoch checkpoint by number (val_f1 suffix varies)."""
+    hits = sorted(B1_DIR.glob(f"beat-epoch={epoch:02d}-val_f1_avg_tol=*.ckpt"))
+    if not hits:
+        raise FileNotFoundError(f"no version_8 checkpoint for epoch {epoch} in {B1_DIR}")
+    return str(hits[0].relative_to(REPO))
+
+
+# Spaced subset -- enough to see the SHAPE of the suite-vs-epoch curve without
+# paying for all 18. If the curve has a clear interior optimum, fill in around it.
+B1_EPOCHS = (0, 3, 6, 9, 12, 15, 17)
+
 # ---- ARMS: name -> (env overrides, extra generate flags). Add theories here. ----
 _DS25 = {"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "2.5"}
 # A theory = one entry: name -> (env overrides, extra generate.py flags).
@@ -251,6 +273,27 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "ar_xy_ds055": ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy",
                      "BEAT_DIFFICULTY_SCALE": "0.55"}, []),
 }
+
+# --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
+# Two families, added programmatically so the epoch subset lives in one place:
+#   b1_e<NN>        -- version_8 epoch NN at PROD density. Directly comparable to
+#                      `prod` (version_4, no instrument features) and to `v7instr`
+#                      (the confounded B-0 arm). Isolates the representation.
+#   b1_e<NN>_ds055  -- the same ckpt at the Track A difficulty scale, because the
+#                      density lever composes with everything and prod density is
+#                      a tier too dense to judge anything at (2026-07-29).
+# Verdict logic: if the best-by-suite b1 epoch beats `prod` on the 5-axis scorecard,
+# the instrument representation earns its retrain; if the whole epoch CURVE sits at
+# or below prod, B-0's regressions were the representation after all, not the
+# undertraining, and Track B needs B-2 (per-stem MERT) rather than more epochs.
+for _ep in B1_EPOCHS:
+    ARMS[f"b1_e{_ep:02d}"] = (
+        _DS25, ["--beat-ckpt", _b1_ckpt(_ep), "--use-instr"],
+    )
+    ARMS[f"b1_e{_ep:02d}_ds055"] = (
+        {**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55"},
+        ["--beat-ckpt", _b1_ckpt(_ep), "--use-instr"],
+    )
 
 sys.path.insert(0, str(REPO / "scripts"))
 from eval_alignment import _separate_stems, _detect_onsets_librosa, _load_generated_beatmap, _beat_to_seconds  # noqa: E402
