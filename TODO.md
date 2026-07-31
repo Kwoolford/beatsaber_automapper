@@ -3,6 +3,20 @@
 **Last updated:** 2026-07-29 (/close) — B-1 retrain finished clean; two Track A candidates awaiting
 Kyle's review; nothing running, GPU idle, tree clean except gitignored checkpoint dirs
 
+## 🔬 RUNNING NOW (queued 2026-07-31) — B-1 suite scoring, 14 arms, ETA ~4h
+
+`scripts/overnight_2026-07-30.sh` → `logs/overnight/b1_score_2026-07-30.log`.
+version_8 epochs {0,3,6,9,12,15,17} × {prod density, ds055 density}, then a
+`scorecard.py` 5-axis readout per cohort plus `prod`/`ds055`/`v7instr` controls.
+Confirmed before launch: version_8 **has an `instr_proj` head (512×10)** where
+`version_4` has only drum_proj + mix_proj — so this is a real test of the
+2026-07-27 representation gap, not a re-run. Verdict logic is printed by the
+script; compare `_ds055` arms against `ds055`, NOT against `prod`.
+
+**Track A is parked, not dropped**: `ds055` / `ar_xy_ds055` renders are in
+`outputs/ds055_review_2026-07-29/`, sent to Kyle, awaiting his ears. Neither is
+promoted and neither should be promoted on scorecard alone.
+
 ## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-29)
 
 **State at close: nothing running, GPU idle (~19% desktop/Steam overhead only), working tree clean
