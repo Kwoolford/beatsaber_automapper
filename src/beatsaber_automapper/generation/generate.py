@@ -1483,6 +1483,41 @@ def generate_swing_level(
 # ---------------------------------------------------------------------------
 
 
+def _lead_multipliers(n_win: int, win_sec: float, bpm: float, asym: float,
+                      swap_rate: float, seed: int = 0,
+                      window_beats: float = 8.0) -> tuple["np.ndarray", "np.ndarray"]:
+    """Per-window budget multipliers that give ONE hand the lead, then swap.
+
+    Returns (left_mult, right_mult). Over a 2-bar block one hand is scaled up by
+    (1+asym) and the other down by (1-asym); the block's leader flips with
+    probability `swap_rate` (the measured human rate).
+
+    Why multipliers on the window ALLOCATION rather than a post-hoc reassignment:
+    `role_asymmetry` counts notes per hand per 8-beat window, so moving a note in
+    TIME cannot change it — only changing how many notes each hand gets can. The
+    previous `_assign_hand_roles` lever therefore had to DELETE one hand's note at
+    shared slots to manufacture asymmetry, which cost ~24% of the notes and hurt
+    rhythm. Scaling each hand's per-window share instead keeps every hand's TOTAL
+    budget fixed, so no note is lost — the notes simply move to the windows where
+    that hand leads. That is exactly the human pattern measured on 2026-07-27:
+    balanced GLOBALLY, lopsided LOCALLY.
+    """
+    import random as _random
+
+    rng = _random.Random(seed)
+    block_sec = window_beats * (60.0 / bpm if bpm > 0 else 0.5)
+    wins_per_block = max(int(round(block_sec / max(win_sec, 1e-6))), 1)
+    lmul = np.ones(n_win); rmul = np.ones(n_win)
+    lead = 0
+    for b in range((n_win + wins_per_block - 1) // wins_per_block):
+        lo, hi = b * wins_per_block, min((b + 1) * wins_per_block, n_win)
+        lmul[lo:hi] = 1.0 + asym if lead == 0 else 1.0 - asym
+        rmul[lo:hi] = 1.0 - asym if lead == 0 else 1.0 + asym
+        if rng.random() < swap_rate:
+            lead ^= 1
+    return lmul, rmul
+
+
 def generate_v7_level(
     audio_path: Path | str,
     output_path: Path | str,
@@ -2015,6 +2050,7 @@ def generate_v7_level(
     def _density_aware_select(
         probs: torch.Tensor, slot_sec: "np.ndarray", win_sec: float,
         gamma: float, budget: int, radius: int,
+        win_mult: "np.ndarray | None" = None,
     ) -> set[int]:
         """Density-aware redistribution (2026-06-30 Phase-2 selection PoC).
 
@@ -2036,6 +2072,12 @@ def generate_v7_level(
         np.add.at(wsum, win_idx, p); np.add.at(wcnt, win_idx, 1.0)
         wmean = wsum / np.clip(wcnt, 1.0, None)
         weight = np.power(np.clip(wmean, 1e-6, None), gamma)
+        # HAND LEAD (2026-08-01): scale this hand's share per window so it carries
+        # more of the load where it leads. Applied AFTER gamma so the density curve
+        # the oracle-ceiling PoC validated is preserved — this only changes how the
+        # already-shaped budget is split between the hands, never its total.
+        if win_mult is not None and len(win_mult) >= n_win:
+            weight = weight * np.clip(win_mult[:n_win], 1e-6, None)
         if weight.sum() <= 0:
             return _nms(probs.to(device_obj), thr_L, radius)  # degenerate fallback
         raw = budget * weight / weight.sum()
@@ -2111,8 +2153,23 @@ def generate_v7_level(
             _D = len(left_thr & right_thr) / _union
             _infl = (1.0 + _D) / (1.0 + 0.175)
             _bL, _bR = int(round(_bL * _infl)), int(round(_bR * _infl))
+        # HAND LEAD (eval-suite v2 axis A6, 2026-08-01). `role_asymmetry` is human
+        # 0.115 vs ours 0.026-0.046 and its cohort spread is 0.27 against the 0.35
+        # bar — it is the SINGLE sub-metric that fails the handrole axis (see
+        # scripts/eval_spread_breakdown.py). Unlike BEAT_HAND_ROLE this does not
+        # reassign or delete any note: it biases each hand's per-window budget
+        # share, so the hands stay globally balanced and the note count is exactly
+        # preserved. Value = target local asymmetry; 0.0 = OFF (prior behaviour).
+        _hl = float(os.environ.get("BEAT_HAND_LEAD", "0.0"))
+        _lmul = _rmul = None
+        if _hl > 0.0:
+            _nw = int((_slot_sec / _win).astype(int).max()) + 1
+            _lmul, _rmul = _lead_multipliers(
+                _nw, _win, bpm, min(_hl, 0.95),
+                float(os.environ.get("BEAT_HAND_LEAD_SWAP", "0.461")))
         left_onsets  = _density_aware_select(
-            beat_probs[:, 0], _slot_sec, _win, _gamma, _bL, beat_nms_radius)
+            beat_probs[:, 0], _slot_sec, _win, _gamma, _bL, beat_nms_radius,
+            win_mult=_lmul)
         # HAND INTERLEAVE (eval-suite v2 axis A2, 2026-07-27). The two hands are
         # selected from two probability channels driven by the SAME audio, so they
         # pick the same slots: our maps fire both hands simultaneously on 85.6% of
@@ -2129,10 +2186,11 @@ def generate_v7_level(
             idx = torch.tensor(sorted(left_onsets), dtype=torch.long, device=rp.device)
             rp[idx] = rp[idx] * (1.0 - min(_il, 1.0))
             right_onsets = _density_aware_select(
-                rp, _slot_sec, _win, _gamma, _bR, beat_nms_radius)
+                rp, _slot_sec, _win, _gamma, _bR, beat_nms_radius, win_mult=_rmul)
         else:
             right_onsets = _density_aware_select(
-                beat_probs[:, 1], _slot_sec, _win, _gamma, _bR, beat_nms_radius)
+                beat_probs[:, 1], _slot_sec, _win, _gamma, _bR, beat_nms_radius,
+                win_mult=_rmul)
         # HAND ROLE (eval-suite v2 axis A6, 2026-07-27). Discovered by reading a
         # map next to its human counterpart: within a passage a human mapper gives
         # ONE hand the lead — a sustained run — while the other punctuates, then

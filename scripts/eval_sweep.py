@@ -272,6 +272,46 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     # direction lever adds anything on top before considering this "done".
     "ar_xy_ds055": ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy",
                      "BEAT_DIFFICULTY_SCALE": "0.55"}, []),
+
+    # --- A6 / HAND LEAD (2026-08-01) ---------------------------------------
+    # scripts/eval_spread_breakdown.py attributed the whole handrole failure to a
+    # single sub-metric: `role_asymmetry`, human 0.115 vs ours 0.026-0.046, cohort
+    # spread 0.27 against a 0.35 bar. Upstream of it is the double rate -- we put
+    # both hands on the same slot 84-94% of the time against a human 23%, which
+    # makes a per-window lead arithmetically impossible.
+    # BEAT_HAND_LEAD biases each hand's per-window budget SHARE while keeping its
+    # total fixed, so unlike BEAT_HAND_ROLE (which deleted ~24% of the notes to
+    # manufacture asymmetry) no note is lost. Value = target local asymmetry.
+    # All arms sit on ds055, the best-scoring density: prod density is a tier too
+    # dense to judge anything at, and the lever composes with the difficulty scale.
+    # GRID CENTRED BY SMOKE TEST, not by guesswork (2026-08-01, song 1f8a3):
+    # BEAT_HAND_LEAD=0.30 realised role_asymmetry 0.247 against an OFF baseline of
+    # 0.043, i.e. the metric lands at ~0.82x the requested share -- the lever
+    # OVERSHOOTS the human 0.115 badly at the values first written here (0.2-0.5).
+    # Note count was preserved (678 -> 687, +1.3%), which is the point: the old
+    # BEAT_HAND_ROLE lost ~24%. So the interesting band is 0.10-0.25, centred on
+    # the ~0.14 predicted to land on the human median.
+    "hl010_ds055":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                      "BEAT_HAND_LEAD": "0.10"}, []),
+    "hl014_ds055":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                      "BEAT_HAND_LEAD": "0.14"}, []),   # predicted human median
+    "hl018_ds055":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                      "BEAT_HAND_LEAD": "0.18"}, []),
+    "hl025_ds055":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                      "BEAT_HAND_LEAD": "0.25"}, []),
+    # The smoke test also dropped `role_swap_rate` 0.436 -> 0.282 (human 0.461):
+    # a lead block outlives handrole.py's 8-beat measuring window, so neighbouring
+    # windows share a leader and the dominant hand swaps less often. handrole_gap
+    # averages |shift| over asymmetry AND swap rate, so that regression can eat the
+    # asymmetry win. This arm raises the swap rate to compensate.
+    "hl014_sw07_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                          "BEAT_HAND_LEAD": "0.14",
+                          "BEAT_HAND_LEAD_SWAP": "0.70"}, []),
+    # does the lead compose with the direction lever that flipped handrole on its
+    # own? ar_xy_ds055 passed handrole but collapsed idiom's spread instead.
+    "hl014_ar_xy_ds055": ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy",
+                           "BEAT_DIFFICULTY_SCALE": "0.55",
+                           "BEAT_HAND_LEAD": "0.14"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
