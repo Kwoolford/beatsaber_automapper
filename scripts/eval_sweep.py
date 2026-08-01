@@ -334,6 +334,18 @@ for _ep in B1_EPOCHS:
         {**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55"},
         ["--beat-ckpt", _b1_ckpt(_ep), "--use-instr"],
     )
+    # + HAND LEAD (2026-08-01). The B-1 interim showed the instrument model and
+    # BEAT_HAND_LEAD are attacking the SAME variable from opposite ends: as
+    # version_8 trains, its double share falls 0.978 -> 0.890 and role_asymmetry
+    # rises 0.0138 -> 0.0420, which is exactly what the lever forces post-hoc.
+    # So the interesting candidate is the two together, not either alone -- a
+    # learned representation that un-locksteps the hands, plus a lever that gives
+    # one of them the lead. Only worth GENERATING for the best epoch; the family
+    # is defined here so no code change is needed once that epoch is known.
+    ARMS[f"b1_e{_ep:02d}_ds055_hl014"] = (
+        {**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55", "BEAT_HAND_LEAD": "0.14"},
+        ["--beat-ckpt", _b1_ckpt(_ep), "--use-instr"],
+    )
 
 sys.path.insert(0, str(REPO / "scripts"))
 from eval_alignment import _separate_stems, _detect_onsets_librosa, _load_generated_beatmap, _beat_to_seconds  # noqa: E402
