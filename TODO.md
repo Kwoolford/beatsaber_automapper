@@ -123,6 +123,56 @@ transfer to this density and the write-up above needs revising.
 swap rate, so the instrument model is losing on both sub-metrics, not just the one. This is the same
 failure mode `BEAT_HAND_LEAD_SWAP` was added to address — worth trying that lever on top of e12.
 
+## ★★★★ 2026-08-01 — `b1_e12_ds055` PASSES HANDROLE, AND THE DOUBLE-SHARE MECHANISM IS CONFIRMED
+QUANTITATIVELY ★★★★
+
+**The caveat logged above resolves in favour of the mechanism.** The prediction was that if the
+trend held, e12 at this density would land near 0.833 − 0.047 ≈ **0.79** double share and cross
+below the version_4 control. Measured: **0.789**.
+
+| arm | double share | role_asymmetry | role_swap_rate | handrole gap |
+|---|---|---|---|---|
+| `ds055` (version_4 control) | 0.833 | 0.0433 | 0.401 | 1.92 (spread 0.27 FAIL) |
+| b1_e03_ds055 | 0.927 | 0.0219 | 0.227 | 3.77 |
+| b1_e06_ds055 | 0.921 | 0.0280 | 0.238 | 3.55 |
+| b1_e09_ds055 | 0.867 | 0.0490 | 0.324 | 2.43 |
+| **b1_e12_ds055** | **0.789** | **0.0631** | **0.377** | **1.72 PASS (spread 0.44)** |
+| *human* | *0.231* | *0.115* | *0.461* | *—* |
+
+**Every quantity moves together, monotonically, from e03 on**, and handrole crosses into a PASS
+exactly when double share crosses below the control. `role_asymmetry` 0.0631 is the highest any arm
+has reached (control 0.0433). **Double share is the control variable for the handrole axis** — this
+is now supported by a prediction made in advance and confirmed, not just a correlation read off a
+table after the fact.
+
+### `b1_e12_ds055` is the first arm ever to clear handrole at judgeable density
+
+| axis | `ds055` | **`b1_e12_ds055`** |
+|---|---|---|
+| flow | 0.30 PASS | 0.50 FAIL (**exactly at the 0.50 bar**) |
+| rhythm | 0.36 PASS | 0.48 PASS |
+| idiom | 0.52 PASS | 0.69 (spread 0.33 FAIL, bar 0.35) |
+| **handrole** | 1.92 (spread 0.27 **FAIL**) | **1.72 PASS (spread 0.44)** |
+| playfeel | 0.74 PASS | 1.03 FAIL (bar 1.00) |
+
+It **solves the axis that has been our worst since 2026-07-27 and is Kyle's stated priority** —
+"worse than random noise" — and gives back small amounts elsewhere. All three failures are marginal:
+flow sits *exactly* on the bar, idiom's spread misses by 0.02 (floor ±0.09), playfeel misses by 0.03.
+`ds055` still wins on count (4/5 vs 2/5), but it fails handrole on the spread collapse that no lever
+has ever fixed, whereas e12's failures are all knife-edge.
+
+**Headroom remains large**: 0.789 is still 3.4× the human 0.231, and `role_asymmetry` 0.063 is barely
+half the human 0.115. The instrument representation gets us partway down a road we now know the
+length of.
+
+### ⏭️ NEXT (queued behind the hand-lead sweep)
+1. `b1_e12_ds055_hl014` — already registered. Hand-lead pushes `role_asymmetry` further, but note
+   e12 ALREADY passes handrole, so the win to look for is whether it holds handrole while the extra
+   asymmetry buys back idiom spread; watch for overshoot past the human 0.115.
+2. **A lower density on top of e12** — playfeel 1.03 and flow 0.50 are both marginal-fail and both
+   are density-sensitive; e12 already emits fewer notes (656 vs the control's 800). An `e12_ds05`
+   arm is the cheapest shot at converting three knife-edge failures at once.
+
 ## ★★★ 2026-08-01 — ONE ROOT CAUSE UNDER A2, A6 AND THE FLOW SPREAD: **WE EMIT 4× TOO MANY
 DOUBLES** ★★★
 
