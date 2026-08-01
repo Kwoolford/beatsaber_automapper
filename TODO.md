@@ -40,11 +40,20 @@ training epoch**, and the best epoch so far beats `prod` on **4 of 5 axes**:
 | b1_e06 | 0.85 | 3.00 | 2.34 | 4.83 | 2.58 |
 | b1_e09 | 0.83 | 2.05 | 2.07 | 3.67 | 2.21 |
 | **b1_e12** | 0.75 | **1.78** | **1.47** | **2.37** | **2.09** |
+| b1_e15 | 0.80 | 1.99 | 1.77 | 2.99 | 2.09 |
+| b1_e17 | 0.87 | 2.16 | 1.82 | 2.70 | 2.09 |
 
 Only flow is worse than prod (0.75 vs 0.71, just past the ±0.03 floor). **This is verdict (a): the
 instrument representation earns its retrain, and B-0's regressions were UNDERTRAINING** — b1_e00 is
-by far the worst arm here, and B-0 compared exactly such an epoch-0 checkpoint. The curve has **not
-plateaued** at e12; e15/e17 are still generating.
+by far the worst arm here, and B-0 compared exactly such an epoch-0 checkpoint.
+
+**CORRECTION to the first read of this table (which was written before e15/e17 finished): the curve
+does NOT keep improving — it PEAKS AT e12 AND TURNS OVER.** e15 and e17 regress on every axis except
+playfeel (flow 0.75→0.87, rhythm 1.78→2.16, idiom 1.47→1.82). **Select epoch 12**, and there is no
+case for training version_8 longer — the extra epochs made it worse, so B-2 (per-stem MERT) rather
+than more budget is the way to push Track B further.
+Note `val_f1_avg_tol` picked epoch **14** (0.599) as best; the suite picks **12**. That is the
+fourth time val_f1 has disagreed with quality — keep ignoring it for selection.
 
 ### Why — and it is the same number as the section below
 
@@ -70,8 +79,24 @@ Caveat: these arms are all at **prod density**, a difficulty tier too dense to j
 still FAILS every axis. The judgeable comparison is the `_ds055` family, still queued.
 
 **Consequence for the queued work**: `BEAT_HAND_LEAD` and the instrument model attack the same
-variable from opposite ends (post-hoc budget vs learned representation). Once the best epoch is
-known, the arm worth scoring is **best-epoch + ds055 + hand-lead together**, not either alone.
+variable from opposite ends (post-hoc budget vs learned representation). The arm worth scoring is
+**e12 + ds055 + hand-lead together** (`b1_e12_ds055_hl014`, already registered in `eval_sweep.py`),
+not either alone.
+
+### First `_ds055` arm in — and it splits hard
+
+| axis | `ds055` (control) | `b1_e00_ds055` |
+|---|---|---|
+| flow | 0.30 PASS | **0.18 PASS** |
+| rhythm | 0.36 PASS | **0.22 PASS** |
+| idiom | 0.52 PASS | 0.67 (spread 0.32 **FAILS**) |
+| handrole | 1.92 (spread 0.27 FAILS) | **4.22 FAIL** (spread 0.30 fails too) |
+| playfeel | 0.74 PASS | **0.62 PASS** |
+
+At the judgeable density the instrument model is **better than `ds055` on flow, rhythm and
+playfeel** — but handrole blows out to 4.22. This is the *epoch-0* checkpoint, i.e. the worst one,
+so this is the floor not the verdict; e12_ds055 is the arm that matters and is still generating.
+Watch whether handrole recovers with epoch the way it did at prod density (5.44 → 2.37).
 
 ## ★★★ 2026-08-01 — ONE ROOT CAUSE UNDER A2, A6 AND THE FLOW SPREAD: **WE EMIT 4× TOO MANY
 DOUBLES** ★★★
