@@ -346,6 +346,21 @@ for _ep in B1_EPOCHS:
         {**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55", "BEAT_HAND_LEAD": "0.14"},
         ["--beat-ckpt", _b1_ckpt(_ep), "--use-instr"],
     )
+    # LOWER DENSITY on top of the instrument model (2026-08-01). b1_e12_ds055
+    # PASSES handrole -- the first arm ever to, at judgeable density -- and its
+    # three remaining failures are all knife-edge AND all density-sensitive: flow
+    # sits exactly on the 0.50 bar, playfeel misses by 0.03, idiom's spread by
+    # 0.02. The instrument model already emits fewer notes than the control (656
+    # vs 800), so a smaller scale is the cheapest shot at converting all three at
+    # once without touching the handrole win.
+    ARMS[f"b1_e{_ep:02d}_ds05"] = (
+        {**_DS25, "BEAT_DIFFICULTY_SCALE": "0.50"},
+        ["--beat-ckpt", _b1_ckpt(_ep), "--use-instr"],
+    )
+    ARMS[f"b1_e{_ep:02d}_ds045"] = (
+        {**_DS25, "BEAT_DIFFICULTY_SCALE": "0.45"},
+        ["--beat-ckpt", _b1_ckpt(_ep), "--use-instr"],
+    )
 
 sys.path.insert(0, str(REPO / "scripts"))
 from eval_alignment import _separate_stems, _detect_onsets_librosa, _load_generated_beatmap, _beat_to_seconds  # noqa: E402
