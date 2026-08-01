@@ -4,6 +4,70 @@
 through arm 3/14; resumed from cache 2026-08-01 12:48, running now. Track A candidates still
 awaiting Kyle's ears.
 
+## ★★★★★ 2026-08-01 — KYLE PLAYED THE 5/5 MAPS: **"THE NOTES ARE OFF BEAT."** THE SUITE IS
+AUDIO-BLIND AND CANNOT SEE THE DEFECT HE HEARS ★★★★★
+
+His verdict on the two passing candidates:
+- `hl014_ds055` — "a noticeable step up, but still not that good. Playable, but it's painfully
+  obvious the notes are off beat. The consistent beat of the song is not where the notes are
+  played... many just have their own slightly off timings."
+- `b1_e17_ds055` — "a lot wrong. Also the offbeat timing, note density a noticeable drop, and the
+  playability of the notes is really awkward."
+
+**Root cause of the blindness, verified in the source: NOT ONE of the five scorecard axes ever loads
+the audio.** `rhythm.py` has no audio import at all — it scores note times against the **declared
+BPM grid**, never against the music. So a map can have a perfectly human interval distribution,
+human hand-roles, human flow and human difficulty *while sitting off the song's actual beat*. **That
+is the complete explanation for five different configurations "passing" while sharing an obviously
+audible defect** — and it retro-justifies the "loose bars" suspicion logged earlier today.
+
+`scripts/eval_alignment.py` has measured onset alignment all along but **was never made an axis**,
+and its map loader silently returns `n_notes=0` for human zips — which is exactly why the human
+control that would have exposed this gap was never run.
+
+### New tool `scripts/eval_beat_alignment.py` — and it reproduces Kyle's ranking
+
+Uses `scorecard._load_any` so human and generated maps are measured the SAME way. On `1f767`
+(2378 detected stem onsets, 50ms tolerance):
+
+| map | notes | precision | timing scatter (MAD) |
+|---|---|---|---|
+| **HUMAN** | 561 | **0.966** | **8.0 ms** |
+| `hl014_ds055` | 567 | 0.817 | 11.7 ms |
+| `ds055` | 524 | 0.811 | 11.7 ms |
+| `prod` | 848 | 0.774 | 23.2 ms |
+| `b1_e17_ds055` | 421 | **0.753** | **23.2 ms** |
+
+**A human mapper puts 97% of notes on a real audio onset; we manage 75–82%.** One note in five of
+ours lands where there is no musical event at all — against one in thirty for a human. Our surviving
+notes are also ~1.5–3× more scattered in time.
+
+**The ordering matches Kyle's ear exactly**: `hl014` (0.817 / 11.7ms) best, `b1_e17` (0.753 /
+23.2ms) worst — he called hl014 "a noticeable step up" and e17 "a lot wrong". **None of the five
+existing axes produced that ordering; this one does on the first try.** That is the strongest
+validation signal available for a new axis, and it is the first metric this project has that agrees
+with him about the thing he actually complains about.
+
+### ⏭️ A8 = ALIGNMENT IS NOW THE TOP OF THE STACK, ABOVE EVERYTHING ELSE
+Every lever tuned today (density, hand-lead, instrument representation) optimises *where notes sit
+relative to each other*. Kyle's complaint is *where they sit relative to the music*. No amount of
+further work on the current five axes can fix it, and a 5/5 on the current suite means less than we
+thought.
+1. Harden `eval_beat_alignment.py` into axis A8 (`evaluation/alignment.py`), cohort-scored by
+   shift+spread like every other axis, calibrated on the human corpus.
+2. **Run it through the control battery** (`scripts/audit_eval_suite.py`) before it steers anything —
+   shuffled/random/degenerate maps must score badly. Non-negotiable; that gate is why the v2 suite
+   is trustworthy at all.
+3. Only then re-rank today's candidates. Expect the ranking to change.
+**DoD**: A8 in the scorecard, human cohort passing it, all four degenerate controls failing it, and
+`prod`/`ds055`/`hl014` ordered as Kyle ordered them.
+
+**Note this vindicates the suite's purpose rather than undermining it**: the v2 suite was built so
+Kyle would not have to be the judge. It has now failed at exactly that, in a way that is measurable
+and fixable, and he found it in one listening session. The lesson is that **an axis nobody thought
+to add is invisible in exactly the same way a saturated metric is** — the audit battery checks
+whether existing axes discriminate, never whether the set of axes is complete.
+
 ## ❓ DECISIONS TAKEN WITHOUT KYLE
 
 - **2026-08-01 — resumed the B-1 sweep rather than restarting it clean.** Fork: the 2026-07-31
