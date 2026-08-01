@@ -163,6 +163,28 @@ stays default-OFF.**
 
 Rendered + sent to Kyle alongside the e17 maps. **Not promoted.**
 
+### Full hand-lead sweep result: 6 arms, exactly ONE passes
+
+| arm | verdict | what failed |
+|---|---|---|
+| hl010_ds055 | FAIL | idiom spread 0.34, handrole spread 0.33 |
+| **hl014_ds055** | **PASS 5/5** | — |
+| hl018_ds055 | FAIL | flow 0.76, idiom spread 0.27, playfeel spread 0.33 |
+| hl025_ds055 | FAIL | flow 0.59, handrole gap 2.93 |
+| hl014_sw07_ds055 | FAIL | idiom / handrole / playfeel **spreads** all collapse |
+| hl014_ar_xy_ds055 | FAIL | flow spread 0.33, handrole spread 0.32 |
+
+**`hl014_sw07` is the informative failure.** Raising the swap rate to 0.70 drove `handrole_gap` to
+**0.28** — by far the best the project has ever measured, essentially human — while collapsing the
+SPREAD on three separate axes. That is the lever's failure mode stated plainly: **push it harder and
+every song gets the same lead pattern.** A cohort of maps that are individually human-like and
+identical to each other is exactly what the spread bar exists to catch, and it caught it.
+
+This sharpens the worry about `hl014` rather than settling it: 1 pass out of 6 arms, with
+uniformity as the known failure mode on one side and overshoot on the other. The `hl014_seed1`
+re-seeding arm is now the single most important thing in the queue — it is the one test that
+distinguishes "a real basin" from "one lucky arrangement of leads".
+
 ## ★★★★★ 2026-08-01 — **FIRST FULL-SUITE PASS IN THE PROJECT'S HISTORY.** `b1_e17_ds055` and
 `b1_e15_ds055` clear ALL 5 AXES + parity ★★★★★
 
