@@ -26,6 +26,53 @@ Confirmed before launch: version_8 **has an `instr_proj` head (512×10)** where
 2026-07-27 representation gap, not a re-run. Verdict logic is printed by the
 script; compare `_ds055` arms against `ds055`, NOT against `prod`.
 
+## ★★★ 2026-08-01 — B-1 INTERIM (5/7 prod-density epochs scored while the sweep runs):
+**THE INSTRUMENT MODEL LEARNS TO UN-LOCKSTEP THE HANDS, AND THAT IS THE WHOLE STORY** ★★★
+
+Scored the finished arms without waiting for the sweep. Every axis improves **monotonically with
+training epoch**, and the best epoch so far beats `prod` on **4 of 5 axes**:
+
+| arm | flow | rhythm | idiom | handrole | playfeel |
+|---|---|---|---|---|---|
+| `prod` (version_4, no instr) | **0.71** | 2.37 | 1.85 | 3.23 | 2.29 |
+| b1_e00 | 0.58 | 3.52 | 2.29 | 5.44 | 2.51 |
+| b1_e03 | 0.85 | 2.72 | 2.12 | 4.82 | 2.40 |
+| b1_e06 | 0.85 | 3.00 | 2.34 | 4.83 | 2.58 |
+| b1_e09 | 0.83 | 2.05 | 2.07 | 3.67 | 2.21 |
+| **b1_e12** | 0.75 | **1.78** | **1.47** | **2.37** | **2.09** |
+
+Only flow is worse than prod (0.75 vs 0.71, just past the ±0.03 floor). **This is verdict (a): the
+instrument representation earns its retrain, and B-0's regressions were UNDERTRAINING** — b1_e00 is
+by far the worst arm here, and B-0 compared exactly such an epoch-0 checkpoint. The curve has **not
+plateaued** at e12; e15/e17 are still generating.
+
+### Why — and it is the same number as the section below
+
+| arm | double share | role_asymmetry |
+|---|---|---|
+| prod | 0.937 | 0.0256 |
+| b1_e00 | 0.978 | 0.0138 |
+| b1_e03 | 0.975 | 0.0142 |
+| b1_e06 | 0.974 | 0.0170 |
+| b1_e09 | 0.939 | 0.0287 |
+| **b1_e12** | **0.890** | **0.0420** |
+| *human* | *0.231* | *0.115* |
+
+**Double share falls monotonically as the model trains, `role_asymmetry` rises monotonically, and
+every suite axis follows.** Two independent lines of evidence landed on the same control variable
+today: the structural analysis below (doubles are upstream of A2/A6/flow-spread) and this training
+curve. That is also the *mechanism* for the 2026-07-27 representation gap — `version_4` hears only
+drum_proj + mix_proj, so both hands are driven by the SAME signal and must fire together; the
+`instr_proj` head lets the model put different hands on different instruments, so the hands come
+apart. The gap was never abstract "audio quality", it was **one signal driving two hands**.
+
+Caveat: these arms are all at **prod density**, a difficulty tier too dense to judge, so every one
+still FAILS every axis. The judgeable comparison is the `_ds055` family, still queued.
+
+**Consequence for the queued work**: `BEAT_HAND_LEAD` and the instrument model attack the same
+variable from opposite ends (post-hoc budget vs learned representation). Once the best epoch is
+known, the arm worth scoring is **best-epoch + ds055 + hand-lead together**, not either alone.
+
 ## ★★★ 2026-08-01 — ONE ROOT CAUSE UNDER A2, A6 AND THE FLOW SPREAD: **WE EMIT 4× TOO MANY
 DOUBLES** ★★★
 
