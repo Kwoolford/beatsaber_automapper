@@ -336,6 +336,24 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     # other route toward the human double share (0.785 vs 0.231).
     "hl014_ds05":   ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.50",
                       "BEAT_HAND_LEAD": "0.14"}, []),
+
+    # --- EMPIRICAL NOISE FLOOR (2026-08-01) --------------------------------
+    # Seeds 0 and 1 of the SAME configuration scored handrole_gap 1.04 and 0.26 --
+    # a spread of 0.78 against a documented floor of +-0.29. The floor is wrong by
+    # ~3x on the axis we care most about, which means several of today's
+    # fine-grained handrole rankings (e17 vs e15 especially) are not resolvable.
+    # These three more seeds give 5 samples of an identical config, i.e. an actual
+    # per-axis variance estimate rather than an assumed one. Cheapest possible way
+    # to stop over-reading small differences across every future sweep.
+    "hl014_seed2_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                           "BEAT_HAND_LEAD": "0.14",
+                           "BEAT_HAND_LEAD_SEED": "2"}, []),
+    "hl014_seed3_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                           "BEAT_HAND_LEAD": "0.14",
+                           "BEAT_HAND_LEAD_SEED": "3"}, []),
+    "hl014_seed4_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                           "BEAT_HAND_LEAD": "0.14",
+                           "BEAT_HAND_LEAD_SEED": "4"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---

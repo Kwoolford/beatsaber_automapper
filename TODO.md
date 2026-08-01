@@ -185,6 +185,47 @@ uniformity as the known failure mode on one side and overshoot on the other. The
 re-seeding arm is now the single most important thing in the queue — it is the one test that
 distinguishes "a real basin" from "one lucky arrangement of leads".
 
+## ★★★ 2026-08-01 — THE PASS REPLICATES UNDER RE-SEEDING, **AND THE HANDROLE NOISE FLOOR IS ~3×
+BIGGER THAN WE THOUGHT** ★★★
+
+`hl014_seed1_ds055` — same setting, different lead arrangement — **PASSES 5/5** (flow 0.41 /
+rhythm 0.19 / idiom 0.60 / handrole **0.26** / playfeel 0.85, 0 viol). The decisive replication test
+passes. Filling in the basin:
+
+| setting | realised asym | verdict |
+|---|---|---|
+| 0.10 | 0.0917 | FAIL (idiom + handrole spread) |
+| 0.12 | 0.1072 | 4/5 (handrole spread 0.33, misses by 0.02) |
+| **0.14** | **0.1197** | **PASS 5/5** |
+| **0.14 seed1** | **0.1093** | **PASS 5/5** |
+| 0.16 | 0.1382 | 4/5 (playfeel spread 0.33, misses by 0.02) |
+| 0.18 | 0.1538 | FAIL (flow + 2 spreads) |
+
+A clean unimodal basin centred on 0.14 with 4/5 shoulders that each miss by 0.02 — **graceful
+degradation, not a lucky fluke.** Strictly the DoD is half met: re-seeding replicated (the important
+half), but no *neighbouring setting* reached a full 5/5. Verdict **(c) — real but narrow**: usable,
+but the setting is load-bearing and must be pinned by a test rather than left to a default.
+
+### ⚠️ METHODOLOGICAL CORRECTION THAT AFFECTS SEVERAL OF TODAY'S CLAIMS
+The two `hl014` seeds differ **only** in the random lead arrangement, yet scored `handrole_gap`
+**1.04 vs 0.26** — a spread of **0.78**, against a documented handrole noise floor of **±0.29**.
+Cause is visible in the mechanism table: seed1 happened to land `role_swap_rate` at **0.479**
+(human 0.461) where seed0 got 0.345, and `handrole_gap` averages |shift| over asymmetry AND swap.
+
+**So the handrole noise floor is roughly 3× the documented value, and single-arm handrole numbers
+cannot be finely ranked.** Re-reading today's results against that:
+- `b1_e17_ds055` handrole 1.22 vs `b1_e15_ds055` 1.82 — difference 0.60, **within seed noise**. The
+  claim "e17 is the best epoch" rests on handrole and is NOT safe at that resolution; e15 and e17
+  should be treated as tied.
+- `b1_e12_ds055` 1.72 vs `ds055` 1.92 — difference 0.20, **well within noise**, not a real gap.
+- **Unaffected**: the large effects — double share 0.833 vs human 0.231, the monotone epoch trend
+  across five checkpoints, and the 5/5 passes themselves (which turn on multiple axes at once, not
+  on one handrole number).
+
+**Next: measure the floor instead of assuming it.** `hl014` at seeds 2/3/4 gives a real
+per-axis variance estimate from 5 samples of an identical configuration. That number underpins every
+comparison the suite makes, and today it was wrong by 3× on the axis we care most about.
+
 ## ★★★★★ 2026-08-01 — **FIRST FULL-SUITE PASS IN THE PROJECT'S HISTORY.** `b1_e17_ds055` and
 `b1_e15_ds055` clear ALL 5 AXES + parity ★★★★★
 
