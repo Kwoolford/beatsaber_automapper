@@ -26,6 +26,75 @@ Confirmed before launch: version_8 **has an `instr_proj` head (512×10)** where
 2026-07-27 representation gap, not a re-run. Verdict logic is printed by the
 script; compare `_ds055` arms against `ds055`, NOT against `prod`.
 
+## ★★★ 2026-08-01 — ONE ROOT CAUSE UNDER A2, A6 AND THE FLOW SPREAD: **WE EMIT 4× TOO MANY
+DOUBLES** ★★★
+
+New tool: `scripts/eval_spread_breakdown.py`. `scorecard.py` reports only `min_spread` — the
+MINIMUM spread over an axis's sequence keys — so an axis can fail on one collapsed sub-metric
+while every other key sits in the human range, and the scorecard never says which. The breakdown
+prints spread/shift per sub-metric per cohort with the human cohort as control.
+
+**First result: the human control passes every axis (min_spread 0.71–1.06), so the 0.35 bar is
+NOT miscalibrated.** Every spread failure below is a real collapse, not a metric artifact — the
+h_dist trap does not apply here. Which makes the per-key attributions trustworthy:
+
+| axis | who fails | the ONE key responsible | our spread | our shift |
+|---|---|---|---|---|
+| handrole | `ds055` (and `prod`) | **`role_asymmetry`** | 0.27 | −2.88 |
+| idiom | `ar_xy_ds055` | **`idiom_jsd`** | 0.30 | −0.77 |
+| rhythm | `prod` only | `pulse_stability` | 0.32 | +2.37 |
+
+### The chain (this is the finding)
+
+`role_asymmetry`: human median **0.115** (MAD 0.025) vs ours **0.026** (prod) / **0.046**
+(ds055/ar_xy). We are 2.5–4.5× less lopsided than humans AND ~4× less varied across songs. Chasing
+that number alone would have been another lever hunt. It is not an independent defect:
+
+**double-note share (fraction of notes in a slot where both hands play):**
+
+| cohort | median | range |
+|---|---|---|
+| **human** | **0.231** | 0.020 – 0.518 |
+| prod | **0.937** | 0.299 – 0.990 |
+| ds055 | 0.833 | 0.161 – 0.929 |
+| ar_xy_ds055 | 0.835 | 0.182 – 0.920 |
+
+**We put both hands on the same slot 84–94% of the time; humans do it 23%.** That single quantity
+mechanically forces all three of the open defects:
+- **A6 / `role_asymmetry`** — if both hands play nearly every slot, no hand can *lead*. Asymmetry
+  near zero is arithmetic, not a modelling failure. This is why `_assign_hand_roles` had to delete
+  ~24% of the notes to manufacture asymmetry (`double_rate=0.175` un-doubles 82.5% of slots): the
+  lever was fighting the double rate, and lost.
+- **A2 / rhythm lockstep** — two hands on identical slots can only produce a union rhythm on the
+  8th grid (the 2026-07-27 "0 notes on an odd 16th in 679 slots" finding).
+- **flow spread floor** — see `ebpm_burst` below.
+
+So A2, A6, and the `_assign_hand_roles` note-loss trap are **one defect with one number**, and
+`ds055`'s success is partly explained: it already moved doubles 0.937 → 0.833.
+
+### Side finding: `ebpm_burst` is a dead sub-metric for our generator
+
+`ebpm_burst` is byte-identical across `prod`/`ds055`/`ar_xy_ds055` (same 15 distinct values, same
+median 243.2), because **p95 swing rate is exactly 2.000 swings/beat on all 24 songs** — our fast
+end is pinned to 8th notes, so `ebpm_burst` reduces to `2 × song BPM` and is invariant to every
+lever we own. Humans: 18/24 also at 2.0, but **5/24 above (3.0–4.08, real 16th bursts)** and 1/24
+at 1.5. It is the metric doing its job — this is genuine (mild) mode collapse, downstream of the
+same lockstep — but it **floors flow's `min_spread` at 0.46 for every arm**, so flow's spread can
+never improve until the double rate does. It does not currently fail anything (0.46 > 0.35 bar);
+do not "fix" the metric.
+
+### ⏭️ NEXT EXPERIMENT (queued, DoD below) — `BEAT_DOUBLE_RATE`
+Drive the double share toward the human 0.231 directly, at `ds055` density. The mechanism must
+**move, not delete** — that is the whole lesson of `_assign_hand_roles` (deleted, cost 24% of
+notes, hurt rhythm) vs `_offset_hands` (moved ±1 slot, took rhythm 2.37→**0.26**). Note the prior
+hand-offset sweeps ran at **prod density**, where offsetting spiked `ebpm_burst` 243→360 because
+notes were already packed; at `ds055` density there is room to offset without that spike, so the
+combination is genuinely untested rather than a re-run.
+**DoD**: double share median → 0.20–0.40, `role_asymmetry` → ≥0.08, handrole spread ≥0.35 with the
+gap still ≤2.00, and no axis that `ds055` passes regressing beyond its noise floor (flow ±0.03 /
+rhythm ±0.08 / idiom ±0.09 / handrole ±0.29). Parity violations must stay 0 — that is what killed
+hand-offset above ho03.
+
 **Track A is parked, not dropped**: `ds055` / `ar_xy_ds055` renders are in
 `outputs/ds055_review_2026-07-29/`, sent to Kyle, awaiting his ears. Neither is
 promoted and neither should be promoted on scorecard alone.
