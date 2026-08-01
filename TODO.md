@@ -123,6 +123,50 @@ transfer to this density and the write-up above needs revising.
 swap rate, so the instrument model is losing on both sub-metrics, not just the one. This is the same
 failure mode `BEAT_HAND_LEAD_SWAP` was added to address — worth trying that lever on top of e12.
 
+## ★★★★★ 2026-08-01 — **FIRST FULL-SUITE PASS IN THE PROJECT'S HISTORY.** `b1_e17_ds055` and
+`b1_e15_ds055` clear ALL 5 AXES + parity ★★★★★
+
+| axis (bar) | `ds055` (old best) | `b1_e12_ds055` | **`b1_e15_ds055`** | **`b1_e17_ds055`** |
+|---|---|---|---|---|
+| flow (0.50) | 0.30 PASS | 0.50 FAIL | **0.25 PASS** | **0.38 PASS** |
+| rhythm (0.70) | 0.36 PASS | 0.48 PASS | **0.44 PASS** | **0.58 PASS** |
+| idiom (1.00) | 0.52 PASS | 0.69 spread FAIL | **0.36 PASS** | **0.53 PASS** |
+| handrole (2.00) | 1.92 spread **FAIL** | 1.72 PASS | **1.82 PASS** | **1.22 PASS** |
+| playfeel (1.00) | 0.74 PASS | 1.03 FAIL | **0.98 PASS** | **0.85 PASS** |
+| parity | 0 viol | 0 viol | **0 viol** | **0 viol** |
+| **OVERALL** | FAIL | FAIL | **PASS** | **PASS** |
+
+**Verified before believing it**: 24 *distinct* maps per arm (md5 over the note list — no duplicates
+inflating a cohort), 0 parity violations, and the mechanism corroborates rather than merely
+co-occurring — doubles fall monotonically e09 0.867 → e12 0.789 → e15 0.773 → **e17 0.771**, with
+`role_asymmetry` 0.049 → 0.063 → 0.065 → **0.071** and swap 0.324 → **0.420** (human 0.461). e17 has
+both the best mechanism numbers and the best handrole (1.22). The pass is coherent, not a fluke of
+one axis wobbling under its bar.
+
+### ⚠️ THIS CORRECTS THE "SELECT EPOCH 12" CONCLUSION LOGGED ABOVE
+The earlier entry said the epoch curve *peaks at e12 and turns over*, and that there was no case for
+training version_8 longer. **That was read off the PROD-DENSITY arms — the tier this project has
+already established is too dense to judge anything at.** At the judgeable ds055 density the ordering
+**reverses**: e15 and e17 both PASS and e12 does not (2/5). **The epoch ranking is density-dependent,
+and the ds055 ranking is the one that counts.** Select **e17** (or e15). The "don't train longer"
+inference was wrong for the same reason — and it is exactly the verdict-(d) guard written into
+`overnight_2026-08-01b.sh` before the result came in, which is why the guard was there.
+
+Standing lesson reinforced: **never rank checkpoints at prod density.** It has now produced a wrong
+answer twice (once via `val_f1_avg_tol`, once here).
+
+### Status: AWAITING KYLE'S EARS — NOT PROMOTED
+Rendered + sent 2026-08-01 (`outputs/pass_review_2026-08-01/`, PNGs + playable zips for
+`SO TIRED ROCK` and `1f8a3`, e17 vs the ds055 control). **`generate.py` defaults are untouched** —
+the 2026-07-27 review found a lever that scored well on paper and was unplayable in practice, and a
+suite PASS is exactly the situation that rule exists for. The suite was built so Kyle would not have
+to be the judge; the first time it says PASS is the moment to check it against a human ear, not to
+skip that check.
+
+**Remaining headroom is still large** — double share 0.771 vs human 0.231, `role_asymmetry` 0.071 vs
+0.115. The maps pass the suite while still being structurally ~3× more doubled than human maps, so
+either there is real quality left on the table or the bars are loose. Kyle's verdict discriminates.
+
 ## ★★★★ 2026-08-01 — `b1_e12_ds055` PASSES HANDROLE, AND THE DOUBLE-SHARE MECHANISM IS CONFIRMED
 QUANTITATIVELY ★★★★
 
