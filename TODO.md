@@ -480,7 +480,76 @@ hand-offset above ho03.
 `outputs/ds055_review_2026-07-29/`, sent to Kyle, awaiting his ears. Neither is
 promoted and neither should be promoted on scorecard alone.
 
-## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-29)
+## ⏭️⏭️ NEXT SESSION — **START HERE. A8 ALIGNMENT IS THE TOP PRIORITY, ABOVE EVERYTHING ELSE.**
+(written 2026-08-01, at Kyle's explicit instruction after he played the first 5/5 maps)
+
+### Why this outranks every other item in this file
+Kyle played the two maps that passed all five axes and said **"it's painfully obvious the notes are
+off beat — the consistent beat of the song is not where the notes are played."** He is right, and
+**the suite is structurally incapable of seeing it: not one of its five axes ever loads the audio.**
+`rhythm.py` scores note times against the DECLARED BPM GRID, never the music. Full write-up at the
+top of this file and in `PROGRESS.md` ("THE OVERSIGHT", 2026-08-01).
+
+Measured (`scripts/eval_beat_alignment.py`, song `1f767`, 50ms tol): **human precision 0.966 /
+scatter 8.0ms** vs ours **0.753–0.817 / 11.7–23.2ms**. A human puts 97% of notes on a real audio
+onset; we manage 75–82%. **One note in five of ours lands where there is no musical event at all.**
+
+**Do not resume lever-tuning before this lands.** Every lever tuned on 2026-08-01 (density,
+`BEAT_HAND_LEAD`, the instrument representation) optimises where notes sit *relative to each other*.
+Kyle's complaint is where they sit *relative to the music*. No amount of further work on the current
+five axes can fix it, and **a 5/5 on the current suite means less than we thought.**
+
+### The task, in order
+1. **Harden `scripts/eval_beat_alignment.py` into `src/beatsaber_automapper/evaluation/alignment.py`.**
+   Cohort-scored by median shift + spread via `_dist.py`, exactly like every other axis — do NOT
+   rank by per-map distance to the human median (that is the `h_dist` saturation failure, and it has
+   already been reproduced once in a brand-new metric).
+   Candidate keys: `onset_precision` (share of our notes on a detected onset), `offset_mad` (timing
+   scatter), `onset_recall` (weight this one carefully — humans deliberately ignore most onsets, so
+   low recall is NOT a defect; precision and scatter are the real signals).
+2. **Calibrate on the human corpus** — same pattern as the other axes, `outputs/alignment_human_reference.json`.
+3. **RUN THE CONTROL BATTERY BEFORE IT STEERS ANYTHING** (`scripts/audit_eval_suite.py`). Shuffled /
+   random / degenerate maps must score badly. Non-negotiable — that gate is the only reason the rest
+   of the suite is trustworthy.
+4. **Additionally validate against Kyle's ear**, which the battery cannot do: the axis must rank
+   `hl014_ds055` above `b1_e17_ds055`, because that is how he ranked them. The prototype already
+   does this on the first try, where none of the five existing axes did. **This "does it move the
+   way Kyle's judgement moves" check is new process — add it for every future axis.**
+5. **Add A8 to `scorecard.py`'s `AXES` and re-score every candidate.** Expect the ranking to change
+   and expect current 5/5 arms to drop to 5/6.
+6. Only then return to generation levers, now aimed at alignment rather than at inter-note structure.
+
+**DoD**: A8 in the scorecard; human cohort passes it; all four degenerate controls fail it;
+`prod`/`ds055`/`hl014_ds055`/`b1_e17_ds055` ordered as Kyle ordered them.
+
+### Landmines for this specific task
+- `scripts/eval_alignment.py`'s loader **silently returns `n_notes=0` for human map zips** — that
+  silent zero is *why this gap survived so long*. Use `scorecard._load_any` (works for both) or fix
+  the old loader, and never accept an empty control as a result.
+- `data/raw/1f8a3.zip` returns `None` from `_load_any` while `1f333`/`1f767` work. **Use `1f767`**
+  for human-control alignment work; `1f333` is the half-tempo trap song, avoid it for beat-domain work.
+- Onset detection is over the **union of Demucs stems** (~2378 onsets on 1f767). The mix-only path
+  gives far fewer and different numbers — keep the stem path or the human baseline shifts.
+- The human ceiling is **0.966, not 1.0**. Detected onsets are imperfect; score everything against
+  the human row, never against a perfect score.
+
+### Also carried forward (lower priority than A8)
+- **`hl014_ds055` and `b1_e17_ds055` are NOT promoted.** `generate.py` defaults untouched. Kyle's
+  verdict was "step up but still not good" — do not promote either on the current suite's say-so.
+- **Handrole noise floor is ~3× the documented ±0.29** (two seeds of an identical config scored
+  1.04 vs 0.26). Treat `b1_e15` and `b1_e17` as **tied**. `overnight_2026-08-01c.sh` was measuring a
+  proper per-axis sd over 5 identical seeds — **check `logs/overnight/noisefloor_2026-08-01.log`
+  first thing**, it was running when this was written, and fold the real floor into the docs.
+- The **double-share gap remains the largest untouched structural defect** (ours 0.73–0.79 vs human
+  0.231) and is upstream of A2/A6/flow-spread. It may well also be upstream of alignment.
+- The two mechanisms (instrument representation, hand-lead budget) **do not compose** — stacked they
+  overshoot. Pick one.
+- `scripts/chain_after_stress.sh` has a **broken `pgrep -f` guard that matches its own command
+  line**, so it never fires. Fix or delete before reusing the chaining pattern.
+
+---
+
+## ⏭️ NEXT SESSION — pick up here (written by /close 2026-07-29, SUPERSEDED by the block above)
 
 **State at close: nothing running, GPU idle (~19% desktop/Steam overhead only), working tree clean
 except gitignored artifact dirs (`logs/beat_classifier/version_8/`, `logs/layout_ft_ent0.5/`,

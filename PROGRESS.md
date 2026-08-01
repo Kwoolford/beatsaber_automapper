@@ -7,6 +7,73 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## THE OVERSIGHT: the eval suite was AUDIO-BLIND for its entire existence (2026-08-01)
+
+**The most important entry in this file.** A long autonomous session produced the project's
+first-ever full-suite passes — five different configurations clearing all 5 axes + parity, after
+months of failing every one. Kyle played two of them:
+
+> "It's painfully obvious the notes are off beat. The consistent beat of the song is not where the
+> notes are played... many of them just have their own slightly off timings."
+
+He was right, and **the suite could not see it, because not one of its five axes ever loads the
+audio.** `evaluation/rhythm.py` — the axis whose entire name is rhythm — has no audio import at all.
+It scores note times against the **declared BPM grid**, never against the music. Same for flow,
+idiom, handrole and playfeel.
+
+### What that means
+
+A map can have a perfectly human interval distribution, human hand-roles, human flow and human
+difficulty **while sitting off the song's actual beat**, and the suite calls it a pass. Measured on
+`1f767` (2378 detected stem onsets, 50ms tolerance, `scripts/eval_beat_alignment.py`):
+
+| map | precision (notes on a real audio onset) | timing scatter (MAD) |
+|---|---|---|
+| **human** | **0.966** | **8.0 ms** |
+| `hl014_ds055` (a 5/5 pass) | 0.817 | 11.7 ms |
+| `ds055` | 0.811 | 11.7 ms |
+| `prod` | 0.774 | 23.2 ms |
+| `b1_e17_ds055` (a 5/5 pass) | 0.753 | 23.2 ms |
+
+**A human mapper puts 97% of notes on a real audio onset. We manage 75–82%** — one note in five
+lands where there is no musical event at all, versus one in thirty for a human.
+
+### Why it stayed hidden
+
+1. **`scripts/eval_alignment.py` could measure this the whole time.** Written long ago, never wired
+   into the scorecard — a standalone script nobody ran during axis work.
+2. **Its map loader silently returns `n_notes=0` for HUMAN map zips.** So the one comparison that
+   would have exposed the gap — human vs generated alignment — returned an empty control and was
+   dropped. A silent zero, not an error.
+3. **The control battery (`scripts/audit_eval_suite.py`) cannot catch this by construction.** It
+   checks whether the *existing* axes discriminate real maps from degenerate ones. It has no way to
+   ask whether the *set* of axes is complete. Every axis passed its audit; the set was still missing
+   the one that mattered most.
+4. **Five configurations passing read as success, not as a warning.** The tell was there — all five
+   still sat at a double-note share of 0.73–0.79 against a human 0.231, an untouched 3× structural
+   defect, and "the bars are loose" was written into TODO.md *before* Kyle played anything. But a
+   suspicion in a TODO is not a measurement.
+
+### The lesson, for next time
+
+**An axis nobody thought to add is invisible in exactly the same way a saturated metric is.** The
+project already learned that a metric can look healthy while measuring nothing (`h_dist`,
+2026-07-26) and responded by auditing every metric against degenerate controls. That defence is real
+but one-dimensional: it hardens the axes you have. Nothing in the process asked *what is not being
+measured at all* — and the answer was the single thing Kyle complains about every time he plays a
+map.
+
+The v2 suite exists so Kyle does not have to be the judge. It failed at exactly that, and he found
+it in one listening session. The right reading is not that the suite is worthless — its axes are
+sound and its passes are real *within what it measures* — but that **its coverage was never
+validated against the ear it was built to replace.** From here, every new axis gets the control
+battery **and** a check that it moves the way Kyle's judgement moves.
+
+`scripts/eval_beat_alignment.py` reproduced his ranking of the two candidates on the first try
+(hl014 best, b1_e17 worst) where **none of the five existing axes did**.
+
+---
+
 ## Eval-suite v2: four axes, a working judge, and the "locally wrong" principle (2026-07-27)
 
 A single long autonomous session. The strategic frame (set 2026-07-26) is that the **evaluation
