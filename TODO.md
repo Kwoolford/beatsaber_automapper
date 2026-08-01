@@ -123,6 +123,46 @@ transfer to this density and the write-up above needs revising.
 swap rate, so the instrument model is losing on both sub-metrics, not just the one. This is the same
 failure mode `BEAT_HAND_LEAD_SWAP` was added to address — worth trying that lever on top of e12.
 
+## ★★★★★ 2026-08-01 (later) — `hl014_ds055` ALSO PASSES 5/5, BEATS e17 ON EVERY AXIS, AND NEEDS
+**NO RETRAINED MODEL** ★★★★★
+
+`BEAT_HAND_LEAD=0.14` on top of `ds055`, on **version_4 — the current production checkpoint**:
+
+| axis (bar) | `ds055` | `b1_e17_ds055` | **`hl014_ds055`** |
+|---|---|---|---|
+| flow (0.50) | 0.30 | 0.38 | **0.22** |
+| rhythm (0.70) | 0.36 | 0.58 | **0.19** |
+| idiom (1.00) | 0.52 | 0.53 | **0.44** |
+| handrole (2.00) | 1.92 spread FAIL | 1.22 | **1.04** |
+| playfeel (1.00) | 0.74 | 0.85 | **0.76** |
+| OVERALL | FAIL | PASS | **PASS** |
+
+**The lever hit its design target almost exactly**: realised `role_asymmetry` **0.1197** vs the human
+**0.1150** — the value predicted from the single-song smoke test (0.14 setting → ~0.82× → ~0.115).
+Note count is exactly preserved (800, identical to the control) — the whole point of the
+budget-reallocation design over `BEAT_HAND_ROLE`'s deletion. Double share also fell 0.833 → 0.785.
+
+Realised asymmetry is **linear in the setting**: 0.10 → 0.0917, 0.14 → 0.1197, 0.18 → 0.1538.
+
+### ⚠️ TREAT THIS WITH SUSPICION UNTIL IT REPLICATES
+`hl014` passes but **both its neighbours FAIL** — `hl010` (idiom + handrole spread) and `hl018`
+(flow 0.76, idiom + playfeel spread). The linearity above explains it tidily: 0.14 is simply the
+setting that lands on the human value, 0.10 undershoots, 0.18 overshoots. **But a tidy explanation
+is not evidence, and "tune a lever until it clears five bars" is exactly how `h_dist` saturated**
+(docs/eval_suite_v2.md). A single passing arm flanked by two failures is a knife edge until shown
+otherwise.
+
+`scripts/overnight_2026-08-01b.sh` was **rewritten to stress-test this rather than build on it**
+(it originally pushed b1_e12, which these results superseded before it ran). Arms: `hl012`, `hl016`
+(is there a basin?), **`hl014_seed1`** (same target, different lead arrangement — a real effect
+survives re-seeding; needed a new `BEAT_HAND_LEAD_SEED` env var), `hl014_ds05`, plus
+`b1_e17_ds055_hl014` and `b1_e17_ds05` (do the representation and budget mechanisms COMPOSE, or
+just add and overshoot?). **DoD: the pass must survive BOTH re-seeding and at least one neighbouring
+setting. If it does not, the honest report is "one arm passed and did not replicate" and the lever
+stays default-OFF.**
+
+Rendered + sent to Kyle alongside the e17 maps. **Not promoted.**
+
 ## ★★★★★ 2026-08-01 — **FIRST FULL-SUITE PASS IN THE PROJECT'S HISTORY.** `b1_e17_ds055` and
 `b1_e15_ds055` clear ALL 5 AXES + parity ★★★★★
 

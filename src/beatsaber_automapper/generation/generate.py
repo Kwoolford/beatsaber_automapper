@@ -2166,7 +2166,11 @@ def generate_v7_level(
             _nw = int((_slot_sec / _win).astype(int).max()) + 1
             _lmul, _rmul = _lead_multipliers(
                 _nw, _win, bpm, min(_hl, 0.95),
-                float(os.environ.get("BEAT_HAND_LEAD_SWAP", "0.461")))
+                float(os.environ.get("BEAT_HAND_LEAD_SWAP", "0.461")),
+                # Re-seeding changes WHICH hand leads each block without changing
+                # the target asymmetry — the check that a passing arm is not an
+                # artefact of one particular arrangement of leads.
+                seed=int(os.environ.get("BEAT_HAND_LEAD_SEED", "0")))
         left_onsets  = _density_aware_select(
             beat_probs[:, 0], _slot_sec, _win, _gamma, _bL, beat_nms_radius,
             win_mult=_lmul)

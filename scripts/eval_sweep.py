@@ -312,6 +312,30 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "hl014_ar_xy_ds055": ({**_DS25, "LAYOUT_ANTIREPEAT_ROLES": "xy",
                            "BEAT_DIFFICULTY_SCALE": "0.55",
                            "BEAT_HAND_LEAD": "0.14"}, []),
+
+    # --- ROBUSTNESS AROUND THE hl014 OPTIMUM (2026-08-01) -------------------
+    # hl014_ds055 PASSES all 5 axes, but its neighbours hl010 and hl018 both FAIL,
+    # which is a sharp enough optimum to be worth distrusting. The mechanism does
+    # explain it -- realised role_asymmetry is linear in the setting (0.0917 /
+    # 0.1197 / 0.1538 for 0.10 / 0.14 / 0.18) and hl014 is simply the arm that
+    # lands on the human 0.115 -- but "the explanation is tidy" is not evidence.
+    # These fill in the gaps: if the pass survives 0.12-0.16 it is a plateau with
+    # a real basin; if only 0.14 passes it is a knife edge tuned to the bars and
+    # must NOT be promoted on the scorecard alone.
+    "hl012_ds055":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                      "BEAT_HAND_LEAD": "0.12"}, []),
+    "hl016_ds055":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                      "BEAT_HAND_LEAD": "0.16"}, []),
+    # a different SEED at the winning setting: same target asymmetry, different
+    # lead/swap pattern. If the pass is real it survives re-seeding; if it does not,
+    # the arm was fitted to one particular arrangement of leads.
+    "hl014_seed1_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                           "BEAT_HAND_LEAD": "0.14",
+                           "BEAT_HAND_LEAD_SEED": "1"}, []),
+    # lower density on the winner -- playfeel 0.76 has room, and fewer notes is the
+    # other route toward the human double share (0.785 vs 0.231).
+    "hl014_ds05":   ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.50",
+                      "BEAT_HAND_LEAD": "0.14"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
