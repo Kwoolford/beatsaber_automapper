@@ -98,6 +98,31 @@ playfeel** — but handrole blows out to 4.22. This is the *epoch-0* checkpoint,
 so this is the floor not the verdict; e12_ds055 is the arm that matters and is still generating.
 Watch whether handrole recovers with epoch the way it did at prod density (5.44 → 2.37).
 
+**Update — it is recovering, but slowly, and the mechanism story needs a caveat.** handrole at
+ds055 density: e00 **4.22** → e03 **3.77** → e06 **3.55**, all still far worse than the `ds055`
+control's 1.92.
+
+| arm | double share | role_asymmetry | role_swap_rate |
+|---|---|---|---|
+| `ds055` (version_4) | **0.833** | **0.0433** | **0.401** |
+| b1_e00_ds055 | 0.920 | 0.0250 | 0.164 |
+| b1_e03_ds055 | 0.927 | 0.0219 | 0.227 |
+| b1_e06_ds055 | 0.921 | 0.0280 | 0.238 |
+| *human* | *0.231* | *0.115* | *0.461* |
+
+At this density the EARLY instrument epochs are **worse than the version_4 baseline on doubles**
+(0.92 vs 0.833), not better. That does not contradict the epoch-curve finding — at prod density the
+early epochs were also worse than baseline (e00 0.978 vs prod 0.937) and only crossed it by e12
+(0.890) — but it does mean **"the instrument model emits fewer doubles" is only true of the TRAINED
+model, not of the representation as such**. The claim to carry forward is the epoch TREND, not a
+blanket statement. If e12_ds055 does not get below the control's 0.833, the mechanism does not
+transfer to this density and the write-up above needs revising.
+
+**New concern the prod-density read missed**: `role_swap_rate` is far worse for the instrument arms
+(0.164–0.238 vs the control's 0.401, human 0.461). handrole_gap averages |shift| over asymmetry AND
+swap rate, so the instrument model is losing on both sub-metrics, not just the one. This is the same
+failure mode `BEAT_HAND_LEAD_SWAP` was added to address — worth trying that lever on top of e12.
+
 ## ★★★ 2026-08-01 — ONE ROOT CAUSE UNDER A2, A6 AND THE FLOW SPREAD: **WE EMIT 4× TOO MANY
 DOUBLES** ★★★
 
