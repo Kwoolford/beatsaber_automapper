@@ -1,9 +1,22 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-07-29 (/close) — B-1 retrain finished clean; two Track A candidates awaiting
-Kyle's review; nothing running, GPU idle, tree clean except gitignored checkpoint dirs
+**Last updated:** 2026-08-01 (/quickstart) — B-1 scoring sweep was KILLED BY A REBOOT partway
+through arm 3/14; resumed from cache 2026-08-01 12:48, running now. Track A candidates still
+awaiting Kyle's ears.
 
-## 🔬 RUNNING NOW (queued 2026-07-31) — B-1 suite scoring, 14 arms, ETA ~4h
+## ❓ DECISIONS TAKEN WITHOUT KYLE
+
+- **2026-08-01 — resumed the B-1 sweep rather than restarting it clean.** Fork: the 2026-07-31
+  reboot (machine came up 12:46 today) killed `eval_sweep.py` mid-generation at arm 3/14, song
+  8/24, leaving a stale `.sweep.lock` (pid 64439, dead) and 56 cached b1 zips. Option taken:
+  verify then reuse. Verified first — `unzip -t` on all 56 `b1_e00/b1_e03/b1_e06` zips passed, so
+  no repeat of the 2026-07-27 concurrent-write corruption, and the lock helper already self-clears
+  dead pids. Assumption: a map generated before the reboot is identical to one generated after
+  (same ckpts, same seed path, decode is deterministic given temp/top-p seeding). **Reversal
+  condition**: if any b1_e00/e03/e06 arm scores as a visible outlier against its neighbouring
+  epochs, re-generate those three arms with `--force` before trusting the curve.
+
+## 🔬 RUNNING NOW (relaunched 2026-08-01 12:48, orig. queued 2026-07-31) — B-1 suite scoring, 14 arms
 
 `scripts/overnight_2026-07-30.sh` → `logs/overnight/b1_score_2026-07-30.log`.
 version_8 epochs {0,3,6,9,12,15,17} × {prod density, ds055 density}, then a
