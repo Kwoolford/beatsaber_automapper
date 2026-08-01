@@ -1,8 +1,48 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-08-01 (/quickstart) — B-1 scoring sweep was KILLED BY A REBOOT partway
-through arm 3/14; resumed from cache 2026-08-01 12:48, running now. Track A candidates still
-awaiting Kyle's ears.
+**Last updated:** 2026-08-01 (/close) — see the session retro immediately below, then the
+`⏭️⏭️ NEXT SESSION` block. **Nothing is running; nothing is promoted; `generate.py` defaults are
+untouched.**
+
+## 📋 SESSION RETRO — 2026-08-01 (/quickstart, ~5h autonomous)
+
+**Started**: B-1 scoring sweep dead from an overnight reboot, two Track-A candidates awaiting Kyle.
+**Ended**: the eval suite's central assumption disproven, with the fix scoped.
+
+### What shipped
+| | |
+|---|---|
+| `scripts/eval_spread_breakdown.py` | decomposes an axis's `min_spread` into WHICH sub-metric collapsed (scorecard only ever reported the minimum) |
+| `BEAT_HAND_LEAD` + `_lead_multipliers` | note-preserving hand-role lever, default OFF, 10 tests (`tests/test_hand_lead.py`), 466 pass |
+| `scripts/eval_beat_alignment.py` | **A8 prototype** — the first metric that measures notes against the AUDIO |
+| 4 sweep scripts + ~20 new arms | B-1 scoring, hand-lead, pass stress-test, noise floor |
+
+### What was learned, in order of importance
+1. **THE SUITE IS AUDIO-BLIND.** None of its 5 axes ever loads the audio. Kyle played the first-ever
+   5/5 maps and heard it immediately: "the notes are off beat". Human maps put **96.6%** of notes on
+   a real audio onset; ours **75–82%**. → `PROGRESS.md` "THE OVERSIGHT"; A8 is now top of the stack.
+2. **We emit ~4× too many doubles** (0.77–0.94 vs human 0.231). A2 rhythm, A6 handrole and the flow
+   spread floor are **one defect**, not three — both hands on the same slot makes a per-window hand
+   lead arithmetically impossible and confines the union rhythm to the 8th grid.
+3. **The instrument model (version_8) learns to un-lockstep the hands.** Doubles fall monotonically
+   with epoch (0.978 → 0.771) while every axis improves. Predicted e12's double share at ds055 in
+   advance (0.79) and measured **0.789**. B-0's regressions were undertraining, not representation.
+4. **First full-suite passes in project history** — `b1_e17_ds055`, `b1_e15_ds055`, `hl014_ds055`,
+   `hl014_seed1_ds055`, `b1_e17_ds05`. Then: **the pass is a ~2-in-3 seed lottery** (see the block
+   below), and Kyle's ear said "still not that good". Both readings agree: do not promote.
+5. **The handrole noise floor is ~3× the documented ±0.29.** Identical configs scored 1.04 / 0.26 /
+   0.91. `b1_e15` and `b1_e17` are **tied**, not ranked.
+6. **The two mechanisms do not compose** — instrument representation (asym 0.0706) + hand-lead
+   (0.1197) stack to 0.1377, overshooting human 0.115 and collapsing spreads. Pick one.
+
+### Method notes worth keeping
+- Every real finding today came from **decomposing a summary statistic and asking what was upstream
+  of the failing part** — not from another lever hunt on the failing number.
+- **The human control is the whole game.** The spread bars were validated by it; the alignment gap
+  was hidden for months *because* the human control silently returned 0 notes and nobody chased it.
+- **Assumed noise floors silently license over-reading.** Measure by re-running an identical config.
+- Two chain scripts had `pgrep -f` guards that matched their own command lines and never fired
+  (`chain_after_stress.sh` still does — fix or delete before reusing the pattern).
 
 ## ★★★★★ 2026-08-01 — KYLE PLAYED THE 5/5 MAPS: **"THE NOTES ARE OFF BEAT."** THE SUITE IS
 AUDIO-BLIND AND CANNOT SEE THE DEFECT HE HEARS ★★★★★
@@ -480,8 +520,45 @@ hand-offset above ho03.
 `outputs/ds055_review_2026-07-29/`, sent to Kyle, awaiting his ears. Neither is
 promoted and neither should be promoted on scorecard alone.
 
+## ⚠️ 2026-08-01 (at close) — **THE 5/5 PASS DOES NOT RELIABLY REPLICATE: 2 OF 3 IDENTICAL SEEDS
+PASS, 1 FAILS**
+
+Partial result from the noise-floor sweep before it was stopped for the reboot. Three runs of the
+**identical** `hl014_ds055` configuration, differing only in `BEAT_HAND_LEAD_SEED`:
+
+| seed | flow | rhythm | idiom | handrole | playfeel | overall |
+|---|---|---|---|---|---|---|
+| 0 | 0.22 | 0.19 | 0.44 | 1.04 (spr 0.45) | 0.76 | **PASS** |
+| 1 | 0.41 | 0.19 | 0.60 | 0.26 (spr 0.51) | 0.85 | **PASS** |
+| **2** | 0.48 | 0.36 | 0.55 (spr **0.30**) | 0.91 (spr **0.27**) | 0.74 | **FAIL** |
+
+`handrole_gap` across identical configs: **1.04 / 0.26 / 0.91** (range 0.78, confirming the floor is
+~3× the documented ±0.29). What flipped seed2 was the **spreads** — idiom 0.30 and handrole 0.27,
+both under the 0.35 bar.
+
+**Verdict: `hl014_ds055`'s pass is roughly a 2-in-3 event, not a property of the configuration.**
+It must NOT be promoted, and any future "this arm passes" claim needs ≥3 seeds before it means
+anything. This is the seed-lottery outcome the stress test was written to detect, and it is
+consistent with Kyle's independent verdict that the map is "still not that good".
+**Do not pick the winning seed** — that is fitting the bars, the `h_dist` failure again.
+
+Seeds 3 and 4 were still generating at close (`hl014_seed3_ds055` 14/24). Finish them for a proper
+5-sample per-axis sd; the sweep resumes from cache, so nothing is lost.
+
 ## ⏭️⏭️ NEXT SESSION — **START HERE. A8 ALIGNMENT IS THE TOP PRIORITY, ABOVE EVERYTHING ELSE.**
 (written 2026-08-01, at Kyle's explicit instruction after he played the first 5/5 maps)
+
+### Resume commands (copy-paste)
+```bash
+cd /home/kyle/repos/beatsaber_automapper && source .venv/bin/activate
+# 1. finish the noise-floor measurement (resumes from cache; seed3 was 14/24 at close)
+nohup bash scripts/overnight_2026-08-01c.sh >/dev/null 2>&1 &
+# 2. the A8 prototype that started all this, with the working human control
+python scripts/eval_beat_alignment.py --audio data/eval_songset/1f767.ogg \
+  --maps "HUMAN=data/raw/1f767.zip" \
+         "hl014_ds055=outputs/eval_sweep_cache/hl014_ds055__1f767.zip" \
+         "b1_e17_ds055=outputs/eval_sweep_cache/b1_e17_ds055__1f767.zip"
+```
 
 ### Why this outranks every other item in this file
 Kyle played the two maps that passed all five axes and said **"it's painfully obvious the notes are
