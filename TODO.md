@@ -226,6 +226,29 @@ cannot be finely ranked.** Re-reading today's results against that:
 per-axis variance estimate from 5 samples of an identical configuration. That number underpins every
 comparison the suite makes, and today it was wrong by 3× on the axis we care most about.
 
+### Stress sweep, final arms: the two mechanisms do NOT compose (clean negative)
+
+| arm | verdict | double | asym | swap |
+|---|---|---|---|---|
+| `b1_e17_ds055_hl014` | **FAIL 2/5** (flow 0.50, handrole + playfeel spreads) | 0.735 | **0.1377** | 0.352 |
+| `b1_e17_ds05` | **PASS 5/5** | 0.742 | 0.0747 | 0.379 |
+| `hl014_ds05` | 4/5 (handrole spread 0.24) | 0.775 | 0.1233 | 0.372 |
+
+Verdict **(d)** as written before the run: e17 reaches asymmetry 0.0706 by learned representation,
+`hl014` reaches 0.1197 by budget, and stacked they **add to 0.1377 — overshooting the human 0.115**
+and collapsing two spreads. **Pick one mechanism, not both.**
+
+### ⚠️ FIVE different configurations now pass 5/5 — that is itself a warning
+`b1_e17_ds055`, `b1_e15_ds055`, `hl014_ds055`, `hl014_seed1_ds055`, `b1_e17_ds05`. Every one of them
+still sits at **double share 0.73–0.79 against a human 0.231** — the single largest structural gap
+we have measured, untouched. When five quite different configurations all clear every bar while
+sharing an unfixed 3× structural defect, the likeliest explanation is that **the bars are loose**,
+not that the problem is solved five times over. The common factor is the difficulty scale: nothing
+passed anything before density dropped to ~0.5–0.55, which suggests the scale was doing most of the
+work and the remaining levers are decorating it. **Kyle's ears are the only thing that separates
+"solved" from "the suite is too easy to satisfy" — that is the whole reason the suite exists, and
+it is now the binding constraint on the project.**
+
 ## ★★★★★ 2026-08-01 — **FIRST FULL-SUITE PASS IN THE PROJECT'S HISTORY.** `b1_e17_ds055` and
 `b1_e15_ds055` clear ALL 5 AXES + parity ★★★★★
 
