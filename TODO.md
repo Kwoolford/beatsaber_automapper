@@ -424,6 +424,50 @@ actionable: **we are already extracting the most this selection structure can, a
 must come from better probabilities, not better picking** — i.e. the threshold/NMS stage or Stage-1
 itself, per the ordering in NEXT.
 
+### 🐞 ARCVIEWER CRASH — **NOT OUR MAPS. And my BPM hypothesis was WRONG.**
+**Correction first.** I proposed that near-integer tempos (159.997, 188.0004) caused the freeze,
+because all four failing maps had them and all three loading maps did not. Kyle snapped-and-tested,
+one map loaded, and I took that as confirmation. **It was not.** With all four maps now carrying
+snapped tempos, three still fail. He flagged the epistemics himself — *"correlation doesn't mean
+causation"* — and he was right. **A non-deterministic memory bug is exactly the thing that
+manufactures a false "the fix worked" signal**, which is the same over-reading of a single
+observation this file spent the night documenting elsewhere.
+
+**What the evidence actually says** (`~/.config/unity3d/AllPolanDev/ArcViewer/Player.log`):
+
+```
+Map Files;zip,dat        <- native file-dialog filter strings
+Map Files
+zip,dat
+zip
+dat
+corrupted size vs. prev_size while consolidating
+Caught fatal signal - signo:6 code:-6
+```
+
+1. `corrupted size vs. prev_size` is **glibc heap-corruption detection**, i.e. a native
+   memory-safety bug — not a map-parsing error. A structurally valid map cannot legitimately cause
+   it; a parser that corrupts its heap on *any* input has a bug.
+2. **The "freeze" and the "core dump" are the SAME bug** — `Player-prev.log` (the freeze session)
+   ends with the identical two lines. There is one failure, not two.
+3. It aborts **at the file-dialog stage, before the map is parsed**, which matches "select the map,
+   then it freezes".
+4. **Kyle is running ArcViewer 0.7.7; 0.8.1 is current** (`App version 0.7.7 is outdated! Latest is
+   0.8.1`). The binary is dated Apr 12 and `version.json` only records the update *check*, not an
+   install. The update he mentioned was available, not applied.
+
+Our maps pass every structural check run against them: identical audio to source (md5), same schema
+as the maps that load, no duplicate/stacked notes, nothing non-finite or out of range, every event
+list sorted, all beats on-grid, NJS/half-jump math identical and terminating.
+
+**Next, in order:** update to 0.8.1 and retest — that is the likely end of it. If it persists, the
+short-name/short-path copies in `~/av/` (`a`/`b`/`c` = failing AFTER maps, `d` = a loading BEFORE as
+control) test a path-length-dependent overflow; **that is a hypothesis, not a conclusion, and it is
+the same shape of guess that just failed.** Beyond that it is an upstream bug report with the log.
+
+**`snap_bpm` stays regardless** — it earns its place by making 21 of 23 songs bit-exact on the
+human-declared tempo, independently of this crash.
+
 ### ⚠️ FRAGILITY NOTICED, NOT FIXED (needs a decision, 2026-08-02)
 **`outputs/` is gitignored in full — `git ls-files outputs/` returns ZERO files.** Every axis's
 calibration reference lives only on this machine:
