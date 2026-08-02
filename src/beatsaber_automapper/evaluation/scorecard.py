@@ -35,8 +35,14 @@ import sys
 from dataclasses import dataclass, field
 
 from beatsaber_automapper.evaluation import (
-    flow, handrole, idiom, playfeel, rhythm, swing_sim,
+    alignment, flow, handrole, idiom, playfeel, rhythm, swing_sim,
 )
+
+# A8's bars, set by scripts/calibrate_alignment.py from the held-out human cohort
+# (same rule as every other axis: ~2x the human cohort's own gap). Kept as named
+# constants because they were measured, not chosen — see docs/eval_suite_v2.md.
+ALIGN_GAP_BAR = 1.00
+ALIGN_SPREAD_BAR = 0.35
 
 # (module, gap key, gap bar, min-spread bar). Bars are ~2x the human cohort's own
 # gap; spread bar catches mode collapse independently of the gap.
@@ -54,6 +60,13 @@ AXES = [
     # up/down-vs-diagonal balance, so the suite was scoring rhythm and flow while
     # the map was a difficulty tier too dense and made of diagonals.
     ("playfeel", playfeel, "playfeel_gap", 1.00, 0.35),
+    # A8 audio alignment. Added 2026-08-01, the day Kyle played the first maps to
+    # pass the five axes above and said the notes were off the beat. He was right
+    # and NONE of those five could see it: not one of them loads the audio. This
+    # is the only axis that measures where the notes sit relative to the MUSIC
+    # rather than relative to each other. Bars set from the human corpus by
+    # scripts/calibrate_alignment.py.
+    ("alignment", alignment, "alignment_gap", ALIGN_GAP_BAR, ALIGN_SPREAD_BAR),
 ]
 
 
@@ -84,8 +97,17 @@ class AxisResult:
         return ", ".join(bits) if bits else "within human range"
 
 
-def _metrics_for(bm, bpm: float) -> dict:
+def _metrics_for(bm, bpm: float, onsets=None) -> dict:
     rec: dict = {}
+    # A8 is the only axis that needs anything beyond the notes themselves. When
+    # `onsets` is None the axis reports NaN and the axis verdict becomes
+    # "not scored" — which FAILS. That is deliberate: a cohort whose alignment was
+    # never measured has not passed, it has been un-audited, and treating those
+    # two as the same thing is the mistake this axis exists to correct.
+    try:
+        rec.update(alignment.alignment_metrics(bm, bpm=bpm, onsets=onsets).metrics)
+    except Exception:  # noqa: BLE001
+        pass
     try:
         rec.update(flow.flow_metrics(bm, bpm=bpm).metrics)
     except Exception:  # noqa: BLE001
@@ -114,8 +136,12 @@ def _metrics_for(bm, bpm: float) -> dict:
 
 
 def score_cohort(maps: list[tuple], label: str = "cohort") -> dict:
-    """Score a cohort. `maps` is a list of (beatmap, bpm) pairs."""
-    records = [_metrics_for(bm, bpm) for bm, bpm in maps]
+    """Score a cohort. `maps` is a list of (beatmap, bpm) or (beatmap, bpm, onsets).
+
+    The 2-tuple form is still accepted so every pre-A8 caller keeps working, but it
+    cannot score alignment — `_load_any` returns the 3-tuple and should be used.
+    """
+    records = [_metrics_for(*(m if len(m) == 3 else (*m, None))) for m in maps]
     results = []
     for name, mod, gap_key, gap_bar, spread_bar in AXES:
         cc = mod.cohort_comparison(records)
@@ -161,8 +187,48 @@ def report(res: dict) -> str:
     return "\n".join(lines)
 
 
+ONSET_CACHE = pathlib.Path(__file__).resolve().parents[3] / "outputs" / "onset_cache"
+
+
+def song_id(path: pathlib.Path) -> str:
+    """Song id from a map path. `<arm>__1f767.zip` and `1f767.zip` both -> `1f767`.
+
+    Generated maps are cached as `<arm>__<song>.zip` by eval_sweep.py; human maps
+    live at `data/raw/<song>.zip`. Both resolve to the same id so both are scored
+    against the same onsets — the shared footing A8 depends on.
+    """
+    stem = path.stem
+    return stem.split("__")[-1] if "__" in stem else stem
+
+
+_ONSETS: dict[str, object] = {}
+
+
+def onsets_for(path: pathlib.Path):
+    """Cached onsets for a map's song, or None if the song was never cached.
+
+    Never computes onsets on the fly: `scripts/build_onset_cache.py` owns that, so
+    that every map of a song is scored against byte-identical detections.
+    """
+    import numpy as np
+
+    sid = song_id(path)
+    if sid not in _ONSETS:
+        f = ONSET_CACHE / f"{sid}.npz"
+        try:
+            _ONSETS[sid] = np.load(f, allow_pickle=False)["onsets"] if f.exists() else None
+        except Exception:  # noqa: BLE001
+            _ONSETS[sid] = None
+    return _ONSETS[sid]
+
+
 def _load_any(path: pathlib.Path):
-    """Load a generated or human map zip as (beatmap, bpm)."""
+    """Load a generated or human map zip as (beatmap, bpm, onsets).
+
+    Returns a 3-tuple as of A8 (2026-08-01); `onsets` is None for songs with no
+    cached audio onsets. `score_cohort` accepts both shapes, so pre-A8 callers that
+    just forward this value keep working.
+    """
     repo = pathlib.Path(__file__).resolve().parents[3]
     sys.path.insert(0, str(repo / "scripts"))
     from eval_contour_follow import _load_notes_with_direction
@@ -180,7 +246,7 @@ def _load_any(path: pathlib.Path):
         color_notes = notes
         bomb_notes: list = []
 
-    return _BM(), float(_zip_bpm(str(path)) or 120.0)
+    return _BM(), float(_zip_bpm(str(path)) or 120.0), onsets_for(path)
 
 
 def main() -> None:

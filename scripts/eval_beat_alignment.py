@@ -43,7 +43,7 @@ def _note_times(path: pathlib.Path) -> tuple[list[float], float]:
     loaded = scorecard._load_any(path)
     if not loaded:
         return [], 0.0
-    bm, bpm = loaded
+    bm, bpm = loaded[0], loaded[1]
     spb = 60.0 / bpm if bpm > 0 else 0.5
     times = sorted({round(n.beat * spb, 4) for n in bm.color_notes})
     return times, bpm

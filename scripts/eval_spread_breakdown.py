@@ -50,7 +50,7 @@ def _load_cohort(paths: list[pathlib.Path]) -> list[tuple]:
 
 
 def _records(paths: list[pathlib.Path]) -> list[dict]:
-    return [scorecard._metrics_for(bm, bpm) for bm, bpm in _load_cohort(paths)]
+    return [scorecard._metrics_for(*m) for m in _load_cohort(paths)]
 
 
 def main() -> None:
