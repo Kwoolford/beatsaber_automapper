@@ -151,9 +151,24 @@ rise. Supporting evidence from the existing (wrong-grid) density family, where t
 already visible: `ds05` 0.770 → `ds055` 0.756 → `ds075` 0.750. A 0.05 drop in scale bought ~+0.014
 precision there, and we need +0.007.
 
-*If it does not happen*, the confidence-ordering assumption is wrong — the selector is not keeping
-the best onsets, it is keeping a fixed share per window — and that is a different (and more
-interesting) defect than density.
+*If it does not happen*, the confidence-ordering assumption is wrong — and that is a different (and
+more interesting) defect than density.
+
+**EARLY READ (6 of 24 songs, paired): the prediction is NOT holding.** `tf_ds055` → `tf_ds045`
+moves nps 5.30 → 4.32 while precision stays flat at 0.878 → 0.877. Wait for the full cohort before
+believing it, but the code says why it would be real:
+
+`_density_aware_select` with `BEAT_IOI_PRIOR=0` (the default, and what every `tf_*` arm uses) takes
+`order = idxs[np.argsort(-p[idxs])]` — **greedy top-k by Stage-1 probability.** The stochastic
+`_ioi_dp_select` sampler only engages when the IOI prior is switched on. So a smaller budget *does*
+keep the highest-probability slots, and precision *still* does not move.
+
+**That means Stage-1's probability ordering does not track whether there is a real audio onset
+there.** If it holds up on 24 songs, the residual alignment gap after the tempo fix is not a
+decode-time problem at all — it is the Stage-1 representation, which is precisely the Track B
+thesis ("Stage-1 cannot hear the guitar", 2026-07-27). That would be a much more valuable finding
+than a density number, and it is cheaply testable with `BEAT_PROBS_DUMP`: correlate per-slot
+Stage-1 probability against distance to the nearest detected onset.
 
 ### 8. THE DEFECT DECOMPOSES CLEANLY — and phase hits the songs tempo does not
 Measured on the cached oracle maps by sweeping a global time shift (no generation needed):
