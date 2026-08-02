@@ -41,7 +41,9 @@ from beatsaber_automapper.evaluation import (
 # A8's bars, set by scripts/calibrate_alignment.py from the held-out human cohort
 # (same rule as every other axis: ~2x the human cohort's own gap). Kept as named
 # constants because they were measured, not chosen — see docs/eval_suite_v2.md.
-ALIGN_GAP_BAR = 1.00
+# Measured 2026-08-02 on 98 human maps: a held-out human cohort (49 maps against a
+# reference built from the other 49) scores alignment_gap 0.196, min_spread 0.923.
+ALIGN_GAP_BAR = 0.39
 ALIGN_SPREAD_BAR = 0.35
 
 # (module, gap key, gap bar, min-spread bar). Bars are ~2x the human cohort's own

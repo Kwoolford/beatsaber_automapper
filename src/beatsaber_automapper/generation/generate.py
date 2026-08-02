@@ -369,6 +369,49 @@ def _compute_adaptive_threshold(
     return base_threshold + (1.0 - normalized) * threshold_range
 
 
+def _oracle_bpm(audio_path) -> float | None:
+    """DIAGNOSTIC ONLY: the song's TRUE bpm, from a {song_id: bpm} JSON.
+
+    ** NOT SHIPPABLE. ** This hands the generator an answer it cannot have at
+    inference time. It exists to settle one question that no observational metric
+    can: how much of our audio misalignment is the tempo estimate?
+
+    The evidence that made it necessary (2026-08-02, axis A8): our detected bpm is
+    exact on **1 of 21** eval songs. Median error is 0.74% and four songs land at
+    2/3 of the true tempo. Every note is then placed on a 1/4-beat slot grid built
+    from that bpm, so on most songs the grid slides against the music as the song
+    plays. Human maps sit on the same 1/4-beat grid we do (557 of 561 notes on
+    1f767) and score 0.930 onset precision to our 0.76 — **the grid is not too
+    coarse, it is in the wrong place.**
+
+    `detect_bpm` also throws away librosa's beat POSITIONS (`tempo, _ = beat_track`)
+    and the grid is then anchored at t=0, so the phase is wrong independently of
+    the tempo. This oracle fixes only the tempo; if alignment does not recover with
+    a perfect tempo, phase is the remaining suspect.
+
+    Set `BEAT_BPM_ORACLE=/path/to/bpm.json`, keyed by audio file stem.
+    """
+    path_env = os.environ.get("BEAT_BPM_ORACLE")
+    if not path_env:
+        return None
+    try:
+        import json as _json
+        table = _json.loads(Path(path_env).read_text())
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("BEAT_BPM_ORACLE unreadable (%s) — falling back to detection", exc)
+        return None
+    key = Path(audio_path).stem
+    val = table.get(key)
+    if val is None:
+        # A silent miss here would look like a successful oracle run on a song that
+        # never got one. Say so loudly instead.
+        logger.warning("BEAT_BPM_ORACLE has no entry for %r — DETECTED bpm used", key)
+        return None
+    logger.info("BEAT_BPM_ORACLE: %s -> %.3f bpm (true tempo, diagnostic only)",
+                key, float(val))
+    return float(val)
+
+
 def _quantize_to_beat_grid(
     onset_frames: list[int],
     bpm: float,
@@ -377,6 +420,29 @@ def _quantize_to_beat_grid(
     max_subdivision: int = 8,
 ) -> list[int]:
     """Snap onset frames to nearest beat subdivision.
+
+    ★ THIS IS WHERE OUR TIMING SCATTER COMES FROM (measured 2026-08-01, axis A8).
+
+    The grid spacing at the default 1/8 is ~46ms, so snapping displaces a note by
+    up to +-23ms, uniformly. Predicted MAD 11.6ms; **measured 11.7ms** on the arms
+    that reach an onset at all. Human maps sit at 8.7ms and their offsets are a
+    unimodal peak on the onset, while ours are FLAT across the whole tolerance
+    window — the signature of a grid, not of musical timing.
+
+    It is worse than a fixed +-23ms, because the grid is built from the DETECTED
+    bpm, which is exact on **1 of 21** songs in the eval set (median error 0.74%,
+    and four songs land at 2/3 of the true tempo). A 0.74% error slides the grid
+    ~1% of a beat per beat, so it walks away from the music as the song goes on.
+    Together: "the consistent beat of the song is not where the notes are played"
+    (Kyle, 2026-08-01) is manufactured here, downstream of the model.
+
+    Stage-1 frames are hop_length/sample_rate = 11.6ms apart, so the frames
+    themselves carry only ~2.9ms of quantisation MAD — the model's timing is four
+    times finer than what this function leaves of it.
+
+    `BEAT_GRID_SUBDIV` overrides the subdivision: 16 halves the displacement, 0
+    disables snapping entirely (frame resolution only). Default 8 = prior
+    behaviour, unchanged until a sweep says otherwise.
 
     Args:
         onset_frames: List of frame indices.
@@ -388,11 +454,15 @@ def _quantize_to_beat_grid(
     Returns:
         Sorted, deduplicated list of quantized frame indices.
     """
+    subdiv = int(os.environ.get("BEAT_GRID_SUBDIV", str(max_subdivision)))
+    if subdiv <= 0:
+        # Snapping off: keep the model's own frame-resolution timing.
+        return sorted(set(onset_frames))
     if not onset_frames or bpm <= 0:
         return onset_frames
 
     frames_per_beat = (60.0 / bpm) * sample_rate / hop_length
-    grid_spacing = frames_per_beat / max_subdivision
+    grid_spacing = frames_per_beat / subdiv
 
     if grid_spacing < 1:
         return onset_frames
@@ -1639,6 +1709,8 @@ def generate_v7_level(
 
     # ---- 1. Audio loading + BPM ----
     waveform, src_sr = load_audio(audio_path, target_sr=DEMUCS_SR)
+    if bpm is None:
+        bpm = _oracle_bpm(audio_path)
     if bpm is None:
         bpm = detect_bpm(waveform, sample_rate=src_sr)
     logger.info("BPM: %.1f", bpm)

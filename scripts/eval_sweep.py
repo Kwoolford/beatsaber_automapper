@@ -354,6 +354,65 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "hl014_seed4_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
                            "BEAT_HAND_LEAD": "0.14",
                            "BEAT_HAND_LEAD_SEED": "4"}, []),
+
+    # --- A8 / BEAT-GRID QUANTISATION (2026-08-02) ---------------------------
+    # Axis A8 measured our notes against the AUDIO for the first time and found
+    # them 75-82% on a real onset (human 96.6%) with a timing scatter of 11.7ms
+    # (human 8.7ms). The offset HISTOGRAM says where that comes from: human
+    # offsets are a unimodal peak on the onset, ours are FLAT across the whole
+    # +-50ms window. Flat is the signature of a grid.
+    #
+    # `_quantize_to_beat_grid` snaps every Stage-1 onset to a 1/8 grid: spacing
+    # 46ms, so displacement is uniform on +-23ms, predicted MAD 11.6ms against a
+    # MEASURED 11.7ms. And the grid is built from the detected bpm, which is exact
+    # on 1 of 21 eval songs (median error 0.74%, four songs at 2/3 tempo), so it
+    # also slides against the music as the song goes on. Stage-1's own frames are
+    # 11.6ms apart -- the model's timing is 4x finer than what this leaves of it.
+    #
+    # Arms halve the displacement bound in turn (23.2 -> 11.6 -> 5.8 -> 0 ms).
+    # VERDICT LOGIC: if offset_mad_ms falls with the bound, the scatter was
+    # quantisation and this is a decode-time fix for the defect Kyle actually
+    # hears. If it does NOT fall, the scatter is the model's, this lever is dead,
+    # and the alignment work moves to Stage 1 (where the fix is a retrain).
+    # WATCH: q0 puts notes off the 1/16 grid entirely, and human maps are 94-99%
+    # ON that grid -- expect A2 rhythm's offgrid guard to push back, which is the
+    # real trade-off this sweep is here to price.
+    # ☠ RETIRED BEFORE THEY RAN — `BEAT_GRID_SUBDIV` is a NO-OP on the production
+    # path. It gates `_quantize_to_beat_grid`, which belongs to the older
+    # frame-based decoder; the v7/v10 path emits on Stage-1's own slot grid, and a
+    # q16 arm produced a map byte-identical in grid terms to the q8 control (zero
+    # odd-16ths in either). Caught by checking the first generated map against the
+    # control instead of trusting the flag — the sweep was killed 4 minutes in.
+    #   "q16_ds055", "q32_ds055", "q0_ds055", "q16_hl014_ds055", "q0_hl014_ds055"
+    # The premise was wrong too: human maps sit on the SAME 1/4-beat grid we do
+    # (557 of 561 notes on 1f767). The grid is not too coarse, it is in the wrong
+    # PLACE. Superseded by the oracle-bpm arms below.
+
+    # --- A8 / IS IT THE TEMPO? (2026-08-02) ---------------------------------
+    # Our detected bpm is exact on 1 of 21 eval songs: median error 0.74%, and four
+    # songs land at 2/3 of the true tempo. Stage-1 places every note on a 1/4-beat
+    # slot grid built from that bpm, so on nearly every song the grid slides against
+    # the music as it plays -- which is exactly "the consistent beat of the song is
+    # not where the notes are played" (Kyle, 2026-08-01).
+    #
+    # These arms hand the generator the TRUE bpm from the human map's Info.dat.
+    # That is an ORACLE and cannot ship; it is here to settle attribution, because
+    # no observational metric can separate "wrong tempo" from "wrong note choice".
+    #
+    # VERDICT LOGIC
+    #   precision recovers toward the human 0.930 -> the defect IS tempo estimation.
+    #       That is a solved problem outside this repo (beat trackers that return
+    #       phase, or fitting the grid to the detected onsets we already compute for
+    #       A8), and it becomes the top build item.
+    #   precision barely moves -> the tempo is not the binding constraint. Suspects
+    #       in order: grid PHASE (detect_bpm throws away librosa's beat positions
+    #       and the grid is anchored at t=0), then Stage-1 slot selection itself.
+    "obpm_ds055":       ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                          "BEAT_BPM_ORACLE": "outputs/true_bpm_eval_songset.json"}, []),
+    "obpm_hl014_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                          "BEAT_HAND_LEAD": "0.14",
+                          "BEAT_BPM_ORACLE": "outputs/true_bpm_eval_songset.json"}, []),
+    "obpm_prod":        ({"BEAT_BPM_ORACLE": "outputs/true_bpm_eval_songset.json"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
