@@ -4,19 +4,29 @@
 **🔴 START WITH THE ARCVIEWER BLOCK IMMEDIATELY BELOW — Kyle asked for it at the top of the stack.**
 Then the session retro.
 
-## 🔴🔴 TOP PRIORITY NEXT SESSION (Kyle, 2026-08-02) — **ARCVIEWER CRASHES ON MAP SELECT**
+## ✅ FIXED 2026-08-02 — **ARCVIEWER CRASH ON MAP SELECT** (was top priority; Kyle confirmed fixed)
 
 **Kyle asked for this to be top of the stack at the next `/todo`.** It is a tooling blocker, not a
 mapper defect: it stops him reviewing maps by eye, and his eye/ear is the only ground truth this
 project has that has never been wrong.
 
-### Status: DIAGNOSED, WORKED AROUND, NOT FIXED
-**Workaround in place — use it immediately, it fully unblocks review:**
+### Status: **FIXED AND VERIFIED BY KYLE** — the dialog works normally again
+Root cause: ArcViewer's `libStandaloneFileBrowser.so` links the **system GTK3 stack
+into the Unity process**, and Unity 6 ships its own copies plus its own allocator. Widget
+teardown freed a pointer another allocator owned, so glibc aborted.
+
+**Fix**: a drop-in replacement plugin that keeps the identical C ABI but runs the dialog in a
+**child `zenity` process**, so no GTK is loaded into Unity's address space.
+Source, tests and full write-up: `/mnt/giga_speed/repos/ArcViewer/native-sfb-zenity/`.
+
+Revert if ever needed:
 ```bash
-arcview <map.zip>          # new wrapper: ~/.local/bin/arcview
-# equivalently: arcviewer "path=/abs/path/to/map.zip"
+P=/mnt/giga_speed/repos/ArcViewer/ArcViewer-bin/ArcViewer_Data/Plugins
+cp $P/libStandaloneFileBrowser.so.gtk-original $P/libStandaloneFileBrowser.so
 ```
-Verified: loads `1f767_AFTER` in **34 ms with zero crashes**, no dialog involved.
+⚠️ **Re-apply after any ArcViewer update** — re-extracting `ArcViewer.Linux.zip` restores the
+GTK plugin. `~/.local/bin/arcview <map.zip>` (bypasses the dialog via `path=`) still exists as a
+belt-and-braces fallback.
 
 ### What is actually wrong (evidence, not inference)
 Upgraded 0.7.7 → **0.8.1** (sha256 verified against the release digest; log confirms
@@ -43,17 +53,12 @@ Kyle called the epistemics on the first one (*"correlation doesn't mean causatio
 The path-length idea (`~/av/{a,b,c}.zip` short names, `d.zip` control) is **untested and is the same
 shape of guess that already failed twice** — treat it as a low-prior lead, not a plan.
 
-### Next steps, in order
-1. **Confirm the workaround is enough for review.** If yes, this stops being urgent and becomes a
-   background annoyance — say so rather than spending a session on someone else's UI bug.
-2. **Identify the GTK mismatch.** ArcViewer ships its own `libdecor-0.so.0` / `libdecor-cairo.so`
-   (dated Apr 12) next to the system GTK; a bundled-vs-system mismatch is the most likely cause of
-   an invalid free in widget teardown. Compare the bundled libs against the system's GTK/GLib
-   versions, and try launching with the bundled ones excluded from the search path.
-3. **File upstream** at AllPoland/ArcViewer with `outputs/arcviewer_crash_logs_2026-08-02/`
-   (`Player.0.8.1.log` has the 70-frame trace; the 0.7.7 logs show the same abort with less detail).
-   It reproduces on demand on a specific version, which makes it a good report.
-4. Only then consider patching locally — the source is at `/mnt/giga_speed/repos/ArcViewer`.
+### Remaining (optional, not blocking anything)
+**File it upstream at AllPoland/ArcViewer.** In-process GTK from the StandaloneFileBrowser plugin
+is fragile under Unity 6 on Linux, and this is a good report: a deterministic crash, a 70-frame
+trace, and a working fix. Everything needed is preserved —
+`outputs/arcviewer_crash_logs_2026-08-02/` (0.7.7 and 0.8.1 logs; they rotate every launch, so these
+are the only copies) and the plugin source + README under `native-sfb-zenity/`.
 
 ### Artifacts
 - `outputs/arcviewer_crash_logs_2026-08-02/` — 0.7.7 and 0.8.1 logs, preserved (they rotate on
