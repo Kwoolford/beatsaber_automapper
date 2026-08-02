@@ -160,6 +160,28 @@ plausible noise. **No tempo-fit arm reaches 5/6.**
 fault**: that is the old non-tempo-fit control, and it fails alignment at 5.27 — it is the arm Kyle
 already rejected by ear. Do not read a 5/6 that excludes the axis measuring his complaint.
 
+#### 📌 WHY THINNING COSTS RHYTHM — you cannot thin your way to human density
+Decomposing the rhythm regression by sub-metric (shift in human MADs):
+
+| arm | nps | `pulse_stability` | `ioi_cond_entropy` | `ioi_switch_rate` | gap |
+|---|---|---|---|---|---|
+| `tf_ds055` | 4.42 | −0.06 | +0.47 | −0.21 | 0.25 |
+| `tf_ds052` | 4.22 | −0.33 | +0.64 | +0.14 | 0.37 |
+| `tf_ds048` | 3.88 | −0.66 | +1.20 | +0.05 | 0.64 |
+| `tf_ds045` | 3.63 | **−1.11** | **+1.61** | +0.47 | 1.06 |
+
+Both movers say the same thing: as notes are removed the map **loses its pulse** and its intervals
+become **less predictable**. That is what thinning by probability does — it takes the confident
+notes wherever they are, which breaks the runs that make a rhythm legible. Humans at 3.9 nps have a
+pulse; we at 3.9 nps (thinned from 4.4) do not.
+
+This is the same finding as A2's original one, from the other side: human rhythm **holds a
+subdivision for a run and then changes gear**. A probability-ranked subset has no reason to hold
+anything. So reaching human density needs a *rhythmically coherent* selection, not a smaller budget
+— which is exactly what `BEAT_IOI_PRIOR` (the human interval-bigram sampler, `_ioi_dp_select`) was
+built for on 2026-07-27 and which is **still default-off at 0.0**. Combining tempo-fit + re-tuned
+density + the IOI prior is the obvious next arm, and it has never been tried on a correct grid.
+
 #### 📌 SO WHERE IS THE LAST 0.0067? NOT DENSITY, NOT (ONLY) THE REPRESENTATION
 Two follow-ups, both landing opposite to intuition:
 
