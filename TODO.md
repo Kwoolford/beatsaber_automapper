@@ -26,6 +26,7 @@ is now complete."* First time in the project's history that his ear and a measur
 | Best score | alignment 0.554 ± 0.092 (bar 0.39); 4/6 on a good seed; **0/5 seeds pass all six** |
 | Review maps | `outputs/kyle_review_2026-08-02/` — 1f767, 1f913, 1f333, 1f8d6, SO TIRED ROCK |
 | Viewer | fixed; `arcviewer` self-heals its file-dialog plugin, `arcview <map.zip>` skips the dialog |
+| Tooling | ArcViewer fix source `tools/arcviewer_sfb_fix/`; skill backups `docs/skills-backup/` |
 
 **Human reference values worth memorising** (measured, not assumed): onset precision **0.930 ±
 0.032**, timing scatter **10.35 ± 1.30 ms**, Expert **3.91 nps**, diagonal share **0.370**, double
@@ -225,8 +226,11 @@ them.
 Ours 0.73–0.79 against a human **0.231**. Sits upstream of A2, A6 and the flow spread. Untouched
 since identified.
 
-### C6 — `outputs/` is entirely gitignored (needs a decision)
-`git ls-files outputs/` returns **zero**. All seven calibration artifacts — every axis's human
+### C6 — `outputs/` is entirely gitignored (needs a decision) — **this already bit us once**
+`git ls-files outputs/` returns **zero**. A commit message on 2026-08-02 stated the ArcViewer fix
+was "copied here for version control" into `outputs/`; it was not, and the only two copies were both
+untracked. Caught at close and moved to `tools/arcviewer_sfb_fix/`. The same trap still applies to
+every calibration reference the suite depends on. All seven calibration artifacts — every axis's human
 reference plus `ioi_human_model.json` — exist only on this machine. The suite's bars are meaningless
 without them, and A8 fails closed when its reference is missing, so a rebuild would look like a
 regression rather than a missing file. Fixing it (track the seven small JSONs, or move them under

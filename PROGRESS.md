@@ -7,6 +7,77 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## Tooling and process: the viewer fix, and TODO.md stopped eating itself (2026-08-02)
+
+Closing entries for the session that shipped the tempo fix. Neither is about map quality; both were
+blocking the work.
+
+### ArcViewer crashed on every map open — and it was never our maps
+After an ArcViewer update, every tempo-fix map froze the app on "Select Map" while older maps
+opened. Two hypotheses were wrong before the real one: **near-integer BPM** (dead — maps with
+snapped tempos still crashed, and Kyle called the epistemics himself with *"correlation doesn't mean
+causation"*) and **the 0.7.7 → 0.8.1 upgrade** (dead — 0.8.1 crashed identically, though it is what
+finally produced a usable stack trace).
+
+The trace settled it:
+
+```
+free(): invalid pointer
+#7  g_object_unref     #33 gtk_widget_unparent     #39 gtk_container_remove
+```
+
+`libStandaloneFileBrowser.so` links the **system GTK3 stack into the Unity process**. Unity 6 ships
+its own copies plus its own allocator, so dialog teardown freed a pointer another allocator owned.
+An in-process library conflict — every frame GLib/GTK, firing *before* any map is read. Confirmed by
+loading the identical map through `path=` on the command line: 34 ms, no crash.
+
+**Fix**: a drop-in plugin with the identical C ABI that runs the dialog in a child `zenity` process,
+so no GTK enters Unity's address space. Kyle: *"Just tested all the new maps, your fix worked!"*
+Written to be safer than what it replaced — `fork`+`execvp` with an argv array (no shell), one
+reusable buffer so string ownership never crosses the managed/native boundary, and it never returns
+`NULL` because the caller does `paths.Split((char)28)`. Missing zenity degrades to "cancelled"
+rather than crashing. Source and self-test: `tools/arcviewer_sfb_fix/`.
+
+The re-apply burden was then removed rather than documented: `~/.local/bin/arcviewer` is a launcher
+that verifies the plugin every start and reinstalls it if an ArcViewer update reverts it. Verified by
+sabotage — restored the crashing GTK build, launched, watched it heal.
+
+**Near miss worth keeping**: `~/.local/bin/arcviewer` was a *symlink to the running binary*, so the
+first attempt to write the launcher followed it and tried to truncate ArcViewer itself. The kernel
+refused with `ETXTBSY` **only because the app was open**. Verified intact, then removed the symlink
+before writing. Redirecting into a path that may be a symlink is worth avoiding by construction.
+
+### TODO.md had grown to 4,076 lines, and the `/close` skill was the cause
+Kyle: *"The trail of things done should be in the progress... in the todo it should just be what we
+are going to work on next."*
+
+The root cause was not neglect — **the `/close` skill instructed it**: "add a dated session retro at
+the top of TODO.md" plus "put the handoff at the top of TODO.md", every session, forever. 4,076
+lines was the skill working exactly as written.
+
+- **Moved** 3,913 lines of session history verbatim into this file under a dated archive header.
+  Nothing deleted; nine historical markers spot-checked as present here and absent there.
+- **Rewrote** TODO.md to 278 forward-only lines: CURRENT STATE → P0/P1 → work items with
+  evidence/tasks/DoD → REFERENCE.
+- **Corrected two stale things rather than copying them forward.** The success criteria targeted
+  "NPS ≥ 5.0, Expert range 4–10" — but the human Expert median is **3.91 nps** and 6.18 is the number
+  Kyle called unplayable, so the file was pointing at a defect as a goal. And the deprecated list
+  gained four entries earned that day.
+- **Fixed the skills**, since fixing only the document would have let the next session refill it:
+  `/close` now carries the forward-only rule with the line count that motivated it, a
+  validate-before-recording step, and a curation check. `/todo` and `/quickstart` both said "write
+  the verdict back into TODO.md (top retro)" and were updated too.
+
+### A false claim caught at close, worth recording as a pattern
+An earlier commit stated the ArcViewer fix was "copied here as `outputs/arcviewer_sfb_fix_.../` for
+version control". **`outputs/` is gitignored** — `git ls-files outputs/` returns zero. The fix
+existed in two untracked places and was believed safe. Moved to `tools/arcviewer_sfb_fix/`, which is
+tracked. This is the concrete instance of the risk logged as **C6**: a whole class of artifact is
+invisible to git while feeling committed, and the calibration references for all six evaluation axes
+are in exactly that state.
+
+---
+
 ## THE TEMPO FIX LANDED — and Kyle's first detailed play-through (2026-08-02)
 
 The session after "the notes are off beat" closed that defect and produced the project's first
