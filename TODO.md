@@ -139,6 +139,22 @@ tempo.
 **Alignment still FAILS: 0.49 against a 0.39 bar.** The fix closes ~89% of the gap to the bar, not
 all of it, and the remainder is phase + slot selection (§8 below).
 
+#### 📌 PREDICTION LOGGED BEFORE THE RE-TUNE SWEEP LANDED (2026-08-02 01:15)
+Decomposing `tf_ds055`'s 0.49: **precision contributes 0.87 MADs and scatter contributes 0.12.**
+The scatter half is already solved — 10.2 ms against a human 10.35. So the whole remaining gap is
+precision, and the arithmetic says passing needs **`onset_precision` ≥ 0.9087**. We are at 0.902:
+**short by 0.0067.**
+
+*Prediction*: the density re-tune passes alignment as a side effect. Lower density means fewer
+notes, and the notes that survive selection are the higher-confidence ones, so precision should
+rise. Supporting evidence from the existing (wrong-grid) density family, where the same ordering is
+already visible: `ds05` 0.770 → `ds055` 0.756 → `ds075` 0.750. A 0.05 drop in scale bought ~+0.014
+precision there, and we need +0.007.
+
+*If it does not happen*, the confidence-ordering assumption is wrong — the selector is not keeping
+the best onsets, it is keeping a fixed share per window — and that is a different (and more
+interesting) defect than density.
+
 ### 8. THE DEFECT DECOMPOSES CLEANLY — and phase hits the songs tempo does not
 Measured on the cached oracle maps by sweeping a global time shift (no generation needed):
 
