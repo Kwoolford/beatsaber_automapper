@@ -67,6 +67,34 @@ R_TRUST = 0.10
 SUBDIV = 4  # Stage-1's slot grid: 1/4 beat (beat_grid.BEAT_SUBDIV)
 
 
+# Human mappers declare clean tempos — 160.0, 188.0, 138.0 — and the fitter lands
+# within ~0.006 of them, emitting 159.99710481775244 where a human wrote 160.0.
+# Snapping to the nearest half-integer inside this tolerance costs nothing
+# measurable (0.006 bpm over a 3-minute song at 160 is ~7ms of accumulated drift,
+# against a 50ms window) and buys the exact human value.
+#
+# It also appears to matter downstream: ArcViewer froze on every map carrying an
+# unsnapped fitted tempo (2026-08-02) while the same maps with the old detector's
+# tempo loaded, and every failing value sat a hair off an integer. That is
+# suspicion, not proof — `outputs/arcviewer_probe_2026-08-02/` bisects it — but
+# snapping is the right thing to do on the human-convention grounds alone.
+SNAP_TO = 0.5
+SNAP_TOL = 0.05
+
+
+def snap_bpm(bpm: float, grid: float = SNAP_TO, tol: float = SNAP_TOL) -> float:
+    """Round to the nearest multiple of `grid` when already within `tol` of it.
+
+    Deliberately conservative: a genuinely non-integer tempo (145.3) is left
+    alone, because snapping it would introduce the very drift this module exists
+    to remove.
+    """
+    if not (bpm == bpm) or bpm <= 0:
+        return bpm
+    near = round(bpm / grid) * grid
+    return float(near) if abs(bpm - near) <= tol else float(bpm)
+
+
 @dataclass(slots=True)
 class TempoFit:
     bpm: float
@@ -138,7 +166,7 @@ def fit_tempo(onsets: np.ndarray, bpm0: float, subdiv: int = SUBDIV) -> TempoFit
     best_r = max(c[2] for c in cands)
     near = [c for c in cands if c[2] >= R_NEAR * best_r]
     bpm, phase, r = max(near, key=lambda c: c[0])
-    return TempoFit(bpm, phase, r, "comb_multi")
+    return TempoFit(snap_bpm(bpm), phase, r, "comb_multi")
 
 
 def estimate_tempo(y: np.ndarray, sr: int, onsets: np.ndarray | None = None,

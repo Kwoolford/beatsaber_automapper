@@ -107,3 +107,39 @@ def test_beat_lsq_survives_a_dropped_beat():
 def test_too_few_onsets_is_not_scored():
     fit = T.fit_tempo(np.array([1.0, 2.0, 3.0]), 128.0)
     assert not fit.trusted
+
+
+# --- BPM snapping -------------------------------------------------------------
+# The fitter lands within ~0.006 of the human-declared tempo and emits
+# 159.99710481775244 where a human wrote 160.0. Snapping buys the exact human
+# value for ~7ms of accumulated drift over a whole song, and every map carrying an
+# UNSNAPPED fitted tempo froze ArcViewer on 2026-08-02 while the same maps with
+# the old detector's tempo loaded.
+
+def test_snaps_a_hair_below_an_integer():
+    assert T.snap_bpm(159.99710481775244) == pytest.approx(160.0)
+
+
+def test_snaps_a_hair_above_an_integer():
+    assert T.snap_bpm(188.0004032662264) == pytest.approx(188.0)
+
+
+def test_leaves_a_genuinely_odd_tempo_alone():
+    """Snapping 145.3 to 145 would reintroduce exactly the drift this removes."""
+    assert T.snap_bpm(145.3) == pytest.approx(145.3)
+
+
+def test_half_integer_tempos_are_legitimate_targets():
+    assert T.snap_bpm(174.497) == pytest.approx(174.5)
+    assert T.snap_bpm(174.5) == pytest.approx(174.5)
+
+
+def test_fit_returns_a_snapped_tempo():
+    """The snap has to be in the fitted result, not only available as a helper."""
+    on = _grid_onsets(160.0)
+    assert T.fit_tempo(on, 161.5).bpm == pytest.approx(160.0, abs=1e-6)
+
+
+def test_snapping_survives_degenerate_input():
+    assert T.snap_bpm(0.0) == 0.0
+    assert np.isnan(T.snap_bpm(float("nan")))
