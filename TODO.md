@@ -1,7 +1,68 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-08-02 (/todo) — see the session retro immediately below. **Nothing is
-promoted; `generate.py` defaults are untouched.**
+**Last updated:** 2026-08-02 (/todo). **Nothing is promoted; `generate.py` defaults are untouched.**
+**🔴 START WITH THE ARCVIEWER BLOCK IMMEDIATELY BELOW — Kyle asked for it at the top of the stack.**
+Then the session retro.
+
+## 🔴🔴 TOP PRIORITY NEXT SESSION (Kyle, 2026-08-02) — **ARCVIEWER CRASHES ON MAP SELECT**
+
+**Kyle asked for this to be top of the stack at the next `/todo`.** It is a tooling blocker, not a
+mapper defect: it stops him reviewing maps by eye, and his eye/ear is the only ground truth this
+project has that has never been wrong.
+
+### Status: DIAGNOSED, WORKED AROUND, NOT FIXED
+**Workaround in place — use it immediately, it fully unblocks review:**
+```bash
+arcview <map.zip>          # new wrapper: ~/.local/bin/arcview
+# equivalently: arcviewer "path=/abs/path/to/map.zip"
+```
+Verified: loads `1f767_AFTER` in **34 ms with zero crashes**, no dialog involved.
+
+### What is actually wrong (evidence, not inference)
+Upgraded 0.7.7 → **0.8.1** (sha256 verified against the release digest; log confirms
+`App version 0.8.1 is up to date!`). **It still aborts**, and 0.8.1 finally produced a stack trace:
+```
+free(): invalid pointer
+Caught fatal signal - signo:6
+#7  g_object_unref
+#33 gtk_widget_unparent
+#39 gtk_container_remove
+```
+An invalid free inside **GTK's file-chooser teardown**. Not a Unity bug, not a map bug — the frames
+are all GLib/GTK, and it fires immediately after the dialog's filter strings
+(`Map Files;zip,dat / zip / dat`) are logged, i.e. **before any map is read**.
+
+**The maps are exonerated.** They load in 34 ms via `path=`, and they already passed every
+structural check: audio byte-identical to source (md5), same schema as maps that load, no
+duplicate/stacked notes, nothing non-finite or out of range, every event list sorted, all beats
+on-grid, NJS/half-jump math identical.
+
+⚠️ **Two of my hypotheses were WRONG here — do not resurrect them.** (1) Near-integer BPM: dead,
+maps with snapped tempos still crash. (2) The 0.7.7→0.8.1 upgrade: dead, 0.8.1 crashes identically.
+Kyle called the epistemics on the first one (*"correlation doesn't mean causation"*) and was right.
+The path-length idea (`~/av/{a,b,c}.zip` short names, `d.zip` control) is **untested and is the same
+shape of guess that already failed twice** — treat it as a low-prior lead, not a plan.
+
+### Next steps, in order
+1. **Confirm the workaround is enough for review.** If yes, this stops being urgent and becomes a
+   background annoyance — say so rather than spending a session on someone else's UI bug.
+2. **Identify the GTK mismatch.** ArcViewer ships its own `libdecor-0.so.0` / `libdecor-cairo.so`
+   (dated Apr 12) next to the system GTK; a bundled-vs-system mismatch is the most likely cause of
+   an invalid free in widget teardown. Compare the bundled libs against the system's GTK/GLib
+   versions, and try launching with the bundled ones excluded from the search path.
+3. **File upstream** at AllPoland/ArcViewer with `outputs/arcviewer_crash_logs_2026-08-02/`
+   (`Player.0.8.1.log` has the 70-frame trace; the 0.7.7 logs show the same abort with less detail).
+   It reproduces on demand on a specific version, which makes it a good report.
+4. Only then consider patching locally — the source is at `/mnt/giga_speed/repos/ArcViewer`.
+
+### Artifacts
+- `outputs/arcviewer_crash_logs_2026-08-02/` — 0.7.7 and 0.8.1 logs, preserved (they rotate on
+  every launch, so these are the only copies).
+- `~/.local/bin/arcview` — the wrapper.
+- `~/av/{a,b,c,d}.zip` — short-path copies for the untested length hypothesis.
+- Rollback to 0.7.7: `cd /mnt/giga_speed/repos/ArcViewer && rm -rf ArcViewer-bin && mv ArcViewer-bin.0.7.7.bak ArcViewer-bin`
+
+---
 
 ## ★★★★★★ 2026-08-02 — **KYLE PLAYED IT: "GENUINELY BEAUTIFUL. THE FOUNDATION IS NOW COMPLETE."** ★★★★★★
 
