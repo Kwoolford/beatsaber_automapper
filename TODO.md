@@ -4,6 +4,80 @@
 Start with the session retro below. **Kyle has detailed tuning notes coming — expect them to
 reorder the polish list.**
 
+## 🎯 WORK ITEMS FROM KYLE'S PLAY-THROUGH (2026-08-02) — validated, ordered by evidence
+
+Each was checked against data before being written down; see PROGRESS.md for the measurements.
+**K1–K3 are confirmed defects with numbers. K4 is partly confirmed. K5 is not yet measurable.**
+
+### K1 — Timing degrades toward the END of a song ★ highest confidence, worst symptom
+**Evidence**: onset precision per fifth — 1f333 0.973→0.856, 1f767 0.985→0.783, **1f8d6
+1.000→0.518**. 1f333 places 5 notes and 1f8d6 10 notes *after the last detected onset*, i.e. after
+the music stops. 1f913 is stable, so it is not universal.
+**Why we missed it**: A8 reports one precision per map; within-song drift averages away. **A
+song-level metric cannot see a song-shaped defect** — the same blind-spot shape as the audio-blind
+suite itself.
+**DoD**:
+1. Add a within-song drift term to A8 (precision in the last fifth vs the first, or the slope), run
+   it through the control battery, and check it against the human corpus — humans may drift too.
+2. Diagnose the cause before fixing: fit tempo per-segment and see whether the *song's* tempo moves
+   (a real ritardando or a tempo change needs BPM events, not a better global fit) or whether our
+   single fitted tempo is simply off in a way that accumulates.
+3. Stop emitting notes after the last musical onset.
+
+### K2 — Diagonal cuts INCREASE with speed; they should decrease
+**Evidence**: 1f333 diagonal share by local NPS: 0.516 / 0.477 / 0.530 / **0.653** for 0–4 / 4–7 /
+7–10 / 10+ nps. Human Expert average 0.370.
+Kyle: broad "outside-in" swings are *wanted* in slow sections and on drops — *"they get the player
+moving and feel like they are playing a grand orchestra"* — but in fast passages they are
+"difficult but possible, and not preferred". Specific cases: 1f333 2:11 and 2:17.
+**DoD**: a lever that scales diagonal probability down as local note rate rises; diagonal share
+becomes *negatively* correlated with local NPS; A7 playfeel's `diagonal_share` moves toward 0.370
+without flattening direction variety (watch `dir_entropy` — over-diversifying is what created this
+in the first place, 2026-07-27).
+
+### K3 — We enter later than a human mapper
+**Evidence**: our first note is 1.9–14 ms from a real onset (fine), but starts late — 1f333 human
+1.91 s vs ours 2.39 s; 1f8d6 1.74 s vs 2.17 s.
+**Note Kyle explicitly does NOT want this hardcoded**: *"I'm ok with the first note not being a note
+every time, as sometimes it's just backlight filler that isn't the 'real' start."*
+**Related, and he called it out as taste rather than a rule**: the map should *end* on the song's
+final beat — *"the ending note should be obvious and grand to give the player that satisfaction."*
+Both are about entry/exit framing; treat as one item and do not hardcode either.
+**DoD**: first-note and last-note offsets vs the human map measured across the corpus, and the gap
+closed where the audio supports it. Suspect `section_gate="loud_only"` for the late entry.
+
+### K4 — Under-response during build-ups (partly confirmed)
+**Evidence**: notes-per-onset vs each song's median — 1f333 1:30–1:33 **0.67×** ("really sick
+building guitar, but only catches the end and cuts it short"), 3:20–3:28 **0.74×**. But 3:05
+(1.19×) and 1f767 2:20 (1.46×) have normal counts, so those are not density failures.
+**DoD**: detect build-ups/crescendos and respond across the whole phrase rather than its tail.
+Kyle's framing — *"phrase-aware maybe needs better sectioning of when the beginning and end of the
+phrase is"* — matches the A5 structure axis that was tried and shelved (2026-07-27, negative
+result). Re-open it with this as the concrete target.
+
+### K5 — "It does the average of all of them" (NOT YET MEASURABLE — do not close as refuted)
+He heard 1f913 as never committing to one beat, and wants a section like a guitar solo to re-point
+the map at the solo: *"most if not all notes would have changed to be this guitar solo... the lead
+hand would have played a lot of the solo, on consistent beat drops a spare hand comes in."* He
+suspects the phrase-similarity scoring is too tight and should be loosened so a genuine change of
+character is allowed to change the map.
+**Measured and did not reproduce**: whole-song stem commitment matches human (1f333 0.382 vs 0.420),
+and lead-switch rate is as high or higher (1f913 0.250 vs 0.292). **But the metric is too blunt** —
+both cohorts read as drum-led because drums carry the most onsets, so the argmax is nearly
+predetermined.
+**DoD**: build the A4 "musical-role correctness" axis that `docs/eval_suite_v2.md` planned and never
+built, weighting stems by salience rather than raw onset count, and re-test. **His ear has been
+ahead of the metrics twice; treat a null result from a blunt metric as a metric problem.**
+
+### Kyle's confirmed positives (protect these in any future change)
+- **Hand-lead alternation**: *"a giant difference maker... noticeably great impact on the flow."*
+- **Density pacing**: *"when there is a slow spot we let the player breathe... no longer the
+  monotony flood of notes."*
+Any lever that regresses A6 hand-role or the density-select behaviour is trading away something he
+has explicitly valued by ear.
+
+---
+
 ## ✅ CLOSED 2026-08-02 — ArcViewer crash on map select (no action required)
 ArcViewer's `libStandaloneFileBrowser.so` linked the **system GTK3 stack into the Unity process**;
 Unity 6 ships its own copies plus its own allocator, so dialog teardown freed a pointer another

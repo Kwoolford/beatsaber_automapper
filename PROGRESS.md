@@ -7,6 +7,79 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## THE TEMPO FIX LANDED — and Kyle's first detailed play-through (2026-08-02)
+
+The session after "the notes are off beat" closed that defect and produced the project's first
+**positive** agreement between his ear and a measurement. Axis A8 (audio alignment) shipped, traced
+the cause to a note grid built on a tempo that was wrong on 20 of 21 songs, and a tempo+phase
+fitter took `alignment_gap` 5.41 → 0.554 with timing scatter 17.4 → 10.2 ms (human 10.35). He
+played the results unprompted:
+
+> "The first map after 1f8d6 is genuinely beautiful. The notes lining up to the beat and it being
+> mostly playable to that nostalgic song after months is an amazing feeling. There is of course much
+> more polish to do, but the foundation is now complete."
+
+He then reviewed three maps in detail. **Each claim below was checked against the data rather than
+transcribed**, because the value of his notes is in which ones survive measurement.
+
+### CONFIRMED — timing degrades toward the end of a song
+He suspected "the audio beat layer got shifted toward the end... notes playing for about 5 seconds
+after the song ends." Onset precision per fifth of each song:
+
+| song | p1 | p2 | p3 | p4 | p5 |
+|---|---|---|---|---|---|
+| 1f333 | 0.973 | 0.966 | 0.917 | 0.885 | **0.856** |
+| 1f767 | 0.985 | 0.990 | 1.000 | 0.815 | **0.783** |
+| 1f8d6 | 1.000 | 0.940 | 0.931 | 0.944 | **0.518** |
+| 1f913 | 0.870 | 0.954 | 0.915 | 0.976 | 0.939 |
+
+**Three of four degrade, and 1f8d6 collapses to 0.518 in its final fifth.** No notes fall outside
+the audio file, but 1f333 places 5 notes and 1f8d6 places 10 notes **after the last detected onset**
+— i.e. after the music has effectively stopped, which is exactly what he heard.
+
+★ **This is a metric blind spot of the same shape as the original one.** A8 reports ONE precision
+per map, so drift *within* a song averages away invisibly. A song-level number cannot see a
+song-shaped defect.
+
+### CONFIRMED — and worse than reported: diagonal cuts INCREASE with speed
+He asked for "outside-in" diagonals to be rare in fast passages and kept for slow ones, where broad
+swings "feel like playing a grand orchestra". Diagonal share by local note rate on 1f333:
+
+| local NPS | 0–4 | 4–7 | 7–10 | 10+ |
+|---|---|---|---|---|
+| diagonal share | 0.516 | 0.477 | 0.530 | **0.653** |
+
+Human Expert average is **0.370**. We are diagonal-heavy everywhere, and **most diagonal exactly
+where they punish hardest**. The relationship should be negative; ours is positive.
+
+### CONFIRMED — we enter later than a human mapper
+His "the first note does not line up to the initial beat" turned out to be a *late entry*, not a
+misalignment: our first note sits 1.9–14 ms from a real onset (well inside the 50 ms window), but we
+start after the human does — 1f333 human 1.91 s vs ours 2.39 s; 1f8d6 1.74 s vs 2.17 s.
+
+### PARTLY CONFIRMED — under-response in build-ups
+Notes-per-onset against each song's own median: 1f333 1:30–1:33 ("building guitar... only catches
+the end and cuts it short") responds at **0.67×** and 3:20–3:28 at **0.74×**. But 3:05 (1.19×) and
+1f767's 2:20 (1.46×) carry *normal* note counts — so "the guitar solo is ignored" there is not about
+how many notes, but about which layer they follow.
+
+### NOT CONFIRMED (metric too blunt, not a refuted observation)
+"It doesn't stick to one beat, it does the average of all of them." Measured as which stem the notes
+follow: our whole-song commitment matches the human's almost exactly (1f333 0.382 vs 0.420; 1f913
+0.297 vs 0.285), and our lead-instrument switch rate is as high or higher (1f333 0.129 vs 0.067;
+1f913 0.250 vs 0.292). But both cohorts read as drum-led simply because drums carry the most
+onsets, so the argmax is nearly predetermined. **His observation is recorded as not-yet-measurable
+rather than wrong** — his ear has been ahead of the metrics twice now, and the honest conclusion is
+that the metric needs to be better, not that the perception was mistaken.
+
+### CONFIRMED positive
+The hand-lead lever is doing real work: *"the alternating lead hand change was a giant difference
+maker... noticeably great impact on the flow."* And density pacing: *"when there is a slow spot we
+take note and let the player breathe... we no longer have the monotony flood of notes."* Those are
+the A6 hand-role and density-select levers being heard as intended for the first time.
+
+---
+
 ## THE OVERSIGHT: the eval suite was AUDIO-BLIND for its entire existence (2026-08-01)
 
 **The most important entry in this file.** A long autonomous session produced the project's
