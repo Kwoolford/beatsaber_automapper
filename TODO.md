@@ -106,6 +106,39 @@ path**, and a q16 arm produced a map identical in grid terms to the q8 control. 
 the first generated map against the control instead of trusting the flag; sweep killed 4 minutes
 in. The flag and its 6 tests stay (correct, documented, default-off); the arms are marked retired.
 
+### 8b. ★ THE SHIPPABLE FIX CONFIRMED — AND IT BEATS THE ORACLE (read the caveat)
+`logs/overnight/tempofit_2026-08-02.log`, all 24 songs:
+
+| arm | precision | scatter | **alignment** | flow | idiom | playfeel | axes |
+|---|---|---|---|---|---|---|---|
+| `ds055` | 0.756 | 17.4 ms | **5.41** | 0.30 | 0.52 | 0.74 | 4/6 |
+| `obpm_ds055` (oracle) | 0.887 | 10.7 ms | 0.80 | 0.54 | 0.75 | 1.38 | 1/6 |
+| **`tf_ds055`** (shippable) | **0.902** | **10.2 ms** | **0.49** | 0.64 | 0.77 | 1.02 | 2/6 |
+| human | 0.930 | 10.3 ms | 0.20 | — | — | — | bar 0.39 |
+
+**alignment_gap 5.41 → 0.49, an 11× improvement, with no human map involved.** Scatter 10.2 ms is
+*better* than the human corpus median. All three families captured >100% of the oracle's gain.
+
+**⚠️ CAVEAT — "beats the oracle" is a warning as much as a result.** `comb_refine` maximises how
+tightly the detected onsets sit on the grid, and A8 scores how tightly our NOTES sit on those same
+onsets. Those are not the same quantity (the fitter never sees the notes) but they are close
+relatives, so some of the margin over the oracle is **the fitter optimising the thing that grades
+it** — the `h_dist` failure mode, and it must not be waved through.
+
+*The defence, and it is measured, not argued*: the fitter recovers the **human-declared** bpm
+exactly on **21 of 23** songs, and that is ground truth from outside A8 entirely — a human synced
+those maps by hand. An estimator that were merely gaming the onset metric would have no reason to
+land on the human's number.
+
+*Where the two disagree, honestly*: on `1fbda` the fitter picks 116 where the human declared 232,
+and A8 **prefers** the fitter (0.929 vs the oracle's 0.828). A half-tempo grid genuinely fits that
+audio better than the human's convention does. `1f9a0` went the other way — a correct tempo made it
+*worse* (0.589 → 0.473), and its human map is fine at 0.906, so that song's defect is phase, not
+tempo.
+
+**Alignment still FAILS: 0.49 against a 0.39 bar.** The fix closes ~89% of the gap to the bar, not
+all of it, and the remainder is phase + slot selection (§8 below).
+
 ### 8. THE DEFECT DECOMPOSES CLEANLY — and phase hits the songs tempo does not
 Measured on the cached oracle maps by sweeping a global time shift (no generation needed):
 
