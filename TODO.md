@@ -125,6 +125,20 @@ median |shift| needed is 36.5 ms against a 93 ms slot — phase is simply unmode
 So wiring the fitted phase through should be expected to rescue a minority of songs dramatically
 rather than improve all of them slightly. `data/tempo.py` already returns it; nothing consumes it.
 
+**But run the human control before building it** — it splits the phase story in two, and only half
+of it is ours to fix:
+
+| song | HUMAN @0 | human wants | ours @0 | ours wants | reading |
+|---|---|---|---|---|---|
+| `1fa48` | 0.938 | −46 ms | **0.614** | **+53.5 ms** | human is fine at zero, **our grid is genuinely misplaced** (~half a slot) |
+| `1f9a0` | 0.906 | −5.5 ms | **0.394** | −59.5 ms | ours misplaced, and a shift only reaches 0.564 — **something else is also wrong here** |
+| `1f767` | 0.968 | −41 ms | 0.921 | −48.5 ms | **both want the same shift ⇒ ONSET-DETECTOR offset, not our grid** |
+
+The eval-songset audio is **byte-identical** to the audio inside the human map zips (checked by
+hash and cross-correlation, 0.0 ms lag), so none of this is a re-encoding artifact. Do not apply a
+blanket global shift: on `1f767` it would be fitting the detector, which is the kind of move that
+produced `h_dist`.
+
 ### ⏭️ NEXT — in order
 1. **Read `logs/overnight/tempofit_2026-08-02.log`** (running at handoff). It prints how much of
    the oracle ceiling the real estimator captured, plus a per-song table. The two known
