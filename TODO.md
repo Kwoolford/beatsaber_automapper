@@ -1,71 +1,23 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
 **Last updated:** 2026-08-02 (/todo). **Nothing is promoted; `generate.py` defaults are untouched.**
-**🔴 START WITH THE ARCVIEWER BLOCK IMMEDIATELY BELOW — Kyle asked for it at the top of the stack.**
-Then the session retro.
+Start with the session retro below. **Kyle has detailed tuning notes coming — expect them to
+reorder the polish list.**
 
-## ✅ FIXED 2026-08-02 — **ARCVIEWER CRASH ON MAP SELECT** (was top priority; Kyle confirmed fixed)
+## ✅ CLOSED 2026-08-02 — ArcViewer crash on map select (no action required)
+ArcViewer's `libStandaloneFileBrowser.so` linked the **system GTK3 stack into the Unity process**;
+Unity 6 ships its own copies plus its own allocator, so dialog teardown freed a pointer another
+allocator owned and glibc aborted. Replaced with a same-ABI plugin that runs the dialog in a child
+`zenity` process. Kyle confirmed fixed. **Our maps were never implicated.**
 
-**Kyle asked for this to be top of the stack at the next `/todo`.** It is a tooling blocker, not a
-mapper defect: it stops him reviewing maps by eye, and his eye/ear is the only ground truth this
-project has that has never been wrong.
+**Nothing to remember and nothing to re-apply** — `~/.local/bin/arcviewer` is now a launcher that
+checks the plugin on every start and re-installs it automatically if an ArcViewer update reverts it
+(verified by sabotage test). Source, self-test and write-up:
+`/mnt/giga_speed/repos/ArcViewer/native-sfb-zenity/` (mirrored at
+`outputs/arcviewer_sfb_fix_2026-08-02/`).
 
-### Status: **FIXED AND VERIFIED BY KYLE** — the dialog works normally again
-Root cause: ArcViewer's `libStandaloneFileBrowser.so` links the **system GTK3 stack
-into the Unity process**, and Unity 6 ships its own copies plus its own allocator. Widget
-teardown freed a pointer another allocator owned, so glibc aborted.
-
-**Fix**: a drop-in replacement plugin that keeps the identical C ABI but runs the dialog in a
-**child `zenity` process**, so no GTK is loaded into Unity's address space.
-Source, tests and full write-up: `/mnt/giga_speed/repos/ArcViewer/native-sfb-zenity/`.
-
-Revert if ever needed:
-```bash
-P=/mnt/giga_speed/repos/ArcViewer/ArcViewer-bin/ArcViewer_Data/Plugins
-cp $P/libStandaloneFileBrowser.so.gtk-original $P/libStandaloneFileBrowser.so
-```
-⚠️ **Re-apply after any ArcViewer update** — re-extracting `ArcViewer.Linux.zip` restores the
-GTK plugin. `~/.local/bin/arcview <map.zip>` (bypasses the dialog via `path=`) still exists as a
-belt-and-braces fallback.
-
-### What is actually wrong (evidence, not inference)
-Upgraded 0.7.7 → **0.8.1** (sha256 verified against the release digest; log confirms
-`App version 0.8.1 is up to date!`). **It still aborts**, and 0.8.1 finally produced a stack trace:
-```
-free(): invalid pointer
-Caught fatal signal - signo:6
-#7  g_object_unref
-#33 gtk_widget_unparent
-#39 gtk_container_remove
-```
-An invalid free inside **GTK's file-chooser teardown**. Not a Unity bug, not a map bug — the frames
-are all GLib/GTK, and it fires immediately after the dialog's filter strings
-(`Map Files;zip,dat / zip / dat`) are logged, i.e. **before any map is read**.
-
-**The maps are exonerated.** They load in 34 ms via `path=`, and they already passed every
-structural check: audio byte-identical to source (md5), same schema as maps that load, no
-duplicate/stacked notes, nothing non-finite or out of range, every event list sorted, all beats
-on-grid, NJS/half-jump math identical.
-
-⚠️ **Two of my hypotheses were WRONG here — do not resurrect them.** (1) Near-integer BPM: dead,
-maps with snapped tempos still crash. (2) The 0.7.7→0.8.1 upgrade: dead, 0.8.1 crashes identically.
-Kyle called the epistemics on the first one (*"correlation doesn't mean causation"*) and was right.
-The path-length idea (`~/av/{a,b,c}.zip` short names, `d.zip` control) is **untested and is the same
-shape of guess that already failed twice** — treat it as a low-prior lead, not a plan.
-
-### Remaining (optional, not blocking anything)
-**File it upstream at AllPoland/ArcViewer.** In-process GTK from the StandaloneFileBrowser plugin
-is fragile under Unity 6 on Linux, and this is a good report: a deterministic crash, a 70-frame
-trace, and a working fix. Everything needed is preserved —
-`outputs/arcviewer_crash_logs_2026-08-02/` (0.7.7 and 0.8.1 logs; they rotate every launch, so these
-are the only copies) and the plugin source + README under `native-sfb-zenity/`.
-
-### Artifacts
-- `outputs/arcviewer_crash_logs_2026-08-02/` — 0.7.7 and 0.8.1 logs, preserved (they rotate on
-  every launch, so these are the only copies).
-- `~/.local/bin/arcview` — the wrapper.
-- `~/av/{a,b,c,d}.zip` — short-path copies for the untested length hypothesis.
-- Rollback to 0.7.7: `cd /mnt/giga_speed/repos/ArcViewer && rm -rf ArcViewer-bin && mv ArcViewer-bin.0.7.7.bak ArcViewer-bin`
+Optional, not blocking: report upstream to AllPoland/ArcViewer — deterministic crash, 70-frame
+trace preserved in `outputs/arcviewer_crash_logs_2026-08-02/`, and a working fix.
 
 ---
 
