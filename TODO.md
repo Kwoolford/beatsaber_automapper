@@ -211,6 +211,34 @@ density track the music (density_corr +0.53, 5/6 songs). If alignment and densit
 directly, that is a finding to report, not a knob to quietly pick a side on. Note also the headroom
 is small — even *global top-k* only reaches 0.948 against a human 0.968.
 
+#### 📌 RESULT: γ IS A WASH TOO — THE REPLAY DID NOT TRANSFER (second falsified prediction)
+| arm | γ | precision | alignment | rhythm | handrole | playfeel | axes |
+|---|---|---|---|---|---|---|---|
+| `tf_ds048` | 2.5 | 0.902 | 0.46 | 0.64 | 1.84 | 0.67 | 2/6 |
+| `tf_g15_ds048` | 1.5 | **0.907** | 0.45 | 0.89 | 2.12 | 0.51 | 3/6 |
+| `tf_g1_ds048` | 1.0 | 0.898 | 0.60 | 0.99 | **2.70** | 0.50 | 3/6 |
+| **`tf_hl014_ds048`** | 2.5 | 0.905 | **0.40** | 0.56 | 1.16 | 0.70 | **4/6** |
+
+Predicted +0.007 monotonically; measured a **non-monotone ±0.005 wobble** — inside noise. The
+replay does not transfer, and its own caveat said why: NMS, thresholds and the section gate sit
+between the probability array and the map. Quantified: in the replay a min-distance of 2–3 slots
+alone costs 0.948 → 0.923–0.931, which is most of the distance to what the pipeline achieves.
+Lowering γ also badly hurts handrole (1.84 → 2.70).
+
+**THREE DECODE KNOBS HAVE NOW FAILED TO MOVE PRECISION OFF ~0.90** — density, γ, and the
+probability floor. Two explicit predictions were logged in advance and both were falsified. The
+consistent reading is that **the residual alignment gap is not reachable with the decode controls
+this pipeline has**, and further knob-hunting is the wrong move.
+
+#### 📌 …AND "0.40 FAILS A 0.39 BAR" MAY NOT BE A FAIL AT ALL
+**There is no measured noise floor for the alignment axis.** The 5-seed floor run (2026-08-01)
+predates A8 entirely, so calling 0.40 a fail asserts a precision the suite has never demonstrated —
+the same mistake that left the handrole floor ~3× understated and made "b1_e17 beats b1_e15" a
+reading of noise. `scripts/overnight_2026-08-02f.sh` (running at handoff) takes four more seeds of
+`tf_hl014_ds048` to give A8 its first measured sd, test whether the 4/6 is stable, and satisfy the
+re-seed precondition every verdict script here demands. **Read that log before treating any arm
+ranking from this session as real.**
+
 #### 📌 PREDICTION LOGGED BEFORE THE RE-TUNE SWEEP LANDED (2026-08-02 01:15)
 Decomposing `tf_ds055`'s 0.49: **precision contributes 0.87 MADs and scatter contributes 0.12.**
 The scatter half is already solved — 10.2 ms against a human 10.35. So the whole remaining gap is

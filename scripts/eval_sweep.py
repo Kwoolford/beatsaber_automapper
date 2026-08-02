@@ -525,6 +525,31 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "tf_hl014_ioi1_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                              "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                              "BEAT_IOI_PRIOR": "1.0"}, []),
+
+    # --- SEEDS OF THE BEST ARM (2026-08-02) ---------------------------------
+    # `tf_hl014_ds048` scores alignment 0.40 against a 0.39 bar -- a "fail" by
+    # 0.01, and THERE IS NO MEASURED NOISE FLOOR FOR THE ALIGNMENT AXIS. The
+    # 5-seed floor run (2026-08-01) predates A8 entirely, so calling 0.40 a fail
+    # asserts a precision the suite has never demonstrated. That is the same
+    # mistake as the assumed +-0.29 handrole floor, which turned out to be ~3x
+    # understated.
+    #
+    # These four seeds do three jobs at once: give A8 its first measured floor,
+    # test whether the 4/6 is stable or another seed lottery (2 of 5 identical
+    # seeds passed 5/5 last time), and satisfy the re-seed precondition that every
+    # verdict script in this repo now demands before a promotion.
+    "tf_hl014_ds048_s1": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                           "BEAT_HAND_LEAD_SEED": "1"}, []),
+    "tf_hl014_ds048_s2": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                           "BEAT_HAND_LEAD_SEED": "2"}, []),
+    "tf_hl014_ds048_s3": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                           "BEAT_HAND_LEAD_SEED": "3"}, []),
+    "tf_hl014_ds048_s4": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                           "BEAT_HAND_LEAD_SEED": "4"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
