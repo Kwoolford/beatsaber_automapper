@@ -1,10 +1,101 @@
 # Beat Saber Automapper — V7 Plan (MERT + Demucs + Retrieval Architecture)
 
-**Last updated:** 2026-08-01 (/close) — see the session retro immediately below, then the
-`⏭️⏭️ NEXT SESSION` block. **Nothing is running; nothing is promoted; `generate.py` defaults are
-untouched.**
+**Last updated:** 2026-08-02 (/todo) — see the session retro immediately below. **Nothing is
+promoted; `generate.py` defaults are untouched.**
 
-## 📋 SESSION RETRO — 2026-08-01 (/quickstart, ~5h autonomous)
+## ★★★★★ 2026-08-02 — **A8 SHIPPED, AND IT FOUND THE CAUSE: OUR NOTE GRID IS BUILT ON A
+TEMPO THAT IS WRONG ON 20 OF 21 SONGS** ★★★★★
+
+Kyle's "the notes are off beat" now has a measurement, a mechanism, and a single-song fix that
+lands on the human value. In order:
+
+### 1. Axis A8 is in the scorecard, and it passed every gate
+`evaluation/alignment.py`, calibrated on **98 human maps** (audio extracted from the map zips
+themselves, so the reference is not limited to the 23-song eval set). Human precision
+**0.930 ± 0.032**, scatter **10.35 ± 1.30 ms**; a held-out human cohort scores gap **0.196**, so
+the bar is **0.39**. Control battery (`scripts/audit_alignment.py`) **PASSES**: metronome 2.37,
+timing_jitter 1.91, timing_random 6.74 vs human 0.20. `random`/`shuffled`/`zigzag` score
+identically to human because they leave note TIMES untouched — blind by construction, exactly the
+axis-aware reasoning A2 established, and A1/A3/A6 catch them.
+
+### 2. The re-rank: **every arm that ever passed is demoted; nothing passes six axes**
+`scripts/rerank_with_alignment.py` over all 87 cached arms:
+
+| | |
+|---|---|
+| passed the old five axes | 5 — `hl014_ds055`, `hl014_seed1_ds055`, `b1_e17_ds05`, `b1_e17_ds055`, `b1_e15_ds055` |
+| pass all six | **0** |
+| demoted by alignment | **all five** |
+
+**A8 reproduces Kyle's ordering** (`hl014_ds055` 5.27 < `b1_e17_ds055` 7.53), which no existing
+axis did. And the number that matters most: **alignment_gap spans only 4.75–7.53 across all 87
+arms**, while other axes span 0.1–4.8. *Nothing anyone has tuned in months moves alignment at
+all.* The entire lever search has been orthogonal to the defect Kyle actually hears.
+
+For scale: **our production maps are less aligned to the music than a metronome** (prod 5.48 vs
+2.37), and `b1_e17_ds055` (7.21) is worse than a map whose note times were **replaced with random
+ones** (6.74).
+
+### 3. The cause — the grid is not too coarse, it is in the wrong PLACE
+- Our detected bpm is exact on **1 of 21** eval songs. Median error 0.74%; **four songs land at
+  2/3 of the true tempo** (195→129, 168→112, 170→112, 180→120).
+- Human maps sit on the **same 1/4-beat slot grid we do** (557 of 561 notes on 1f767). So the
+  resolution is sufficient — a 0.74% tempo error simply slides our grid through every phase
+  relative to the music as the song plays.
+- `detect_bpm` also throws away librosa's beat POSITIONS (`tempo, _ = beat_track`) and the grid is
+  anchored at t=0, so the **phase is wrong independently of the tempo**.
+- Offset histograms say the same thing without any theory: human offsets are a **unimodal peak**
+  on the onset; ours are **flat across the whole ±50ms window**. Flat is what a grid does.
+
+**Single-song oracle probe (1f767), handing the generator the true tempo:**
+
+| map | bpm | precision | scatter | lag |
+|---|---|---|---|---|
+| HUMAN | 160.0 | 0.968 | 8.7 ms | +10.5 ms |
+| `ds055` (detected) | 161.5 | 0.803 | 11.7 ms | +0.0 ms |
+| **`ds055` + ORACLE bpm** | **160.0** | **0.899** | **8.5 ms** | **+9.9 ms** |
+
+A 1.5 bpm error was costing ~10 points of onset precision. With the true tempo our **scatter beats
+the human's** and our **lag lands on the human value**. 24-song sweep running to confirm —
+`scripts/overnight_2026-08-02b.sh` — because a single-song probe is the exact trap this project
+has been burned by (the 1f333 lesson).
+
+### 4. Measured noise floor replaces the assumed one (5 identical-config seeds)
+| axis | sd | documented | verdict |
+|---|---|---|---|
+| flow | 0.099 | 0.03 | **understated 3.3×** |
+| rhythm | 0.087 | 0.08 | holds, barely |
+| idiom | 0.084 | 0.09 | holds |
+| handrole | 0.303 | 0.29 | holds, barely |
+| playfeel | 0.048 | — | new |
+
+**Any delta below 2sd is not a result**: flow 0.20, rhythm 0.17, idiom 0.17, handrole 0.61,
+playfeel 0.10. And **2 of 5 identical seeds pass 5/5** — the lottery is confirmed with five
+samples. Cause is visible: identical configs land min_spread 0.39–0.46 against a bar of 0.35 with
+sd up to 0.09, so the spread bar is the binding constraint and it sits inside the noise.
+
+### 5. A lever retired before it ran
+`BEAT_GRID_SUBDIV` and its five sweep arms: `_quantize_to_beat_grid` is **not on the v7 production
+path**, and a q16 arm produced a map identical in grid terms to the q8 control. Caught by checking
+the first generated map against the control instead of trusting the flag; sweep killed 4 minutes
+in. The flag and its 6 tests stay (correct, documented, default-off); the arms are marked retired.
+
+### ⏭️ NEXT — in order
+1. **Read `logs/overnight/oraclebpm_2026-08-02.log`.** If cohort precision rises toward 0.90, the
+   defect is tempo estimation and that becomes the top build item; the log prints the verdict
+   logic and a per-song table showing whether the gain tracks the tempo error.
+2. **Build a real tempo + phase estimator.** Not a modelling problem — we already compute
+   per-stem onsets for A8, so the grid can be FIT to them (tempo and phase together) instead of
+   trusting `librosa.beat_track`'s tempo scalar and anchoring at t=0.
+3. **Re-examine every beat-domain result to date.** A2 rhythm, A6 handrole and the hand-offset
+   work were all scored against the declared BPM grid — on 20 of 21 songs that grid is not the
+   music's. Their conclusions are not necessarily wrong, but they were measured on a wrong ruler.
+4. Only then return to structural levers (the 4× double share remains the largest untouched
+   defect).
+
+---
+
+## 📋 SESSION RETRO — 2026-08-01 (/quickstart, ~5h autonomous) — SUPERSEDED BY THE BLOCK ABOVE
 
 **Started**: B-1 scoring sweep dead from an overnight reboot, two Track-A candidates awaiting Kyle.
 **Ended**: the eval suite's central assumption disproven, with the fix scoped.

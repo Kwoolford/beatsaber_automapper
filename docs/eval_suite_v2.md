@@ -131,6 +131,20 @@ whole-map idiom count looked *better than human*; adding it raised our idiom gap
    (Finding 1). Score against the human *distribution* (is this value inside the human range?)
    so "more extreme than human" stops being rewarded.
 5. **One scoring system.** Consolidate the three above into one module with one entry point.
+6. **The set of axes is itself a blind spot.** The battery tests whether the axes we HAVE
+   discriminate; it never asks whether one is MISSING. Five axes agreed a map was human-like
+   while it sat off the song's beat, because none of them loaded the audio (see A8). When a
+   listener hears something no axis reports, the first hypothesis is a missing axis, not a
+   mistuned one — and the new axis must be shown to reproduce the listener's ORDERING, which
+   the control battery cannot check.
+7. **Measure the noise floor; never assume it.** Five runs of an *identical* configuration
+   (2026-08-01, `overnight_2026-08-01c.sh`) gave per-axis standard deviations of
+   **flow 0.099, rhythm 0.087, idiom 0.084, handrole 0.303, playfeel 0.048** — flow's assumed
+   floor was understated 3.3×. **Any difference smaller than 2sd (flow 0.20, rhythm 0.17, idiom
+   0.17, handrole 0.61, playfeel 0.10) is not a result.** Spread noise matters as much: the
+   spread bar is 0.35 and identical configs land 0.39–0.46 with sd up to 0.09, which is why
+   **2 of 5 identical seeds pass 5/5 and 3 do not**. A pass near the bar is a lottery ticket,
+   not a finding.
 
 ---
 
@@ -292,6 +306,67 @@ map is** — the largest single-axis defect measured anywhere in this project.
 `role_run_len` is a **guard, not a composite driver**: notes on the same beat are ordered
 L-then-R, so a map whose hands fire simultaneously has run length ~1.0 by construction, making it
 largely a restatement of the A2 simultaneity finding rather than independent evidence.
+
+### A8 — Audio alignment — ✅ **BUILT 2026-08-02** — ★ the axis that was MISSING ★
+`src/beatsaber_automapper/evaluation/alignment.py`, calibrated by `scripts/calibrate_alignment.py`
+(98 human maps), audited by `scripts/audit_alignment.py`, tested in `tests/test_alignment.py`
+(10 tests). Onsets precomputed by `scripts/build_onset_cache.py`.
+
+**How it was found — and the lesson, which is not the same as the previous ones.** Kyle played
+`hl014_ds055` and `b1_e17_ds055`, the first two maps in the project's history to pass all five
+axes, and said: *"it's painfully obvious the notes are off beat."* He was right, and the suite was
+structurally incapable of seeing it: **not one of the five axes ever loads the audio.** A2 rhythm —
+the timing axis — scores note times against the map's **declared BPM grid**, never against the
+music. So a map can have a human interval distribution, human hand roles, human flow and human
+difficulty *while sitting off the song's actual beat*, and score 5/5.
+
+The audit battery could not have caught this. It tests whether the axes we have DISCRIMINATE; it
+never asked whether the SET of axes was COMPLETE. **An axis nobody thought to add is invisible in
+exactly the same way a saturated metric is.**
+
+Metrics: `onset_precision` (share of our note times within 50ms of a detected audio onset) and
+`offset_mad_ms` (timing scatter) drive the gap. `onset_recall` is reported but deliberately **not**
+gated — humans ignore most onsets on purpose, and gating recall would reward note spam.
+`onset_lag_ms` is separated out because a constant lag is a sync defect, not a musical one.
+
+Human reference (98 maps): precision **0.930 ± 0.032**, scatter **10.35 ± 1.30 ms**, recall 0.306.
+Held-out human cohort gap **0.196**, so the bar is **0.39**.
+
+| cohort | gap | precision | scatter |
+|---|---|---|---|
+| **human (held out)** | **0.20** | 0.935 | 10.3 ms |
+| timing_jitter | 1.91 | 0.821 | 11.5 ms |
+| metronome | 2.37 | 0.789 | 11.5 ms |
+| `hl014_ds055` (ours) | **4.99** | 0.765 | 17.4 ms |
+| `prod` (ours) | **5.48** | 0.732 | 17.4 ms |
+| timing_random | 6.74 | 0.661 | 18.0 ms |
+| `b1_e17_ds055` (ours) | **7.21** | 0.726 | 21.7 ms |
+
+**Our production maps are less aligned to the music than a metronome, and our best-scoring
+instrument arm is worse than a map whose note times were replaced with random ones.**
+
+`random`/`shuffled`/`zigzag` score **identically to human** because they permute attributes and
+leave note times untouched — A8 is blind to them by construction, and A1/A3/A6 are what catch
+them. Same axis-aware reasoning A2 established; the gate is over the timing controls only.
+
+**New process — the Kyle-ordering check.** The battery can prove an axis separates good from
+degenerate. It cannot prove the axis ranks two *plausible* maps the way a player would, which is
+precisely the failure that let five configurations pass while sounding wrong. A8 reproduces his
+ordering on the first try (`hl014` 4.99 < `b1_e17` 7.21, and he called them "a noticeable step up"
+and "a lot wrong"), where **none of the five existing axes did**. Every axis added from here on
+gets checked against his judgement, not just against the controls.
+
+*Prescriptive form:* put ~93% of notes within 50ms of something that actually happens in the
+music, with a timing scatter around 10ms.
+
+#### What A8 immediately found: the grid is in the wrong PLACE
+Our detected bpm is exact on **1 of 21** eval songs (median error 0.74%; four songs land at 2/3 of
+the true tempo). Human maps sit on the **same 1/4-beat slot grid we do** (557 of 561 notes on
+1f767), so the grid is not too coarse — it is misplaced, and a 0.74% tempo error slides it through
+every phase as the song plays. `detect_bpm` also discards librosa's beat POSITIONS
+(`tempo, _ = beat_track`) and the grid is anchored at t=0, so the phase is wrong independently of
+the tempo. Handing the generator the true tempo on 1f767 moved precision 0.803 → 0.899 and scatter
+11.7 → 8.5 ms (better than the human's 8.7 ms), with the lag landing on the human value.
 
 ### A4 — Musical-role correctness
 Which instrument is the map following — kick, snare, vocal, lead? Human mappers follow one
