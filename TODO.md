@@ -47,18 +47,44 @@ ones** (6.74).
 - Offset histograms say the same thing without any theory: human offsets are a **unimodal peak**
   on the onset; ours are **flat across the whole ±50ms window**. Flat is what a grid does.
 
-**Single-song oracle probe (1f767), handing the generator the true tempo:**
+**CONFIRMED ON ALL 24 SONGS** (`logs/overnight/oraclebpm_2026-08-02.log`) — handing the generator
+the human-declared tempo:
 
-| map | bpm | precision | scatter | lag |
+| arm | precision | scatter | **alignment_gap** | other axes |
 |---|---|---|---|---|
-| HUMAN | 160.0 | 0.968 | 8.7 ms | +10.5 ms |
-| `ds055` (detected) | 161.5 | 0.803 | 11.7 ms | +0.0 ms |
-| **`ds055` + ORACLE bpm** | **160.0** | **0.899** | **8.5 ms** | **+9.9 ms** |
+| `ds055` | 0.756 | 17.4 ms | **5.41** | 4/6 |
+| **`obpm_ds055`** (true tempo) | **0.887** | **10.7 ms** | **0.80** | 1/6 |
+| `hl014_ds055` | 0.765 | 17.4 ms | 5.27 | 5/6 |
+| **`obpm_hl014_ds055`** | **0.880** | **10.5 ms** | **0.85** | 0/6 |
+| human | 0.930 | 10.35 ms | 0.20 (bar 0.39) | — |
 
-A 1.5 bpm error was costing ~10 points of onset precision. With the true tempo our **scatter beats
-the human's** and our **lag lands on the human value**. 24-song sweep running to confirm —
-`scripts/overnight_2026-08-02b.sh` — because a single-song probe is the exact trap this project
-has been burned by (the 1f333 lesson).
+**Alignment improves 6.8× and the timing scatter lands on the human value.** The residual
+precision gap (0.887 vs 0.930) is most likely PHASE: the oracle fixes only the tempo, and the grid
+is still anchored at t=0.
+
+### 6. ★ THE FIX WORKS WITHOUT AN ORACLE — `data/tempo.py` + `BEAT_TEMPO_FIT=1`
+`detect_bpm` calls `librosa.beat.beat_track` and keeps only the tempo scalar; the discarded beat
+POSITIONS are the useful half. Fitting `time = period·index + phase` over them and then refining
+against the per-stem onsets (the same onsets A8 scores against):
+
+| estimator | exact (≤0.1% of human bpm) | median abs err |
+|---|---|---|
+| `librosa` (what we ship today) | **1/23** | 0.94% |
+| `beat_lsq` | 3/23 | 0.93% |
+| `comb` | 16/23 | 0.00% |
+| **`comb_multi`** | **21/23** | **0.00%** |
+
+Smoke-tested end to end: 1f767 161.50 → **159.997** (oracle 160.0), and on the half-tempo trap
+song 1f333 it reaches **188.00** with no human map, matching the oracle's note count to within 1
+note. Sweep running now: `scripts/overnight_2026-08-02c.sh` → `logs/overnight/tempofit_2026-08-02.log`.
+
+### 7. ⚠️ EVERY DENSITY/FLOW LEVER WAS TUNED AGAINST THE WRONG GRID
+The oracle arms drop from 4/6 and 5/6 to **1/6 and 0/6**: playfeel 0.74 → 1.38, flow 0.30 → 0.55.
+The cause is mechanical — a corrected tempo changes how many 1/4-beat slots exist per second, so
+note counts move (1f333: 838 → 1509). **This is a re-tuning job, not a reason to reject the fix.**
+A map that is on the beat and too dense is a tuning problem; a map that is off the beat is the
+problem we spent months unable to see. `BEAT_DIFFICULTY_SCALE` must be re-fitted on the corrected
+grid before any arm is judged again.
 
 ### 4. Measured noise floor replaces the assumed one (5 identical-config seeds)
 | axis | sd | documented | verdict |
@@ -81,16 +107,23 @@ the first generated map against the control instead of trusting the flag; sweep 
 in. The flag and its 6 tests stay (correct, documented, default-off); the arms are marked retired.
 
 ### ⏭️ NEXT — in order
-1. **Read `logs/overnight/oraclebpm_2026-08-02.log`.** If cohort precision rises toward 0.90, the
-   defect is tempo estimation and that becomes the top build item; the log prints the verdict
-   logic and a per-song table showing whether the gain tracks the tempo error.
-2. **Build a real tempo + phase estimator.** Not a modelling problem — we already compute
-   per-stem onsets for A8, so the grid can be FIT to them (tempo and phase together) instead of
-   trusting `librosa.beat_track`'s tempo scalar and anchoring at t=0.
-3. **Re-examine every beat-domain result to date.** A2 rhythm, A6 handrole and the hand-offset
+1. **Read `logs/overnight/tempofit_2026-08-02.log`** (running at handoff). It prints how much of
+   the oracle ceiling the real estimator captured, plus a per-song table. The two known
+   metrical-level ties (1fbda picks 116 over 232; 1fbfb goes 3/2 too fine) should be the only
+   losses — **if other songs lose, the fitter is unstable on real audio**, tighten the R gate.
+2. **If capture ≥75%, make `BEAT_TEMPO_FIT=1` the default.** It reads no human map, so it ships.
+   This would be the first change in the project's history aimed at the defect Kyle reports.
+3. **RE-TUNE `BEAT_DIFFICULTY_SCALE` (and re-check flow/idiom) on the corrected grid.** See §7 —
+   every lever in this repo was fitted against a grid that was wrong on 20 of 21 songs, so the
+   whole tuning surface moved. Do this BEFORE reading any arm's 6-axis verdict as meaningful.
+4. **Then chase the residual precision gap (0.887 → human 0.930), which is probably PHASE.**
+   `data/tempo.py` already estimates the phase; nothing in the pipeline consumes it — the slot
+   grid is still anchored at t=0. Wiring it through is the obvious next lever.
+5. **Re-examine every beat-domain result to date.** A2 rhythm, A6 handrole and the hand-offset
    work were all scored against the declared BPM grid — on 20 of 21 songs that grid is not the
-   music's. Their conclusions are not necessarily wrong, but they were measured on a wrong ruler.
-4. Only then return to structural levers (the 4× double share remains the largest untouched
+   music's. Their conclusions are not necessarily wrong, but they were measured on a wrong ruler,
+   and the levers built from them were tuned on it too.
+6. Only then return to structural levers (the 4× double share remains the largest untouched
    defect).
 
 ---

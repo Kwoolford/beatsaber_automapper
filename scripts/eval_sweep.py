@@ -413,6 +413,23 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
                           "BEAT_HAND_LEAD": "0.14",
                           "BEAT_BPM_ORACLE": "outputs/true_bpm_eval_songset.json"}, []),
     "obpm_prod":        ({"BEAT_BPM_ORACLE": "outputs/true_bpm_eval_songset.json"}, []),
+
+    # --- THE SHIPPABLE VERSION OF THE ORACLE (2026-08-02) -------------------
+    # `BEAT_TEMPO_FIT=1` fits tempo AND phase to the per-stem onsets (the same
+    # onsets A8 scores against) instead of trusting librosa's tempo scalar. On the
+    # 23 eval songs it recovers the human-declared bpm EXACTLY on 21, where the
+    # current detector manages 1. Unlike the obpm_* arms it reads no human map, so
+    # whatever it earns here it keeps in production.
+    #
+    # Read these against the obpm_* arms, not against ds055/prod: the oracle is the
+    # CEILING (a perfect tempo), and the question is how much of that ceiling a
+    # real estimator reaches. Reaching it on 21 of 23 songs and losing 2 to
+    # metrical-level ties is the expected shape.
+    "tf_ds055":       ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                        "BEAT_TEMPO_FIT": "1"}, []),
+    "tf_hl014_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
+                        "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1"}, []),
+    "tf_prod":        ({"BEAT_TEMPO_FIT": "1"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
