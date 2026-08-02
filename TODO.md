@@ -106,6 +106,25 @@ path**, and a q16 arm produced a map identical in grid terms to the q8 control. 
 the first generated map against the control instead of trusting the flag; sweep killed 4 minutes
 in. The flag and its 6 tests stay (correct, documented, default-off); the arms are marked retired.
 
+### 8. THE DEFECT DECOMPOSES CLEANLY — and phase hits the songs tempo does not
+Measured on the cached oracle maps by sweeping a global time shift (no generation needed):
+
+| stage | precision | what it is |
+|---|---|---|
+| `ds055` as shipped | 0.756 | — |
+| + correct tempo | 0.887 | **+0.131** — the dominant defect |
+| + optimal global phase | 0.906 | **+0.019** median |
+| human | 0.930 | remaining **0.024** = which slots we pick |
+
+The median phase gain is small, but **the median hides the point**: on `1fa48` a phase shift takes
+precision **0.614 → 0.975**, and on `1f9a0` 0.394 → 0.564. `1fa48` is the one song whose detected
+tempo was already essentially exact (+0.04%) and which gained almost nothing from the oracle
+(+0.018). **Tempo error and phase error are separate defects that hit different songs**, and the
+median |shift| needed is 36.5 ms against a 93 ms slot — phase is simply unmodelled.
+
+So wiring the fitted phase through should be expected to rescue a minority of songs dramatically
+rather than improve all of them slightly. `data/tempo.py` already returns it; nothing consumes it.
+
 ### ⏭️ NEXT — in order
 1. **Read `logs/overnight/tempofit_2026-08-02.log`** (running at handoff). It prints how much of
    the oracle ceiling the real estimator captured, plus a per-song table. The two known
