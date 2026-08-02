@@ -139,6 +139,56 @@ tempo.
 **Alignment still FAILS: 0.49 against a 0.39 bar.** The fix closes ~89% of the gap to the bar, not
 all of it, and the remainder is phase + slot selection (§8 below).
 
+#### 📌 RESULT: THE PREDICTION WAS WRONG, AND THE FALSIFICATION WAS THE USEFUL PART
+Full cohort (`logs/overnight/density_retune_2026-08-02.log`) — precision is **flat across the
+entire density range**:
+
+| arm | nps | precision | **alignment** | rhythm | flow | playfeel | axes |
+|---|---|---|---|---|---|---|---|
+| `tf_ds045` | 3.63 | 0.895 | 0.59 | **1.06** | 0.38 | 0.63 | 4/6 |
+| `tf_ds048` | 3.88 | 0.902 | 0.46 | 0.64 | 0.57 | 0.67 | 2/6 |
+| `tf_ds052` | 4.22 | 0.904 | 0.51 | 0.37 | 0.33 | 0.88 | 4/6 |
+| `tf_ds055` | 4.42 | 0.902 | 0.49 | 0.25 | 0.64 | 1.02 | 2/6 |
+| **`tf_hl014_ds048`** | 3.88 | **0.905** | **0.40** | 0.56 | 0.50 | 0.70 | 4/6 |
+
+The re-tune did its job on the axes it was aimed at (playfeel 1.02 → 0.67, flow 0.64 → 0.50) but
+**costs rhythm** (0.25 → 0.64, and 1.06 at ds045 — well beyond its 0.17 two-sigma floor). Best
+alignment is `tf_hl014_ds048` at **0.40 against a 0.39 bar** — missing by 0.01, inside any
+plausible noise. **No tempo-fit arm reaches 5/6.**
+
+⚠️ The verdict script's "BEST: hl014_ds055 at 5/6" line is **misleading and the script is at
+fault**: that is the old non-tempo-fit control, and it fails alignment at 5.27 — it is the arm Kyle
+already rejected by ear. Do not read a 5/6 that excludes the axis measuring his complaint.
+
+#### 📌 SO WHERE IS THE LAST 0.0067? NOT DENSITY, NOT (ONLY) THE REPRESENTATION
+Two follow-ups, both landing opposite to intuition:
+
+**Stage-1 probability DOES know where the music is.** `scripts/eval_prob_vs_onset.py` on 1f767:
+**AUROC 0.755** against "this slot sits on a detected onset", and the top probability decile is
+**0.986** precise against a **0.687** base rate. So the residual is not simply the Track B
+representation gap — the ordering carries real information.
+
+**It is the budget ALLOCATION, and higher γ is worse.** Replaying selection policies over a
+`BEAT_PROBS_DUMP` at a fixed budget:
+
+| policy | precision |
+|---|---|
+| global top-k by probability | 0.948 |
+| per-window γ = 1.0 | 0.944 |
+| **per-window γ = 2.5 (shipped)** | **0.937** |
+| per-window γ = 4.0 | 0.919 |
+| per-window γ = 8.0 | 0.894 |
+
+A high γ concentrates the budget into loud windows, forcing notes deeper down those windows'
+ranking while starving quiet windows that hold a few excellent onsets. A probability **floor**
+changes nothing (0.937 at every quantile) because per-window top-k already skips weak slots inside
+a window. Sweep running: `scripts/overnight_2026-08-02e.sh`.
+
+**Expect a real tension, not a free win**: γ was raised to 2.5 on 2026-06-30 *specifically* to make
+density track the music (density_corr +0.53, 5/6 songs). If alignment and density_corr trade off
+directly, that is a finding to report, not a knob to quietly pick a side on. Note also the headroom
+is small — even *global top-k* only reaches 0.948 against a human 0.968.
+
 #### 📌 PREDICTION LOGGED BEFORE THE RE-TUNE SWEEP LANDED (2026-08-02 01:15)
 Decomposing `tf_ds055`'s 0.49: **precision contributes 0.87 MADs and scatter contributes 0.12.**
 The scatter half is already solved — 10.2 ms against a human 10.35. So the whole remaining gap is

@@ -451,6 +451,47 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     # and the same on the hand-lead config, which is the best-known arm otherwise
     "tf_hl014_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                         "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1"}, []),
+
+    # --- BUDGET ALLOCATION vs PRECISION (2026-08-02) ------------------------
+    # After the tempo fix, the entire remaining alignment gap is onset_precision
+    # (0.902 vs human 0.930; scatter is already better than human). Two candidate
+    # causes were tested and BOTH behaved opposite to intuition:
+    #
+    # 1. Total density does NOT move precision. Across tf_ds045/048/052/055 the
+    #    note rate goes 3.63 -> 4.42 nps and precision stays 0.895/0.902/0.904/
+    #    0.902. Logged as a prediction beforehand and falsified.
+    # 2. Stage-1 probability DOES know where the music is -- AUROC 0.755 against
+    #    "this slot sits on a detected onset", and its top decile is 0.986 precise
+    #    against a 0.687 base rate. So this is NOT purely a representation gap.
+    #
+    # Replaying selection policies over a BEAT_PROBS_DUMP at a fixed budget shows
+    # where it actually lives -- the budget ALLOCATION, in the opposite direction
+    # from the obvious guess:
+    #
+    #     global top-k by probability     0.948
+    #     per-window gamma = 1.0          0.944
+    #     per-window gamma = 2.5 (ship)   0.937
+    #     per-window gamma = 4.0          0.919
+    #     per-window gamma = 8.0          0.894
+    #
+    # A HIGH gamma concentrates the budget into loud windows, which forces more
+    # notes deeper down those windows' probability ranking while starving quiet
+    # windows that hold a few excellent onsets. A probability FLOOR does nothing
+    # (0.937 unchanged at every quantile) because per-window top-k already avoids
+    # the weak slots within a window.
+    #
+    # VERDICT LOGIC: gamma 1.0-1.5 should buy ~+0.01 precision, which is about the
+    # +0.0067 needed to clear the alignment bar. WATCH density_corr: gamma was
+    # raised to 2.5 on 2026-06-30 precisely to make density track the music
+    # (+0.53, 5/6 songs). If alignment and density_corr trade off directly, that is
+    # a real tension to report, not a knob to quietly pick a side on.
+    "tf_g1_ds048":   ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "1.0",
+                       "BEAT_DIFFICULTY_SCALE": "0.48", "BEAT_TEMPO_FIT": "1"}, []),
+    "tf_g15_ds048":  ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "1.5",
+                       "BEAT_DIFFICULTY_SCALE": "0.48", "BEAT_TEMPO_FIT": "1"}, []),
+    "tf_hl014_g15_ds048": ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "1.5",
+                            "BEAT_DIFFICULTY_SCALE": "0.48", "BEAT_HAND_LEAD": "0.14",
+                            "BEAT_TEMPO_FIT": "1"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
