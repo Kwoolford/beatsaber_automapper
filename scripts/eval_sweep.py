@@ -430,6 +430,27 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "tf_hl014_ds055": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.55",
                         "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1"}, []),
     "tf_prod":        ({"BEAT_TEMPO_FIT": "1"}, []),
+
+    # --- RE-TUNE DENSITY ON THE CORRECTED GRID (2026-08-02) -----------------
+    # A correct tempo changes how many 1/4-beat slots exist per second, so every
+    # density lever in this repo was fitted against the wrong grid. Measured on the
+    # cached oracle arms rather than guessed:
+    #
+    #     arm                 nps   shift (human MADs)   notes/map
+    #     human              3.909        --                --
+    #     ds055              4.02       +0.20             800
+    #     obpm_ds055         4.42       +0.88             850
+    #
+    # The scale that lands on the human median is 0.55 * 3.909/4.42 ~= 0.486, so
+    # these bracket it. Without this, a corrected-tempo arm fails playfeel for a
+    # reason that has nothing to do with alignment, and the fix would look like a
+    # regression.
+    "tf_ds045": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.45", "BEAT_TEMPO_FIT": "1"}, []),
+    "tf_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48", "BEAT_TEMPO_FIT": "1"}, []),
+    "tf_ds052": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.52", "BEAT_TEMPO_FIT": "1"}, []),
+    # and the same on the hand-lead config, which is the best-known arm otherwise
+    "tf_hl014_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                        "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
