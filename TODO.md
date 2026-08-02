@@ -357,6 +357,30 @@ produced `h_dist`.
    but measured with a bad ruler and never re-checked with a good one.
 7. Only then structural levers (the 4× double share remains the largest untouched defect).
 
+### 📌 IOI PRIOR — CLEAN NEGATIVE, and it finally MOVED precision (3 seeds vs 5)
+`logs/overnight/ioiprior_2026-08-02.log`. `BEAT_IOI_PRIOR=1.0` swaps per-window top-k for
+sampling from the human interval bigram.
+
+| axis | baseline (top-k) | IOI prior | resolvable? |
+|---|---|---|---|
+| **rhythm** (its whole purpose) | 0.519 ±0.076 | 0.639 ±0.064 | **no — inside noise** |
+| alignment | 0.554 ±0.092 | **3.008** ±0.019 | yes |
+| flow | 0.551 ±0.116 | **4.121** ±0.077 | yes |
+| idiom | 0.644 ±0.065 | **6.327** ±0.205 | yes |
+| playfeel | 0.732 ±0.040 | 1.088 ±0.065 | yes |
+| precision | 0.900 ±0.003 | **0.769** ±0.004 | — |
+
+**It does not fix rhythm and it wrecks three other axes.** Do not revisit it as a density lever;
+the negative is measured at 3 seeds against a 5-seed baseline, so it is not a noise artifact.
+
+**The useful part: precision finally moved.** Density, γ and the probability floor all left it
+pinned at 0.898–0.905 (sd 0.003); sampling dropped it to 0.769. So **~0.90 is not a hard floor — it
+is the GREEDY OPTIMUM given the model's probabilities.** Selection does control precision, but only
+downward from where we already are. That refines the "three knobs failed" conclusion into something
+actionable: **we are already extracting the most this selection structure can, and further gains
+must come from better probabilities, not better picking** — i.e. the threshold/NMS stage or Stage-1
+itself, per the ordering in NEXT.
+
 ### ⚠️ FRAGILITY NOTICED, NOT FIXED (needs a decision, 2026-08-02)
 **`outputs/` is gitignored in full — `git ls-files outputs/` returns ZERO files.** Every axis's
 calibration reference lives only on this machine:
