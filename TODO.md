@@ -3,6 +3,49 @@
 **Last updated:** 2026-08-02 (/todo) — see the session retro immediately below. **Nothing is
 promoted; `generate.py` defaults are untouched.**
 
+## ★★★★★★ 2026-08-02 — **KYLE PLAYED IT: "GENUINELY BEAUTIFUL. THE FOUNDATION IS NOW COMPLETE."** ★★★★★★
+
+His verdict on `1f913_AFTER` (tempo-fit, `tf_hl014_ds048`):
+
+> *"The first map after 1f8d6 is genuinely beautiful. The notes lining up to the beat and it being
+> mostly playable to that nostalgic song after months is an amazing feeling. There is of course much
+> more polish to do, but the foundation is now complete."*
+
+**This is the first time in the project's history that his ear and the suite have agreed in the
+POSITIVE direction.** Every prior agreement was a shared negative — he disliked a map and, after the
+fact, some metric explained why. The sequence that got here is worth keeping as the method:
+
+1. He played the first 5/5 maps and said the notes were off beat (2026-08-01).
+2. The suite could not see it — no axis loaded the audio. A8 was built and the human control ran.
+3. A8 said the same thing his ear did, and reproduced his RANKING of two maps.
+4. The cause turned out to be mechanical: the note grid was built on a tempo wrong on 20 of 21 songs.
+5. Fixing it moved the axis 5.41 → 0.554, and he heard the difference unprompted.
+
+**The measurement predicted the experience.** That is the whole point of the v2 suite and it is the
+first time it has been demonstrated end to end.
+
+### What he is hearing, precisely (`1f913`)
+| | precision | scatter | notes |
+|---|---|---|---|
+| BEFORE (`hl014_ds055`) | 0.816 | 23.2 ms | 1147 |
+| **AFTER (`tf_hl014_ds048`)** | **0.933** | **10.8 ms** | 1035 |
+| HUMAN | 0.899 | 11.1 ms | 1272 |
+
+⚠️ We score ABOVE the human here, and that is **not** "better than human": our map is ~19% sparser
+(1035 vs 1272), and reaching for more onsets costs precision. Read it as *easier* than the human map,
+not better. The honest cohort number is still 0.900 against a human 0.930.
+
+### "Much more polish" — what that concretely means, in the order the evidence supports
+1. **The seed lottery** (§ below): identical configs score 1–5 of 6 axes. This blocks trusting any
+   comparison, so it is polish-blocking rather than polish.
+2. **Density/rhythm tension**: reaching human note rate currently costs the pulse, and the one lever
+   built for it (IOI prior) failed hard.
+3. **Precision 0.900 → 0.930**: not reachable from selection (proven three ways); needs better
+   probabilities — threshold/NMS, then Stage-1.
+4. **Phase** on the songs where the human control shows OUR grid is misplaced (never a blanket shift).
+
+---
+
 ## ★★★★★ 2026-08-02 — **A8 SHIPPED, AND IT FOUND THE CAUSE: OUR NOTE GRID IS BUILT ON A
 TEMPO THAT IS WRONG ON 20 OF 21 SONGS** ★★★★★
 
