@@ -357,6 +357,25 @@ produced `h_dist`.
    but measured with a bad ruler and never re-checked with a good one.
 7. Only then structural levers (the 4× double share remains the largest untouched defect).
 
+### ⚠️ FRAGILITY NOTICED, NOT FIXED (needs a decision, 2026-08-02)
+**`outputs/` is gitignored in full — `git ls-files outputs/` returns ZERO files.** Every axis's
+calibration reference lives only on this machine:
+`alignment_ / flow_ / handrole_ / idiom_ / playfeel_ / rhythm_human_reference.json` and
+`ioi_human_model.json`. The suite's bars are meaningless without them, so a machine rebuild silently
+turns every axis into "not scored" — and A8 is *designed* to fail closed in that case, which would
+look like a regression rather than a missing file.
+
+A8's reference follows the existing convention, so this is not new and not something introduced
+tonight. But the fix (track those seven small JSONs, or move them under `data/`) changes a project
+convention, so it is left for a decision rather than done unilaterally at 03:00.
+
+### 🏃 RUNNING AT HANDOFF
+`scripts/overnight_2026-08-02g.sh` → `logs/overnight/ioiprior_2026-08-02.log`. Tests whether
+`BEAT_IOI_PRIOR=1.0` (rhythmically coherent thinning) fixes the density/rhythm tension, **at 3
+seeds against the 5-seed baseline**, because tonight established that one seed decides nothing. Its
+verdict block marks every difference as resolvable or not against the pooled sd, and refuses to
+call anything real inside 2sd.
+
 ---
 
 ## 📋 SESSION RETRO — 2026-08-01 (/quickstart, ~5h autonomous) — SUPERSEDED BY THE BLOCK ABOVE

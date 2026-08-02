@@ -525,6 +525,19 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "tf_hl014_ioi1_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                              "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                              "BEAT_IOI_PRIOR": "1.0"}, []),
+    # Seeds, because a single run of this arm could not be compared to anything.
+    # The 5-seed floor measured 2026-08-02 is alignment sd 0.092, flow 0.116,
+    # handrole 0.317 — so a one-seed comparison against the 5-seed baseline would
+    # be exactly the unresolvable difference this session spent the night
+    # documenting.
+    "tf_hl014_ioi1_ds048_s1": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                                "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                                "BEAT_IOI_PRIOR": "1.0",
+                                "BEAT_HAND_LEAD_SEED": "1"}, []),
+    "tf_hl014_ioi1_ds048_s2": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                                "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                                "BEAT_IOI_PRIOR": "1.0",
+                                "BEAT_HAND_LEAD_SEED": "2"}, []),
 
     # --- SEEDS OF THE BEST ARM (2026-08-02) ---------------------------------
     # `tf_hl014_ds048` scores alignment 0.40 against a 0.39 bar -- a "fail" by
