@@ -230,7 +230,35 @@ probability floor. Two explicit predictions were logged in advance and both were
 consistent reading is that **the residual alignment gap is not reachable with the decode controls
 this pipeline has**, and further knob-hunting is the wrong move.
 
-#### 📌 …AND "0.40 FAILS A 0.39 BAR" MAY NOT BE A FAIL AT ALL
+#### 📌 ANSWER: **0.40 WAS THE LUCKY SEED.** A8's floor is sd 0.092 — and the whole 6-axis verdict is seed-dominated
+Five identical configs (`logs/overnight/alignseeds_2026-08-02.log`):
+
+| seed | precision | alignment | rhythm | flow | idiom | handrole | playfeel | axes |
+|---|---|---|---|---|---|---|---|---|
+| `tf_hl014_ds048` | 0.905 | **0.40** | 0.56 | 0.50 | 0.58 | 1.16 | 0.70 | **4/6** |
+| `_s1` | 0.898 | 0.63 | 0.52 | 0.67 | 0.61 | 0.29 | 0.79 | 2/6 |
+| `_s2` | 0.898 | 0.55 | 0.39 | 0.68 | 0.72 | 0.89 | 0.75 | 1/6 |
+| `_s3` | 0.902 | 0.62 | 0.58 | 0.45 | 0.61 | 0.69 | 0.70 | 3/6 |
+| `_s4` | 0.898 | 0.57 | 0.54 | 0.45 | 0.71 | 0.75 | 0.72 | 5/6 |
+
+**A8's first measured noise floor: sd 0.092, so 2sd = 0.18.** Mean alignment is **0.554** (range
+0.402–0.628), 1.8 sd from the 0.39 bar ⇒ **not distinguishable from the bar**. Report it as *at the
+bar, within noise* — never as a pass or a fail, and never by quoting the winning seed.
+
+**The 0.40 celebrated above was the best of five draws, and so was the 4/6.** Identical configs
+scored 4, 2, 1, 3 and 5 of 6. **0 of 5 pass all six.** The pass COUNT is essentially a seed lottery
+at this operating point, which retro-justifies the refusal to promote anything all session.
+
+Also confirmed wider than documented: **flow sd 0.116** (was 0.099) and **handrole sd 0.317** (was
+0.303). `rhythm`, `idiom` and `playfeel` are consistent with 2026-08-01.
+
+⚠️ **Corrections this forces to claims made earlier today:** the tempo fix's headline is
+5.41 → **0.554** (≈9.8×), not 5.41 → 0.40 (13×); and `tf_hl014_ds048` is **not** a
+hair's-breadth near-miss — the honest cohort estimate sits 1.8 sd from the bar. Precision is the
+one number that held steady across seeds (0.898–0.905, sd 0.003), so every *precision* claim in
+this file stands.
+
+#### 📌 (superseded by the block above) "0.40 FAILS A 0.39 BAR" MAY NOT BE A FAIL AT ALL
 **There is no measured noise floor for the alignment axis.** The 5-seed floor run (2026-08-01)
 predates A8 entirely, so calling 0.40 a fail asserts a precision the suite has never demonstrated —
 the same mistake that left the handrole floor ~3× understated and made "b1_e17 beats b1_e15" a
@@ -303,25 +331,31 @@ hash and cross-correlation, 0.0 ms lag), so none of this is a re-encoding artifa
 blanket global shift: on `1f767` it would be fitting the detector, which is the kind of move that
 produced `h_dist`.
 
-### ⏭️ NEXT — in order
-1. **Read `logs/overnight/tempofit_2026-08-02.log`** (running at handoff). It prints how much of
-   the oracle ceiling the real estimator captured, plus a per-song table. The two known
-   metrical-level ties (1fbda picks 116 over 232; 1fbfb goes 3/2 too fine) should be the only
-   losses — **if other songs lose, the fitter is unstable on real audio**, tighten the R gate.
-2. **If capture ≥75%, make `BEAT_TEMPO_FIT=1` the default.** It reads no human map, so it ships.
-   This would be the first change in the project's history aimed at the defect Kyle reports.
-3. **RE-TUNE `BEAT_DIFFICULTY_SCALE` (and re-check flow/idiom) on the corrected grid.** See §7 —
-   every lever in this repo was fitted against a grid that was wrong on 20 of 21 songs, so the
-   whole tuning surface moved. Do this BEFORE reading any arm's 6-axis verdict as meaningful.
-4. **Then chase the residual precision gap (0.887 → human 0.930), which is probably PHASE.**
-   `data/tempo.py` already estimates the phase; nothing in the pipeline consumes it — the slot
-   grid is still anchored at t=0. Wiring it through is the obvious next lever.
-5. **Re-examine every beat-domain result to date.** A2 rhythm, A6 handrole and the hand-offset
-   work were all scored against the declared BPM grid — on 20 of 21 songs that grid is not the
-   music's. Their conclusions are not necessarily wrong, but they were measured on a wrong ruler,
-   and the levers built from them were tuned on it too.
-6. Only then return to structural levers (the 4× double share remains the largest untouched
-   defect).
+### ⏭️ NEXT — in order (rewritten after the seed run, 2026-08-02 03:00)
+1. **KYLE PLAYS `tf_hl014_ds048`.** Not another sweep. The suite has now been wrong about "ready"
+   twice and right about it zero times, his ear is what found the defect this whole session
+   chased, and the one thing that genuinely improved — notes landing on the music — is the thing
+   he complained about. Alignment 5.41 → 0.55 and scatter 17.4 → 10.2 ms (human 10.35) should be
+   *audible* if it is real. **This is the highest-value action available and it costs one listen.**
+2. **Do not promote anything on the current evidence.** `BEAT_TEMPO_FIT` stays default-off until
+   (1) says it sounds better. 0 of 5 identical seeds pass six axes, and the pass count swings 1–5
+   across identical configs.
+3. **Fix the seed lottery before trusting any arm ranking again.** This is now the binding
+   constraint on the whole method, not a caveat: with flow sd 0.116, handrole sd 0.317 and
+   alignment sd 0.092, most single-run differences this project has ever reported are unresolvable.
+   Either score every arm as a mean over ≥3 seeds, or find and remove the source of the variance.
+   **Everything downstream of the scorecard is unreliable until this is settled.**
+4. **Stop hunting decode levers for precision.** Density, γ and the probability floor all failed;
+   two advance predictions were falsified. Precision is pinned at 0.898–0.905 across every knob and
+   every seed (sd 0.003) — it is a property of the model + threshold/NMS path, not of selection.
+5. **The remaining honest leads for precision**, in order of expected value: the NMS/threshold
+   stage (in replay, min-distance 2–3 slots alone costs 0.948 → 0.923); grid PHASE, but only on
+   songs where the human control shows OUR grid is misplaced (§8 — never a blanket shift);
+   then Stage-1 itself (AUROC 0.755 means the ordering is informative but not sharp).
+6. **Re-derive every beat-domain result.** A2 rhythm, A6 handrole and the hand-offset work were
+   measured *and tuned* against a grid that was wrong on 20 of 21 songs. Not necessarily wrong,
+   but measured with a bad ruler and never re-checked with a good one.
+7. Only then structural levers (the 4× double share remains the largest untouched defect).
 
 ---
 
