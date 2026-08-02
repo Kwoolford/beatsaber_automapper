@@ -492,6 +492,39 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "tf_hl014_g15_ds048": ({"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "1.5",
                             "BEAT_DIFFICULTY_SCALE": "0.48", "BEAT_HAND_LEAD": "0.14",
                             "BEAT_TEMPO_FIT": "1"}, []),
+
+    # --- RHYTHMICALLY COHERENT THINNING (2026-08-02) ------------------------
+    # Re-tuning density to the human rate COSTS rhythm, and the sub-metrics say
+    # exactly why (shift in human MADs):
+    #
+    #     arm         nps   pulse_stability  ioi_cond_entropy   gap
+    #     tf_ds055   4.42        -0.06            +0.47        0.25
+    #     tf_ds048   3.88        -0.66            +1.20        0.64
+    #     tf_ds045   3.63        -1.11            +1.61        1.06
+    #
+    # Removing notes makes the map lose its PULSE and makes intervals less
+    # predictable, because thinning by probability keeps confident notes wherever
+    # they happen to fall and breaks the runs that make a rhythm legible. Humans at
+    # 3.9 nps have a pulse; we at 3.9 nps (thinned from 4.4) do not.
+    #
+    # `BEAT_IOI_PRIOR` switches selection from per-window top-k to `_ioi_dp_select`,
+    # which SAMPLES from softmax(log p + lam * log P(interval | previous)) using the
+    # human interval bigram. It was built on 2026-07-27 for precisely this and has
+    # been default-off ever since — and it could not have been judged fairly before
+    # today, because the grid it samples on was wrong on 20 of 21 songs.
+    #
+    # VERDICT LOGIC: rhythm recovers toward tf_ds055's 0.25 while playfeel keeps the
+    # re-tune's gain -> the pair is the answer and density becomes promotable.
+    # Rhythm recovers but PRECISION drops -> sampling costs alignment (it is
+    # deliberately not greedy), which is the same trade the gamma sweep is pricing;
+    # read the two together before choosing.
+    "tf_ioi05_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                        "BEAT_TEMPO_FIT": "1", "BEAT_IOI_PRIOR": "0.5"}, []),
+    "tf_ioi1_ds048":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                        "BEAT_TEMPO_FIT": "1", "BEAT_IOI_PRIOR": "1.0"}, []),
+    "tf_hl014_ioi1_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                             "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                             "BEAT_IOI_PRIOR": "1.0"}, []),
 }
 
 # --- TRACK B / B-1 (2026-07-30): score the instrument retrain BY THE SUITE. ---
