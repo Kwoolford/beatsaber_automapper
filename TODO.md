@@ -108,20 +108,31 @@ The metric exists and is calibrated. Calibrating on humans first was the right c
 too** (quintile precision 0.950 0.942 0.949 0.914 0.920, median drift 0.0385), so a bar at zero drift
 would have repeated the `h_dist` error.
 
-**K1 is confirmed, but not in the shape it was written.** Our cohort *median* drift (0.062) sits
-*inside* the human p10–p90 — the median does not separate us at all. The defect is in the **upper
-tail**: 7/24 maps past the human p90 for drift (29.2%, vs 10% by construction) and 8/24 for notes
-after the last onset (33.3%). Worst: 1f8d6 q1 1.000 → q5 0.571 with **11 notes running 4.43 s past
-the last onset** — Kyle's "about 5 seconds after the song ends", measured. Per-song it reproduces his
-report exactly, including 1f913 *not* drifting.
+🔴 **THE K1 HUMAN BAR IS SUSPENDED.** It was calibrated through a loader that silently prefers
+**ExpertPlus** (see PROGRESS.md). On a strictly-Expert cohort the human drift distribution is far
+wider — median **0.0073**, **p90 0.4618** (not 0.1451) — and humans place post-music notes in
+**32.5%** of maps with `tail_after_secs` p90 **19.25 s** (not 0.0). Against that p90 our maps sit
+*inside* the human range nearly everywhere. **Every "% past the human p90" figure for K1 is
+withdrawn** pending a rebuild on a documented, strictly-Expert, adequately-sized cohort — the 77
+drift-scorable maps there may also be too few.
+
+**What still stands, because it never referenced the bar**: 1f8d6 q1 1.000 → q5 0.571 with **11 notes
+running 4.43 s past the last onset** — Kyle's "about 5 seconds after the song ends", measured — and
+the per-song pattern reproducing his report exactly, including 1f913 *not* drifting. Absolute
+before/after effects of the trim lever (11 → 1 notes, 4.43 → 0.53 s) are likewise unaffected.
 
 ★ **Keep the methodological lesson**: a cohort-median metric cannot see a subset-of-songs defect —
 the same blind-spot shape as a song-level metric missing a song-shaped defect, one level up. Rank by
 **exceedance over the human p90** and name the songs.
 
 **Tasks**
+0. 🔴 **REBUILD THE K1 BAR FIRST** on a strictly-Expert cohort via
+   `calibrate_playfeel.load_expert_only`, and check how many maps are actually drift-scorable (only
+   77 of 200 had cached onsets). Until then no K1 pass/fail claim means anything.
 1. ~~Control battery~~ — **DONE** (`scripts/audit_align_drift.py`; the standard battery would have
-   flattered it, so drift got its own with a POSITIVE control as well as negatives):
+   flattered it, so drift got its own with a POSITIVE control as well as negatives). ⚠️Its *human*
+   row shares the ExpertPlus contamination; the degenerate/positive controls are relative to that
+   same cohort so the qualitative verdict holds, but re-run it after the bar is rebuilt:
 
    | variant | precision | drift med | share > human p90 |
    |---|---|---|---|
@@ -190,18 +201,16 @@ is the half-tempo song the landmine list warns about — so this was the trap, a
 
 | local nps | 0–4 | 4–7 | 7–10 | **10+** | overall | median slope |
 |---|---|---|---|---|---|---|
-| human | 0.347 | 0.388 | 0.400 | **0.312** | 0.381 | **−0.00445** |
+| human (n=200, **strict Expert**) | 0.355 | 0.346 | 0.301 | **0.236** | 0.354 | **−0.01141** |
 | ours | 0.466 | 0.476 | 0.536 | **0.631** | 0.477 | **+0.00226** |
 
-★ **The sharpest statement is the 10+ band, not the slope**: humans peak at 7–10 nps and then **back
-off hard** (0.400 → 0.312) exactly where diagonals punish; we lean in (0.536 → **0.631**). We use
-**twice** the human diagonal share in the fastest passages, against +34% in the slowest — which is
-precisely Kyle's framing ("wanted" when slow, "not preferred" when fast).
+★ Humans fall **monotonically** as passages speed up; we rise monotonically. At 10+ nps we use
+**2.7×** the human share — precisely Kyle's framing ("wanted" when slow, "not preferred" when fast).
+Target the **10+ band** (0.631 → ~0.24) and the overall level (0.477 → 0.354).
 
-⚠️**Do not target the slope sign alone.** The per-map slope distributions overlap heavily — 44% of
-*human* maps also rise with speed, against 54% of ours — so slope is a weak discriminator and only
-its median separates. Target the **10+ band level** (0.631 → ~0.31) and the overall level
-(0.477 → 0.370).
+⚠️First measured on a cohort contaminated with ExpertPlus, which *muddied* K2 into a non-monotone
+human curve and made slope look like a weak discriminator. On the clean cohort it is both a slope
+defect and a level defect. Only 16 human maps reach the 10+ band, so that cell is the least certain.
 
 **Superseded single-song evidence**: 1f333 diagonal share by local note rate — 0.516 / 0.477 / 0.530 / 0.653 across
 0–4 / 4–7 / 7–10 / 10+ nps, against a human Expert average of **0.370**. Diagonal-heavy everywhere,

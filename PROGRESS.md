@@ -7,6 +7,74 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 🔴 RETRACTION: a loader that prefers ExpertPlus contaminated tonight's human calibrations (2026-08-03)
+
+`scripts/eval_contour_follow._load_notes_with_direction` — which `scorecard._load_any` calls, and
+which every ad-hoc analysis tonight used to read the human corpus — resolves a difficulty by
+`name.lower().startswith("expert")`, and its fallback list is
+`("ExpertPlus", "Expert", "Hard", "Normal", "Easy")` with **ExpertPlus first**. `ExpertPlus*.dat`
+also passes `startswith("expert")`. Of 60 human maps sampled, **48 contain ExpertPlus and 19 contain
+*only* ExpertPlus**. ExpertPlus maps are denser by construction; `calibrate_playfeel.py` already
+knew this and is explicitly "STRICTLY Expert-only" for exactly this reason.
+
+Re-measured with `calibrate_playfeel.load_expert_only` on a random 200-map Expert cohort:
+
+| | contaminated (my 60) | **strict Expert (200)** | suite reference |
+|---|---|---|---|
+| nps | 4.587 | **3.884** | 3.909 ✓ |
+| peak_nps | 6.500 | **5.500** | 5.5 ✓ |
+| diagonal_share | 0.381 | **0.354** | 0.358 ✓ |
+
+The calibrated reference was right all along; my ad-hoc numbers were wrong. **Two things I wrote
+tonight are hereby retracted:**
+
+1. **"The playfeel regression was not a regression; β=0.3 lands exactly on the human peak_nps median
+   of 6.5."** ✗ Human peak_nps is **5.5**. `trim` at 6.25 was *already above* human, and β=0.3 (6.50)
+   and β=0.5 (7.00) move **further away**. The playfeel axis was right and my "correction" of it was
+   the actual error. The onset-evidence lever does push peak density the wrong way.
+2. **The K1 human drift bar.** On the strict cohort (77 drift-scorable) the human distribution is
+   *far* wider than measured: drift median **0.0073** and **p90 0.4618** against the 0.0385 / 0.1451
+   I had; quintile precision is flatter and lower (0.893 0.917 0.926 0.912 0.899); and humans place
+   post-music notes in **32.5%** of maps with `tail_after_secs` p90 of **19.25 s**, not 0.0. Against a
+   p90 of 0.4618 our maps would sit *inside* the human range nearly everywhere. **Every
+   "exceedance over the human p90" figure from tonight is suspended** until the bar is rebuilt on a
+   documented, strictly-Expert, adequately-sized cohort.
+
+**What survives untouched**: absolute per-map measurements, because they never referenced the bar —
+1f8d6's tail notes 11 → 1 and `tail_after_secs` 4.43 → 0.53 s, the drift *diagnosis* (no offset ramp;
+Stage-1 assigning body-of-song probability to dead outros), and the paired rhythm/alignment deltas.
+
+**K2 is strengthened, not weakened** — see its own entry below.
+
+★ **LANDMINE, now recorded**: never read the human corpus through `_load_any` /
+`_load_notes_with_direction`. Use `calibrate_playfeel.load_expert_only`. Generated maps are
+unaffected (they only ever contain `ExpertStandard.dat`), so suite scoring of *our* maps is sound —
+this contaminates human-side calibration only, which is precisely where bars come from.
+
+---
+
+## K2 re-measured on a clean cohort: the defect is worse than reported (2026-08-03)
+
+Re-ran `eval_diagonal_vs_speed.py` against 200 strictly-Expert human maps. The contaminated cohort
+had *muddied* K2 (0.347 / 0.388 / 0.400 / 0.312 — non-monotone). Clean, it is unambiguous:
+
+| local nps | 0–4 | 4–7 | 7–10 | **10+** |
+|---|---|---|---|---|
+| human (n=200, strict Expert) | 0.355 | 0.346 | 0.301 | **0.236** |
+| ours | 0.466 | 0.476 | 0.536 | **0.631** |
+
+Humans fall **monotonically** as passages speed up; we rise monotonically. Median slope −0.01141 for
+humans against +0.00226 for us. At 10+ nps we use **2.7×** the human diagonal share, not the 2× I
+reported off the contaminated cohort. ⚠️Only 16 human maps contribute to the 10+ band, so that cell
+is the least certain — but the trend across the other three bands is clean and monotone.
+
+This also **removes the caveat I attached to K2 earlier**: on the contaminated cohort 44% of human
+maps had a rising slope, which made slope look like a weak discriminator. That was contamination
+(ExpertPlus maps are denser and spend more time at high local nps). K2 is a genuine slope defect
+*and* a level defect.
+
+---
+
 ## Onset evidence at 5 seeds: β=0.3 is the answer, and n=3 had lied twice (2026-08-03)
 
 3 arms × **5** seeds × 24 songs. Control `tf_hl014_ds048_trim`.
