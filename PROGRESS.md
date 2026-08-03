@@ -7,6 +7,57 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## C5 root cause: the two hands receive the SAME Stage-1 signal (2026-08-03)
+
+Diagnosed before building anything, and the answer changes what the fix has to be.
+
+**First, the defect is not what its name says.** Note counts are matched to human (nps ~3.9 both), but:
+
+| cohort | distinct beat positions | double share | L-only | R-only |
+|---|---|---|---|---|
+| ours | **467** | 0.661 | 0.173 | 0.166 |
+| human (200 Expert) | **626** | 0.137 | 0.425 | 0.441 |
+
+Humans spread the *same note budget* across **34% more distinct time positions**. We are not emitting
+too many notes — we are emitting them at **too few distinct times**. "4.8× too many doubles" is a
+symptom; the disease is missing note-time diversity.
+
+**Second, the cause.** Correlation between Stage-1's left and right probability channels:
+
+| song | corr(L,R) | mean abs diff | L mean | R mean |
+|---|---|---|---|---|
+| 1f333 | **0.9913** | 0.0255 | 0.353 | 0.356 |
+| 1f336 | **0.9865** | 0.0323 | 0.322 | 0.327 |
+| 1f3d7 | **0.9876** | 0.0304 | 0.405 | 0.402 |
+| 1f8d6 | **0.9851** | 0.0330 | 0.268 | 0.284 |
+| 1f913 | **0.9934** | 0.0251 | 0.378 | 0.382 |
+
+★ **The two hands are given the same information.** Both then run the same top-k selection over the
+same field, so they pick the same slots. **A 66% double share is structurally guaranteed by the
+architecture, not a decode setting anyone mis-tuned.**
+
+**This retro-explains two failed levers**, and both failures now look inevitable:
+- `BEAT_HAND_INTERLEAVE` penalised the right hand on left-taken slots, so it picked a *worse* slot.
+  That **moves** notes without creating new positions — and it made rhythm worse, exactly as moving
+  notes to lower-probability slots would.
+- `BEAT_HAND_ROLE` reassigns *which hand plays an already-selected onset* and explicitly leaves note
+  times untouched, so it cannot affect this at all.
+
+It also explains the standing note that **A2 rhythm, A6 hand-role and the flow spread are one defect**:
+they are three views of the same missing time diversity.
+
+**What a fix must do**: raise the number of *distinct* slots, not redistribute notes across the
+existing ones. The decode-side version is to allocate the two hands over **disjoint** slot sets by
+construction — take the top 2k slots and deal them alternately between hands, rather than each hand
+independently taking its own top k. That yields ~2k distinct positions at the same note count, which
+is the human structure (626 vs 467). ⚠️Unlike `BEAT_HAND_INTERLEAVE` this never sends a hand to a
+lower-probability slot; it only decides *who* plays each of the slots already judged best.
+
+The real fix is Track B — Stage-1 emitting genuinely per-hand information — but the decode version is
+testable today and would price how much of the gap is reachable without a retrain.
+
+---
+
 ## A4 granularity ruled out — and humans sit BELOW the union control (2026-08-03)
 
 Reading 2 of the three K5 explanations was "8 s sections and 50 ms attribution are too coarse for
