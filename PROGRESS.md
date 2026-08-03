@@ -7,6 +7,37 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## K2 reachability lever: strength 0.5 lands on human without shrinking anything (2026-08-03)
+
+3 arms × 3 seeds × 24 songs, control `tf_hl014_ds048_trim_ev03`.
+
+| arm | reach median | reach p90 | **hard_rate** | hard given diagonal |
+|---|---|---|---|---|
+| control | 2.828 | 3.162 | 0.1230 | 0.0830 |
+| **rc 0.5** | **2.828** | **3.162** | **0.0590** | 0.0382 |
+| rc 0.7 | **2.532** ↓ | 3.162 | 0.0358 | 0.0225 |
+| human (150 Expert) | — | 3.606 | **0.0592** | 0.0773 |
+
+★ **Strength 0.5 halves `hard_rate` to the human value (0.0590 vs 0.0592) while leaving reach median
+and p90 untouched.** Strength 0.7 overshoots *and* pulls the median down 2.828 → 2.532 — precisely
+the "fixed it by making everything small" failure written into the script header before the run. The
+pre-registered criterion discriminated between the two settings exactly as intended, which is the
+first time a prediction in this project has done real selection work rather than just being scored
+after the fact.
+
+**Costs: none found.** flow 0.321 → 0.292, idiom 0.615 → 0.568, playfeel 0.692 → 0.674 (paired
+resolvable) — all *improvements*. alignment, rhythm, handrole, precision and nps are **bit-identical**
+across arms, the structural check confirming a position-only change.
+
+⚠️ **A real interaction surfaced, and only because Kyle's correction forced the metric into
+existence**: `BEAT_ONSET_EVIDENCE` **degrades reachability** — 1f333 `hard_rate` 0.098 → 0.157 and
+1f913 0.137 → 0.194. It concentrates notes into dense windows, which manufactures far-and-soon
+transitions. Nothing in the six-axis suite noticed. `BEAT_REACH` more than repairs it (to 0.065 and
+0.086), but the lesson is that a lever validated on every existing axis can still carry a defect no
+axis measures.
+
+---
+
 ## C5 root cause: the two hands receive the SAME Stage-1 signal (2026-08-03)
 
 Diagnosed before building anything, and the answer changes what the fix has to be.
