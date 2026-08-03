@@ -55,9 +55,10 @@ seed 0 from a fresh process, after a whole sweep ran in between, reproduced the 
    mechanical reason the pass count swings 4/4/2 on an identical config. Either the bar moves or
    spread stops being a hard gate. **Seeding does not fix this** — it makes each run repeatable, not
    the seeds agree.
-2. Retire the fake seed arms in `eval_sweep.py` (`*_s1`…`*_s4`, which vary `BEAT_HAND_LEAD_SEED` and
-   were only ever a way to force a re-roll). `--seeds N` replaces them; leaving both invites someone
-   to average a seed replicate together with a genuinely different config.
+2. ~~Retire the fake seed arms~~ — **DONE.** The 11 re-roll arms (`prod_rep`, `hl014_seed*`,
+   `*_s1`…`*_s4`) are now in `DEPRECATED_ARMS`: excluded from a bare sweep, flagged in `list-arms`,
+   but **not deleted** — PROGRESS.md quotes noise-floor numbers derived from their cached maps, and
+   deleting them would orphan that evidence. Name one with `--arms` to reproduce the old measurement.
 3. Score every future arm at **≥3 seeds** and quote the sd. Any single-run comparison is now a
    choice, not a limitation.
 

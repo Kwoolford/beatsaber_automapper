@@ -99,6 +99,26 @@ _DIV = {"LAYOUT_DIVERSITY": "1"}
 # regression; keep g2.5_div10 as the over-flatten failure-mode reference.
 def _ar(w: str, s: str) -> dict[str, str]:
     return {**_DS25, "LAYOUT_ANTIREPEAT": w, "LAYOUT_AR_STRENGTH": s}
+
+
+# Arms that exist only to force a RE-ROLL of the same configuration. Before
+# `--seeds N` (2026-08-02) the only way to sample the noise floor was to define a
+# near-duplicate arm and rely on the decode being unseeded; `prod_rep` is a
+# byte-identical copy of `prod`, and the `*_s1`..`*_s4` / `hl014_seed*` arms vary
+# only BEAT_HAND_LEAD_SEED.
+#
+# They are DEPRECATED, not deleted: PROGRESS.md quotes the noise-floor numbers
+# derived from their cached maps, and deleting them would orphan that evidence.
+# Instead they are excluded from a default all-arms sweep, so nobody can average
+# a seed replicate together with a genuinely different config and read the mean
+# as a comparison. Name one explicitly with --arms if you are reproducing the
+# historical measurement.
+DEPRECATED_ARMS: frozenset[str] = frozenset({
+    "prod_rep",
+    "hl014_seed1_ds055", "hl014_seed2_ds055", "hl014_seed3_ds055", "hl014_seed4_ds055",
+    "tf_hl014_ds048_s1", "tf_hl014_ds048_s2", "tf_hl014_ds048_s3", "tf_hl014_ds048_s4",
+    "tf_hl014_ioi1_ds048_s1", "tf_hl014_ioi1_ds048_s2",
+})
 ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "prod":        (_DS25, []),                                             # control = NEW PRODUCTION (W1/S2 baked default + temp 0.9/top_p 0.97)
     # Byte-identical config to `prod`. Decode is stochastic (temp 0.9/top_p 0.97)
@@ -1407,9 +1427,11 @@ def main() -> None:
         human_baseline(a.n)
     elif a.cmd == "list-arms":
         for k, (e, x) in ARMS.items():
-            print(f"  {k:14s} env={e} flags={x}")
+            dep = "  [DEPRECATED: seed replicate, use --seeds N]" if k in DEPRECATED_ARMS else ""
+            print(f"  {k:14s} env={e} flags={x}{dep}")
     elif a.cmd == "sweep":
-        arms = a.arms.split(",") if a.arms else list(ARMS)
+        # A bare sweep skips the seed-replicate arms; --arms names them anyway.
+        arms = a.arms.split(",") if a.arms else [x for x in ARMS if x not in DEPRECATED_ARMS]
         bad = [x for x in arms if x not in ARMS]
         if bad:
             sys.exit(f"unknown arms: {bad}")
