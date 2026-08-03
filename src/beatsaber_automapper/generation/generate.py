@@ -481,19 +481,12 @@ def _quantize_to_beat_grid(
     return sorted(snapped)
 
 
-def _last_onset_sec(waveform: torch.Tensor, sample_rate: int) -> float | None:
-    """Time (s) of the last detected musical onset, or None if undetectable.
+def _audio_onset_times(waveform: torch.Tensor, sample_rate: int) -> "np.ndarray | None":
+    """Onset times (s) detected directly from the audio, or None.
 
-    Energy is the wrong criterion for K1 and this is why: on 1f8d6 the last
-    onset is at 245.12 s but RMS energy persists to 249.78 s (outro decay,
-    reverb, a held pad). The eleven stray notes live in exactly that gap, so an
-    energy threshold structurally cannot remove them — measured, it dropped one.
-
-    Uses librosa on the mix. Deliberately NOT the per-stem union that A8 scores
-    against: cutting on the evaluation's own detector would be optimising the
-    metric directly, the `h_dist` failure. This is a related but independent
-    detector, and "no notes after the music stops" is a musical rule the human
-    corpus independently confirms (humans place essentially none: p90 = 0.0 s).
+    Independent of Stage-1. Uses librosa on the mix — deliberately NOT the
+    per-stem union that A8 scores against, since consuming the evaluation's own
+    detector would be optimising the metric (the `h_dist` failure).
     """
     try:
         import librosa
@@ -510,7 +503,25 @@ def _last_onset_sec(waveform: torch.Tensor, sample_rate: int) -> float | None:
                                          backtrack=True)
     except Exception:  # noqa: BLE001
         return None
-    return float(np.max(ons)) if len(ons) else None
+    return np.asarray(ons, dtype=np.float64) if len(ons) else None
+
+
+def _last_onset_sec(waveform: torch.Tensor, sample_rate: int) -> float | None:
+    """Time (s) of the last detected musical onset, or None if undetectable.
+
+    Energy is the wrong criterion for K1 and this is why: on 1f8d6 the last
+    onset is at 245.12 s but RMS energy persists to 249.78 s (outro decay,
+    reverb, a held pad). The eleven stray notes live in exactly that gap, so an
+    energy threshold structurally cannot remove them — measured, it dropped one.
+
+    Uses librosa on the mix. Deliberately NOT the per-stem union that A8 scores
+    against: cutting on the evaluation's own detector would be optimising the
+    metric directly, the `h_dist` failure. This is a related but independent
+    detector, and "no notes after the music stops" is a musical rule the human
+    corpus independently confirms (humans place essentially none: p90 = 0.0 s).
+    """
+    ons = _audio_onset_times(waveform, sample_rate)
+    return float(np.max(ons)) if ons is not None and len(ons) else None
 
 
 def _music_end_sec(waveform: torch.Tensor, sample_rate: int, frac: float,
@@ -2259,6 +2270,18 @@ def generate_v7_level(
                 lead ^= 1
         return new_left, new_right
 
+    # K1 decay lever. BEAT_ONSET_EVIDENCE is the exponent on per-window audio
+    # onset density; 0 = OFF (prior behaviour). BEAT_ONSET_EVIDENCE_FLOOR keeps a
+    # window with no detected onsets from being zeroed outright.
+    _evid_beta = float(os.environ.get("BEAT_ONSET_EVIDENCE", "0.0"))
+    _evid_floor = float(os.environ.get("BEAT_ONSET_EVIDENCE_FLOOR", "0.15"))
+    _evid_onsets = _audio_onset_times(waveform, src_sr) if _evid_beta > 0.0 else None
+    if _evid_beta > 0.0:
+        logger.info("BEAT_ONSET_EVIDENCE=%.2f (floor %.2f): %s",
+                    _evid_beta, _evid_floor,
+                    f"{len(_evid_onsets)} audio onsets" if _evid_onsets is not None
+                    else "NO audio onsets detected — lever inert")
+
     def _density_aware_select(
         probs: torch.Tensor, slot_sec: "np.ndarray", win_sec: float,
         gamma: float, budget: int, radius: int,
@@ -2284,6 +2307,32 @@ def generate_v7_level(
         np.add.at(wsum, win_idx, p); np.add.at(wcnt, win_idx, 1.0)
         wmean = wsum / np.clip(wcnt, 1.0, None)
         weight = np.power(np.clip(wmean, 1e-6, None), gamma)
+        # ONSET EVIDENCE (K1 decay, 2026-08-03). Measured: on 1f8d6's outro,
+        # windows with ZERO detected onsets carry wmean 0.28-0.42 -- as high as
+        # the body of the song -- so this formula hands ~35 notes to a region
+        # containing ~2 real onsets. wmean is the defect, so no ceiling computed
+        # FROM wmean can fix it. This multiplies in an INDEPENDENT signal: how
+        # many onsets the audio itself has in each window.
+        #
+        # Two mechanisms it is meant to catch, both measured:
+        #   1f8d6 / 1f336 — music thins, Stage-1's probability does not follow
+        #   1f333 / 1f3d7 — music does NOT thin, but probability RISES at the end
+        #
+        # C1 records three decode levers that failed to move precision, but all
+        # three were functions of these same probabilities. This one is not,
+        # which is why it is worth one more attempt -- it is still a hypothesis.
+        if _evid_beta > 0.0 and _evid_onsets is not None:
+            ev = np.zeros(n_win)
+            ei = (_evid_onsets / win_sec).astype(int)
+            ei = ei[(ei >= 0) & (ei < n_win)]
+            np.add.at(ev, ei, 1.0)
+            # Normalise to mean 1 so this re-shapes the budget without changing
+            # its scale, then floor it so a window is never zeroed outright --
+            # the detector missing a quiet passage should thin it, not delete it.
+            m = ev.mean()
+            if m > 0:
+                ev = np.clip(ev / m, _evid_floor, None)
+                weight = weight * np.power(ev, _evid_beta)
         # HAND LEAD (2026-08-01): scale this hand's share per window so it carries
         # more of the load where it leads. Applied AFTER gamma so the density curve
         # the oracle-ceiling PoC validated is preserved — this only changes how the

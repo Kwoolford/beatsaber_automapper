@@ -467,6 +467,34 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
                              "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                              "BEAT_TRIM_TAIL": "0.5"}, []),
 
+    # --- K1 DECAY: ONSET-EVIDENCE WEIGHTING (2026-08-03) ---------------------
+    # Measured cause: on 1f8d6's outro, windows with ZERO detected onsets carry
+    # wmean 0.28-0.42 -- as high as the body of the song -- so density-select
+    # hands ~35 notes to a region with ~2 real onsets. wmean IS the defect, so
+    # nothing computed from it can fix this. These arms multiply the window
+    # weight by an INDEPENDENT signal: audio onset density from librosa.
+    #
+    # Single-song probe on 1f8d6 (seed 0, on top of trim): drift 0.378 -> 0.130
+    # (human p90 0.145), q5 precision 0.622 -> 0.86, overall precision
+    # 0.886 -> 0.930, note count 490 -> 501. ★ ONE SONG, ONE SEED -- this is
+    # exactly the single-song probe trap in the landmine list, hence this sweep.
+    #
+    # ⚠️ THE RISK TO WATCH IS DETECTOR-FITTING. We weight by librosa-on-mix and
+    # A8 scores against a per-stem onset union; the two correlate, so some of the
+    # precision gain may be fitting the grader rather than the music. Two checks:
+    # (a) do the other five axes stay flat, and (b) does the gain concentrate on
+    # the "ours alone" songs (1f336, 1f3d7, 1f767, 1f65d, 1f333) rather than on
+    # the ones whose HUMAN map drifts too (1f8d6, 1f8ce)? Landing far ABOVE human
+    # precision would be the tell that we are grading ourselves.
+    "tf_hl014_ds048_trim_ev05": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                                  "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                                  "BEAT_TRIM_TAIL": "0.5",
+                                  "BEAT_ONSET_EVIDENCE": "0.5"}, []),
+    "tf_hl014_ds048_trim_ev10": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                                  "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                                  "BEAT_TRIM_TAIL": "0.5",
+                                  "BEAT_ONSET_EVIDENCE": "1.0"}, []),
+
     # --- BUDGET ALLOCATION vs PRECISION (2026-08-02) ------------------------
     # After the tempo fix, the entire remaining alignment gap is onset_precision
     # (0.902 vs human 0.930; scatter is already better than human). Two candidate
