@@ -7,6 +7,48 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## A4 passes its control battery — and says HUMANS don't follow the lead either (2026-08-03)
+
+A4's null on K5 is worth exactly what the metric is worth, and A4 had already been rebuilt once
+after its first version turned out blind. So: four synthetic maps whose answer is known in advance.
+
+| control | role_follow | role_commitment |
+|---|---|---|
+| `follow_lead` — notes on the lead stem's onsets | **0.8901** | **0.7778** |
+| `follow_drums` — always drums, whoever leads | 0.2339 | 0.7568 |
+| `follow_union` — "the average of all of them" | 0.3357 | 0.2175 |
+| `random_times` | 0.2372 | 0.2738 |
+| **ours** | 0.2778 | 0.2325 |
+| **human** | 0.3067 | 0.1877 |
+
+**The battery passes on every count.** `follow_lead` scores high on both, so A4 *can* see perfect
+instrument-following. `follow_drums` shows high commitment with chance-level follow, so the two
+metrics genuinely come apart rather than being one metric twice. `follow_union` sits far below
+`follow_lead` on commitment, so A4 *can* detect the specific thing Kyle described. `random_times`
+collapses.
+
+★ **And that is what makes the real result interesting: BOTH cohorts sit down among `follow_union`
+and `random_times`, nowhere near `follow_lead`.** Human commitment (0.1877) is *below* the
+literal-"average-of-all-of-them" control (0.2175). By a metric now demonstrated capable of detecting
+lead-following, **human Expert maps do not follow the section's lead instrument either.**
+
+**This reframes K5 rather than settling it.** The question is no longer "why don't we follow the
+lead when humans do" — measurably, they don't. Three readings, none yet distinguished:
+
+1. **Kyle is describing excellence, not the norm.** He said *"a good mapper 100% would have"* — the
+   median of 5,000 community maps is not that mapper. Then K5 is a **design goal**, not a defect
+   against human behaviour, and no human-referenced bar can ever express it.
+2. **The granularity is wrong** — 8 s sections and 50 ms attribution may be too coarse for
+   "the lead hand played the solo".
+3. **"Lead stem by relative activity" is not musical lead**, which is about melody and salience, not
+   onset density.
+
+⚠️Reading 1 matters most for the project's method: **the whole suite is built on "match the human
+corpus", and this is the first axis where Kyle's stated ideal and the human median may genuinely
+diverge.** If they do, "the human corpus passes it" stops being a validity check for this axis.
+
+---
+
 ## 🔴 The onset ground truth itself is a random draw — Demucs was never seeded (2026-08-03)
 
 Building a per-stem onset cache for the unbuilt A4 axis turned up something larger than A4.
