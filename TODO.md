@@ -202,11 +202,25 @@ near `follow_lead` — and *human* commitment (0.1877) is **below** the literal
 average-of-all-of-them control (0.2175). **Human Expert maps do not follow the section's lead
 instrument either.**
 
-**Open work** — three readings, none ruled out:
-1. ⚠️**Kyle may be describing excellence, not the norm** (*"a good mapper 100% would have"*). If so K5
-   is a **design goal**, no human-referenced bar can express it, and **"the human corpus passes it"
-   stops being a validity check for this axis** — the first crack in the suite's foundation.
-   **★ ASK KYLE: is the target a good mapper or a typical one?** That one answer decides the axis.
+**★ ANSWERED BY KYLE 2026-08-03: "My target is the best mappers."** Plus a sharper statement of the
+claim: *"a great mapper would have at least addressed the main instrument when it comes into play."*
+
+**Two consequences, and the second is bigger than K5:**
+1. **A4's null is not a no-defect verdict.** Reading 1 is confirmed: the corpus median is a *floor*,
+   not the target, so "humans don't follow the lead either" says the corpus is not the standard here
+   — it does not say we are fine.
+2. 🔴 **This breaks a suite-wide assumption.** Every bar comes from the median/MAD of ~200 random
+   community Expert maps, and "the human cohort passes it" is the standard validity check. That check
+   is **invalid for any aspirational axis**. Before calibrating a new axis, ask whether it measures a
+   **norm** (corpus median is right) or an **aspiration** (corpus is a floor). See
+   [[feedback-target-is-best-mappers]].
+
+**Open work**
+1. **Re-operationalise K5 as an EVENT criterion, which is what he actually described**: when a new
+   instrument *comes in*, does the map acknowledge it at that entry? A4 averaged over 8 s sections,
+   so rare entry events were drowned — that alone may explain the uninformative null. Detect stem
+   entries (activity stepping from low to high) and measure note response *at the entry*.
+2. Then consider a curated top-mapper reference cohort, since the median corpus cannot serve.
 2. ~~Granularity~~ — **RULED OUT.** Swept 2 s / 4 s / 8 s: the picture is identical at every
    timescale and neither cohort approaches `follow_lead` (0.74–0.81). Finer sections do not rescue it.
 3. **"Lead stem by relative activity" is probably not musical lead — now with positive evidence.**
