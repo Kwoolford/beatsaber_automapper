@@ -340,7 +340,15 @@ them.
 Ours 0.73–0.79 against a human **0.231**. Sits upstream of A2, A6 and the flow spread. Untouched
 since identified.
 
-### C6 — `outputs/` is entirely gitignored (needs a decision) — **this already bit us once**
+### C6 — `outputs/` is entirely gitignored (needs a decision) — **it has now bitten twice**
+**PARTLY MITIGATED 2026-08-03**: all seven references are snapshotted to tracked
+`docs/eval_references/` (28 KB). ⚠️It is a **copy, not the live path** — the suite still reads
+`outputs/`, so **re-copy whenever a reference changes or the snapshot silently drifts**. `data/` is
+gitignored too, hence `docs/`. The decision still owed: move the live path into version control, or
+keep the copy-and-remember arrangement. Second bite: `flow_human_reference.json` was regenerated
+tonight after a loader fix, changing scoring behaviour with nothing in git to show it.
+
+**Original note:**
 `git ls-files outputs/` returns **zero**. A commit message on 2026-08-02 stated the ArcViewer fix
 was "copied here for version control" into `outputs/`; it was not, and the only two copies were both
 untracked. Caught at close and moved to `tools/arcviewer_sfb_fix/`. The same trap still applies to
