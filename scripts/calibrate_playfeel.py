@@ -20,7 +20,11 @@ def load_expert_only(zp: pathlib.Path):
     try:
         with zipfile.ZipFile(zp) as zf:
             names = zf.namelist()
-            info = next((n for n in names if n.lower().endswith("info.dat")), None)
+            # EXACT basename: "BPMInfo.dat" also ends with "info.dat", and 73 of 300
+            # corpus zips list it FIRST -- picking it makes parse_info_dat find no
+            # bpm and silently fall back to 120, which stretches every note time.
+            info = next((n for n in names
+                         if n.split("/")[-1].lower() == "info.dat"), None)
             diff = next((n for n in names
                          if (b := n.lower().split("/")[-1]) == "expertstandard.dat"), None)
             if info is None or diff is None:

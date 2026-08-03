@@ -7,6 +7,56 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## K1 bar rebuilt: a SECOND loader bug, and humans do not drift at all (2026-08-03)
+
+Chasing an implausible number — human maps supposedly placing notes **19 seconds** after the last
+onset — found a second loader defect, independent of the ExpertPlus one.
+
+**`BPMInfo.dat` also ends with `info.dat`.** Every calibrator selects the info file with
+`next(n for n in names if n.lower().endswith("info.dat"))`, and **73 of 300 corpus zips list
+`BPMInfo.dat` first**. `BPMInfo.dat` has no bpm field, so `parse_info_dat` falls back to **120**, and
+every note time in that map is stretched by `real_bpm/120`. Map 34539's last note landed at 519 s
+against a last onset at 351 s — a 1.48× stretch, exactly the artifact. Every one of the "human tail
+note" outliers had bpm 120.0. **Fixed in all six loaders** by matching the exact basename.
+
+**The suite's calibrated reference survives**, because medians are robust: 59 of 200 maps read bpm
+120 under the bug, yet the aggregate barely moved (nps 3.884 → **3.931** against the stored 3.909;
+peak_nps and diagonal_share unchanged). The bug corrupts *per-map outliers*, which is exactly where a
+p90-based bar lives.
+
+**The rebuilt K1 human bar** (strict Expert + exact `Info.dat`, 77 drift-scorable of 400):
+
+| | contaminated | + BPMInfo bug | **both fixed** |
+|---|---|---|---|
+| quintile precision | 0.950 → 0.920 (falling) | 0.893 → 0.899 | **0.937 → 0.947 (flat, slightly rising)** |
+| drift median | 0.0385 | 0.0073 | **−0.0060** |
+| drift p90 | 0.1451 | 0.4618 | **0.0677** |
+| `tail_after_secs` p90 | 0.0 | 19.25 | **0.0304** |
+
+★ **Humans do not drift.** Their precision is flat across a song and *very slightly rises*. The line
+written earlier tonight — "calibrating on humans was the right call because humans drift too
+(0.950 → 0.920)" — was ExpertPlus contamination, and the opposite is true.
+
+**So K1 is worse than originally reported, not milder.** Against the correct bar:
+
+| arm | drift median | drift p90 | % over human p90 |
+|---|---|---|---|
+| `tf_hl014_ds048` | 0.0592 | 0.3914 | **48.6%** |
+| + trim | 0.0480 | 0.3486 | 37.5% |
+| + trim + ev0.3 | 0.0443 | 0.2691 | 37.5% |
+| + trim + ev0.5 | 0.0482 | **0.2051** | 37.5% |
+
+Nearly half our maps exceed a bar only 10% of human maps reach. The levers help substantially on
+**severity** — p90 0.3914 → 0.2051, a 48% reduction — while exceedance sticks at 37.5%. K1 is
+improved and nowhere near closed.
+
+★ **Method note worth keeping**: three successive measurements of the same quantity disagreed
+(0.1451 / 0.4618 / 0.0677), and each disagreement was a loader defect rather than a fact about
+music. The thing that caught both was **an implausible number nobody had asked about** — a 19-second
+tail — not a test. Sanity-check magnitudes against physical reality before building on them.
+
+---
+
 ## 🔴 RETRACTION: a loader that prefers ExpertPlus contaminated tonight's human calibrations (2026-08-03)
 
 `scripts/eval_contour_follow._load_notes_with_direction` — which `scorecard._load_any` calls, and
@@ -32,13 +82,11 @@ tonight are hereby retracted:**
    of 6.5."** ✗ Human peak_nps is **5.5**. `trim` at 6.25 was *already above* human, and β=0.3 (6.50)
    and β=0.5 (7.00) move **further away**. The playfeel axis was right and my "correction" of it was
    the actual error. The onset-evidence lever does push peak density the wrong way.
-2. **The K1 human drift bar.** On the strict cohort (77 drift-scorable) the human distribution is
-   *far* wider than measured: drift median **0.0073** and **p90 0.4618** against the 0.0385 / 0.1451
-   I had; quintile precision is flatter and lower (0.893 0.917 0.926 0.912 0.899); and humans place
-   post-music notes in **32.5%** of maps with `tail_after_secs` p90 of **19.25 s**, not 0.0. Against a
-   p90 of 0.4618 our maps would sit *inside* the human range nearly everywhere. **Every
-   "exceedance over the human p90" figure from tonight is suspended** until the bar is rebuilt on a
-   documented, strictly-Expert, adequately-sized cohort.
+2. **The K1 human drift bar.** ⚠️**This retraction was itself half wrong — see the entry above it.**
+   The strict-Expert numbers that replaced the contaminated ones (drift p90 0.4618, humans placing
+   post-music notes in 32.5% of maps with a 19.25 s p90) were corrupted by a *second*, unrelated
+   loader bug. The bar has since been rebuilt correctly and K1 is **worse** than first reported, not
+   milder. The suspension stood for about twenty minutes.
 
 **What survives untouched**: absolute per-map measurements, because they never referenced the bar —
 1f8d6's tail notes 11 → 1 and `tail_after_secs` 4.43 → 0.53 s, the drift *diagnosis* (no offset ramp;

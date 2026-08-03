@@ -129,7 +129,11 @@ def _load_human(zip_path: pathlib.Path) -> tuple[list[ColorNote], float] | None:
     try:
         with zipfile.ZipFile(zip_path) as zf:
             names = zf.namelist()
-            info = next((n for n in names if n.lower().endswith("info.dat")), None)
+            # EXACT basename: "BPMInfo.dat" also ends with "info.dat", and 73 of 300
+            # corpus zips list it FIRST -- picking it makes parse_info_dat find no
+            # bpm and silently fall back to 120, which stretches every note time.
+            info = next((n for n in names
+                         if n.split("/")[-1].lower() == "info.dat"), None)
             std = [n for n in names if n.lower().split("/")[-1].endswith("standard.dat")]
             diff = None
             for cand in ("expert", "expertplus"):

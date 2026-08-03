@@ -90,7 +90,11 @@ def _human_times(stem: str, difficulty: str = "Expert") -> tuple[np.ndarray | No
     try:
         with zipfile.ZipFile(src) as zf:
             names = zf.namelist()
-            info = next((n for n in names if n.lower().endswith("info.dat")), None)
+            # EXACT basename: "BPMInfo.dat" also ends with "info.dat", and 73 of 300
+            # corpus zips list it FIRST -- picking it makes parse_info_dat find no
+            # bpm and silently fall back to 120, which stretches every note time.
+            info = next((n for n in names
+                         if n.split("/")[-1].lower() == "info.dat"), None)
             diff, used = _pick_human_diff(names, difficulty)
             if info is None or diff is None:
                 return None, ""
