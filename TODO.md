@@ -10,25 +10,33 @@ this file had reached 4,076 lines.
 
 ---
 
-## 📍 CURRENT STATE (2026-08-02)
+## 📍 CURRENT STATE (2026-08-03)
 
-**The tempo fix landed and Kyle heard it.** Axis A8 (audio alignment) found the note grid was built
-on a tempo wrong on 20 of 21 songs; a tempo+phase fitter took `alignment_gap` **5.41 → 0.554** and
-timing scatter **17.4 → 10.2 ms** (human 10.35). His verdict: *"genuinely beautiful... the foundation
-is now complete."* First time in the project's history that his ear and a measurement agreed in the
-**positive** direction.
+**Three lever candidates are built, validated and waiting on Kyle's ear. Nothing is promoted.**
+The session's real yield was not the levers though — it was finding that **three separate numbers the
+suite depended on were measurement artifacts** (a loader preferring ExpertPlus, `BPMInfo.dat` read as
+`Info.dat`, and Demucs never seeded), plus **P0 closed**: the generation path is now seeded and a run
+is byte-reproducible.
 
 | | |
 |---|---|
-| Best arm | `tf_hl014_ds048` — tempo fit + hand-lead 0.14 + difficulty scale 0.48 |
-| Promoted | **nothing.** `generate.py` defaults untouched; `BEAT_TEMPO_FIT` and `ds048` default-off |
-| Suite | 6 axes: A1 flow, A2 rhythm, A3 idiom, A6 handrole, A7 playfeel, A8 alignment |
-| Best score | alignment 0.436 ± 0.113 (bar 0.39); npass 4,4,2 across 3 seeds — rank on gaps, not passes |
-| Seeding | **fixed** — `generate.py --seed` / `BSA_SEED`; `eval_sweep --seeds N` scores mean ± sd |
-| Candidates | `BEAT_TRIM_TAIL=0.5` (tail defect closed) + `BEAT_ONSET_EVIDENCE=0.3` — **both default-off, both need Kyle's ear** |
-| Review maps | `outputs/kyle_review_2026-08-02/` — 1f767, 1f913, 1f333, 1f8d6, SO TIRED ROCK |
+| Best arm | `tf_hl014_ds048` + `BEAT_TRIM_TAIL=0.5` + `BEAT_ONSET_EVIDENCE=0.3` + `BEAT_REACH=3:0.3:0.5` |
+| Promoted | **nothing.** `generate.py` defaults untouched; every lever default-off |
+| Candidates | **`BEAT_TRIM_TAIL=0.5`** (endings; tail defect closed), **`BEAT_ONSET_EVIDENCE=0.3`** (density follows audio; ⚠️degrades reachability, see K2), **`BEAT_REACH=3:0.3:0.5`** (hard_rate 0.123→0.059 = human, no shrinkage) |
+| Stylistic knob | `BEAT_SPEED_DIAG=6:0.8` — **not a fix.** Kyle wants levers exposed as UI controls; see [[feedback-levers-are-user-facing]] |
+| Suite | 6 axes + A8 drift term; **A4 musical-role built but must not gate anything** (measures the wrong thing for K5) |
+| Seeding | **fixed** — `generate.py --seed` / `BSA_SEED`; `eval_sweep --seeds N` scores mean ± sd; Demucs seeded in the cache builders |
+| Review maps | `outputs/kyle_review_2026-08-03/` — BEFORE / AFTER / **AFTER2** per song; README leads with what to be suspicious of |
+| Caches | onsets `outputs/onset_cache/` (24); **per-stem `outputs/stem_onset_cache/` (274, seeded)** |
 | Viewer | fixed; `arcviewer` self-heals its file-dialog plugin, `arcview <map.zip>` skips the dialog |
-| Tooling | ArcViewer fix source `tools/arcviewer_sfb_fix/`; skill backups `docs/skills-backup/` |
+| Tooling | ArcViewer fix `tools/arcviewer_sfb_fix/`; calibration refs snapshotted to `docs/eval_references/` |
+
+**★ Two standing methodology rules learned 2026-08-03:**
+1. **Never calibrate the human corpus through `scorecard._load_any`** — it prefers ExpertPlus. Use
+   `calibrate_playfeel.load_expert_only`. Three separate human references were wrong because of this.
+2. **Ask "norm or aspiration?" before calibrating any new axis.** Kyle's target is the **best**
+   mappers, so for aspirational axes "the human cohort passes it" is *not* a validity check.
+   See [[feedback-target-is-best-mappers]].
 
 **Human reference values worth memorising** — **re-verified 2026-08-03 on a strictly-Expert cohort
 after two loader bugs were found** (see PROGRESS.md). Anything not on this list should be re-measured
@@ -49,55 +57,48 @@ before it is trusted:
 
 ---
 
-## 🔴 P0 — SEED LOTTERY: **CLOSED**, with three habits to keep
+## 🔴 P0 — SEED LOTTERY: **CLOSED** (cause + fix in PROGRESS.md)
 
-Cause and fix in PROGRESS.md (commits `7a5544d`, `7869115`): nothing in the generation path was ever
-seeded. `generate.py --seed` / `BSA_SEED` + `eval_sweep --seeds N`. **DoD met** — regenerating at
-seed 0 from a fresh process, after a whole sweep ran in between, reproduced the swept maps
-**byte-identically** on all three probe songs.
+Nothing in the generation path was ever seeded. `generate.py --seed` / `BSA_SEED` +
+`eval_sweep --seeds N`. Verified: same seed → byte-identical map, from a fresh process, after a whole
+sweep ran in between.
 
-**What the run also settled:**
-- **Pairing helps exactly one axis.** sd(paired) vs sd(unpaired): alignment **0.033 vs 0.143**
-  (4.3× tighter) because it rides the postprocess `random` stream; the other five ride the torch
-  decode, which diverges once configs differ, and show no benefit. ⚠️n=3, so the per-axis sd
-  estimates are themselves noisy — "pairing helps alignment" is the only safe claim.
-- **★ `npass` is not a ranking statistic.** Even seeded, `tf_hl014_ds048` scored **4, 4, 2** across
-  three seeds. Rank on per-axis gaps with error bars, never on the pass count.
+**Three habits to keep**
+1. **Score every arm at ≥3 seeds and quote the sd.** ⚠️n=3 *underestimates* sd (idiom's went
+   0.043 → 0.107 by adding two seeds) — treat n=3 as a screen, n=5 as a verdict.
+2. **`npass` is not a ranking statistic** — an identical config scored 4, 4, 2. Rank on per-axis gaps
+   with error bars.
+3. **Pairing helps alignment only** (sd 0.033 vs 0.143) — it rides the postprocess `random` stream;
+   the other axes ride the torch decode, which diverges once configs differ.
 
-**Tasks**
-1. Decide whether the spread bar (0.35) is the right gate. **Evidence gathered 2026-08-03**: the bar
-   is not miscalibrated — the held-out human cohort scores `min_spread` **0.923** and 0.35 was set
-   deliberately low as a *mode-collapse alarm*, not a human-likeness demand. The problem is that **we
-   sit right on it** (0.39–0.46, about half the human value) with sd up to 0.09, so pass/fail is a
-   coin flip. **Recommendation: stop using spread as a hard pass/fail gate** — report it as a number
-   with its sd, and keep a hard alarm only at a much lower threshold (~0.15) where crossing really
-   does mean collapse. ⚠️Not done unilaterally: it changes scorecard semantics and would make tonight's
-   numbers incomparable with everything recorded before it. Wants a deliberate call.
-   ★Note this is the same conclusion as "`npass` is not a ranking statistic", reached from the other
-   end — a threshold sitting inside the noise cannot gate anything.
-2. ~~Retire the fake seed arms~~ — **DONE.** The 11 re-roll arms (`prod_rep`, `hl014_seed*`,
-   `*_s1`…`*_s4`) are now in `DEPRECATED_ARMS`: excluded from a bare sweep, flagged in `list-arms`,
-   but **not deleted** — PROGRESS.md quotes noise-floor numbers derived from their cached maps, and
-   deleting them would orphan that evidence. Name one with `--arms` to reproduce the old measurement.
-3. Score every future arm at **≥3 seeds** and quote the sd. Any single-run comparison is now a
-   choice, not a limitation.
+**Open**: the spread bar (0.35) sits inside the noise, so pass/fail on it is a coin flip. The bar is
+not miscalibrated (human `min_spread` is 0.923; 0.35 was set as a mode-collapse alarm) — we simply sit
+on it at 0.39–0.46. **Recommendation: stop gating on spread**, report it with its sd, keep a hard
+alarm near 0.15. Not done unilaterally: it changes scorecard semantics and breaks comparability.
 
----
 
-## 🟠 P1 — PROMOTION DECISION (needs Kyle; one answer unblocks it)
+## 🟠 P1 — PROMOTION (needs Kyle's ear; he is playing `outputs/kyle_review_2026-08-03/`)
 
-The gate was "stays off until Kyle plays it and says it sounds on-beat." **He has.** Two things to
-know before it flips:
+**Five things would flip together**, and they are not independent:
 
-- **It is a pair.** `BEAT_TEMPO_FIT=1` changes how many 1/4-beat slots exist per second, so it needs
-  `BEAT_DIFFICULTY_SCALE=0.48` alongside it. The old 0.55 was fitted to the wrong grid; promoting one
-  without the other yields a map that is on-beat and a tier too dense.
-- **The suite will not endorse it.** That config scores 4/6 on a good seed and 0/5 across seeds. This
-  is promoting on his ear over the scorecard — defensible, since the scorecard has been wrong about
-  "ready" twice and right zero times, but it should be a deliberate choice, not a slip.
+| | why it is in the bundle |
+|---|---|
+| `BEAT_TEMPO_FIT=1` | the 2026-08-02 fix he called *"genuinely beautiful"* |
+| `BEAT_DIFFICULTY_SCALE=0.48` | **must** ship with tempo-fit — it changes slots/second, and 0.55 was fitted to the wrong grid |
+| `BEAT_TRIM_TAIL=0.5` | strongest evidence; tail defect closed across 3 seeds, costs nothing |
+| `BEAT_ONSET_EVIDENCE=0.3` | rhythm improves resolvably ⚠️but **degrades reachability** and pushes peak nps 6.25→6.50 (human 5.5) |
+| `BEAT_REACH=3:0.3:0.5` | `hard_rate` 0.123 → 0.059 = human, with **no** loss of reach distance; repairs the above |
 
-**Tasks when the answer is yes**: flip both defaults in `generate.py`, keep env-var overrides to
-disable, re-run the regression, record before/after in PROGRESS.md.
+⚠️**The suite will not endorse the bundle** (npass ~4/6). That is promoting on his ear over the
+scorecard — defensible, since the scorecard has been wrong about "ready" twice and right zero times,
+but it must be a deliberate choice.
+
+⚠️**`BEAT_ONSET_EVIDENCE` is the one to interrogate**: half its supporting evidence is circular
+(`density_corr` and A8 both reference librosa onsets, which the lever consumes), and it is the lever
+that made reachability worse. **`rhythm` is its only independent evidence.**
+
+**Tasks when the answer is yes**: flip the five defaults in `generate.py`, keep env-var overrides to
+disable, re-run the regression at ≥3 seeds, record before/after in PROGRESS.md.
 
 ---
 
@@ -192,67 +193,30 @@ sits at 0.54×** — design against *that* window, not 1:30–1:33. 3:05 is abov
 is K5 and not density. ⚠️This binning differs from the one behind the 0.67×/0.74× recorded on
 2026-08-02; compare arms, not sessions.
 
-### K5 — "It does the average of all of them" (REFRAMED — do not close as refuted)
-**A4 built and it passes its control battery** (`eval_musical_role.py`, `audit_musical_role.py`;
-tables in PROGRESS.md). `follow_lead` scores 0.890/0.778, so the metric genuinely detects
-lead-following.
+### K5 — "the average of all of them" (REFRAMED — do not close as refuted)
+**Kyle's target is the BEST mappers**, and his usable form of the claim is *"a great mapper would
+have at least addressed the main instrument when it comes into play."*
 
-🔴 **The finding**: both cohorts sit among the `follow_union` and `random_times` controls, nowhere
-near `follow_lead` — and *human* commitment (0.1877) is **below** the literal
-average-of-all-of-them control (0.2175). **Human Expert maps do not follow the section's lead
-instrument either.**
+**Three operationalisations, all measured, none showing a defect against the MEDIAN human**
+(numbers in PROGRESS.md): per-section instrument commitment, winner-take-all attribution, and
+entry-events (ours 1.216 vs human 1.167 over 127 maps). A4 passes its own control battery, so it
+detects lead-following — both cohorts simply score like the "average of all stems" control.
 
-**★ ANSWERED BY KYLE 2026-08-03: "My target is the best mappers."** Plus a sharper statement of the
-claim: *"a great mapper would have at least addressed the main instrument when it comes into play."*
+🔴 **Blocked on data, and it is a small ask.** The median is a *floor*, not the target, so none of the
+above is an answer. A best-mapper cohort cannot be built from disk: `data/raw/manifest.json` (5,373
+maps) has only `category` (mod requirements), `genre`, `genre_tags` and `downloaded_at` — **no
+rating, downloads, ranked or curated flag anywhere.**
 
-**Two consequences, and the second is bigger than K5:**
-1. **A4's null is not a no-defect verdict.** Reading 1 is confirmed: the corpus median is a *floor*,
-   not the target, so "humans don't follow the lead either" says the corpus is not the standard here
-   — it does not say we are fine.
-2. 🔴 **This breaks a suite-wide assumption.** Every bar comes from the median/MAD of ~200 random
-   community Expert maps, and "the human cohort passes it" is the standard validity check. That check
-   is **invalid for any aspirational axis**. Before calibrating a new axis, ask whether it measures a
-   **norm** (corpus median is right) or an **aspiration** (corpus is a floor). See
-   [[feedback-target-is-best-mappers]].
+**Open work**
+1. ★ **Ask Kyle to name exemplary mappers/maps** → build the reference cohort from those. Minutes of
+   his time; unblocks *every* aspirational axis, not just K5.
+2. Alternatives if he would rather not: pull BeatSaver ranked/curated flags (network, needs his nod),
+   or drop human references for aspirational axes and state absolute targets.
+3. ⚠️**A4 must not gate anything** meanwhile — it works, but both cohorts score like the union
+   control, so it is not measuring what K5 is about. Reading 3 (lead-by-onset-activity ≠ musical
+   lead) has positive evidence: human commitment sits *below* the union control at every granularity.
+   Next signal to try: pitch salience / melodic contour (`--use-contour` already extracts it).
 
-**ENTRY-EVENT TEST DONE 2026-08-03** (stem cache extended to 274 songs so the human cohort is real):
-`entry_response` = notes on the *entering* stem during its entry window, relative to that stem's
-share across the whole map; 1.0 = no reaction.
-
-| | maps | median | p10–p90 | entries/map |
-|---|---|---|---|---|
-| ours | 15 | **1.216** | 0.844–1.618 | 4 |
-| human (strict Expert) | 127 | 1.167 | 0.940–1.566 | 4 |
-
-Both cohorts *do* turn toward an entering instrument, and **we do it slightly more than the median
-human**, with heavily overlapping distributions. So the event reading shows **no defect against the
-median** either — and per Kyle the median is a floor, not the target, so this does not resolve K5.
-
-🔴 **BLOCKED ON DATA, and it is a small ask.** A best-mapper reference cannot be built from what is on
-disk: `data/raw/manifest.json` (5,373 maps) carries only `category` (mod requirements —
-vanilla/chroma/noodle/vivify), `genre`, `genre_tags` (style descriptors like "accuracy", "balanced")
-and `downloaded_at`. **There is no rating, download count, ranked or curated flag anywhere.**
-
-**Options, cheapest first**
-1. ★ **Ask Kyle to name mappers or maps he considers exemplary** and build the reference cohort from
-   those. He knows who they are; this is minutes of his time and unblocks the whole aspirational-axis
-   problem, not just K5.
-2. Fetch BeatSaver metadata (ranked/curated flags, ratings) for the 5,373 ids — needs network and is
-   a data-acquisition decision.
-3. Drop the human reference for aspirational axes and state absolute targets directly.
-2. ~~Granularity~~ — **RULED OUT.** Swept 2 s / 4 s / 8 s: the picture is identical at every
-   timescale and neither cohort approaches `follow_lead` (0.74–0.81). Finer sections do not rescue it.
-3. **"Lead stem by relative activity" is probably not musical lead — now with positive evidence.**
-   Human commitment sits **below the `follow_union` control at every granularity** (0.280 vs 0.367,
-   0.255 vs 0.282, 0.188 vs 0.230): a map placed literally on the union of all stems is *more*
-   stem-committed than a real human map. Human notes do not concentrate on any stem's onsets at all.
-   **Next: use pitch salience / melodic contour as the lead signal instead of onset counts** — the
-   contour extraction already exists for Stage-2 (`--use-contour`).
-
-⚠️**A4 must not gate anything as it stands.** It passes its battery, so it measures something real,
-but both cohorts score like the union control — it is not currently measuring what K5 is about.
-4. Then build the **rhythmic**-commitment reading; "one beat or one flow" may never have been about
-   instruments at all.
 
 ### 🛡️ Confirmed positives — protect these
 - **Hand-lead alternation**: *"a giant difference maker... noticeably great impact on the flow."*
@@ -296,43 +260,29 @@ grid that was wrong on 20 of 21 songs. Their conclusions are not necessarily wro
 scored with a bad ruler and never re-checked with a good one. Re-derive before building further on
 them.
 
-### C5 — The double share, still the largest untouched structural defect
-**RE-MEASURED 2026-08-03 on 200 strictly-Expert human maps** (the old figure predates tonight's
-loader fixes, and **0.231 turned out to be the human p90, not the median**):
+### C5 — Doubles: ROOT CAUSE FOUND, untouched
+Not "too many notes" — **too few distinct times**. Same note budget as human (nps ~3.9) but spread
+over **467 distinct beat positions vs the human 626**; double share 0.661 vs **0.1366** (⚠️the old
+0.231 was the human *p90*, not the median — we are 4.8× not 3.4×).
 
-| | recorded | measured |
-|---|---|---|
-| human | 0.231 | **0.1366** median (p10 0.046, **p90 0.2505**) |
-| ours | 0.73–0.79 | **0.6607** |
-| ratio | ~3.4× | **4.8×** |
+**Cause**: Stage-1's two hand channels correlate **0.985–0.993** — both hands get the *same*
+information, run the same top-k, and pick the same slots. A 66% double share is structurally
+guaranteed, not mis-tuned. This retro-explains why `BEAT_HAND_INTERLEAVE` (moved notes to worse slots,
+hurt rhythm) and `BEAT_HAND_ROLE` (leaves times untouched) both failed, and why A2/A6/flow-spread are
+one defect.
 
-So the defect is **worse** than recorded, not better — though our own share has come down from
-0.73–0.79 to 0.66 as a side effect of the difficulty/hand-lead work. Essentially every map we make
-sits above the human **p90**.
+**Fix must RAISE the count of distinct slots**, not redistribute. Decode version: allocate the hands
+over **disjoint** slot sets — take the top 2k and deal them alternately — giving ~2k positions at the
+same note count, never sending a hand to a lower-probability slot. Real fix is Track B (Stage-1
+emitting per-hand information); the decode version prices what is reachable without a retrain.
 
-Neither new lever touches it (`trim`+`ev03` gives 0.6605 vs 0.6607) — C5 remains genuinely untouched.
-Sits upstream of A2, A6 and the flow spread.
-⚠️Whatever targets this must aim at the **median 0.1366**, not 0.231.
 
-### C6 — `outputs/` is entirely gitignored (needs a decision) — **it has now bitten twice**
-**PARTLY MITIGATED 2026-08-03**: all seven references are snapshotted to tracked
-`docs/eval_references/` (28 KB). ⚠️It is a **copy, not the live path** — the suite still reads
-`outputs/`, so **re-copy whenever a reference changes or the snapshot silently drifts**. `data/` is
-gitignored too, hence `docs/`. The decision still owed: move the live path into version control, or
-keep the copy-and-remember arrangement. Second bite: `flow_human_reference.json` was regenerated
-tonight after a loader fix, changing scoring behaviour with nothing in git to show it.
+### C6 — `outputs/` is gitignored: mitigated, one decision still owed
+All seven calibration references are snapshotted to tracked `docs/eval_references/` (28 KB).
+⚠️It is a **copy, not the live path** — the suite still reads `outputs/`, so **re-copy whenever a
+reference changes** or the snapshot silently drifts. `data/` is gitignored too, hence `docs/`.
+**Decision owed**: move the live path into version control, or keep copy-and-remember.
 
-**Original note:**
-`git ls-files outputs/` returns **zero**. A commit message on 2026-08-02 stated the ArcViewer fix
-was "copied here for version control" into `outputs/`; it was not, and the only two copies were both
-untracked. Caught at close and moved to `tools/arcviewer_sfb_fix/`. The same trap still applies to
-every calibration reference the suite depends on. All seven calibration artifacts — every axis's human
-reference plus `ioi_human_model.json` — exist only on this machine. The suite's bars are meaningless
-without them, and A8 fails closed when its reference is missing, so a rebuild would look like a
-regression rather than a missing file. Fixing it (track the seven small JSONs, or move them under
-`data/`) changes a project convention, so it wants a call rather than a unilateral commit.
-
----
 
 ## 🧭 REFERENCE
 
