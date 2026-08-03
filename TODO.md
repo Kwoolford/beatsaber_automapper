@@ -24,6 +24,7 @@ is now complete."* First time in the project's history that his ear and a measur
 | Promoted | **nothing.** `generate.py` defaults untouched; `BEAT_TEMPO_FIT` and `ds048` default-off |
 | Suite | 6 axes: A1 flow, A2 rhythm, A3 idiom, A6 handrole, A7 playfeel, A8 alignment |
 | Best score | alignment 0.554 ± 0.092 (bar 0.39); 4/6 on a good seed; **0/5 seeds pass all six** |
+| Seeding | **fixed** — `generate.py --seed` / `BSA_SEED`; `eval_sweep --seeds N` scores mean ± sd |
 | Review maps | `outputs/kyle_review_2026-08-02/` — 1f767, 1f913, 1f333, 1f8d6, SO TIRED ROCK |
 | Viewer | fixed; `arcviewer` self-heals its file-dialog plugin, `arcview <map.zip>` skips the dialog |
 | Tooling | ArcViewer fix source `tools/arcviewer_sfb_fix/`; skill backups `docs/skills-backup/` |
@@ -45,19 +46,28 @@ has ever reported are unresolvable — including several made during the session
 Every ranking, promotion decision and K-item below is untrustworthy until this is addressed. It is
 cheap to work around (score means over ≥3 seeds) and worth understanding properly.
 
+**The cause is found and fixed** (commit 7a5544d; write-up in PROGRESS.md). Nothing in the
+generation path was seeded — not decode sampling, not post-processing. `generate.py --seed` /
+`BSA_SEED` now seeds all three RNGs, and `eval_sweep --seeds N` scores an arm as a mean ± sd. What
+remains:
+
 **Tasks**
-1. Make multi-seed the default in `eval_sweep.py`: an arm's score becomes the mean over N seeds with
-   the sd beside it, and any difference inside 2sd prints as "not resolvable".
-2. Find the variance source. `BEAT_HAND_LEAD_SEED` is the only deliberate seed, yet flow and idiom
-   move too — so either the lead arrangement has far-reaching effects, or something else is
-   non-deterministic. **Decode sampling (temp 0.9 / top-p 0.97) is the obvious suspect; check
-   whether it is seeded at all.**
-3. Decide whether the spread bar (0.35) is the right gate. Identical configs land 0.39–0.46 on it
+1. **Read `logs/overnight/seedrepro_2026-08-02.log`** (running as of 2026-08-02 23:00, ~1.6 h,
+   `scripts/overnight_2026-08-02h.sh`). It answers two things: is a *score* reproducible, not just a
+   map; and is sd(paired, matched seeds) meaningfully below sd(unpaired)? If it is, small levers can
+   be ranked with ~3 seeds. If it is not, **stop ranking small levers** — say so and move the effort
+   to defects big enough to clear the floor.
+2. Decide whether the spread bar (0.35) is the right gate. Identical configs land 0.39–0.46 on it
    with sd up to 0.09 — the bar sits *inside* the noise, which is mechanically why the pass count
-   swings. Either the bar moves or spread stops being a hard gate.
+   swings. Either the bar moves or spread stops being a hard gate. **Seeding does not fix this**: it
+   makes each run repeatable, not the seeds agree.
+3. Retire the fake seed arms in `eval_sweep.py` (`*_s1`…`*_s4`, which vary `BEAT_HAND_LEAD_SEED` and
+   were only ever a way to force a re-roll). `--seeds N` replaces them; leaving both invites someone
+   to average a seed replicate together with a genuinely different config.
 
 **DoD**: an arm's verdict is reproducible — the same config scored twice gives the same pass count,
-or the report says plainly that it cannot.
+or the report says plainly that it cannot. *(Map-level determinism is confirmed; the score-level
+half is what the running job settles.)*
 
 ---
 

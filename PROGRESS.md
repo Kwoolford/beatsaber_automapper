@@ -7,6 +7,66 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## P0: the seed lottery had a cause, and it was that nothing was seeded (2026-08-02)
+
+The binding constraint on the method: five runs of a **byte-identical** configuration scored 4, 2,
+1, 3 and 5 of the six axes. Per-axis sd flow 0.116, handrole 0.317, alignment 0.092. Under those
+floors most single-run differences this project ever reported are unresolvable.
+
+**Cause — CONFIRMED, and duller than any of the hypotheses.** Nothing in the generation path was
+ever seeded. `grep -rn manual_seed` over the repo returned hits in `tests/` only. Three independent
+global RNGs feed a run:
+
+| RNG | Where | What it moves |
+|---|---|---|
+| `torch` | nucleus sampling in `beam_search.py:753,819` (temp 0.9/top-p 0.97); anti-repeat pick in `layout_model.py:592` | note positions and directions → flow, idiom, hand-role |
+| `random` | `postprocess.py` shuffles candidate order when deleting notes to hit the NPS target (`:479`), and picks replacement cut directions (`:565,799`) | **which notes survive** → note times → alignment |
+| `numpy` | audio front end | deterministic today, but nothing enforced it |
+
+The `random` row is the one worth remembering. Alignment is a *note-times* metric and Stage-1 is
+deterministic, so its sd 0.092 looked like it had to come from timing. It did not — it came from
+post-processing deleting a **different note** each run. `postprocess_beatmap` has taken a `seed`
+argument all along; **no caller had ever passed one**.
+
+**Fix**: `generation/seeding.py` + `generate.py --seed` (or `BSA_SEED`). One seeding call per
+process covers all three, because `postprocess` seeds the same global `random` module.
+
+**Verified at the map level** on 1f333, production config:
+
+| run | `ExpertStandard.dat` sha | notes |
+|---|---|---|
+| seed 0 | `d56c7a11…` | 1331 |
+| seed 0 again | `d56c7a11…` | 1331 |
+| seed 1 | `8328283c…` | 1310 |
+| unseeded | `18971e99…` | 1350 |
+| unseeded again | `0176911e…` | 1328 |
+
+Note count swings ~3% across seeds — the mechanism, made visible.
+
+**`eval_sweep --seeds N`**: each arm runs N times at seeds 0..N-1 and is scored as mean ± sd, with
+any delta inside 2 sd printed `NO (noise)`. Replicates are labelled `<arm>#s<n>` so all eight
+existing tables keep working unchanged. Validated by replaying the 5 cached `tf_hl014_ds048` and 3
+`tf_hl014_ioi1_ds048` replicates through the new aggregation: it **reproduces the published table
+exactly** (alignment 0.554 ± 0.092 vs 3.008 ± 0.019, delta +2.454).
+
+**Two bugs found on the way**: `--true-bpm` was parsed but never forwarded to `sweep()`, so the flag
+had been silently doing nothing; and enabling it made a documented landmine live (a true-bpm run
+shared a cache key with the normal run of the same arm and would overwrite it). It now gets its own
+`#truebpm` label.
+
+**What seeding does NOT do — state it before someone misreads the next sweep.** It does not make
+different seeds agree. The across-seed spread should stay ~0.09 on alignment. What changes is that
+each run is now *repeatable*, so the seed is a controlled variable instead of an unknown, and two
+arms can be compared at matched seeds. That paired comparison is only **partial** — draw sequences
+diverge once two configs make different numbers of decisions — so `_seed_aggregate` prints
+sd(paired) beside sd(unpaired) as a measurement rather than an assumption.
+
+**Open at the time of writing**: `scripts/overnight_2026-08-02h.sh` (2 arms × 3 seeds × 24 songs)
+tests whether a *score* is reproducible, not just a map, and measures paired vs unpaired sd on a
+deliberately small lever (ds048 vs ds055). Verdict logic is in the script header.
+
+---
+
 ## Tooling and process: the viewer fix, and TODO.md stopped eating itself (2026-08-02)
 
 Closing entries for the session that shipped the tempo fix. Neither is about map quality; both were
