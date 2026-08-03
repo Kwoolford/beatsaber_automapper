@@ -7,6 +7,62 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★ FIRST PROMOTION IN THE PROJECT'S HISTORY — Kyle graded *Hunger* A+ (2026-08-03)
+
+> *"The vast majority of the 1f333 song is A+ and better than what we had before so promote it."*
+
+Eight defaults flipped. Verified byte-identical to the map he actually played (sha `a432690c…` on
+Hunger, seed 0). Full baseline in `docs/BASELINE_2026-08-03.md`; open work as W1–W7 in TODO.md.
+
+**Song names, since Kyle asked for them**: `1f333` Hunger (Aether Realm) · `1f8d6` Fallen Kingdom
+2022 Remap (CaptainSparklez) · `1f913` Digital Life Hacker (Wotoha) · `1f767` アリスブルー
+(HoneyWorks) · SO TIRED ROCK (NUEKI).
+
+### What he liked
+*Hunger* — the vast majority A+ and better than before. That is the first unambiguous positive verdict
+on a whole map in this project.
+
+### What he did not, synthesised
+
+The single largest theme, and he stated it himself: **"our model still fundamentally struggles to find
+the core aha tempo/instrument that a mapper obviously adheres to."** Three of his five songs failed
+this way — SO TIRED ROCK's dooming bass, Digital Life Hacker's chant pulse, and the guitar drop at
+0:14 that *"I don't think we have ever generated notes for across every model."*
+
+★ **We already had the receipt for this and had not connected it**: Stage-1 `version_4` has only
+`drum_proj` + `mix_proj` — **no instrument projection**, recorded 2026-07-27 as "Stage-1 literally
+cannot hear the guitar". His complaint is that architectural gap heard from the outside. **No decode
+lever can fix an input the model never receives**, which makes W1 a Track B item and the largest open
+problem in the project.
+
+His three proposals are all good and one is testable immediately: a **coincidence detector** — flag
+slots where several stems hit together — because the seeded 274-song per-stem onset cache built
+earlier the same day is exactly the substrate for it, and it needs no retrain.
+
+Secondary themes:
+- **Density is misallocated per song, not globally wrong.** Fallen Kingdom is *"really empty for no
+  reason"* at 3.21 nps while Hunger is A+ at the same global budget — so raising
+  `BEAT_DIFFICULTY_SCALE` would break the good map to fix the bad one. He wants a user-facing
+  *"how many notes do you want"* lever regardless.
+- **Intensity lands in the wrong places** — peak nps 6.5 vs human 5.5, and 9.5 on Hunger. He asked to
+  revive the shelved A5 structure work. ⚠️This is plausibly `BEAT_ONSET_EVIDENCE`'s known cost, which
+  was promoted *with* that cost documented.
+- **Phrases still not respected** — notes stop while a singer is mid-sentence; measured, 3:20–3:28 on
+  Hunger is still 0.54× the song median.
+- **Dot blocks used decoratively.** He gave the rule verbatim: a dot is for a multi-note swing, or a
+  multi-directional single swing. Explicitly deferred by him.
+- **Multi-note swings are a missing capability**, and the right response to grand low-density drops.
+
+### Process instruction, recorded because it constrains everything above
+> *"I'm hesitant to change much because we have a great foundation so we really need to tread
+> carefully, make isolated and tactical changes, and document like crazy."*
+
+And he **declined to name exemplary mappers**: *"we aren't close to exemplary."* So the best-mapper
+reference cohort — needed for any aspirational axis — is blocked **by his choice**. Do not treat it as
+an oversight to work around.
+
+---
+
 ## K2 reachability lever: strength 0.5 lands on human without shrinking anything (2026-08-03)
 
 3 arms × 3 seeds × 24 songs, control `tf_hl014_ds048_trim_ev03`.

@@ -1840,7 +1840,7 @@ def generate_v7_level(
     # scores candidate grids against per-stem onsets, and the stems only exist
     # once Demucs has run — the same stem-union onsets A8 scores against, so the
     # generator is now optimising the quantity the suite measures.
-    if os.environ.get("BEAT_TEMPO_FIT") == "1" and bpm is not None:
+    if os.environ.get("BEAT_TEMPO_FIT", "1") == "1" and bpm is not None:
         try:
             import librosa as _lr
 
@@ -2273,7 +2273,7 @@ def generate_v7_level(
     # K1 decay lever. BEAT_ONSET_EVIDENCE is the exponent on per-window audio
     # onset density; 0 = OFF (prior behaviour). BEAT_ONSET_EVIDENCE_FLOOR keeps a
     # window with no detected onsets from being zeroed outright.
-    _evid_beta = float(os.environ.get("BEAT_ONSET_EVIDENCE", "0.0"))
+    _evid_beta = float(os.environ.get("BEAT_ONSET_EVIDENCE", "0.3"))
     _evid_floor = float(os.environ.get("BEAT_ONSET_EVIDENCE_FLOOR", "0.15"))
     _evid_onsets = _audio_onset_times(waveform, src_sr) if _evid_beta > 0.0 else None
     if _evid_beta > 0.0:
@@ -2386,8 +2386,8 @@ def generate_v7_level(
 
     left_thr  = _nms(beat_probs[:, 0].to(device_obj), thr_L, beat_nms_radius)
     right_thr = _nms(beat_probs[:, 1].to(device_obj), thr_R, beat_nms_radius)
-    if os.environ.get("DENSITY_SELECT") == "1":
-        _gamma = float(os.environ.get("DENSITY_SELECT_GAMMA", "1.5"))
+    if os.environ.get("DENSITY_SELECT", "1") == "1":
+        _gamma = float(os.environ.get("DENSITY_SELECT_GAMMA", "2.5"))
         _win   = float(os.environ.get("DENSITY_SELECT_WIN", "2.0"))
         _slot_sec = (np.arange(n_slots) / BEAT_SUBDIV) * (60.0 / bpm)
         # If hand-role reassignment is on it will de-double most slots (our maps
@@ -2405,7 +2405,7 @@ def generate_v7_level(
         # structure); this only scales the TOTAL note budget those windows
         # compete for, so the shape of the density curve is preserved and only
         # its overall level drops. Default 1.0 = OFF (current behaviour).
-        _diff_scale = float(os.environ.get("BEAT_DIFFICULTY_SCALE", "1.0"))
+        _diff_scale = float(os.environ.get("BEAT_DIFFICULTY_SCALE", "0.48"))
         if _diff_scale != 1.0:
             _bL = max(0, int(round(_bL * _diff_scale)))
             _bR = max(0, int(round(_bR * _diff_scale)))
@@ -2421,7 +2421,7 @@ def generate_v7_level(
         # reassign or delete any note: it biases each hand's per-window budget
         # share, so the hands stay globally balanced and the note count is exactly
         # preserved. Value = target local asymmetry; 0.0 = OFF (prior behaviour).
-        _hl = float(os.environ.get("BEAT_HAND_LEAD", "0.0"))
+        _hl = float(os.environ.get("BEAT_HAND_LEAD", "0.14"))
         _lmul = _rmul = None
         if _hl > 0.0:
             _nw = int((_slot_sec / _win).astype(int).max()) + 1
@@ -2496,7 +2496,7 @@ def generate_v7_level(
     # NB this is deliberately in the v7 path and not in predict_onsets(), which
     # only the legacy generate_level() calls -- a lever placed there would be a
     # silent no-op in production, which is exactly how BEAT_GRID_SUBDIV died.
-    _tt = os.environ.get("BEAT_TRIM_TAIL", "")
+    _tt = os.environ.get("BEAT_TRIM_TAIL", "0.5")
     if _tt:
         try:
             _grace = float(_tt)

@@ -97,7 +97,7 @@ def postprocess_beatmap(
     # K2 (2026-08-03, after Kyle's correction): ease transitions that are far AND
     # soon. This -- not the diagonal thin below -- targets the playability defect.
     # BEAT_REACH = "<hard_reach>:<hard_sec>:<strength>", e.g. "3:0.3:0.7".
-    _rc = os.environ.get("BEAT_REACH", "")
+    _rc = os.environ.get("BEAT_REACH", "3:0.3:0.5")
     if _rc:
         try:
             _hr, _hs, _st = (float(x) for x in _rc.split(":"))

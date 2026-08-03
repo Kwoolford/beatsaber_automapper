@@ -12,48 +12,30 @@ this file had reached 4,076 lines.
 
 ## 📍 CURRENT STATE (2026-08-03)
 
-**Three lever candidates are built, validated and waiting on Kyle's ear. Nothing is promoted.**
-The session's real yield was not the levers though — it was finding that **three separate numbers the
-suite depended on were measurement artifacts** (a loader preferring ExpertPlus, `BPMInfo.dat` read as
-`Info.dat`, and Demucs never seeded), plus **P0 closed**: the generation path is now seeded and a run
-is byte-reproducible.
+**The model was PROMOTED for the first time in the project's history.** Kyle graded *Hunger* (Aether
+Realm) **A+** and said ship it. `generate.py` defaults now carry the full config; a bare invocation
+reproduces the exact map he played.
 
-| | |
-|---|---|
-| Best arm | `tf_hl014_ds048` + `BEAT_TRIM_TAIL=0.5` + `BEAT_ONSET_EVIDENCE=0.3` + `BEAT_REACH=3:0.3:0.5` |
-| Promoted | **nothing.** `generate.py` defaults untouched; every lever default-off |
-| Candidates | **`BEAT_TRIM_TAIL=0.5`** (endings; tail defect closed), **`BEAT_ONSET_EVIDENCE=0.3`** (density follows audio; ⚠️degrades reachability, see K2), **`BEAT_REACH=3:0.3:0.5`** (hard_rate 0.123→0.059 = human, no shrinkage) |
-| Stylistic knob | `BEAT_SPEED_DIAG=6:0.8` — **not a fix.** Kyle wants levers exposed as UI controls; see [[feedback-levers-are-user-facing]] |
-| Suite | 6 axes + A8 drift term; **A4 musical-role built but must not gate anything** (measures the wrong thing for K5) |
-| Seeding | **fixed** — `generate.py --seed` / `BSA_SEED`; `eval_sweep --seeds N` scores mean ± sd; Demucs seeded in the cache builders |
-| Review maps | `outputs/kyle_review_2026-08-03/` — BEFORE / AFTER / **AFTER2** per song; README leads with what to be suspicious of |
-| Caches | onsets `outputs/onset_cache/` (24); **per-stem `outputs/stem_onset_cache/` (274, seeded)** |
-| Viewer | fixed; `arcviewer` self-heals its file-dialog plugin, `arcview <map.zip>` skips the dialog |
-| Tooling | ArcViewer fix `tools/arcviewer_sfb_fix/`; calibration refs snapshotted to `docs/eval_references/` |
+📖 **The baseline is documented in full at [`docs/BASELINE_2026-08-03.md`](docs/BASELINE_2026-08-03.md)**
+— architecture, all eight promoted defaults with their evidence, measured position vs the human
+corpus, how we got here, and every landmine. **Read that before changing anything.** It is the thing
+new work is measured against.
 
-**★ Two standing methodology rules learned 2026-08-03:**
+**Song names** (Kyle asked for names, not ids): `1f333` = **Hunger** (Aether Realm) · `1f8d6` =
+**Fallen Kingdom (2022 Remap)** (CaptainSparklez) · `1f913` = **Digital Life Hacker** (Wotoha) ·
+`1f767` = **アリスブルー** (HoneyWorks) · plus **SO TIRED ROCK** (NUEKI), Kyle's motivation song.
+
+**★ Two standing methodology rules:**
 1. **Never calibrate the human corpus through `scorecard._load_any`** — it prefers ExpertPlus. Use
-   `calibrate_playfeel.load_expert_only`. Three separate human references were wrong because of this.
-2. **Ask "norm or aspiration?" before calibrating any new axis.** Kyle's target is the **best**
-   mappers, so for aspirational axes "the human cohort passes it" is *not* a validity check.
-   See [[feedback-target-is-best-mappers]].
+   `calibrate_playfeel.load_expert_only`. Three human references were wrong because of this.
+2. **Ask "norm or aspiration?" before calibrating any axis.** Kyle's target is the **best** mappers,
+   so "the human cohort passes it" is not a validity check for aspirational axes.
+   ⚠️He has **declined to name exemplary mappers for now** — *"we aren't close to exemplary"* — so that
+   cohort is blocked by his choice, not by oversight.
 
-**Human reference values worth memorising** — **re-verified 2026-08-03 on a strictly-Expert cohort
-after two loader bugs were found** (see PROGRESS.md). Anything not on this list should be re-measured
-before it is trusted:
-
-| value | figure | status |
-|---|---|---|
-| onset precision | **0.930 ± 0.032** | ✅ confirmed (0.9366 on the clean cohort) |
-| timing scatter | **10.35 ± 1.30 ms** | ✅ confirmed (10.20) |
-| Expert nps | **3.91** | ✅ confirmed (3.931) |
-| Expert **peak** nps | **5.5** | ✅ confirmed — ⚠️*not* 6.5, which was a contaminated reading |
-| diagonal share | **0.354** | ⚠️corrected from 0.370 |
-| **double share** | **0.1366** median (p90 0.2505) | 🔴corrected from 0.231 — **that was the p90** |
-| drift (first→last fifth) | **−0.006** median, p90 **0.068** | ✅ new; **humans do not drift** |
-
-⚠️**Never calibrate the human corpus through `scorecard._load_any`** — it prefers ExpertPlus. Use
-`calibrate_playfeel.load_expert_only`.
+**★ And the lesson that cost the most to learn**: *a lever can pass every axis in the suite and still
+carry a defect no axis measures.* `BEAT_ONSET_EVIDENCE` degraded reachability and nothing noticed
+until Kyle's correction forced the metric to exist.
 
 ---
 
@@ -77,146 +59,186 @@ on it at 0.39–0.46. **Recommendation: stop gating on spread**, report it with 
 alarm near 0.15. Not done unilaterally: it changes scorecard semantics and breaks comparability.
 
 
-## 🟠 P1 — PROMOTION (needs Kyle's ear; he is playing `outputs/kyle_review_2026-08-03/`)
+## ✅ P1 — PROMOTED 2026-08-03 (Kyle's call, on *Hunger*)
 
-**Five things would flip together**, and they are not independent:
+> *"The vast majority of the 1f333 song is A+ and better than what we had before so promote it."*
 
-| | why it is in the bundle |
-|---|---|
-| `BEAT_TEMPO_FIT=1` | the 2026-08-02 fix he called *"genuinely beautiful"* |
-| `BEAT_DIFFICULTY_SCALE=0.48` | **must** ship with tempo-fit — it changes slots/second, and 0.55 was fitted to the wrong grid |
-| `BEAT_TRIM_TAIL=0.5` | strongest evidence; tail defect closed across 3 seeds, costs nothing |
-| `BEAT_ONSET_EVIDENCE=0.3` | rhythm improves resolvably ⚠️but **degrades reachability** and pushes peak nps 6.25→6.50 (human 5.5) |
-| `BEAT_REACH=3:0.3:0.5` | `hard_rate` 0.123 → 0.059 = human, with **no** loss of reach distance; repairs the above |
+Eight defaults flipped in `generate.py` / `postprocess.py`: `BEAT_TEMPO_FIT=1`,
+`BEAT_DIFFICULTY_SCALE=0.48`, `DENSITY_SELECT=1`, `DENSITY_SELECT_GAMMA=2.5`, `BEAT_HAND_LEAD=0.14`,
+`BEAT_TRIM_TAIL=0.5`, `BEAT_ONSET_EVIDENCE=0.3`, `BEAT_REACH=3:0.3:0.5`. All still env-overridable.
 
-⚠️**The suite will not endorse the bundle** (npass ~4/6). That is promoting on his ear over the
-scorecard — defensible, since the scorecard has been wrong about "ready" twice and right zero times,
-but it must be a deliberate choice.
+**Verified**: a bare `generate.py` with no env vars reproduces `ExpertStandard.dat` sha `a432690c…`
+on Hunger at seed 0 — byte-identical to the map he played. **Baseline: `docs/BASELINE_2026-08-03.md`.**
 
-⚠️**`BEAT_ONSET_EVIDENCE` is the one to interrogate**: half its supporting evidence is circular
-(`density_corr` and A8 both reference librosa onsets, which the lever consumes), and it is the lever
-that made reachability worse. **`rhythm` is its only independent evidence.**
-
-**Tasks when the answer is yes**: flip the five defaults in `generate.py`, keep env-var overrides to
-disable, re-run the regression at ≥3 seeds, record before/after in PROGRESS.md.
+⚠️Carried into the baseline as known costs: `BEAT_ONSET_EVIDENCE` **degrades reachability** (repaired
+by `BEAT_REACH`) and pushes **peak nps 6.25 → 6.50 against a human 5.5** — which is very likely part
+of what W3 is about. Its only non-circular evidence is the rhythm axis.
 
 ---
 
-## 🎯 K1–K5 — FROM KYLE'S PLAY-THROUGH (2026-08-02)
+## 🎯 W1–W7 — FROM KYLE'S PLAY-THROUGH OF THE PROMOTED MODEL (2026-08-03)
 
-Each claim was checked against data before being written down; measurements are in PROGRESS.md.
-**K1–K3 confirmed with numbers. K4 partly confirmed. K5 not yet measurable.**
+He played `outputs/kyle_review_2026-08-03/*_AFTER2_reach.zip`, graded **Hunger** A+ and told us to
+promote. These are his remaining objections, in his order of annoyance. **Baseline being measured
+against: `docs/BASELINE_2026-08-03.md`.**
 
-### K1 — Timing degrades toward the END of a song
-**Findings + all measurements: PROGRESS.md.** Summary: the tail half is **closed** (`BEAT_TRIM_TAIL`,
-post-music notes 37.5% → ~11%); the **decay half is open**. Humans do **not** drift (quintile
-precision flat 0.937→0.947, drift p90 **0.0677**), so every drift number of ours is our defect. Cause
-is a note-SELECTION defect, **not timing** — no offset ramp exists; ⚠️do not resurrect the tempo
-hypothesis. Stage-1 gives dead outros the same window probability as the body of a song, so nothing
-computed from that probability can fix it.
+★ **His standing instruction on how to work these**: *"I'm hesitant to change much because we have a
+great foundation so we really need to tread carefully, make isolated and tactical changes, and
+document like crazy."* One lever at a time, ≥3 seeds, and nothing promoted without his ear.
 
-**Open work**
-1. Close the decay: 37.5% of maps still exceed the human drift p90 (10% expected). `BEAT_ONSET_EVIDENCE`
-   cut *severity* hard (p90 0.391 → 0.205) but not the count.
-2. ⚠️Only **77 of 400** Expert maps are drift-scorable (need cached onsets) — widen the onset cache
-   before treating that p90 as precise.
-3. The human control splits the corpus: 1f8d6 and 1f8ce drift for humans too, so they are partly
-   song/detector. **Ours alone: 1f336, 1f3d7, 1f767, 1f65d, 1f333** — fix only those.
+⚠️ He also declined to name exemplary mappers *yet*: *"we aren't close to exemplary."* So the
+best-mapper cohort (needed for aspirational axes) stays blocked **by his choice**, not by oversight.
 
-### K2 — REFRAMED BY KYLE 2026-08-03: the defect is REACHABILITY, not diagonals
-> *"I don't like the global thin diagonal, they can be fun in fast passages, but not outside corner
-> in swings followed by another swing that's hard to reach... They should still be playable though
-> that's the core problem not that they are diagonal."*
+---
 
-**Measured immediately and he is right** (`scripts/eval_reachability.py`; a cut carries the hand to
-`p + direction`, so the next note's cost is the travel from *there*):
+### 🔴 W1 — THE MODEL DOES NOT FIND THE CORE TEMPO-CARRYING INSTRUMENT ★ his biggest complaint
+> *"Our model still fundamentally struggles to find the core aha tempo/instrument that a mapper
+> obviously adheres to."*
 
-| metric | ours | diag-thinned | human |
-|---|---|---|---|
-| reach_median | 2.83 | 2.83 | 2.83 |
-| reach_p90 | 3.16 | 3.16 | **3.61** |
-| **hard_rate** (≥3 units within 0.3 s) | **0.1364** | **0.1364** | **0.0592** |
-| corner_exit_rate | 0.243 | 0.233 | 0.185 |
-| **hard_given_diagonal** | **0.0867** | 0.0754 | **0.0773** |
+**Evidence, all from his ear:**
+- **SO TIRED ROCK** (his motivation song, *"always sucked on our model"*): a deep dooming bass lays
+  the tempo for the whole song and *"the notes are stubbornly not being placed on this tempo. They
+  are being placed on all of the other little sounds."*
+- **SO TIRED ROCK @ 0:14** — a big guitar drop *"I don't think we have ever generated notes for
+  across every model."*
+- **SO TIRED ROCK @ 0:46** — a booming guitar plays 3 notes in sync with the booming bass and we map
+  **nothing**: *"this epic coordination of instruments colliding doesn't exist."*
+- **Digital Life Hacker**: a deep powerful bass on an interval other notes line up to (people
+  chanting *"hey, hey, hey, hey"*) *"is not even recognized… they get confused on more electric songs."*
 
-1. **We make 2.3× the human rate of hard transitions** — the real defect.
-2. **Diagonals are blameless**: conditional on a diagonal our hard rate (0.0867) ≈ human (0.0773).
-3. **The diagonal thin moves `hard_rate` by exactly zero.** It was never going to fix this.
-4. ★ **Humans reach FURTHER than us** (p90 3.61 vs 3.16) — they make bigger movements and **give them
-   time**. The defect is distance-per-*time*, not distance.
+★ **This is almost certainly a REPRESENTATION gap, not a decode one, and we already have the receipt**:
+Stage-1 `version_4` has only `drum_proj` + `mix_proj` — **no instrument projection**. It *literally
+cannot hear the guitar* (recorded 2026-07-27). No decode lever can fix an input the model never sees.
+That makes this **Track B**, and the largest open item in the project.
 
-**Open work**
-1. Build a reachability-aware lever: when placing the next note, disincentivise positions that are
-   far from the previous follow-through point *given the time available*. Target `hard_rate`
-   0.136 → ~0.059, and do **not** target distance — shrinking travel would move us away from human.
-2. `corner_exit_rate` 0.243 vs 0.185 is a genuine but secondary excess (1.3× vs the 2.3× on hard_rate).
-3. Diagonal share is still high overall (0.45 vs 0.354) — a **style** difference, not a playability one.
+**His own proposals, all worth building:**
+1. *"Maybe the demucs could parse and allow us to specify?"* — an explicit lead-instrument channel.
+2. *"Maybe demucs should flag specific alignments when key instruments hit the same beat consistently
+   and that could be a big flag for when a note should get placed."* — a **coincidence detector**.
+3. *"Also maybe a sound compared to rest of song to easily draw intensity."* — relative loudness.
 
-**`BEAT_SPEED_DIAG` is reclassified as a STYLISTIC KNOB, not a fix.** Kyle wants the levers exposed in
-a UI so players can customise (e.g. *more* diagonals). Keep it, keep it parameterised and monotone,
-do not promote it as a defect fix. See [[feedback-levers-are-user-facing]].
+**Tasks**
+1. **Coincidence detector first — it is cheap and testable today.** We already have a seeded per-stem
+   onset cache for **274 songs** (`outputs/stem_onset_cache/`). Compute, per slot, how many stems have
+   an onset there; test whether *multi-stem coincidences* predict human note placement better than the
+   union does. **This is his hypothesis stated as a measurement, and it needs no retrain.**
+2. Measure the specific failures: at SO TIRED ROCK 0:14 and 0:46, what do the stem onsets say, what
+   does Stage-1's probability say, and what did the human map do? **Look at the data before theorising**
+   — that has found every real cause in this project.
+3. If (1) holds, the decode lever is to weight the note budget by coincidence count rather than raw
+   onset density (a sharpening of `BEAT_ONSET_EVIDENCE`).
+4. Track B proper: re-add an instrument projection to Stage-1 so the two hand channels and the
+   probability field can differ by instrument. See `docs/stage1_instrument_rebuild.md`.
 
-### K3 — We enter later than a human mapper (and should end on the song's last beat)
-**Evidence**: our first note is 1.9–14 ms from a real onset — so it is *not* misaligned — but we start
-late: 1f333 human 1.91 s vs ours 2.39 s; 1f8d6 1.74 s vs 2.17 s.
+**DoD**: on SO TIRED ROCK, notes land on the bass pulse Kyle describes, and 0:14 and 0:46 are mapped.
+His ear is the judge — no existing axis measures this.
 
-**Kyle explicitly does not want this hardcoded**: *"I'm ok with the first note not being a note every
-time, as sometimes it's just backlight filler that isn't the 'real' start."* The stronger preference
-is the **ending**: *"the ending note should be obvious and grand to give the player that satisfaction
-of beating it on a good note."*
+---
 
-**Tasks**: measure first-note and last-note offsets against the human map across the corpus and close
-the gap where the audio supports it. Prime suspect for the late entry is `section_gate="loud_only"`
-suppressing a quiet intro.
+### 🔴 W2 — FALLEN KINGDOM IS TOO EMPTY; and he wants a "how many notes" lever
+> *"Its on beat, but its also an expert song and we shouldn't be afraid to play a simple beat thats
+> medium tempo. Review the first minute and youll see what I mean. It just feels really empty for no
+> reason."* … *"Maybe we should introduce a toggle that is 'How many notes do you want'."*
 
-**DoD**: first/last-note offsets inside the human corpus range, achieved through better section
-handling rather than a hardcoded "always place a note on the first onset".
+**Evidence**: we play *"like 1 out of 2/3 notes"* of an obvious slow beat. Baseline nps on Fallen
+Kingdom is **3.21** against a corpus median of 3.91 — and this is a *slow* song, so a fixed global
+budget under-serves it.
 
-### K4 — Under-response during build-ups (partly confirmed)
-**Evidence**: notes-per-onset against each song's own median — 1f333 1:30–1:33 at **0.67×** (*"a
-really sick building guitar, but only catches the end and cuts it short"*) and 3:20–3:28 at
-**0.74×**. But 3:05 (1.19×) and 1f767 2:20 (1.46×) carry normal note counts, so those are **not**
-density failures — they belong to K5.
+⚠️**Do not just raise `BEAT_DIFFICULTY_SCALE` globally** — Hunger is A+ at the current budget and he
+separately complains that parts of it are *too* intense (W3). The defect is **per-song / per-section
+allocation**, not the global total.
 
-**Tasks**: detect build-ups/crescendos and respond across the whole phrase rather than its tail.
-Kyle's framing — *"phrase-aware maybe needs better sectioning of when the beginning and the end of
-the phrase is"* — matches the **A5 structure axis that was built and shelved as a negative result**
-(2026-07-27). Re-open it with "cover the whole crescendo, not just its peak" as the target, which is
-sharper than A5 had the first time.
+**Tasks**
+1. Build `BEAT_NOTE_BUDGET` as a **user-facing multiplier** (he wants it in the UI — see
+   [[feedback-levers-are-user-facing]]): clean range, monotone behaviour, default 1.0 = baseline.
+2. Separately, diagnose *why* Fallen Kingdom is starved: is Stage-1's probability low on that beat, or
+   is the budget being spent elsewhere? Dump probabilities against the human map's note times for the
+   first minute.
+3. Check whether the corpus median (3.91) is the wrong target for slow songs — human nps almost
+   certainly correlates with tempo, and we apply one number.
 
-**DoD**: 1f333's 1:30–1:33 window responds at ≥0.9× the song median without inflating density
-elsewhere.
+**DoD**: Fallen Kingdom's first minute plays the main beat; Hunger does not get denser.
 
-**Re-checked 2026-08-03 — tonight's levers nudge but do NOT fix it** (table in PROGRESS.md).
-`BEAT_ONSET_EVIDENCE` moves the 1:30–1:33 build-up 0.83× → 0.87× against a 0.9× DoD, and **3:20–3:28
-sits at 0.54×** — design against *that* window, not 1:30–1:33. 3:05 is above the median, confirming it
-is K5 and not density. ⚠️This binning differs from the one behind the 0.67×/0.74× recorded on
-2026-08-02; compare arms, not sessions.
+---
 
-### K5 — "the average of all of them" (REFRAMED — do not close as refuted)
-**Kyle's target is the BEST mappers**, and his usable form of the claim is *"a great mapper would
-have at least addressed the main instrument when it comes into play."*
+### 🟠 W3 — INTENSITY IS MISALLOCATED (revive the shelved structure work)
+> *"Some parts of the song get really intense to play, even though they are not the main beat where
+> you would expect the peak difficulty to be. Maybe we should revive some of the old work we did with
+> assigning intensity to each part of the song like beat drop and what not and having higher nps for
+> those sections."*
 
-**Three operationalisations, all measured, none showing a defect against the MEDIAN human**
-(numbers in PROGRESS.md): per-section instrument commitment, winner-take-all attribution, and
-entry-events (ours 1.216 vs human 1.167 over 127 maps). A4 passes its own control battery, so it
-detects lead-following — both cohorts simply score like the "average of all stems" control.
+**Evidence**: baseline peak nps **6.5 vs human 5.5**, and on Hunger it reaches **9.5**. So we do have
+peaks — they are in the wrong places. Corroborated by the A5 **structure axis, built and shelved as a
+negative result** (2026-07-27) — it should be re-opened with this sharper target.
 
-🔴 **Blocked on data, and it is a small ask.** The median is a *floor*, not the target, so none of the
-above is an answer. A best-mapper cohort cannot be built from disk: `data/raw/manifest.json` (5,373
-maps) has only `category` (mod requirements), `genre`, `genre_tags` and `downloaded_at` — **no
-rating, downloads, ranked or curated flag anywhere.**
+**Tasks**
+1. Detect sections and classify intensity (drop / chorus / verse / breakdown). `_detect_sections_energy`
+   already exists and `section_gate="loud_only"` uses it — start there rather than rebuilding.
+2. Add his relative-loudness idea: intensity as **energy relative to the rest of the song**, not absolute.
+3. Allocate the note budget by section intensity, so peaks land on drops.
 
-**Open work**
-1. ★ **Ask Kyle to name exemplary mappers/maps** → build the reference cohort from those. Minutes of
-   his time; unblocks *every* aspirational axis, not just K5.
-2. Alternatives if he would rather not: pull BeatSaver ranked/curated flags (network, needs his nod),
-   or drop human references for aspirational axes and state absolute targets.
-3. ⚠️**A4 must not gate anything** meanwhile — it works, but both cohorts score like the union
-   control, so it is not measuring what K5 is about. Reading 3 (lead-by-onset-activity ≠ musical
-   lead) has positive evidence: human commitment sits *below* the union control at every granularity.
-   Next signal to try: pitch salience / melodic contour (`--use-contour` already extracts it).
+**DoD**: peak nps lands in the sections Kyle would name as peaks; Hunger's over-intense passages calm
+down without losing its A+ character.
 
+---
+
+### 🟠 W4 — PHRASES ARE NOT RESPECTED (absorbs the old K4)
+> *"It also still feels like the phrase level playing isn't fully fledged, like normally a mapper
+> builds a sequence through different sections of the song and we still aren't generating according to
+> full phrases, a few times the singer is still finishing a sentence and there's no notes."*
+
+**Measured, still failing**: notes-per-onset against each map's own median — Hunger's 1:30–1:33
+build-up sits at **0.87×** against a 0.9× DoD, and **3:20–3:28 at 0.54×**. Design against the 3:20
+window; it is far worse and barely moved under any lever so far.
+
+**Tasks**
+1. Detect phrase boundaries (vocal lines especially — the `vocals` stem is in the cache now) and
+   ensure a phrase is not abandoned mid-way.
+2. Re-open the shelved A5 structure axis with "cover the whole crescendo, not just its peak".
+
+**DoD**: no phrase ends with the vocal still going; 3:20–3:28 responds at ≥0.9× the song median.
+
+---
+
+### 🟡 W5 — DOT (ANY-DIRECTION) BLOCKS ARE USED DECORATIVELY *(he is deferring this)*
+> *"During the big iconic part of the song around 1.13 the drop uses any directional slice blocks.
+> Its just unnecessary and should use directional blocks."*
+
+★ **His rule, worth recording verbatim** — a dot block has exactly two legitimate purposes:
+1. **Multi-note swings**, where several notes are sliced at once and you want to make it easier.
+2. **A multi-directional single swing** — e.g. a swing that goes up *and* to the right in one
+   interval, on harder maps.
+
+*"I've purposefully ignored this for the time being and figured we could incorporate this feature
+later."* — so **do not build this before W1–W4**; it is recorded so it is not lost.
+
+**Task**: restrict dot emission to those two cases. Note `convert_dot_notes` already converts most
+dots; check why some survive at 1:13 in Hunger.
+
+---
+
+### 🟡 W6 — MULTI-NOTE SWINGS ARE A MISSING FEATURE
+> *"For future reference, big drops that are grand and not note heavy like the one at 1.14 is a
+> perfect candidate for multi note swings."*
+
+We have no concept of a deliberate multi-note swing (several notes taken in one motion). This is a
+**new capability**, not a fix — and it is the legitimate use of dot blocks from W5, so the two should
+be built together.
+
+---
+
+### 🟢 W7 — Hunger's final note was ~0.5 s late
+> *"The final note of the song did not line up together, the map was like .5 seconds late. Maybe an
+> arc viewer thing but taking note."*
+
+⚠️Suspicious given `BEAT_TRIM_TAIL` now cuts at `last_onset + 0.5 s` — **the grace may be exactly what
+he heard.** Cheap to check.
+
+**Tasks**: compare Hunger's last note time against the last audio onset and the song end; if the trim
+grace is the cause, consider snapping the final note to the last strong onset rather than allowing
+0.5 s of slack. Rule out ArcViewer by checking the `.dat` directly.
+
+---
 
 ### 🛡️ Confirmed positives — protect these
 - **Hand-lead alternation**: *"a giant difference maker... noticeably great impact on the flow."*
