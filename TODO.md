@@ -171,7 +171,26 @@ human map drifts 0.147 too, so "1f8d6's final fifth is no longer half as accurat
 partly asking us to beat the detector.
 
 ### K2 — Diagonal cuts INCREASE with speed; they should decrease
-**Evidence**: 1f333 diagonal share by local note rate — **0.516 / 0.477 / 0.530 / 0.653** across
+**CORPUS-VALIDATED 2026-08-03** (`scripts/eval_diagonal_vs_speed.py`, 54 human maps vs 24 of ours;
+results `outputs/diag_vs_speed_2026-08-03.json`). The TODO evidence had been **one song**, and 1f333
+is the half-tempo song the landmine list warns about — so this was the trap, and K2 survived it:
+
+| local nps | 0–4 | 4–7 | 7–10 | **10+** | overall | median slope |
+|---|---|---|---|---|---|---|
+| human | 0.347 | 0.388 | 0.400 | **0.312** | 0.381 | **−0.00445** |
+| ours | 0.466 | 0.476 | 0.536 | **0.631** | 0.477 | **+0.00226** |
+
+★ **The sharpest statement is the 10+ band, not the slope**: humans peak at 7–10 nps and then **back
+off hard** (0.400 → 0.312) exactly where diagonals punish; we lean in (0.536 → **0.631**). We use
+**twice** the human diagonal share in the fastest passages, against +34% in the slowest — which is
+precisely Kyle's framing ("wanted" when slow, "not preferred" when fast).
+
+⚠️**Do not target the slope sign alone.** The per-map slope distributions overlap heavily — 44% of
+*human* maps also rise with speed, against 54% of ours — so slope is a weak discriminator and only
+its median separates. Target the **10+ band level** (0.631 → ~0.31) and the overall level
+(0.477 → 0.370).
+
+**Superseded single-song evidence**: 1f333 diagonal share by local note rate — 0.516 / 0.477 / 0.530 / 0.653 across
 0–4 / 4–7 / 7–10 / 10+ nps, against a human Expert average of **0.370**. Diagonal-heavy everywhere,
 and *most* diagonal exactly where they punish hardest. The correlation should be negative; ours is
 positive.
