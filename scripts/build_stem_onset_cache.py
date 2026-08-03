@@ -126,14 +126,16 @@ def main() -> None:
         print(f"  [{i}/{len(songs)}] {song.stem[:24]:24s} {counts} "
               f"({time.time()-t0:.0f}s){note}")
 
-    print(f"\nreproducibility vs outputs/onset_cache: {agree} match, {disagree} differ")
+    print(f"\nvs outputs/onset_cache: {agree} match, {disagree} differ")
     if disagree:
-        print("⚠ Demucs is NOT bit-reproducible on this machine. Every cached onset")
-        print("  set is therefore a one-off measurement, and any metric compared")
-        print("  across a cache rebuild is comparing two different rulers.")
-    elif agree:
-        print("✓ Demucs reproduces its onsets exactly — cached onset sets are stable")
-        print("  and safe to rebuild. Nobody had verified this before.")
+        print("Differences here are EXPECTED and are not evidence of a problem: the")
+        print("old union cache was built UNSEEDED, this one is seeded, and Demucs's")
+        print("random shift augmentation makes those different draws (measured: same")
+        print("file twice unseeded gave 3649 vs 3711 union onsets; seeded, two runs")
+        print("are bit-identical). What it does mean is that outputs/onset_cache is")
+        print("one arbitrary draw, so every ABSOLUTE A8 bar carries an uncertainty")
+        print("nobody has quantified. Rebuilding it seeded would move every bar at")
+        print("once and needs to be done together with re-deriving them.")
 
 
 if __name__ == "__main__":
