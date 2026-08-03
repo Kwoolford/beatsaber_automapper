@@ -336,9 +336,23 @@ grid that was wrong on 20 of 21 songs. Their conclusions are not necessarily wro
 scored with a bad ruler and never re-checked with a good one. Re-derive before building further on
 them.
 
-### C5 — The 4× double share, still the largest untouched structural defect
-Ours 0.73–0.79 against a human **0.231**. Sits upstream of A2, A6 and the flow spread. Untouched
-since identified.
+### C5 — The double share, still the largest untouched structural defect
+**RE-MEASURED 2026-08-03 on 200 strictly-Expert human maps** (the old figure predates tonight's
+loader fixes, and **0.231 turned out to be the human p90, not the median**):
+
+| | recorded | measured |
+|---|---|---|
+| human | 0.231 | **0.1366** median (p10 0.046, **p90 0.2505**) |
+| ours | 0.73–0.79 | **0.6607** |
+| ratio | ~3.4× | **4.8×** |
+
+So the defect is **worse** than recorded, not better — though our own share has come down from
+0.73–0.79 to 0.66 as a side effect of the difficulty/hand-lead work. Essentially every map we make
+sits above the human **p90**.
+
+Neither new lever touches it (`trim`+`ev03` gives 0.6605 vs 0.6607) — C5 remains genuinely untouched.
+Sits upstream of A2, A6 and the flow spread.
+⚠️Whatever targets this must aim at the **median 0.1366**, not 0.231.
 
 ### C6 — `outputs/` is entirely gitignored (needs a decision) — **it has now bitten twice**
 **PARTLY MITIGATED 2026-08-03**: all seven references are snapshotted to tracked
