@@ -339,8 +339,27 @@ that may be about **rhythmic** commitment (sticking to one pulse or pattern) rat
 **instrumental** commitment, in which case A4 measures the wrong thing entirely and the null is
 irrelevant. The next instrument to try is per-section *pattern* self-similarity, not stem attribution.
 
-**Tasks**: calibrate A4 on the human corpus and run the control battery before it steers anything;
-then build the rhythmic-commitment reading and re-test. Then revisit the phrase-similarity threshold.
+**A4 PASSED ITS CONTROL BATTERY** (`scripts/audit_musical_role.py`) — `follow_lead` scores
+0.890/0.778, `follow_union` 0.336/0.218, `follow_drums` separates the two metrics, `random_times`
+collapses. So the metric genuinely detects lead-following.
+
+🔴 **Which makes the finding this**: **both cohorts sit down among `follow_union` and `random_times`,
+nowhere near `follow_lead`** — and *human* commitment (0.1877) is **below** the literal
+average-of-all-of-them control (0.2175). **Human Expert maps do not follow the section's lead
+instrument either.**
+
+**Tasks** — distinguish three readings, none yet ruled out:
+1. **Kyle is describing excellence, not the norm** (*"a good mapper 100% would have"*); the median of
+   5,000 community maps is not that mapper. ⚠️If so, K5 is a **design goal**, not a defect against
+   humans, and **no human-referenced bar can express it** — which is the first crack in this suite's
+   "match the human corpus" foundation. **Ask Kyle**: is the target a *good* mapper or a *typical*
+   one? This is the one question that decides the axis.
+2. Granularity: 8 s sections and 50 ms attribution may be too coarse for "the lead hand played the
+   solo". Try 2–4 s sections.
+3. "Lead stem by relative activity" may not be musical lead (melody/salience, not onset density).
+
+Then build the **rhythmic**-commitment reading (per-section pattern self-similarity) — "one beat or
+one flow" may never have been about instruments. Then revisit the phrase-similarity threshold.
 
 **DoD**: a metric that separates "follows the section's lead instrument" from "spreads across
 everything", validated on the human corpus, and an answer to his claim either way.
