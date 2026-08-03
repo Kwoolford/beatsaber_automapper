@@ -103,10 +103,26 @@ which is exactly what Kyle heard as "notes playing about 5 seconds after the son
 song-level metric cannot see a song-shaped defect** — the same blind-spot shape as the audio-blind
 suite itself.
 
+**MEASURED 2026-08-02** (`scripts/eval_align_drift.py`, results `outputs/align_drift_2026-08-02.json`).
+The metric exists and is calibrated. Calibrating on humans first was the right call — **humans drift
+too** (quintile precision 0.950 0.942 0.949 0.914 0.920, median drift 0.0385), so a bar at zero drift
+would have repeated the `h_dist` error.
+
+**K1 is confirmed, but not in the shape it was written.** Our cohort *median* drift (0.062) sits
+*inside* the human p10–p90 — the median does not separate us at all. The defect is in the **upper
+tail**: 7/24 maps past the human p90 for drift (29.2%, vs 10% by construction) and 8/24 for notes
+after the last onset (33.3%). Worst: 1f8d6 q1 1.000 → q5 0.571 with **11 notes running 4.43 s past
+the last onset** — Kyle's "about 5 seconds after the song ends", measured. Per-song it reproduces his
+report exactly, including 1f913 *not* drifting.
+
+★ **Keep the methodological lesson**: a cohort-median metric cannot see a subset-of-songs defect —
+the same blind-spot shape as a song-level metric missing a song-shaped defect, one level up. Rank by
+**exceedance over the human p90** and name the songs.
+
 **Tasks**
-1. Add a within-song drift term to A8 (last-fifth vs first-fifth precision, or the fitted slope).
-   Run `scripts/audit_eval_suite.py` on it and calibrate on the human corpus **first** — humans may
-   drift too, and a bar set against a perfect 1.0 would repeat the "more human than human" error.
+1. Run `scripts/audit_eval_suite.py` on the drift metric before it steers anything. Note it is a
+   **conditional** metric: a randomised map has uniformly low precision and therefore ~no drift, so
+   it must be gated on overall precision or a degenerate control will "pass" it.
 2. Diagnose before fixing. Fit tempo per-segment: if the *song's* tempo genuinely moves (live
    playing, a ritardando) the answer is BPM events, not a better global fit. If the song is constant
    and our single fitted tempo accumulates error, the answer is a piecewise fit.
