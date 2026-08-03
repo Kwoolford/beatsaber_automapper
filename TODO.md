@@ -134,8 +134,9 @@ the same blind-spot shape as a song-level metric missing a song-shaped defect, o
    get by construction), improves drift exceedance 29.2% → 20.8%, and **costs nothing** — all five
    non-alignment axes inside noise over 3 seeds. Alignment −0.055, resolvable *only* under paired
    comparison (sd 0.023 vs unpaired 0.113). Details in PROGRESS.md.
-   **Remaining**: the drift/tail sub-metrics were seed-0 only — re-run multi-seed before calling the
-   tail defect closed. Then it is a promotion candidate alongside the P1 pair.
+   **Confirmed on all 3 seeds** (control 37.5/37.5/37.5% maps with tail notes vs trim 12.5/12.5/8.3%;
+   `tail_secs` p90 2.37/2.16/2.06 s vs 0.019/0.019/0.000 s). **The tail defect is closed** and this is
+   now a promotion candidate alongside the P1 pair.
    ⚠️Landmine recorded: energy is the WRONG cut criterion (1f8d6's energy runs 4.7 s past its last
    onset, so an energy cut removed one note); and the lever must live in `generate_v7_level`, not
    `predict_onsets`, which only the legacy path calls.

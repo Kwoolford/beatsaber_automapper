@@ -36,8 +36,20 @@ rhythm −0.000, flow −0.001, idiom −0.002, handrole −0.014, playfeel +0.0
 improvement would have been invisible — it is exactly the size of effect that the seed lottery has
 been swallowing for months.
 
-⚠️ Caveat to carry: the six axes are a 3-seed mean, but the drift/tail sub-metrics above were
-computed on **seed 0 only**. They want a multi-seed pass before anyone calls the tail defect closed.
+**Multi-seed confirmation** (the caveat, closed). All three seeds agree, and tightly:
+
+| | seed 0 | seed 1 | seed 2 |
+|---|---|---|---|
+| control — maps with tail notes | 37.5% | 37.5% | 37.5% |
+| **trim** — maps with tail notes | 12.5% | 12.5% | **8.3%** |
+| control — `tail_secs` p90 | 2.37 | 2.16 | 2.06 |
+| **trim** — `tail_secs` p90 | 0.019 | 0.019 | **0.000** |
+| control — drift median | 0.0653 | 0.0527 | 0.0755 |
+| **trim** — drift median | 0.0485 | 0.0478 | 0.0476 |
+
+Note the trim's drift median is far *steadier* across seeds (sd 0.0005 vs the control's 0.0114):
+tail notes were themselves a major source of seed-to-seed variance in drift. **The tail defect is
+closed.** The decay is not — drift exceedance remains ~20% against 10%.
 
 ---
 
