@@ -122,15 +122,38 @@ computed from that probability can fix it.
 3. The human control splits the corpus: 1f8d6 and 1f8ce drift for humans too, so they are partly
    song/detector. **Ours alone: 1f336, 1f3d7, 1f767, 1f65d, 1f333** — fix only those.
 
-### K2 — Diagonal cuts INCREASE with speed; they should decrease
-**Corpus-validated and a lever exists** (`BEAT_SPEED_DIAG`, default OFF; measurements in PROGRESS.md).
-Human diagonal share **falls** with local speed (0.355/0.346/0.301/**0.236**); ours **rises**
-(0.466/0.476/0.536/**0.631**) = 2.7× in the fastest passages. `6:0.8` lands 7–10 at 0.306 and 10+ at
-0.243 against human 0.301/0.236, **leaving slow bands untouched** — Kyle wants those diagonals.
+### K2 — REFRAMED BY KYLE 2026-08-03: the defect is REACHABILITY, not diagonals
+> *"I don't like the global thin diagonal, they can be fun in fast passages, but not outside corner
+> in swings followed by another swing that's hard to reach... They should still be playable though
+> that's the core problem not that they are diagonal."*
 
-**Open work**: Kyle's ear on `1f333_EXTRA_diagonalfix.zip` (his 2:11 / 2:17), then pick the strength.
-⚠️Overall share is still 0.45 vs human 0.354 — the slow bands are high too, and this lever
-deliberately does not touch them.
+**Measured immediately and he is right** (`scripts/eval_reachability.py`; a cut carries the hand to
+`p + direction`, so the next note's cost is the travel from *there*):
+
+| metric | ours | diag-thinned | human |
+|---|---|---|---|
+| reach_median | 2.83 | 2.83 | 2.83 |
+| reach_p90 | 3.16 | 3.16 | **3.61** |
+| **hard_rate** (≥3 units within 0.3 s) | **0.1364** | **0.1364** | **0.0592** |
+| corner_exit_rate | 0.243 | 0.233 | 0.185 |
+| **hard_given_diagonal** | **0.0867** | 0.0754 | **0.0773** |
+
+1. **We make 2.3× the human rate of hard transitions** — the real defect.
+2. **Diagonals are blameless**: conditional on a diagonal our hard rate (0.0867) ≈ human (0.0773).
+3. **The diagonal thin moves `hard_rate` by exactly zero.** It was never going to fix this.
+4. ★ **Humans reach FURTHER than us** (p90 3.61 vs 3.16) — they make bigger movements and **give them
+   time**. The defect is distance-per-*time*, not distance.
+
+**Open work**
+1. Build a reachability-aware lever: when placing the next note, disincentivise positions that are
+   far from the previous follow-through point *given the time available*. Target `hard_rate`
+   0.136 → ~0.059, and do **not** target distance — shrinking travel would move us away from human.
+2. `corner_exit_rate` 0.243 vs 0.185 is a genuine but secondary excess (1.3× vs the 2.3× on hard_rate).
+3. Diagonal share is still high overall (0.45 vs 0.354) — a **style** difference, not a playability one.
+
+**`BEAT_SPEED_DIAG` is reclassified as a STYLISTIC KNOB, not a fix.** Kyle wants the levers exposed in
+a UI so players can customise (e.g. *more* diagonals). Keep it, keep it parameterised and monotone,
+do not promote it as a defect fix. See [[feedback-levers-are-user-facing]].
 
 ### K3 — We enter later than a human mapper (and should end on the song's last beat)
 **Evidence**: our first note is 1.9–14 ms from a real onset — so it is *not* misaligned — but we start
