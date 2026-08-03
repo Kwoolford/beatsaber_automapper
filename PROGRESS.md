@@ -7,6 +7,41 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## A4 granularity ruled out — and humans sit BELOW the union control (2026-08-03)
+
+Reading 2 of the three K5 explanations was "8 s sections and 50 ms attribution are too coarse for
+*the lead hand played the solo*". Swept the section length with the controls alongside:
+
+| section | ours follow | hum follow | ours commit | hum commit | ctl `follow_lead` | ctl `follow_union` |
+|---|---|---|---|---|---|---|
+| 2 s | 0.305 | 0.333 | 0.378 | 0.280 | **0.805** | 0.367 |
+| 4 s | 0.277 | 0.295 | 0.315 | 0.255 | **0.744** | 0.282 |
+| 8 s | 0.278 | 0.307 | 0.233 | 0.188 | **0.767** | 0.230 |
+
+**Reading 2 is dead.** The picture is identical at every timescale: humans follow slightly *more* and
+commit slightly *less* than we do, and **neither cohort goes anywhere near `follow_lead`** (0.74–0.81
+throughout). Finer sections do not rescue it.
+
+★ **A sharper observation falls out**: human commitment sits **below the `follow_union` control at
+every granularity** (0.280 vs 0.367, 0.255 vs 0.282, 0.188 vs 0.230). A map placed literally on the
+union of all stems is *more* stem-committed than a real human map. That is hard to explain if
+stem-onset attribution captured musical lead at all — human notes evidently do not concentrate on any
+stem's onsets, which is positive evidence for **reading 3: "lead stem by onset activity" is not
+musical lead.** Melody and salience are not onset density, and Demucs' `other`/`vocals` onsets may
+simply not represent the line a mapper hears as the tune.
+
+**Two readings remain**, and they want different things:
+- **Reading 1** (Kyle describes excellence, not the norm) — needs *his answer*, not more measurement.
+- **Reading 3** (the lead definition is wrong) — needs a different signal for "lead": pitch salience
+  or melodic contour rather than onset counts. `data/` already extracts pitch contour for Stage-2
+  (`--use-contour`), so the ingredient exists.
+
+⚠️Whatever comes next, **A4 as it stands should not gate anything**. It passes its battery, so it
+measures *something* real, but both cohorts score like the union control — which means it is not
+currently measuring the thing K5 is about.
+
+---
+
 ## A4 passes its control battery — and says HUMANS don't follow the lead either (2026-08-03)
 
 A4's null on K5 is worth exactly what the metric is worth, and A4 had already been rebuilt once
