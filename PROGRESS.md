@@ -7,6 +7,46 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 🔴 The onset ground truth itself is a random draw — Demucs was never seeded (2026-08-03)
+
+Building a per-stem onset cache for the unbuilt A4 axis turned up something larger than A4.
+
+**Two runs of the same file, in the same process, give different onsets.** Not across versions or
+machines — back to back:
+
+| | union | bass | drums | other | vocals |
+|---|---|---|---|---|---|
+| run 1 | 3649 | 1160 | 1663 | 760 | 671 |
+| run 2 | 3711 | **1258** | 1661 | 766 | 678 |
+
+Bass alone moves **8.4%**. The cached value for that song is 3736, and a third run gave 3777 — four
+draws, four answers. **Demucs applies random shift augmentation and averages the results**, and
+nothing in the cache builder ever seeded it.
+
+**`seed_everything(0)` before separation fixes it completely** — two seeded runs are bit-identical
+(union 3879, every stem count matching). The same fix from tonight's P0 work, in a place nobody had
+looked. Both cache builders now seed, with `DEMUCS_SEED = 0` recorded in the file.
+
+**What this means, stated carefully:**
+
+- **Everything measured tonight remains internally valid.** Every comparison used the *same* cached
+  onset set, so arms were ranked against a single fixed ruler. No conclusion moves.
+- **But every absolute A8 number carries an unquantified uncertainty** from which draw the cache
+  happened to be. Human precision 0.930, scatter 10.35 ms, the rebuilt drift p90 of 0.0677 — each was
+  computed against one particular unseeded Demucs sample. The ±3% variation in union size (and ±8% in
+  a single stem) is *not* in any error bar this project has ever quoted.
+- **Rebuilding the cache seeded would silently move every bar**, which is exactly the situation C6
+  and the spread bar are in: a change that is correct in isolation but breaks comparability with the
+  entire recorded history. **Deliberately not done** — it wants a decision, and the sensible version
+  is "rebuild seeded, then re-derive every bar in the same session and re-baseline together".
+
+★ Third instance tonight of the same shape: **a number nobody had thought to question turned out to be
+a measurement artifact** (ExpertPlus difficulty selection, `BPMInfo.dat`, and now unseeded Demucs).
+In all three the code was doing precisely what it said; nobody had asked whether what it said was what
+was wanted. The A4 axis this was meant to unblock is not built yet.
+
+---
+
 ## K2: the speed-conditioned diagonal lever works, and 0.6 vs 1.0 brackets the target (2026-08-03)
 
 3 arms × 3 seeds × 24 songs, control `tf_hl014_ds048_trim_ev03`.

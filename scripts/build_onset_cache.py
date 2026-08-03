@@ -69,13 +69,23 @@ def audio_paths() -> dict[str, pathlib.Path]:
             out[p.stem] = p
     return out
 
+DEMUCS_SEED = 0
+
 
 def compute_onsets(audio: pathlib.Path) -> tuple[np.ndarray, dict[str, int]]:
     """Union of per-stem librosa onsets. Raises if the mix-only fallback fired."""
     from eval_alignment import _detect_onsets_librosa, _separate_stems
 
     from beatsaber_automapper.data.stem_separator import DEMUCS_SR
+    from beatsaber_automapper.generation.seeding import seed_everything
 
+    # Demucs applies RANDOM shift augmentation and averages the results, so
+    # unseeded it returns different stems every call: measured 2026-08-03,
+    # two runs on the same file in the same session gave 3649 vs 3711 union
+    # onsets, and bass alone varied 1160 vs 1258 (+8%). Seeded, two runs are
+    # bit-identical. Without this the onset ground truth every A8 bar is
+    # measured against is a random draw.
+    seed_everything(DEMUCS_SEED)
     stems = _separate_stems(audio, DEMUCS_SR)
     if not EXPECTED_STEMS.issubset(stems.keys()):
         raise RuntimeError(
