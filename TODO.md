@@ -215,12 +215,31 @@ claim: *"a great mapper would have at least addressed the main instrument when i
    **norm** (corpus median is right) or an **aspiration** (corpus is a floor). See
    [[feedback-target-is-best-mappers]].
 
-**Open work**
-1. **Re-operationalise K5 as an EVENT criterion, which is what he actually described**: when a new
-   instrument *comes in*, does the map acknowledge it at that entry? A4 averaged over 8 s sections,
-   so rare entry events were drowned — that alone may explain the uninformative null. Detect stem
-   entries (activity stepping from low to high) and measure note response *at the entry*.
-2. Then consider a curated top-mapper reference cohort, since the median corpus cannot serve.
+**ENTRY-EVENT TEST DONE 2026-08-03** (stem cache extended to 274 songs so the human cohort is real):
+`entry_response` = notes on the *entering* stem during its entry window, relative to that stem's
+share across the whole map; 1.0 = no reaction.
+
+| | maps | median | p10–p90 | entries/map |
+|---|---|---|---|---|
+| ours | 15 | **1.216** | 0.844–1.618 | 4 |
+| human (strict Expert) | 127 | 1.167 | 0.940–1.566 | 4 |
+
+Both cohorts *do* turn toward an entering instrument, and **we do it slightly more than the median
+human**, with heavily overlapping distributions. So the event reading shows **no defect against the
+median** either — and per Kyle the median is a floor, not the target, so this does not resolve K5.
+
+🔴 **BLOCKED ON DATA, and it is a small ask.** A best-mapper reference cannot be built from what is on
+disk: `data/raw/manifest.json` (5,373 maps) carries only `category` (mod requirements —
+vanilla/chroma/noodle/vivify), `genre`, `genre_tags` (style descriptors like "accuracy", "balanced")
+and `downloaded_at`. **There is no rating, download count, ranked or curated flag anywhere.**
+
+**Options, cheapest first**
+1. ★ **Ask Kyle to name mappers or maps he considers exemplary** and build the reference cohort from
+   those. He knows who they are; this is minutes of his time and unblocks the whole aspirational-axis
+   problem, not just K5.
+2. Fetch BeatSaver metadata (ranked/curated flags, ratings) for the 5,373 ids — needs network and is
+   a data-acquisition decision.
+3. Drop the human reference for aspirational axes and state absolute targets directly.
 2. ~~Granularity~~ — **RULED OUT.** Swept 2 s / 4 s / 8 s: the picture is identical at every
    timescale and neither cohort approaches `follow_lead` (0.74–0.81). Finer sections do not rescue it.
 3. **"Lead stem by relative activity" is probably not musical lead — now with positive evidence.**
