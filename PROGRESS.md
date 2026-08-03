@@ -24,6 +24,12 @@ axis rather than assuming, and the answer is reassuring with exactly one repair 
 Everything expressed in beats, in geometry, or as a pure count was immune by construction. Flow owns
 the only two per-second quantities in the whole reference set, so flow was the only casualty.
 
+**Re-scored the candidates against the corrected reference to check** (cached maps, so it was free):
+flow moved **uniformly** across all three arms — 0.517 / 0.512 / 0.484 → **0.421 / 0.399 / 0.380** —
+and every other axis is bit-identical. No comparison flipped; alignment and rhythm remain the only
+paired-resolvable results. The prediction that this was not load-bearing held, and was checked rather
+than asserted.
+
 `outputs/flow_human_reference.json` regenerated on 200 maps with the fixed loader. Because the old
 MADs were too small, flow *gaps* were being slightly **overstated** — so this correction moves flow
 scores marginally in our favour. ⚠️Flow numbers recorded before this point are not strictly
