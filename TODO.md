@@ -122,12 +122,19 @@ the same blind-spot shape as a song-level metric missing a song-shaped defect, o
    would ramp tens of ms. The notes that land are as accurately placed at the end as at the start —
    **the lost precision is notes matching nothing.** A piecewise fit or BPM events would not touch it.
    ⚠️Do not resurrect the tempo hypothesis for K1.
-3. **The real fix: make the note budget follow onset density down when a song winds down.** As songs
-   end we hold density roughly constant while the music thins — 1f8d6 onsets/s 7.37→4.99 (−32%) but
-   notes/s 1.76→1.68 (−5%); 1f336 onsets/s −71%, ratio 0.248→0.388. Control: **1f913's ratio is flat
-   and its onsets/s is flat — and 1f913 is the one song Kyle said did *not* drift.** Prime suspect is
-   the density-select budget floor / `section_gate="loud_only"`, not the grid. ⚠️Honest exception:
-   1f3d7 drifts 0.187 while its ratio *falls* — the mechanism covers most of the set, not all.
+3. **The decay — allocator exonerated, Stage-1 probabilities indicted** (measured 2026-08-03 via
+   `BEAT_PROBS_DUMP`; table in PROGRESS.md). On 1f8d6's dead outro the onset count is **0** across
+   windows where `wmean` is 0.28–0.42 — *as high as the body of the song* — so the formula allocates
+   ~35 notes to a region with ~2 real onsets. **A decode ceiling computed from `wmean` cannot fix
+   this**, because `wmean` is exactly what is wrong. Two mechanisms, not one:
+   (a) 1f8d6/1f336 — music thins, probability does not follow it down;
+   (b) 1f333/1f3d7 — music does **not** thin, but probability *rises* at the end, so we allocate more
+   notes into the final section. (b) also explains why 1f3d7 was the exception to the earlier
+   notes/onsets mechanism.
+   **Next lever to build**: weight the per-window budget by an *independent* audio onset-strength
+   signal instead of Stage-1's own belief. ⚠️C1 says three decode levers already failed — but all
+   three were functions of Stage-1's probabilities; this one adds information the decode lacks. Still
+   a hypothesis, and it should be tried at ≥3 seeds against `tf_hl014_ds048_trim`.
 4. ~~Stop emitting notes after the last musical onset~~ — **DONE and validated.** `BEAT_TRIM_TAIL`
    (grace in seconds after the last librosa onset, default OFF, `0.5` tested). Over 24 songs it takes
    `tail_after_secs` p90 **2.37 s → 0.019 s** and tail exceedance **37.5% → 12.5%** (10% is what you

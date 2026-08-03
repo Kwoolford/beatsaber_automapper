@@ -7,6 +7,52 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## K1 decay: the budget allocator is innocent — Stage-1's probabilities are the defect (2026-08-03)
+
+Dumped `beat_probs` (`BEAT_PROBS_DUMP`) and compared the per-window allocation the density-select
+formula *would* make against the audio's actual onset density. The allocator does exactly what it
+says: `raw = budget * wmean**gamma / sum(...)`. The inputs are what is wrong.
+
+**1f8d6, the last twelve 2-second windows** — onsets detected vs Stage-1's window-mean probability
+and the resulting allocation:
+
+| t | onsets | wmean | alloc |
+|---|---|---|---|
+| 236 s | **0** | 0.309 | 4.06 |
+| 240 s | **0** | 0.385 | 7.01 |
+| 242 s | **0** | 0.419 | 8.68 |
+| 244 s | 1 | 0.338 | 5.08 |
+| 246 s | **0** | 0.329 | 4.72 |
+
+`wmean` in that dead outro (0.28–0.42) is **as high as the body of the song** (0.279), so ~35 notes
+get allocated to a region containing ~2 real onsets. **No decode ceiling computed from `wmean` can
+fix this, because `wmean` is high.** This is C1's conclusion arriving from a second direction: gains
+have to come from better probabilities, not better picking.
+
+**And the decay has two mechanisms, not one:**
+
+| song | corr(wmean, onsets) | wmean 1st80% → last20% | onsets 1st80% → last20% |
+|---|---|---|---|
+| 1f8d6 | **0.287** | 0.279 → 0.218 (−22%) | 16.3 → 9.0 (−44%) |
+| 1f336 | 0.646 | 0.347 → 0.224 (−35%) | 17.5 → 5.6 (−68%) |
+| 1f333 | 0.681 | 0.344 → **0.388 (rises)** | 27.1 → 26.8 (flat) |
+| 1f3d7 | 0.616 | 0.400 → **0.416 (rises)** | 19.4 → 21.9 (flat) |
+
+1. **1f8d6, 1f336** — the music thins and Stage-1's probability does not follow it down, so we
+   over-allocate into near-dead space.
+2. **1f333, 1f3d7** — the music does *not* thin, but Stage-1's probability **rises** toward the end,
+   so we allocate *more* notes into the final section and the extra ones land on nothing. This also
+   explains why 1f3d7 was the honest exception to the earlier density-tracking mechanism: its
+   notes/onsets ratio *falls*, yet it still drifts.
+
+**The unifying fix, not yet built**: weight the per-window budget by an *independent* audio
+onset-strength signal rather than by Stage-1's own belief. ⚠️C1 records that three decode levers
+already failed to move precision — but all three (density γ, allocation γ, probability floor) were
+functions of Stage-1's probabilities. This one would introduce information the decode does not
+currently have, which is a different proposition. It is still a hypothesis.
+
+---
+
 ## K1: `BEAT_TRIM_TAIL` is a clean positive — and pairing earned its keep (2026-08-03)
 
 The first lever in a long while that moves its target metric and costs nothing measurable.
