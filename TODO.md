@@ -113,9 +113,21 @@ the same blind-spot shape as a song-level metric missing a song-shaped defect, o
 **exceedance over the human p90** and name the songs.
 
 **Tasks**
-1. Run `scripts/audit_eval_suite.py` on the drift metric before it steers anything. Note it is a
-   **conditional** metric: a randomised map has uniformly low precision and therefore ~no drift, so
-   it must be gated on overall precision or a degenerate control will "pass" it.
+1. ~~Control battery~~ — **DONE** (`scripts/audit_align_drift.py`; the standard battery would have
+   flattered it, so drift got its own with a POSITIVE control as well as negatives):
+
+   | variant | precision | drift med | share > human p90 |
+   |---|---|---|---|
+   | human | 0.920 | 0.030 | 10.0% |
+   | timing_random | **0.601** | −0.007 | 10.0% |
+   | timing_jitter | 0.794 | 0.047 | 5.0% |
+   | decay_0.25b | 0.870 | 0.235 | **85%** |
+   | decay_1.00b | 0.852 | 0.293 | **95%** |
+
+   ⚠️**Drift is CONDITIONAL and must never be read without A8's precision gate beside it**: a map with
+   randomised times loses a third of its precision and drift does not notice (−0.007). Confirmed, not
+   assumed. Conversely the `decay_*` controls sit at near-human precision (0.85–0.87) yet drift
+   catches 85–95% of them — so it adds information precision alone does not.
 2. ~~Fit tempo per-segment~~ — **DONE, and the answer is neither branch**
    (`scripts/diag_align_drift_cause.py`). **K1 is a note-SELECTION defect, not a timing one.** There
    is no offset ramp: median match offset across quintiles spans −14.6 to +5.5 ms, non-monotone, and
