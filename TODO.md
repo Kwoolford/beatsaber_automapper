@@ -184,8 +184,17 @@ instrument either.**
    is a **design goal**, no human-referenced bar can express it, and **"the human corpus passes it"
    stops being a validity check for this axis** — the first crack in the suite's foundation.
    **★ ASK KYLE: is the target a good mapper or a typical one?** That one answer decides the axis.
-2. Granularity — try 2–4 s sections instead of 8 s.
-3. "Lead stem by relative activity" may not be musical lead (melody/salience, not onset density).
+2. ~~Granularity~~ — **RULED OUT.** Swept 2 s / 4 s / 8 s: the picture is identical at every
+   timescale and neither cohort approaches `follow_lead` (0.74–0.81). Finer sections do not rescue it.
+3. **"Lead stem by relative activity" is probably not musical lead — now with positive evidence.**
+   Human commitment sits **below the `follow_union` control at every granularity** (0.280 vs 0.367,
+   0.255 vs 0.282, 0.188 vs 0.230): a map placed literally on the union of all stems is *more*
+   stem-committed than a real human map. Human notes do not concentrate on any stem's onsets at all.
+   **Next: use pitch salience / melodic contour as the lead signal instead of onset counts** — the
+   contour extraction already exists for Stage-2 (`--use-contour`).
+
+⚠️**A4 must not gate anything as it stands.** It passes its battery, so it measures something real,
+but both cohorts score like the union control — it is not currently measuring what K5 is about.
 4. Then build the **rhythmic**-commitment reading; "one beat or one flow" may never have been about
    instruments at all.
 
