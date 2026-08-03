@@ -7,6 +7,51 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## K1 decay: onset-evidence weighting works, and β=1.0 overreaches (2026-08-03)
+
+3 arms × 3 seeds × 24 songs. Control is `tf_hl014_ds048_trim`.
+
+| axis | trim | ev0.5 | ev1.0 | |
+|---|---|---|---|---|
+| alignment | 0.381 ±0.097 | 0.221 ±0.058 | 0.183 ±0.016 | improves, **not resolvable at n=3** |
+| rhythm | 0.472 ±0.040 | 0.341 ±0.051 | 0.259 ±0.093 | **improves, resolvable** |
+| idiom | 0.668 ±0.071 | 0.494 ±0.043 | 0.590 ±0.103 | **improves, resolvable** |
+| flow | 0.546 ±0.076 | 0.460 ±0.052 | 0.461 ±0.034 | improves, resolvable *paired only* |
+| handrole | 1.046 ±0.116 | 1.074 ±0.026 | 1.155 ±0.045 | flat / slightly worse |
+| **playfeel** | 0.671 ±0.036 | 0.781 ±0.124 | **1.039 ±0.016** | **worse, monotone in β** |
+| precision | 0.912 | 0.923 | 0.927 | human 0.930 |
+| drift exceedance | 22.2% | 20.8% | 16.7% | 10% by construction |
+
+**Discipline note, applied to my own result**: by the project's own 2 sd rule the alignment gain
+(0.381 → 0.221, pooled sd 0.113) is **not resolvable at n=3** and neither is the precision gain
+(0.912 → 0.923). Only **rhythm** and **idiom** survive the bar. The rest is directionally consistent
+across every seed but unproven — say so rather than quoting the headline number.
+
+**The three pre-registered tells, read in order:**
+
+1. **Precision sailing past human?** No. 0.923 / 0.927 against a human 0.930 ± 0.032 — it approaches
+   and stops. **Passes.**
+2. **Other axes moving?** Yes, but mostly *upward*: rhythm and idiom improve resolvably, flow
+   improves under pairing. The exception is **playfeel, which degrades monotonically in β**
+   (0.671 → 0.781 → 1.039). A monotone dose-response is more convincing than any single delta, so
+   the cost is real even though ev0.5's own playfeel delta is not resolvable. **β=1.0 is a trade;
+   β=0.5 is close to free.**
+3. **Detector-fitting — where does the gain land?** Mean drift reduction (trim → ev1.0) is −0.063 on
+   the five *ours-alone* songs and −0.156 on the two *shared* ones, which at face value is the
+   signature I said would condemn it. But it does not survive inspection: the gain tracks **initial
+   drift magnitude**, not the ours/shared split. The largest ours-alone drifter (1f336, 0.394 → 0.159)
+   gains as much as the largest shared one (1f8d6, 0.357 → 0.118), while the other shared song 1f8ce
+   gains *least* of all (0.404 → 0.331). With 5 songs against 2 this test is weak either way.
+   **Verdict: not clean, not condemning — regression toward the mean explains it better than
+   detector-fitting, and the tell needs a better design before it can settle anything.**
+
+**Where this leaves it**: β=0.5 is the candidate — every axis flat or better, precision approaching
+human without passing it, no resolvable cost. β=1.0 buys more alignment and drift but pays in
+playfeel. Neither is promoted; a 5-seed run is queued to resolve alignment and precision, and to
+place β=0.3 on the trade-off curve.
+
+---
+
 ## K1 decay: the budget allocator is innocent — Stage-1's probabilities are the defect (2026-08-03)
 
 Dumped `beat_probs` (`BEAT_PROBS_DUMP`) and compared the per-window allocation the density-select

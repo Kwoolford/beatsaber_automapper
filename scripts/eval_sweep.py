@@ -514,6 +514,16 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
                                   "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                                   "BEAT_TRIM_TAIL": "0.5",
                                   "BEAT_ONSET_EVIDENCE": "1.0"}, []),
+    # 3-seed result (2026-08-03): rhythm and idiom improve RESOLVABLY at both
+    # betas; alignment 0.381 -> 0.221 -> 0.183 and precision 0.912 -> 0.923 ->
+    # 0.927 are directionally consistent on every seed but NOT resolvable at n=3.
+    # playfeel degrades monotonically in beta (0.671 -> 0.781 -> 1.039), so 1.0 is
+    # a trade and 0.5 is close to free. beta 0.3 places a third point on that
+    # curve; all three go to 5 seeds to settle alignment and precision.
+    "tf_hl014_ds048_trim_ev03": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                                  "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                                  "BEAT_TRIM_TAIL": "0.5",
+                                  "BEAT_ONSET_EVIDENCE": "0.3"}, []),
 
     # --- BUDGET ALLOCATION vs PRECISION (2026-08-02) ------------------------
     # After the tempo fix, the entire remaining alignment gap is onset_precision
