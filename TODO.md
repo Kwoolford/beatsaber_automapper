@@ -315,9 +315,32 @@ vs 0.067; 1f913 0.250 vs 0.292).
 most onsets, so the argmax is nearly predetermined. **His ear has been ahead of the metrics twice —
 treat a null from a blunt instrument as a metric problem, not a refutation.**
 
-**Tasks**: build the **A4 "musical-role correctness"** axis that `docs/eval_suite_v2.md` planned and
-never built — weight stems by salience rather than raw onset count, measure per-section which layer
-the map follows, then re-test the claim. Then revisit the phrase-similarity threshold.
+**A4 BUILT 2026-08-03** (`scripts/eval_musical_role.py`, on a new seeded per-stem onset cache).
+Salience is activity relative to each stem's *own* baseline, so drums cannot lead by simply being
+busiest — the flaw that made the first null meaningless.
+
+| | ours | human (21 maps, same songs) |
+|---|---|---|
+| `role_follow` | 0.2778 | **0.3067** |
+| `role_commitment` | **0.2325** | 0.1877 |
+
+⚠️**Building it required fixing a second bluntness**: crediting every stem within 50 ms made the
+metric blind, because **68% of matched notes match more than one stem** (2.12 of 4 — stems co-occur,
+so a note "on the drums" is usually also on bass and other). Winner-take-all attribution fixed it and
+roughly doubled the separation.
+
+**Result: the instrument-spread reading of K5 is NOT supported, on both attribution schemes.** Our
+maps are *more* committed to one stem per section than human maps, not less. But `role_follow` is
+*lower* (0.278 vs 0.307) — we follow the section's lead a little less often, which is weakly
+consistent with his 3:05 guitar-solo point.
+
+★ **Do not close K5 on this.** His words were *"it doesn't seem to stick to one beat or one flow"* —
+that may be about **rhythmic** commitment (sticking to one pulse or pattern) rather than
+**instrumental** commitment, in which case A4 measures the wrong thing entirely and the null is
+irrelevant. The next instrument to try is per-section *pattern* self-similarity, not stem attribution.
+
+**Tasks**: calibrate A4 on the human corpus and run the control battery before it steers anything;
+then build the rhythmic-commitment reading and re-test. Then revisit the phrase-similarity threshold.
 
 **DoD**: a metric that separates "follows the section's lead instrument" from "spreads across
 everything", validated on the human corpus, and an answer to his claim either way.
