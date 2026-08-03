@@ -525,6 +525,29 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
                                   "BEAT_TRIM_TAIL": "0.5",
                                   "BEAT_ONSET_EVIDENCE": "0.3"}, []),
 
+    # --- K2 SPEED-CONDITIONED DIAGONALS (2026-08-03) -------------------------
+    # Measured on 200 strictly-Expert human maps vs ours, diagonal share by local
+    # note rate: human 0.355/0.346/0.301/0.236 (FALLS), ours 0.466/0.476/0.536/
+    # 0.631 (RISES) -- 2.7x the human share in the fastest passages.
+    # BEAT_SPEED_DIAG="<thresh_nps>:<strength>" rewrites diagonals to the vertical
+    # they lean toward, but ONLY above the threshold, because Kyle wants broad
+    # diagonals kept in slow sections ("a grand orchestra") and objects to them
+    # only when fast ("difficult but possible, and not preferred").
+    # Single-song probe on 1f333 at 6:0.6: 10+ band 0.611 -> 0.354, slope
+    # +0.016 -> -0.017 (human -0.011), slow bands UNTOUCHED, flow angle_change
+    # 17.9 -> 18.1, nps unchanged. ★ One song -- hence this sweep.
+    # Watch: flow (post-hoc direction rewrites are exactly what could hurt it)
+    # and idiom (direction vocabulary is what A3 measures).
+    "tf_trim_ev03_sd6": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                          "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                          "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                          "BEAT_SPEED_DIAG": "6:0.6"}, []),
+    "tf_trim_ev03_sd6f": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                           "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                           "BEAT_SPEED_DIAG": "6:1.0"}, []),
+
+
     # --- BUDGET ALLOCATION vs PRECISION (2026-08-02) ------------------------
     # After the tempo fix, the entire remaining alignment gap is onset_precision
     # (0.902 vs human 0.930; scatter is already better than human). Two candidate

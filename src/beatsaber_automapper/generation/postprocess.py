@@ -94,6 +94,18 @@ def postprocess_beatmap(
     # touching notes whose directions are already correct.
     # convert_dot_notes fills in any residual dot (D=8) notes the model emits at
     # higher temperature; at default temp they're rare but nonzero.
+    # K2 (2026-08-03): thin diagonals in FAST passages only. Default OFF.
+    # BEAT_SPEED_DIAG = "<threshold_nps>:<strength>", e.g. "6:0.6".
+    # Placed before fix_parity on purpose, so parity repairs anything this breaks.
+    _sd = os.environ.get("BEAT_SPEED_DIAG", "")
+    if _sd:
+        try:
+            _t, _s = (float(x) for x in _sd.split(":"))
+        except ValueError:
+            _t, _s = 0.0, 0.0
+        if _s > 0 and _t > 0:
+            beatmap = enforce_speed_diagonals(beatmap, bpm, _t, _s)
+
     beatmap = convert_dot_notes(beatmap)
     beatmap = fix_parity(beatmap)
     beatmap = fix_arc_chain_connectivity(beatmap, bpm)
@@ -870,6 +882,74 @@ def _choose_flow_direction(
             return 1 if curr_y != 2 else 6  # straight down or down-left at top
         else:
             return 0 if curr_y != 0 else 4  # straight up or up-left at bottom
+
+
+def enforce_speed_diagonals(beatmap: DifficultyBeatmap, bpm: float,
+                            thresh_nps: float, strength: float) -> DifficultyBeatmap:
+    """K2: thin diagonal cuts where the passage is FAST, leave them where it is slow.
+
+    Kyle wants broad outside-in diagonals in slow sections and on drops --
+    *"they get the player moving and feel like they are playing a grand
+    orchestra"* -- and objects to them only in fast passages, where they are
+    *"difficult but possible, and not preferred"*. So this is deliberately
+    **speed-conditioned**, not a flat reduction.
+
+    Measured on 200 strictly-Expert human maps against 24 of ours, diagonal share
+    by local note rate:
+
+        local nps    0-4     4-7    7-10     10+
+        human      0.355   0.346   0.301   0.236     falls
+        ours       0.466   0.476   0.536   0.631     rises
+
+    Humans back off exactly where diagonals punish; we lean in, using 2.7x the
+    human share in the fastest passages.
+
+    A diagonal is rewritten to the vertical it already leans toward (up-left and
+    up-right become up; down-left and down-right become down), preserving the
+    vertical component parity depends on. `fix_parity` runs after this and
+    repairs whatever is left.
+
+    Args:
+        beatmap: Map to modify in place.
+        bpm: Song BPM, for converting beats to seconds.
+        thresh_nps: Local note rate above which diagonals start being thinned.
+        strength: Fraction of eligible diagonals rewritten at twice the
+            threshold rate; 0 disables, 1.0 rewrites all of them.
+
+    Returns:
+        The same beatmap.
+    """
+    notes = beatmap.color_notes
+    if not notes or bpm <= 0 or strength <= 0:
+        return beatmap
+    spb = 60.0 / bpm
+    notes.sort(key=lambda n: n.beat)
+    times = [n.beat * spb for n in notes]
+    win = 2.0
+    n = len(times)
+    lo = hi = 0
+    rewritten = 0
+    # Local nps over a 2 s window centred on each note, on the union of hands --
+    # that is what the player actually experiences.
+    for i in range(n):
+        while lo < n and times[lo] < times[i] - win / 2.0:
+            lo += 1
+        while hi < n and times[hi] <= times[i] + win / 2.0:
+            hi += 1
+        nps = (hi - lo) / win
+        d = notes[i].direction
+        if d not in (4, 5, 6, 7) or nps <= thresh_nps:
+            continue
+        # Ramp from 0 at the threshold to `strength` at twice the threshold.
+        frac = min(1.0, (nps - thresh_nps) / max(thresh_nps, 1e-6)) * strength
+        if random.random() >= frac:
+            continue
+        notes[i].direction = 0 if d in (4, 5) else 1
+        rewritten += 1
+    if rewritten:
+        logger.info("enforce_speed_diagonals: rewrote %d/%d diagonal(s) above "
+                    "%.1f nps (strength %.2f)", rewritten, n, thresh_nps, strength)
+    return beatmap
 
 
 def convert_dot_notes(beatmap: DifficultyBeatmap) -> DifficultyBeatmap:
