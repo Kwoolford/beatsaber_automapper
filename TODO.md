@@ -284,6 +284,21 @@ sharper than A5 had the first time.
 **DoD**: 1f333's 1:30–1:33 window responds at ≥0.9× the song median without inflating density
 elsewhere.
 
+**RE-CHECKED 2026-08-03 — tonight's levers did NOT fix K4** (notes-per-onset per 3 s bin, each window
+against that map's own median):
+
+| window | baseline | +trim | +ev0.3 |
+|---|---|---|---|
+| 1:30–1:33 building guitar | 0.83× | 0.83× | **0.87×** |
+| 3:20–3:28 | 0.49× | 0.49× | 0.54× |
+| 3:05 guitar solo | 1.16× | 1.16× | 1.25× |
+
+`BEAT_ONSET_EVIDENCE` nudges both build-ups (+0.04–0.05) but **the DoD is not met** — 0.87× against a
+0.9× target — and 3:20–3:28 is far worse at 0.54×, so that window is the one to design against, not
+1:30–1:33. 3:05 sits *above* the median, confirming it is a K5 problem and not a density one.
+⚠️These use a 3 s-bin notes-per-onset definition, which is **not** the one that produced the 0.67× /
+0.74× recorded on 2026-08-02 — compare arms within this table, not across sessions.
+
 ### K5 — "It does the average of all of them" (NOT MEASURABLE YET — do not close as refuted)
 Kyle heard 1f913 as never committing: *"it doesn't seem to stick to one beat or one flow, it's kinda
 trying to do the average of all of them."* And on 1f333 at 3:05 a guitar solo enters where *"a good
