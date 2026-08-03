@@ -108,7 +108,15 @@ The metric exists and is calibrated. Calibrating on humans first was the right c
 too** (quintile precision 0.950 0.942 0.949 0.914 0.920, median drift 0.0385), so a bar at zero drift
 would have repeated the `h_dist` error.
 
-🔴 **THE K1 HUMAN BAR IS SUSPENDED.** It was calibrated through a loader that silently prefers
+✅ **K1 BAR REBUILT** (strict Expert + exact `Info.dat`; both loader bugs fixed — see PROGRESS.md).
+**Humans do not drift**: quintile precision 0.937 0.940 0.944 0.946 0.947 (flat, slightly *rising*),
+drift median **−0.0060**, **p90 0.0677**, `tail_after_secs` p90 0.0304. Against that bar K1 is
+**worse than first reported**: 48.6% of baseline maps exceed a threshold only 10% of humans reach.
+The levers cut severity hard (p90 0.3914 → **0.2051**, −48%) while exceedance sticks at 37.5%.
+⚠️Only 77 of 400 Expert maps are drift-scorable (cached onsets) — widen the onset cache before
+treating the p90 as precise.
+
+~~THE K1 HUMAN BAR IS SUSPENDED.~~ It was calibrated through a loader that silently prefers
 **ExpertPlus** (see PROGRESS.md). On a strictly-Expert cohort the human drift distribution is far
 wider — median **0.0073**, **p90 0.4618** (not 0.1451) — and humans place post-music notes in
 **32.5%** of maps with `tail_after_secs` p90 **19.25 s** (not 0.0). Against that p90 our maps sit
