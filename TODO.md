@@ -25,6 +25,7 @@ is now complete."* First time in the project's history that his ear and a measur
 | Suite | 6 axes: A1 flow, A2 rhythm, A3 idiom, A6 handrole, A7 playfeel, A8 alignment |
 | Best score | alignment 0.436 ± 0.113 (bar 0.39); npass 4,4,2 across 3 seeds — rank on gaps, not passes |
 | Seeding | **fixed** — `generate.py --seed` / `BSA_SEED`; `eval_sweep --seeds N` scores mean ± sd |
+| Candidates | `BEAT_TRIM_TAIL=0.5` (tail defect closed) + `BEAT_ONSET_EVIDENCE=0.3` — **both default-off, both need Kyle's ear** |
 | Review maps | `outputs/kyle_review_2026-08-02/` — 1f767, 1f913, 1f333, 1f8d6, SO TIRED ROCK |
 | Viewer | fixed; `arcviewer` self-heals its file-dialog plugin, `arcview <map.zip>` skips the dialog |
 | Tooling | ArcViewer fix source `tools/arcviewer_sfb_fix/`; skill backups `docs/skills-backup/` |
@@ -150,10 +151,16 @@ the same blind-spot shape as a song-level metric missing a song-shaped defect, o
    (b) 1f333/1f3d7 — music does **not** thin, but probability *rises* at the end, so we allocate more
    notes into the final section. (b) also explains why 1f3d7 was the exception to the earlier
    notes/onsets mechanism.
-   **Next lever to build**: weight the per-window budget by an *independent* audio onset-strength
-   signal instead of Stage-1's own belief. ⚠️C1 says three decode levers already failed — but all
-   three were functions of Stage-1's probabilities; this one adds information the decode lacks. Still
-   a hypothesis, and it should be tried at ≥3 seeds against `tf_hl014_ds048_trim`.
+   **`BEAT_ONSET_EVIDENCE` BUILT AND MEASURED at 5 seeds — β=0.3 is the candidate.** Weights the
+   per-window budget by librosa onset density instead of Stage-1's belief. At β=0.3, paired against
+   `trim`: **rhythm −0.073 (sd 0.029, resolvable)**, alignment −0.099 (sd 0.047, resolvable),
+   `peak_nps` 6.25 → **6.50 = the human median exactly**, everything else flat. Full write-up and two
+   important caveats in PROGRESS.md:
+   ⚠️**Half the evidence is circular** — `density_corr` and A8 both reference librosa onsets, which is
+   what the lever consumes. `density_corr` must not be cited at all. **Rhythm is the independent
+   result.**
+   ⚠️**n=3 lied twice**: idiom's "resolvable" gain did not replicate and is non-monotone, and n=3
+   underestimated the sds. Treat n=3 as a screen, not a verdict.
 4. ~~Stop emitting notes after the last musical onset~~ — **DONE and validated.** `BEAT_TRIM_TAIL`
    (grace in seconds after the last librosa onset, default OFF, `0.5` tested). Over 24 songs it takes
    `tail_after_secs` p90 **2.37 s → 0.019 s** and tail exceedance **37.5% → 12.5%** (10% is what you

@@ -7,6 +7,56 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## Onset evidence at 5 seeds: β=0.3 is the answer, and n=3 had lied twice (2026-08-03)
+
+3 arms × **5** seeds × 24 songs. Control `tf_hl014_ds048_trim`.
+
+| axis | trim | **ev0.3** | ev0.5 | paired verdict (ev0.3) |
+|---|---|---|---|---|
+| alignment | 0.389 ±0.083 | **0.290 ±0.071** | 0.246 ±0.086 | −0.099, sd 0.047 → **resolvable** |
+| rhythm | 0.451 ±0.049 | **0.379 ±0.052** | 0.330 ±0.039 | −0.073, sd 0.029 → **resolvable** |
+| flow | 0.517 | 0.512 | 0.484 | no change |
+| idiom | 0.621 | 0.677 | 0.548 | **non-monotone**, no claim |
+| handrole | 1.048 | 1.108 | 1.118 | slightly worse, not resolvable |
+| playfeel | 0.677 ±0.112 | **0.670 ±0.050** | 0.783 ±0.088 | flat at β=0.3 |
+| precision | 0.912 | 0.916 | 0.920 | human 0.930 |
+
+**★ n=3 had lied, twice, and in the direction of my own conclusion.**
+1. At n=3, rhythm *and idiom* were "resolvable". At n=5 **idiom does not replicate and is
+   non-monotone in β** (0.621 → 0.677 → 0.548). The earlier claim is withdrawn.
+2. The n=3 **sd estimates were too small** — idiom's sd went 0.043 → 0.107 simply by adding two
+   seeds. With n=3 the sd is nearly as uncertain as the mean, so "resolvable at n=3" is a much
+   weaker statement than it reads. **Treat n=3 as a screen, not a verdict.**
+
+What survives at n=5 is only the **paired** comparison: alignment −0.099 and rhythm −0.073. Per the
+circularity correction below, **rhythm is the independent one** — that is the real result.
+
+**★ The "playfeel regression" was not a regression.** The sub-metrics show it is entirely
+`peak_nps`; mean nps is flat (3.885 / 3.889 / 3.876) and diagonal share slightly *improves*
+(0.480 → 0.474). Measured on 60 human maps, median `peak_nps` is **6.500** (p10 4.4, p90 12.0):
+
+| | trim | **ev0.3** | ev0.5 | human |
+|---|---|---|---|---|
+| peak_nps | 6.250 | **6.500** | 7.000 | **6.500** |
+
+β=0.3 lands *exactly* on the human median. The lever was **correcting an under-peaked map**, and the
+axis scored it as damage because the gap statistic is symmetric about the human value. β=0.5
+overshoots slightly (still well inside p10–p90). The dose-response I called "a real cost" last
+iteration was the map passing *through* the human value — a good reminder that a monotone trend is
+only a cost if you know which side of the target you started on.
+
+**Verdict: β=0.3 is the candidate.** Rhythm improves resolvably (independent of the lever's own
+signal), alignment improves resolvably, peak density lands on the human median, and nothing measurably
+degrades. Modest and defensible — much smaller than the n=3 headline suggested. Still not promoted;
+the decisive test is Kyle playing it.
+
+⚠️**Discrepancy to chase**: this run measured human Expert `nps` median at **4.587** over 60 maps,
+but the project has recorded **3.91** as the human Expert figure and `BEAT_DIFFICULTY_SCALE=0.48` was
+tuned to hit it. If 4.587 is right, our maps are *under*-dense and the density tuning rests on a bad
+target. Different cohorts are the likely cause. Resolve before any further density work.
+
+---
+
 ## ⚠️ CORRECTION: half the onset-evidence evidence is circular (2026-08-03)
 
 Checked what the metrics actually measure against, after the fact, and it changes the reading of the
