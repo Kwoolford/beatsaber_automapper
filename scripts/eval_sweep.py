@@ -538,6 +538,27 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     # 17.9 -> 18.1, nps unchanged. ★ One song -- hence this sweep.
     # Watch: flow (post-hoc direction rewrites are exactly what could hurt it)
     # and idiom (direction vocabulary is what A3 measures).
+    # --- K2 REACHABILITY (2026-08-03, after Kyle rejected the diagonal thin) ----
+    # "They should still be playable though that's the core problem not that they
+    # are diagonal." Measured: hard_rate (reach >=3 units within 0.3 s) ours 0.136
+    # vs human 0.059, while hard_given_diagonal is 0.087 vs 0.077 -- diagonals are
+    # blameless -- and humans reach FURTHER at p90 (3.61 vs 3.16). They make bigger
+    # movements and give them TIME, so the target is far-AND-soon, never distance.
+    # The diagonal thin moved hard_rate by exactly 0.000.
+    # Probe on 1f333 at 3:0.3:0.7 -- hard_rate 0.157 -> 0.035 (human 0.059), i.e.
+    # slightly OVER-corrected, and reach_p90 fell 3.61 -> 3.16. Hence two strengths:
+    # watch whether the weaker one lands on human hard_rate while keeping more of
+    # the reach tail. ⚠️A lever that fixes hard_rate by shrinking every movement has
+    # traded playability for timidity and should be rejected.
+    "tf_trim_ev03_rc05": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                           "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                           "BEAT_REACH": "3:0.3:0.5"}, []),
+    "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                           "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                           "BEAT_REACH": "3:0.3:0.7"}, []),
+
     "tf_trim_ev03_sd6": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                           "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                           "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",

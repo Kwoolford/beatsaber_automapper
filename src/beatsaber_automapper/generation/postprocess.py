@@ -94,6 +94,18 @@ def postprocess_beatmap(
     # touching notes whose directions are already correct.
     # convert_dot_notes fills in any residual dot (D=8) notes the model emits at
     # higher temperature; at default temp they're rare but nonzero.
+    # K2 (2026-08-03, after Kyle's correction): ease transitions that are far AND
+    # soon. This -- not the diagonal thin below -- targets the playability defect.
+    # BEAT_REACH = "<hard_reach>:<hard_sec>:<strength>", e.g. "3:0.3:0.7".
+    _rc = os.environ.get("BEAT_REACH", "")
+    if _rc:
+        try:
+            _hr, _hs, _st = (float(x) for x in _rc.split(":"))
+        except ValueError:
+            _hr = _hs = _st = 0.0
+        if _hr > 0 and _hs > 0 and _st > 0:
+            beatmap = enforce_reachability(beatmap, bpm, _hr, _hs, _st)
+
     # K2 (2026-08-03): thin diagonals in FAST passages only. Default OFF.
     # BEAT_SPEED_DIAG = "<threshold_nps>:<strength>", e.g. "6:0.6".
     # Placed before fix_parity on purpose, so parity repairs anything this breaks.
@@ -882,6 +894,106 @@ def _choose_flow_direction(
             return 1 if curr_y != 2 else 6  # straight down or down-left at top
         else:
             return 0 if curr_y != 0 else 4  # straight up or up-left at bottom
+
+
+# dx, dy of each cut direction (y increases upward); 8 = dot, no follow-through.
+_DIRV = {0: (0, 1), 1: (0, -1), 2: (-1, 0), 3: (1, 0),
+         4: (-1, 1), 5: (1, 1), 6: (-1, -1), 7: (1, -1), 8: (0, 0)}
+
+
+def enforce_reachability(beatmap: DifficultyBeatmap, bpm: float,
+                         hard_reach: float, hard_sec: float,
+                         strength: float) -> DifficultyBeatmap:
+    """Disincentivise transitions that are far AND soon (K2, per Kyle 2026-08-03).
+
+        "I don't like the global thin diagonal, they can be fun in fast passages,
+         but not outside corner in swings followed by another swing that's hard to
+         reach... They should still be playable though that's the core problem not
+         that they are diagonal."
+
+    So the target is **not** diagonals and **not** travel distance. Measured on 150
+    human Expert maps vs ours:
+
+        metric                      ours    human
+        reach_p90                   3.16     3.61     <- humans reach FURTHER
+        hard_rate (>=3u in 0.3s)   0.136    0.059     <- but 2.3x less often
+        hard_given_diagonal        0.087    0.077     <- diagonals are blameless
+
+    Humans make BIGGER movements and give them TIME. So shrinking travel would push
+    us away from human; only the far-AND-soon combination is the defect. A global
+    diagonal thin moved `hard_rate` by exactly 0.000, which is why this exists.
+
+    A cut carries the hand through the note, so after cutting at ``p`` in direction
+    ``d`` the hand sits near ``p + d`` and the next note's cost is measured from
+    there. Only the *second* note of an offending pair moves, to the free cell that
+    most reduces the reach while displacing it least.
+
+    Args:
+        beatmap: Map to modify in place.
+        bpm: Song BPM, for converting beats to seconds.
+        hard_reach: Grid distance at or above which a transition counts as far.
+        hard_sec: Time at or below which it counts as soon.
+        strength: Probability of repairing an offending transition; 0 disables,
+            1.0 repairs all. Kyle asked to *disincentivise*, not eliminate.
+
+    Returns:
+        The same beatmap.
+    """
+    notes = beatmap.color_notes
+    if not notes or bpm <= 0 or strength <= 0:
+        return beatmap
+    spb = 60.0 / bpm
+    notes.sort(key=lambda n: n.beat)
+
+    occupied: dict[float, set[tuple[int, int]]] = {}
+    for n in notes:
+        occupied.setdefault(round(n.beat, 4), set()).add((n.x, n.y))
+
+    fixed = 0
+    for color in (0, 1):
+        hand = [n for n in notes if n.color == color]
+        for a, b in zip(hand, hand[1:]):
+            dt = (b.beat - a.beat) * spb
+            if dt <= 0 or dt > hard_sec:
+                continue
+            dx, dy = _DIRV.get(a.direction, (0, 0))
+            ex, ey = a.x + dx, a.y + dy
+            reach = ((b.x - ex) ** 2 + (b.y - ey) ** 2) ** 0.5
+            if reach < hard_reach:
+                continue
+            if random.random() >= strength:
+                continue
+            key = round(b.beat, 4)
+            taken = occupied.get(key, set())
+            best = None
+            for nx in range(4):
+                for ny in range(3):
+                    if (nx, ny) in taken and (nx, ny) != (b.x, b.y):
+                        continue
+                    r = ((nx - ex) ** 2 + (ny - ey) ** 2) ** 0.5
+                    if r >= hard_reach:
+                        continue
+                    # nearest adequate cell to where the model wanted the note
+                    disp = ((nx - b.x) ** 2 + (ny - b.y) ** 2) ** 0.5
+                    cand = (disp, r)
+                    if best is None or cand < best[0]:
+                        best = (cand, nx, ny)
+            if best is None:
+                continue
+            _, nx, ny = best
+            if (nx, ny) == (b.x, b.y):
+                continue
+            taken.discard((b.x, b.y))
+            taken.add((nx, ny))
+            occupied[key] = taken
+            b.x, b.y = nx, ny
+            fixed += 1
+
+    if fixed:
+        logger.info("enforce_reachability: eased %d transition(s) over %.1f units "
+                    "within %.2fs (strength %.2f)",
+                    fixed, hard_reach, hard_sec, strength)
+    return beatmap
 
 
 def enforce_speed_diagonals(beatmap: DifficultyBeatmap, bpm: float,

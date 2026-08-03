@@ -76,15 +76,29 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--songset", action="store_true",
                     help="process data/eval_songset (the 24 scored songs)")
+    ap.add_argument("--human", type=int, default=0,
+                    help="also process N human maps' audio from data/raw. Needed "
+                         "because any stem-based metric can only score human maps "
+                         "whose song is cached, and the songset alone leaves ~21 "
+                         "human maps -- far too few for an event-based measure.")
     ap.add_argument("--force", action="store_true")
     a = ap.parse_args()
 
-    if not a.songset:
-        sys.exit("nothing to do — pass --songset")
+    if not a.songset and not a.human:
+        sys.exit("nothing to do — pass --songset and/or --human N")
 
     OUT.mkdir(parents=True, exist_ok=True)
-    songs = sorted([p for p in SONGSET.iterdir()
-                    if p.suffix.lower() in (".ogg", ".mp3", ".wav")])
+    songs = []
+    if a.songset:
+        songs += sorted([p for p in SONGSET.iterdir()
+                         if p.suffix.lower() in (".ogg", ".mp3", ".wav")])
+    tmpdir = None
+    if a.human:
+        sys.path.insert(0, str(REPO / "scripts"))
+        from build_onset_cache import raw_audio_paths
+        got = raw_audio_paths(a.human, seed=0, skip=0)
+        print(f"extracted {len(got)} human songs from data/raw")
+        songs += [v for v in got.values()]
     print(f"{len(songs)} songs -> {OUT}\n")
 
     agree = disagree = 0
