@@ -61,9 +61,48 @@ arms can be compared at matched seeds. That paired comparison is only **partial*
 diverge once two configs make different numbers of decisions — so `_seed_aggregate` prints
 sd(paired) beside sd(unpaired) as a measurement rather than an assumption.
 
-**Open at the time of writing**: `scripts/overnight_2026-08-02h.sh` (2 arms × 3 seeds × 24 songs)
-tests whether a *score* is reproducible, not just a map, and measures paired vs unpaired sd on a
-deliberately small lever (ds048 vs ds055). Verdict logic is in the script header.
+### The verification run — P0 DoD MET (`logs/overnight/seedrepro_2026-08-02.log`)
+
+2 arms × 3 seeds × 24 songs, then a byte-comparison probe. Three results, and they were three
+separate questions:
+
+**1. Reproducibility — PASSED.** Regenerating 1f333, 1f767 and 1f913 at seed 0 from a fresh process,
+after a whole sweep had run in between, reproduced the swept maps **byte-identically**
+(`411ba849…`, `6350248c…`, `dce6d034…`). An arm's score is now a function of its config. Re-running
+a sweep can no longer change a verdict. No residual CUDA non-determinism at this granularity.
+
+**2. Across-seed spread — unchanged, as predicted in advance.** alignment sd 0.113 (was 0.092), flow
+0.079, idiom 0.069, handrole 0.127, rhythm 0.024, playfeel 0.041. Seeding never promised to make
+*different* seeds agree; it makes each one repeatable. The prediction was written into the script
+header before the run, and it held.
+
+**3. Paired vs unpaired — helps on exactly one axis.** sd at matched seeds against sd across
+independent runs:
+
+| axis | sd(paired) | sd(unpaired) | |
+|---|---|---|---|
+| alignment | **0.033** | 0.143 | **4.3× tighter** |
+| rhythm | 0.058 | 0.041 | worse |
+| flow | 0.077 | 0.086 | ~same |
+| idiom | 0.135 | 0.096 | worse |
+| handrole | 0.161 | 0.133 | worse |
+| playfeel | 0.066 | 0.055 | ~same |
+
+Alignment pairs well because it is driven by *which notes post-processing deletes* — the python
+`random` stream, consumed similarly by both arms early on. The other five ride the torch decode,
+which diverges as soon as two configs make different numbers of decisions. **Honest caveat: with
+n=3 the sd estimates are themselves very noisy**, so read this as "pairing clearly helps alignment,
+and there is no evidence it helps the rest" — not as a ranking of the other five.
+
+**★ Stop using `npass` to rank anything.** Even with seeds controlled, `tf_hl014_ds048` scored
+**4, 4, 2** across three seeds (sd 1.155) while `tf_hl014_ds055` scored a stable 2, 2, 2. The pass
+count is a threshold applied to noisy gaps, and the spread bar (0.35) sits *inside* the noise — which
+is the mechanical reason the count swings. Rank on per-axis gaps with error bars.
+
+**C3 confirmed, now with error bars.** The density/rhythm tension is real and resolvable:
+`ds055` (4.447 nps) beats `ds048` (3.889 nps) on rhythm by −0.280 and loses playfeel by +0.458, both
+outside 2 sd. Every other axis difference between them is **not resolvable** — including alignment
+(+0.035 against sd 0.113), which several earlier sessions would have reported as a result.
 
 ---
 

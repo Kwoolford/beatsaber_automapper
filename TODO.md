@@ -23,7 +23,7 @@ is now complete."* First time in the project's history that his ear and a measur
 | Best arm | `tf_hl014_ds048` — tempo fit + hand-lead 0.14 + difficulty scale 0.48 |
 | Promoted | **nothing.** `generate.py` defaults untouched; `BEAT_TEMPO_FIT` and `ds048` default-off |
 | Suite | 6 axes: A1 flow, A2 rhythm, A3 idiom, A6 handrole, A7 playfeel, A8 alignment |
-| Best score | alignment 0.554 ± 0.092 (bar 0.39); 4/6 on a good seed; **0/5 seeds pass all six** |
+| Best score | alignment 0.436 ± 0.113 (bar 0.39); npass 4,4,2 across 3 seeds — rank on gaps, not passes |
 | Seeding | **fixed** — `generate.py --seed` / `BSA_SEED`; `eval_sweep --seeds N` scores mean ± sd |
 | Review maps | `outputs/kyle_review_2026-08-02/` — 1f767, 1f913, 1f333, 1f8d6, SO TIRED ROCK |
 | Viewer | fixed; `arcviewer` self-heals its file-dialog plugin, `arcview <map.zip>` skips the dialog |
@@ -51,23 +51,28 @@ generation path was seeded — not decode sampling, not post-processing. `genera
 `BSA_SEED` now seeds all three RNGs, and `eval_sweep --seeds N` scores an arm as a mean ± sd. What
 remains:
 
+**DoD MET** (`logs/overnight/seedrepro_2026-08-02.log`). Regenerating at seed 0 from a fresh process,
+after a whole sweep ran in between, reproduced the swept maps **byte-identically** on all three probe
+songs. An arm's score is now a function of its config. Full write-up in PROGRESS.md.
+
+**What the run also settled:**
+- **Pairing helps exactly one axis.** sd(paired) vs sd(unpaired): alignment **0.033 vs 0.143**
+  (4.3× tighter) because it rides the postprocess `random` stream; the other five ride the torch
+  decode, which diverges once configs differ, and show no benefit. ⚠️n=3, so the per-axis sd
+  estimates are themselves noisy — "pairing helps alignment" is the only safe claim.
+- **★ `npass` is not a ranking statistic.** Even seeded, `tf_hl014_ds048` scored **4, 4, 2** across
+  three seeds. Rank on per-axis gaps with error bars, never on the pass count.
+
 **Tasks**
-1. **Read `logs/overnight/seedrepro_2026-08-02.log`** (running as of 2026-08-02 23:00, ~1.6 h,
-   `scripts/overnight_2026-08-02h.sh`). It answers two things: is a *score* reproducible, not just a
-   map; and is sd(paired, matched seeds) meaningfully below sd(unpaired)? If it is, small levers can
-   be ranked with ~3 seeds. If it is not, **stop ranking small levers** — say so and move the effort
-   to defects big enough to clear the floor.
-2. Decide whether the spread bar (0.35) is the right gate. Identical configs land 0.39–0.46 on it
-   with sd up to 0.09 — the bar sits *inside* the noise, which is mechanically why the pass count
-   swings. Either the bar moves or spread stops being a hard gate. **Seeding does not fix this**: it
-   makes each run repeatable, not the seeds agree.
-3. Retire the fake seed arms in `eval_sweep.py` (`*_s1`…`*_s4`, which vary `BEAT_HAND_LEAD_SEED` and
+1. Decide whether the spread bar (0.35) is the right gate. It sits *inside* the noise, which is the
+   mechanical reason the pass count swings 4/4/2 on an identical config. Either the bar moves or
+   spread stops being a hard gate. **Seeding does not fix this** — it makes each run repeatable, not
+   the seeds agree.
+2. Retire the fake seed arms in `eval_sweep.py` (`*_s1`…`*_s4`, which vary `BEAT_HAND_LEAD_SEED` and
    were only ever a way to force a re-roll). `--seeds N` replaces them; leaving both invites someone
    to average a seed replicate together with a genuinely different config.
-
-**DoD**: an arm's verdict is reproducible — the same config scored twice gives the same pass count,
-or the report says plainly that it cannot. *(Map-level determinism is confirmed; the score-level
-half is what the running job settles.)*
+3. Score every future arm at **≥3 seeds** and quote the sd. Any single-run comparison is now a
+   choice, not a limitation.
 
 ---
 
