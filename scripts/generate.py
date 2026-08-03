@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import os
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -238,12 +239,30 @@ def main() -> None:
              "unset). Use --use-contour / --no-use-contour to force (TASK-3 DoD).",
     )
 
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed every RNG the generation path draws from, making a run "
+             "reproducible: Stage-2 nucleus sampling and the anti-repeat pick "
+             "(torch), and post-processing's note-deletion order and cut-direction "
+             "reassignment (python random). Unset = the historical stochastic "
+             "behaviour. Falls back to the BSA_SEED environment variable.",
+    )
+
     args = parser.parse_args()
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s: %(message)s",
     )
+
+    if args.seed is None and os.environ.get("BSA_SEED"):
+        args.seed = int(os.environ["BSA_SEED"])
+    if args.seed is not None:
+        from beatsaber_automapper.generation.seeding import seed_everything
+
+        seed_everything(args.seed)
 
     audio_path = Path(args.audio)
     if not audio_path.exists():

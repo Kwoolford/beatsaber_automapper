@@ -712,11 +712,16 @@ def _true_bpm(song: pathlib.Path) -> float | None:
         return None
 
 
-def _gen(arm: str, song: pathlib.Path, force: bool,
-         true_bpm: bool = False) -> pathlib.Path | None:
+def _gen(label: str, arm: str, song: pathlib.Path, force: bool,
+         true_bpm: bool = False, seed: int | None = None) -> pathlib.Path | None:
+    """Generate one map. `arm` selects the config; `label` names the cache entry.
+
+    They differ when an arm is replicated across seeds (`--seeds N`), where the
+    label carries the seed so each replicate caches separately.
+    """
     env_over, extra = ARMS[arm]
     CACHE.mkdir(parents=True, exist_ok=True)
-    out = CACHE / f"{arm}__{song.stem}.zip"
+    out = CACHE / f"{label}__{song.stem}.zip"
     if out.exists() and not force:
         return out
     if true_bpm:
@@ -725,6 +730,11 @@ def _gen(arm: str, song: pathlib.Path, force: bool,
             extra = [*extra, "--bpm", str(b)]
     env = dict(os.environ)
     env.update(env_over)
+    if seed is not None:
+        # Read by scripts/generate.py -> generation.seeding.seed_everything.
+        # Without it, decode sampling and post-processing draw from unseeded
+        # RNGs and an "identical" arm scores differently every run.
+        env["BSA_SEED"] = str(seed)
     cmd = [
         sys.executable, "scripts/generate.py", str(song), "--v7", "--difficulty", "Expert",
         "--beat-ckpt", BEAT_CKPT, "--layout-ckpt", LAYOUT_CKPT,
@@ -736,7 +746,7 @@ def _gen(arm: str, song: pathlib.Path, force: bool,
     ]
     r = subprocess.run(cmd, cwd=REPO, env=env, capture_output=True, text=True)
     if r.returncode != 0 or not out.exists():
-        print(f"  ! gen failed {arm}/{song.stem}: {r.stderr.strip().splitlines()[-1] if r.stderr.strip() else 'rc='+str(r.returncode)}")
+        print(f"  ! gen failed {label}/{song.stem}: {r.stderr.strip().splitlines()[-1] if r.stderr.strip() else 'rc='+str(r.returncode)}")
         return None
     return out
 
@@ -876,42 +886,70 @@ def _acquire_cache_lock() -> pathlib.Path:
     return lock
 
 
-def sweep(arms: list[str], force: bool, true_bpm: bool = False) -> None:
+def sweep(arms: list[str], force: bool, true_bpm: bool = False,
+          seeds: int = 0) -> None:
     lock = _acquire_cache_lock()
     try:
-        _sweep_inner(arms, force, true_bpm)
+        _sweep_inner(arms, force, true_bpm, seeds)
     finally:
         lock.unlink(missing_ok=True)
 
 
-def _sweep_inner(arms: list[str], force: bool, true_bpm: bool = False) -> None:
+def _expand_seeds(arms: list[str], seeds: int,
+                  true_bpm: bool = False) -> list[tuple[str, str, int | None]]:
+    """Expand each arm into `seeds` replicates -> [(label, arm, seed), ...].
+
+    seeds=0 keeps the historical one-unseeded-run-per-arm behaviour. Replicates
+    are labelled `<arm>#s<n>` so every downstream table treats them as ordinary
+    arms and the final aggregation can group them back by base arm.
+
+    A `--true-bpm` run gets its own `#truebpm` label too. It used to share a
+    cache key with the normal run of the same arm and silently overwrite it —
+    a landmine that only stayed harmless because the flag was never forwarded.
+    """
+    suf = "#truebpm" if true_bpm else ""
+    if seeds <= 0:
+        return [(f"{a}{suf}", a, None) for a in arms]
+    return [(f"{a}{suf}#s{n}", a, n) for a in arms for n in range(seeds)]
+
+
+def _sweep_inner(arms: list[str], force: bool, true_bpm: bool = False,
+                 seeds: int = 0) -> None:
     songs = _list_songs()
     if not songs:
         print("no songs — run: eval_sweep.py build-songset --n 6")
         return
     _load_human_baseline()
-    print(f"sweep: {len(arms)} arms × {len(songs)} songs\n")
+    plan = _expand_seeds(arms, seeds, true_bpm)
+    base_of = {label: arm for label, arm, _ in plan}
+    labels = [label for label, _, _ in plan]
+    if seeds > 0:
+        print(f"sweep: {len(arms)} arms × {seeds} seeds × {len(songs)} songs "
+              f"= {len(plan) * len(songs)} maps\n")
+    else:
+        print(f"sweep: {len(arms)} arms × {len(songs)} songs\n")
     refs = {s: _get_ref(s) for s in songs}
     results: dict[str, dict[str, dict]] = {}
     import time as _time
-    for ai, arm in enumerate(arms, 1):
-        results[arm] = {}
+    for ai, (label, arm, seed) in enumerate(plan, 1):
+        results[label] = {}
         for si, s in enumerate(songs, 1):
             t0 = _time.time()
-            zp = _gen(arm, s, force, true_bpm)
+            zp = _gen(label, arm, s, force, true_bpm, seed)
             if zp is None:
                 continue
             try:
                 rec = _score(zp, *refs[s])
-                results[arm][s.stem] = rec
-                print(f"  [{ai}/{len(arms)} {arm}] [{si}/{len(songs)} {s.stem[:14]}] "
+                results[label][s.stem] = rec
+                print(f"  [{ai}/{len(plan)} {label}] [{si}/{len(songs)} {s.stem[:14]}] "
                       f"row_conc={rec.get('row_conc')} spear={rec.get('spearman'):+.2f} "
                       f"viol={rec.get('viol')} ({_time.time()-t0:.0f}s)")
             except Exception as e:
-                print(f"  ! score failed {arm}/{s.stem}: {e}")
-        done = results[arm]
+                print(f"  ! score failed {label}/{s.stem}: {e}")
+        done = results[label]
         sp = [v["spearman"] for v in done.values()]
-        print(f"  [{arm}] scored {len(done)}/{len(songs)}  mean Spearman={np.mean(sp):+.3f}" if sp else f"  [{arm}] none scored")
+        print(f"  [{label}] scored {len(done)}/{len(songs)}  mean Spearman={np.mean(sp):+.3f}" if sp else f"  [{label}] none scored")
+    arms = labels
 
     song_names = [s.stem for s in songs]
     print("\n=== density_corr Spearman (DoD >= 0.41) ===")
@@ -1051,11 +1089,151 @@ def _sweep_inner(arms: list[str], force: bool, true_bpm: bool = False) -> None:
         except Exception as e:  # noqa: BLE001
             print(f"({_title} unavailable: {e})")
 
+    if seeds > 0:
+        _seed_aggregate(base_of, labels)
+
     out = CACHE / "leaderboard.json"
     out.write_text(json.dumps(summary, indent=2))
     print(f"\nwrote {out}")
     _write_report(summary, results, song_names, arms, cols)
     return summary, results, song_names
+
+
+AXES = ("alignment", "rhythm", "flow", "idiom", "handrole", "playfeel")
+
+
+def _score_label(label: str) -> dict | None:
+    """Six-axis scorecard for one seed replicate, from its cached maps."""
+    from beatsaber_automapper.evaluation import alignment, playfeel, scorecard
+    zips = sorted(CACHE.glob(f"{label}__*.zip"))
+    if not zips:
+        return None
+    loaded, prec, nps = [], [], []
+    for p in zips:
+        try:
+            r = scorecard._load_any(p)
+        except Exception:  # noqa: BLE001
+            continue
+        if not r:
+            continue
+        loaded.append(r)
+        nps.append(playfeel.playfeel_metrics(r[0], bpm=r[1]).metrics["nps"])
+        if r[2] is not None:
+            prec.append(alignment.alignment_metrics(
+                r[0], bpm=r[1], onsets=r[2]).metrics["onset_precision"])
+    if not loaded:
+        return None
+    res = scorecard.score_cohort(loaded, label)
+    fin = lambda v: [x for x in v if x == x]  # noqa: E731
+    return {"axes": {a.name: a.gap for a in res["axes"]},
+            "npass": sum(1 for a in res["axes"] if a.passed),
+            "prec": float(np.median(fin(prec))) if fin(prec) else float("nan"),
+            "nps": float(np.median(fin(nps))) if fin(nps) else float("nan")}
+
+
+def _seed_aggregate(base_of: dict[str, str], labels: list[str]) -> None:
+    """Report each arm as a mean ± sd over its seeds, and say what is resolvable.
+
+    The point of the table. Five runs of a byte-identical config once scored
+    4, 2, 1, 3 and 5 of six axes, so a single run cannot rank anything. An arm's
+    score is the mean over seeds; a difference from the control smaller than
+    2 sd is printed as noise rather than as a result.
+    """
+    bases: dict[str, list[str]] = {}
+    for label in labels:
+        bases.setdefault(base_of[label], []).append(label)
+
+    # Keep the seed number, so two arms can be compared at the SAME seed.
+    by_seed: dict[str, dict[int, dict]] = {}
+    scored: dict[str, list[dict]] = {}
+    for base, labs in bases.items():
+        got = {}
+        for lab in labs:
+            r = _score_label(lab)
+            if r:
+                got[int(lab.rsplit("#s", 1)[1])] = r
+        if got:
+            by_seed[base] = got
+            scored[base] = [got[k] for k in sorted(got)]
+    if not scored:
+        print("\n(seed aggregate unavailable: nothing scored)")
+        return
+
+    def ms(rows: list[dict], key: str) -> tuple[float, float, int]:
+        v = [r["axes"][key] for r in rows
+             if key in r["axes"] and r["axes"][key] == r["axes"][key]]
+        if not v:
+            return float("nan"), float("nan"), 0
+        return (float(np.mean(v)),
+                float(np.std(v, ddof=1)) if len(v) > 1 else 0.0, len(v))
+
+    order = list(scored)
+    ctrl = order[0]
+    print(f"\n=== SEED AGGREGATE — mean ± sd over seeds (control = {ctrl}) ===")
+    print("An arm is its mean, not its luckiest run. A delta inside 2 sd is NOT a")
+    print("result: the same config scored 4/2/1/3/5 of six axes before seeding.")
+    print("\n" + "metric".ljust(12)
+          + "".join(f"{b[:22]:>24s}" for b in order)
+          + ("" if len(order) < 2 else f"{'delta':>9s}{'resolvable?':>13s}"))
+    print("-" * (12 + 24 * len(order) + (0 if len(order) < 2 else 22)))
+
+    for key in (*AXES, "npass", "prec", "nps"):
+        if key in AXES:
+            cells = [ms(scored[b], key) for b in order]
+        else:
+            cells = []
+            for b in order:
+                v = [r[key] for r in scored[b] if r[key] == r[key]]
+                cells.append((float(np.mean(v)) if v else float("nan"),
+                              float(np.std(v, ddof=1)) if len(v) > 1 else 0.0,
+                              len(v)))
+        line = key.ljust(12) + "".join(f"{m:>16.3f} ±{s:<6.3f}" for m, s, _ in cells)
+        if len(order) >= 2:
+            (m0, s0, _), (m1, s1, _) = cells[0], cells[1]
+            d = m1 - m0
+            # 2 sd of the pooled per-seed spread. Anything smaller is the seed
+            # lottery, not the lever under test.
+            pooled = float(np.sqrt(s0 ** 2 + s1 ** 2))
+            verdict = "yes" if abs(d) >= 2 * pooled and pooled > 0 else "NO (noise)"
+            line += f"{d:>+9.3f}{verdict:>13s}"
+        print(line)
+
+    ident = [b for b in order if len(scored[b]) > 1
+             and all(r["npass"] == scored[b][0]["npass"] for r in scored[b])]
+    print(f"\nseeds per arm: " + ", ".join(f"{b}={len(scored[b])}" for b in order))
+    if ident:
+        print("reproducible pass count (all seeds agree): " + ", ".join(ident))
+
+    # ---- paired comparison: same lever, same seed ----------------------------
+    # Both arms start from the same RNG state, so their early decode draws match
+    # and much of the seed effect cancels. The pairing is partial, not perfect —
+    # the draw sequences diverge once the configs make different numbers of
+    # decisions — so treat a narrower paired sd as an empirical result to check,
+    # not an assumption. If it IS narrower, a lever can be ranked with far fewer
+    # seeds than the unpaired 2 sd test needs.
+    if len(order) >= 2:
+        a, b = order[0], order[1]
+        shared = sorted(set(by_seed[a]) & set(by_seed[b]))
+        if len(shared) >= 2:
+            print(f"\n=== PAIRED vs {a} (same seed both sides, n={len(shared)}) ===")
+            print(f"{'axis':12s}{'paired delta':>16s}{'sd(paired)':>13s}"
+                  f"{'sd(unpaired)':>15s}{'verdict':>13s}")
+            for key in AXES:
+                d = [by_seed[b][s]["axes"][key] - by_seed[a][s]["axes"][key]
+                     for s in shared
+                     if key in by_seed[a][s]["axes"] and key in by_seed[b][s]["axes"]]
+                d = [x for x in d if x == x]
+                if len(d) < 2:
+                    continue
+                md, sd = float(np.mean(d)), float(np.std(d, ddof=1))
+                _, s0, _ = ms(scored[a], key)
+                _, s1, _ = ms(scored[b], key)
+                unp = float(np.sqrt(s0 ** 2 + s1 ** 2))
+                verdict = "yes" if sd > 0 and abs(md) >= 2 * sd else "NO (noise)"
+                print(f"{key:12s}{md:>+16.3f}{sd:>13.3f}{unp:>15.3f}{verdict:>13s}")
+            print("\nIf sd(paired) << sd(unpaired), the seed effect is shared and")
+            print("pairing is the cheaper way to rank arms. If they are similar,")
+            print("the lever perturbs the decode too early for pairing to help.")
 
 
 def _render(arm: str, song: str) -> str | None:
@@ -1166,6 +1344,12 @@ def main() -> None:
     sw = sub.add_parser("sweep")
     sw.add_argument("--arms", default=None, help="comma list; default all")
     sw.add_argument("--force", action="store_true", help="regenerate even if cached")
+    sw.add_argument("--seeds", type=int, default=0,
+                    help="Run each arm N times with seeds 0..N-1 and score it as the "
+                         "mean +- sd over them, flagging any difference inside 2 sd as "
+                         "noise. 0 = one unseeded run per arm (the historical behaviour, "
+                         "under which five identical configs scored 4/2/1/3/5 of six "
+                         "axes). Use >= 3 before believing any ranking.")
     sw.add_argument("--true-bpm", action="store_true",
                     help="generate with the human map's declared BPM. Tempo detection is "
                          "wrong on 30%% of the eval set and the beat-domain rhythm axis "
@@ -1186,7 +1370,9 @@ def main() -> None:
         bad = [x for x in arms if x not in ARMS]
         if bad:
             sys.exit(f"unknown arms: {bad}")
-        sweep(arms, a.force)
+        # --true-bpm was parsed but never forwarded, so the flag silently did
+        # nothing; fixed 2026-08-02 along with the seed work.
+        sweep(arms, a.force, a.true_bpm, a.seeds)
 
 
 if __name__ == "__main__":
