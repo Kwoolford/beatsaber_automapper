@@ -35,25 +35,12 @@ share **0.231**.
 
 ---
 
-## 🔴 P0 — THE SEED LOTTERY BLOCKS EVERYTHING DOWNSTREAM
+## 🔴 P0 — SEED LOTTERY: **CLOSED**, with three habits to keep
 
-Five runs of an **identical** configuration scored 4, 2, 1, 3 and 5 of six axes. Measured per-axis
-standard deviations: **flow 0.116, handrole 0.317, alignment 0.092, rhythm 0.076, idiom 0.065,
-playfeel 0.040**.
-
-**Why this is P0 rather than a caveat:** with those floors, most single-run differences this project
-has ever reported are unresolvable — including several made during the session that measured them.
-Every ranking, promotion decision and K-item below is untrustworthy until this is addressed. It is
-cheap to work around (score means over ≥3 seeds) and worth understanding properly.
-
-**The cause is found and fixed** (commit 7a5544d; write-up in PROGRESS.md). Nothing in the
-generation path was seeded — not decode sampling, not post-processing. `generate.py --seed` /
-`BSA_SEED` now seeds all three RNGs, and `eval_sweep --seeds N` scores an arm as a mean ± sd. What
-remains:
-
-**DoD MET** (`logs/overnight/seedrepro_2026-08-02.log`). Regenerating at seed 0 from a fresh process,
-after a whole sweep ran in between, reproduced the swept maps **byte-identically** on all three probe
-songs. An arm's score is now a function of its config. Full write-up in PROGRESS.md.
+Cause and fix in PROGRESS.md (commits `7a5544d`, `7869115`): nothing in the generation path was ever
+seeded. `generate.py --seed` / `BSA_SEED` + `eval_sweep --seeds N`. **DoD met** — regenerating at
+seed 0 from a fresh process, after a whole sweep ran in between, reproduced the swept maps
+**byte-identically** on all three probe songs.
 
 **What the run also settled:**
 - **Pairing helps exactly one axis.** sd(paired) vs sd(unpaired): alignment **0.033 vs 0.143**
