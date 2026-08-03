@@ -51,10 +51,16 @@ seed 0 from a fresh process, after a whole sweep ran in between, reproduced the 
   three seeds. Rank on per-axis gaps with error bars, never on the pass count.
 
 **Tasks**
-1. Decide whether the spread bar (0.35) is the right gate. It sits *inside* the noise, which is the
-   mechanical reason the pass count swings 4/4/2 on an identical config. Either the bar moves or
-   spread stops being a hard gate. **Seeding does not fix this** — it makes each run repeatable, not
-   the seeds agree.
+1. Decide whether the spread bar (0.35) is the right gate. **Evidence gathered 2026-08-03**: the bar
+   is not miscalibrated — the held-out human cohort scores `min_spread` **0.923** and 0.35 was set
+   deliberately low as a *mode-collapse alarm*, not a human-likeness demand. The problem is that **we
+   sit right on it** (0.39–0.46, about half the human value) with sd up to 0.09, so pass/fail is a
+   coin flip. **Recommendation: stop using spread as a hard pass/fail gate** — report it as a number
+   with its sd, and keep a hard alarm only at a much lower threshold (~0.15) where crossing really
+   does mean collapse. ⚠️Not done unilaterally: it changes scorecard semantics and would make tonight's
+   numbers incomparable with everything recorded before it. Wants a deliberate call.
+   ★Note this is the same conclusion as "`npass` is not a ranking statistic", reached from the other
+   end — a threshold sitting inside the noise cannot gate anything.
 2. ~~Retire the fake seed arms~~ — **DONE.** The 11 re-roll arms (`prod_rep`, `hl014_seed*`,
    `*_s1`…`*_s4`) are now in `DEPRECATED_ARMS`: excluded from a bare sweep, flagged in `list-arms`,
    but **not deleted** — PROGRESS.md quotes noise-floor numbers derived from their cached maps, and

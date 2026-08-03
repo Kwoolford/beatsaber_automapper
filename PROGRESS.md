@@ -7,6 +7,41 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ⚠️ CORRECTION: half the onset-evidence evidence is circular (2026-08-03)
+
+Checked what the metrics actually measure against, after the fact, and it changes the reading of the
+result above. **`BEAT_ONSET_EVIDENCE` weights the note budget by librosa onsets on the mix. Three of
+the metrics it "improves" are themselves scored against librosa onsets:**
+
+| metric | reference | independent of the lever? |
+|---|---|---|
+| `density_corr` | `drums ∪ other` librosa onsets (`eval_sweep._get_ref`) | **no — near-tautological** |
+| A8 alignment / precision | union of per-stem librosa onsets (`build_onset_cache.py`) | **partly** |
+| rhythm, idiom, flow, handrole, playfeel | note patterns vs the human corpus | **yes** |
+
+Graded honestly:
+
+- **`density_corr` must not be cited for this lever.** Allocating the budget ∝ onset density and then
+  measuring the correlation of note density against onset density is close to measuring the input.
+  It moves 0.408 → 0.555 → 0.612 with sd ~0.002, and that near-perfect consistency is itself the
+  tell — it is the lever's own definition coming back.
+- **Alignment and precision are partly circular but not mechanical.** A different detector (per-stem
+  union vs mix) and, more importantly, the lever only sets a window's *budget*; which slot inside the
+  window gets the note is still Stage-1's top-k pick, and that pick still has to land within 50 ms.
+  So there is real signal here — just less than it first appeared, and the pre-registered "does
+  precision sail past human" tell is weaker evidence than I credited it with.
+- **The independent evidence is rhythm and idiom** — pattern metrics calibrated on human maps, with
+  no onset detector anywhere in them. Both improved *resolvably* at n=3. Flow improved under pairing.
+  **Playfeel, equally independent, got worse.**
+
+**So the defensible claim is narrower than the one above**: the lever demonstrably improves the
+*pattern* axes (rhythm, idiom) and demonstrably costs playfeel; its apparent gains on the
+onset-referenced axes are inflated by shared machinery and cannot carry the argument on their own.
+This is the `h_dist` failure trying to happen again, caught this time by asking what the reference
+was before quoting the number.
+
+---
+
 ## K1 decay: onset-evidence weighting works, and β=1.0 overreaches (2026-08-03)
 
 3 arms × 3 seeds × 24 songs. Control is `tf_hl014_ds048_trim`.
