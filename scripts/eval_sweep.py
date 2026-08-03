@@ -452,6 +452,21 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "tf_hl014_ds048": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                         "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1"}, []),
 
+    # --- K1 TAIL TRIM (2026-08-03) ------------------------------------------
+    # Kyle: "notes playing about 5 seconds after the song ends". Measured, 8/24
+    # of our maps place notes past the last detected onset; 1f8d6 runs 11 notes
+    # 4.43 s past it, against a human corpus that essentially never does.
+    # BEAT_TRIM_TAIL is the grace in seconds allowed after the last librosa
+    # onset. Single-song probe on 1f8d6: tail notes 11 -> 2, tail seconds
+    # 4.43 -> 0.53, and it costs 4 notes out of 494.
+    # ★ It is NOT expected to fix the drift -- the probe moved drift only
+    # 0.429 -> 0.378 against a human p90 of 0.145. Tail notes and end-of-song
+    # decay are two defects; this arm prices the cheap one and, more importantly,
+    # checks the trim does not regress the other five axes.
+    "tf_hl014_ds048_trim": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
+                             "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                             "BEAT_TRIM_TAIL": "0.5"}, []),
+
     # --- BUDGET ALLOCATION vs PRECISION (2026-08-02) ------------------------
     # After the tempo fix, the entire remaining alignment gap is onset_precision
     # (0.902 vs human 0.930; scatter is already better than human). Two candidate

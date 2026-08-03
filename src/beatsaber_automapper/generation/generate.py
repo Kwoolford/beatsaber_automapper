@@ -481,6 +481,100 @@ def _quantize_to_beat_grid(
     return sorted(snapped)
 
 
+def _last_onset_sec(waveform: torch.Tensor, sample_rate: int) -> float | None:
+    """Time (s) of the last detected musical onset, or None if undetectable.
+
+    Energy is the wrong criterion for K1 and this is why: on 1f8d6 the last
+    onset is at 245.12 s but RMS energy persists to 249.78 s (outro decay,
+    reverb, a held pad). The eleven stray notes live in exactly that gap, so an
+    energy threshold structurally cannot remove them — measured, it dropped one.
+
+    Uses librosa on the mix. Deliberately NOT the per-stem union that A8 scores
+    against: cutting on the evaluation's own detector would be optimising the
+    metric directly, the `h_dist` failure. This is a related but independent
+    detector, and "no notes after the music stops" is a musical rule the human
+    corpus independently confirms (humans place essentially none: p90 = 0.0 s).
+    """
+    try:
+        import librosa
+    except ImportError:
+        return None
+    x = waveform.detach().cpu().float()
+    if x.ndim > 1:
+        x = x.mean(dim=0) if x.shape[0] <= 2 else x.reshape(-1)
+    y = x.reshape(-1).numpy().astype(np.float32)
+    if y.size < sample_rate:
+        return None
+    try:
+        ons = librosa.onset.onset_detect(y=y, sr=sample_rate, units="time",
+                                         backtrack=True)
+    except Exception:  # noqa: BLE001
+        return None
+    return float(np.max(ons)) if len(ons) else None
+
+
+def _music_end_sec(waveform: torch.Tensor, sample_rate: int, frac: float,
+                   hop: int = 512) -> float | None:
+    """Time (s) after which the song is effectively silent, or None if unclear.
+
+    Serves K1. Kyle, on the tempo-fix maps: *"notes playing about 5 seconds
+    after the song ends"*. Measured: 8/24 of our maps place notes past the last
+    detected onset, the worst (1f8d6) running 11 notes 4.43 s past it, against a
+    human corpus that essentially never does (p90 = 0.0 s).
+
+    **Why energy, and not Stage-1's own probabilities.** Thresholding our own
+    onset probability would be circular — every selected slot has already
+    cleared that threshold, so nothing would be removed. The defect is precisely
+    that Stage-1 fires where the evaluation's detector hears nothing. Energy is
+    an independent signal, and "the song has ended" is a physical fact about the
+    audio rather than a second opinion about onsets.
+
+    The cut is the last frame whose smoothed RMS exceeds `frac` of the song's
+    MEDIAN energy — median, not max, so one loud drop cannot drag the threshold
+    above a quiet-but-real outro.
+
+    Args:
+        waveform: Audio, any shape reducible to mono along the last axis.
+        sample_rate: Sample rate of `waveform`.
+        frac: Fraction of median energy below which the song counts as over.
+        hop: Frame hop in samples for the RMS envelope.
+
+    Returns:
+        Cut time in seconds, or None if the heuristic cannot decide.
+    """
+    if frac <= 0:
+        return None
+    x = waveform.detach().cpu().float()
+    if x.ndim > 1:
+        x = x.mean(dim=0) if x.shape[0] <= 2 else x.reshape(-1)
+    x = x.reshape(-1).numpy().astype(np.float64)
+    n = x.size // hop
+    if n < 4:
+        return None
+    frames = x[: n * hop].reshape(n, hop)
+    rms = np.sqrt((frames ** 2).mean(axis=1))
+
+    # ~0.25 s of smoothing: long enough to ride over the gaps between beats,
+    # short enough not to smear the end of the song by seconds.
+    fps = sample_rate / hop
+    k = max(1, int(round(0.25 * fps)))
+    if k > 1 and rms.size >= k:
+        c = np.cumsum(np.insert(rms, 0, 0.0))
+        sm = (c[k:] - c[:-k]) / k
+        pad = k // 2
+        sm = np.pad(sm, (pad, max(0, rms.size - sm.size - pad)), mode="edge")[: rms.size]
+    else:
+        sm = rms
+
+    med = float(np.median(sm))
+    if not np.isfinite(med) or med <= 0:
+        return None
+    live = np.flatnonzero(sm > frac * med)
+    if live.size == 0:
+        return None
+    return float(live[-1]) / fps
+
+
 def _apply_density_curve(
     onset_frames: list[int],
     difficulty_idx: int,
@@ -2345,6 +2439,45 @@ def generate_v7_level(
                     len(left_thr), len(left_onsets), len(right_thr), len(right_onsets))
     else:
         left_onsets, right_onsets = left_thr, right_thr
+
+    # K1: drop slots landing after the music has stopped. Default OFF, like
+    # every other lever here. BEAT_TRIM_TAIL is the GRACE in seconds allowed
+    # after the last detected onset (0.5 is a sane starting point); the cut is
+    # last_onset + grace, falling back to a silence cut if onset detection fails.
+    # NB this is deliberately in the v7 path and not in predict_onsets(), which
+    # only the legacy generate_level() calls -- a lever placed there would be a
+    # silent no-op in production, which is exactly how BEAT_GRID_SUBDIV died.
+    _tt = os.environ.get("BEAT_TRIM_TAIL", "")
+    if _tt:
+        try:
+            _grace = float(_tt)
+        except ValueError:
+            _grace = -1.0
+        _end = None
+        if _grace >= 0:
+            _lo = _last_onset_sec(waveform, src_sr)
+            if _lo is not None:
+                _end = _lo + _grace
+            else:
+                # Fall back to the silence heuristic rather than doing nothing.
+                _end = _music_end_sec(waveform, src_sr, 0.15)
+        if _end is not None:
+            _slot_t = (np.arange(n_slots) / BEAT_SUBDIV) * (60.0 / bpm if bpm > 0 else 0.5)
+            _keep = {int(i) for i in range(n_slots) if _slot_t[i] <= _end}
+            _nl, _nr = len(left_onsets), len(right_onsets)
+            _l2, _r2 = left_onsets & _keep, right_onsets & _keep
+            # Never hand back an empty map because the heuristic misfired.
+            if _l2 or _r2:
+                left_onsets, right_onsets = _l2, _r2
+                logger.info(
+                    "BEAT_TRIM_TAIL grace=%.2fs: cut at %.2fs; dropped L %d->%d, "
+                    "R %d->%d", _grace, _end, _nl, len(left_onsets), _nr,
+                    len(right_onsets))
+            else:
+                logger.warning(
+                    "BEAT_TRIM_TAIL would empty the map (cut %.2fs) — ignored",
+                    _end)
+
     logger.info("Stage 1: %d left onsets, %d right onsets across %d slots",
                 len(left_onsets), len(right_onsets), n_slots)
 
