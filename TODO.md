@@ -123,13 +123,30 @@ the same blind-spot shape as a song-level metric missing a song-shaped defect, o
 1. Run `scripts/audit_eval_suite.py` on the drift metric before it steers anything. Note it is a
    **conditional** metric: a randomised map has uniformly low precision and therefore ~no drift, so
    it must be gated on overall precision or a degenerate control will "pass" it.
-2. Diagnose before fixing. Fit tempo per-segment: if the *song's* tempo genuinely moves (live
-   playing, a ritardando) the answer is BPM events, not a better global fit. If the song is constant
-   and our single fitted tempo accumulates error, the answer is a piecewise fit.
-3. Stop emitting notes after the last musical onset.
+2. ~~Fit tempo per-segment~~ — **DONE, and the answer is neither branch**
+   (`scripts/diag_align_drift_cause.py`). **K1 is a note-SELECTION defect, not a timing one.** There
+   is no offset ramp: median match offset across quintiles spans −14.6 to +5.5 ms, non-monotone, and
+   the *human* maps wobble the same (−2.9 to +3.8); scatter barely grows. Accumulated tempo error
+   would ramp tens of ms. The notes that land are as accurately placed at the end as at the start —
+   **the lost precision is notes matching nothing.** A piecewise fit or BPM events would not touch it.
+   ⚠️Do not resurrect the tempo hypothesis for K1.
+3. **The real fix: make the note budget follow onset density down when a song winds down.** As songs
+   end we hold density roughly constant while the music thins — 1f8d6 onsets/s 7.37→4.99 (−32%) but
+   notes/s 1.76→1.68 (−5%); 1f336 onsets/s −71%, ratio 0.248→0.388. Control: **1f913's ratio is flat
+   and its onsets/s is flat — and 1f913 is the one song Kyle said did *not* drift.** Prime suspect is
+   the density-select budget floor / `section_gate="loud_only"`, not the grid. ⚠️Honest exception:
+   1f3d7 drifts 0.187 while its ratio *falls* — the mechanism covers most of the set, not all.
+4. Stop emitting notes after the last musical onset (cheap, independent of 3, and almost entirely
+   ours: 1f333 8 notes vs human 0; only 1f8d6 has human tail notes at all).
 
-**DoD**: A8 reports drift, the human corpus passes it, degenerate controls fail it, and 1f8d6's final
-fifth is no longer half as accurate as its first.
+**The human control splits the set — fix only what is ours** (the C2 lesson): 1f8d6 and 1f8ce drift
+for the human map too (0.147, 0.208), so part of those is the song or the onset detector and
+"fixing" them is fitting the detector. **Ours alone: 1f336, 1f3d7, 1f767, 1f65d, 1f333.**
+
+**DoD**: A8 reports drift, the human corpus passes it, degenerate controls fail it, and the five
+*ours-alone* songs fall inside the human drift range. ⚠️1f8d6 is the wrong target for the DoD — its
+human map drifts 0.147 too, so "1f8d6's final fifth is no longer half as accurate as its first" was
+partly asking us to beat the detector.
 
 ### K2 — Diagonal cuts INCREASE with speed; they should decrease
 **Evidence**: 1f333 diagonal share by local note rate — **0.516 / 0.477 / 0.530 / 0.653** across
