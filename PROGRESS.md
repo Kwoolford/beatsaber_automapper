@@ -7,6 +7,40 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## K2: the speed-conditioned diagonal lever works, and 0.6 vs 1.0 brackets the target (2026-08-03)
+
+3 arms × 3 seeds × 24 songs, control `tf_hl014_ds048_trim_ev03`.
+
+| arm | 0–4 | 4–7 | 7–10 | **10+** | overall | slope |
+|---|---|---|---|---|---|---|
+| control | 0.462 | 0.484 | 0.509 | 0.476 | 0.479 | +0.00983 |
+| **sd 6:0.6** | 0.462 | 0.483 | 0.435 | **0.300** | 0.460 | −0.00469 |
+| **sd 6:1.0** | 0.462 | 0.482 | 0.392 | **0.149** | 0.450 | −0.01341 |
+| human (200 Expert) | 0.355 | 0.346 | 0.301 | **0.236** | 0.354 | −0.01141 |
+
+★ **The slow bands do not move at all** (0.462 / ~0.483 in every arm). That is the whole design —
+Kyle wants broad diagonals kept where they feel like "a grand orchestra" and objects only when fast.
+The lever touches exactly what he complained about and nothing else.
+
+**The two strengths bracket the human value**: 0.6 leaves the fast band at 0.300 (27% high), 1.0
+takes it to 0.149 (37% *below* human — overshoot, which is the failure mode the 2026-07-27 landmine
+predicts in reverse). Linear interpolation puts the human 0.236 at strength ≈0.77, so **6:0.8 is the
+setting to test**. `sd6f`'s slope (−0.01341) is already closest to the human −0.01141.
+
+**Costs, from the seed aggregate**: alignment, rhythm, handrole, precision and nps are **bit-identical
+across all three arms** — a good structural check, since the lever only rewrites directions and those
+five axes are direction-independent. The three that *can* move did: flow 0.321 → 0.334 → 0.297
+(no trend, not resolvable), idiom 0.615 → 0.628 → **0.642** (mild narrowing of the direction
+vocabulary — the predicted risk, present but small), playfeel 0.692 → 0.610 → **0.570** (improves,
+since it scores diagonal share). Nothing resolvable at n=3, but the **band numbers themselves are a
+deterministic rewrite**, so they are reliable in a way the axis gaps are not.
+
+**Also worth noting**: the control's 10+ band is 0.476, not the 0.631 measured on `trim` alone — so
+`BEAT_ONSET_EVIDENCE` was *already* reducing fast-passage diagonals as a side effect. The two levers
+are complementary here too.
+
+---
+
 ## Audit: which axis references the loader bug actually touched (2026-08-03)
 
 Having found two loader defects, the obvious question is how far the damage spread. Checked every
