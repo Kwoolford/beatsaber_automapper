@@ -30,9 +30,22 @@ is now complete."* First time in the project's history that his ear and a measur
 | Viewer | fixed; `arcviewer` self-heals its file-dialog plugin, `arcview <map.zip>` skips the dialog |
 | Tooling | ArcViewer fix source `tools/arcviewer_sfb_fix/`; skill backups `docs/skills-backup/` |
 
-**Human reference values worth memorising** (measured, not assumed): onset precision **0.930 ±
-0.032**, timing scatter **10.35 ± 1.30 ms**, Expert **3.91 nps**, diagonal share **0.370**, double
-share **0.231**.
+**Human reference values worth memorising** — **re-verified 2026-08-03 on a strictly-Expert cohort
+after two loader bugs were found** (see PROGRESS.md). Anything not on this list should be re-measured
+before it is trusted:
+
+| value | figure | status |
+|---|---|---|
+| onset precision | **0.930 ± 0.032** | ✅ confirmed (0.9366 on the clean cohort) |
+| timing scatter | **10.35 ± 1.30 ms** | ✅ confirmed (10.20) |
+| Expert nps | **3.91** | ✅ confirmed (3.931) |
+| Expert **peak** nps | **5.5** | ✅ confirmed — ⚠️*not* 6.5, which was a contaminated reading |
+| diagonal share | **0.354** | ⚠️corrected from 0.370 |
+| **double share** | **0.1366** median (p90 0.2505) | 🔴corrected from 0.231 — **that was the p90** |
+| drift (first→last fifth) | **−0.006** median, p90 **0.068** | ✅ new; **humans do not drift** |
+
+⚠️**Never calibrate the human corpus through `scorecard._load_any`** — it prefers ExpertPlus. Use
+`calibrate_playfeel.load_expert_only`.
 
 ---
 
