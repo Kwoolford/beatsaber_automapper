@@ -7,6 +7,31 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## Audit: which axis references the loader bug actually touched (2026-08-03)
+
+Having found two loader defects, the obvious question is how far the damage spread. Checked every
+axis rather than assuming, and the answer is reassuring with exactly one repair needed.
+
+| axis | affected? | why |
+|---|---|---|
+| **A8 alignment** | **no** | human precision 0.9325 (buggy) → 0.9366 (fixed) against a stored 0.930, well inside its own MAD of 0.032; scatter 10.30 → 10.20 ms. **The bar and the tempo-fix headline stand.** |
+| **rhythm** | **no** | all three keys *bit-identical*. It is a beat-domain axis, so a wrong bpm cancels out of both sides. |
+| **handrole**, **idiom** | **no** | `handrole_metrics(beatmap)` and `idiom_metrics(beatmap)` take **no bpm argument at all** — structurally immune, not merely unaffected in this sample. |
+| **playfeel** | **no** | medians robust: nps 3.884 → 3.931 against a stored 3.909. |
+| **flow** | **yes, mildly** | its two wall-clock keys moved: `travel` 4.000 → 4.139 (0.16 MAD) and `ebpm_burst` 250.0 → **260.3** (0.21 MAD), with MAD **40.0 → 48.3**. |
+
+★ **The pattern is the useful part**: a bpm error only bites metrics denominated in *wall-clock time*.
+Everything expressed in beats, in geometry, or as a pure count was immune by construction. Flow owns
+the only two per-second quantities in the whole reference set, so flow was the only casualty.
+
+`outputs/flow_human_reference.json` regenerated on 200 maps with the fixed loader. Because the old
+MADs were too small, flow *gaps* were being slightly **overstated** — so this correction moves flow
+scores marginally in our favour. ⚠️Flow numbers recorded before this point are not strictly
+comparable with those after it; the shift is well under one MAD and flow was not load-bearing for any
+conclusion reached tonight.
+
+---
+
 ## K1 bar rebuilt: a SECOND loader bug, and humans do not drift at all (2026-08-03)
 
 Chasing an implausible number — human maps supposedly placing notes **19 seconds** after the last
