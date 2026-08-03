@@ -128,8 +128,17 @@ the same blind-spot shape as a song-level metric missing a song-shaped defect, o
    and its onsets/s is flat — and 1f913 is the one song Kyle said did *not* drift.** Prime suspect is
    the density-select budget floor / `section_gate="loud_only"`, not the grid. ⚠️Honest exception:
    1f3d7 drifts 0.187 while its ratio *falls* — the mechanism covers most of the set, not all.
-4. Stop emitting notes after the last musical onset (cheap, independent of 3, and almost entirely
-   ours: 1f333 8 notes vs human 0; only 1f8d6 has human tail notes at all).
+4. ~~Stop emitting notes after the last musical onset~~ — **DONE and validated.** `BEAT_TRIM_TAIL`
+   (grace in seconds after the last librosa onset, default OFF, `0.5` tested). Over 24 songs it takes
+   `tail_after_secs` p90 **2.37 s → 0.019 s** and tail exceedance **37.5% → 12.5%** (10% is what you
+   get by construction), improves drift exceedance 29.2% → 20.8%, and **costs nothing** — all five
+   non-alignment axes inside noise over 3 seeds. Alignment −0.055, resolvable *only* under paired
+   comparison (sd 0.023 vs unpaired 0.113). Details in PROGRESS.md.
+   **Remaining**: the drift/tail sub-metrics were seed-0 only — re-run multi-seed before calling the
+   tail defect closed. Then it is a promotion candidate alongside the P1 pair.
+   ⚠️Landmine recorded: energy is the WRONG cut criterion (1f8d6's energy runs 4.7 s past its last
+   onset, so an energy cut removed one note); and the lever must live in `generate_v7_level`, not
+   `predict_onsets`, which only the legacy path calls.
 
 **The human control splits the set — fix only what is ours** (the C2 lesson): 1f8d6 and 1f8ce drift
 for the human map too (0.147, 0.208), so part of those is the song or the onset detector and

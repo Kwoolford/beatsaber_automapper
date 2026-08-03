@@ -7,6 +7,40 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## K1: `BEAT_TRIM_TAIL` is a clean positive — and pairing earned its keep (2026-08-03)
+
+The first lever in a long while that moves its target metric and costs nothing measurable.
+
+**What it does.** Cuts selected slots after `last librosa onset + grace` (grace 0.5 s). Default OFF.
+
+**Result over 24 songs.** Tail metrics at seed 0, six axes as a mean over 3 seeds:
+
+| | control | trim | human |
+|---|---|---|---|
+| `tail_after_secs` p90 | 2.37 s | **0.019 s** | 0.0 |
+| `tail_after_frac` p90 | 0.0094 | **0.0014** | 0.0010 |
+| maps past human p90, tail | 9/24 (37.5%) | **3/24 (12.5%)** | 10% by construction |
+| maps past human p90, drift | 7/24 (29.2%) | **5/24 (20.8%)** | 10% |
+| drift median | 0.0653 | **0.0485** | 0.0385 |
+
+The tail-note defect is essentially gone — 12.5% exceedance is within a whisker of the 10% you get
+by construction. Drift improved more than the single-song probe predicted, but is **still the open
+half of K1** at 20.8%.
+
+**It costs nothing.** All five non-alignment axes moved ≤0.014 over 3 seeds, every one inside noise:
+rhythm −0.000, flow −0.001, idiom −0.002, handrole −0.014, playfeel +0.011. nps −0.006.
+
+**★ The paired comparison did the job it was built for, on its first real use.** Alignment improved
+−0.055. Unpaired that is **noise** (sd 0.113). Paired at matched seeds, sd is **0.023**, so the same
+−0.055 is 2.4 sd and **resolvable**. Precision 0.908 → 0.912. Without the P0 seeding work this
+improvement would have been invisible — it is exactly the size of effect that the seed lottery has
+been swallowing for months.
+
+⚠️ Caveat to carry: the six axes are a 3-seed mean, but the drift/tail sub-metrics above were
+computed on **seed 0 only**. They want a multi-seed pass before anyone calls the tail defect closed.
+
+---
+
 ## P0: the seed lottery had a cause, and it was that nothing was seeded (2026-08-02)
 
 The binding constraint on the method: five runs of a **byte-identical** configuration scored 4, 2,
