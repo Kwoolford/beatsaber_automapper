@@ -81,20 +81,58 @@ def worst_window(ours, mb, span, end):
     return best
 
 
-def draw(song, ours, ours_h, human, human_h, mb, bpm, t_start, t_end, out, label):
+def load_probs(song: str, probs_dir: str | None):
+    """Stage-1's raw probability, if a BEAT_PROBS_DUMP exists for this song.
+
+    ★Added 2026-08-04 because the suite proved the defect lives HERE, not in the
+    decode: in our worst windows the probability is INVERTED — 0.590 one slot off
+    the main beat against 0.320 on it, where healthy windows read 0.725 on and
+    0.301 off. Drawing it turns the picture from "we missed these beats" into
+    "the model was pointing between them", which is the difference between a
+    symptom and a cause.
+    """
+    for d in ([probs_dir] if probs_dir else
+              ["outputs/probs_phase_2026-08-03", "outputs/probs_phase_instr_2026-08-03"]):
+        f = REPO / d / f"{song}.npz"
+        if f.exists():
+            z = np.load(f)
+            P = z["beat_probs"].max(axis=1)
+            slot = 60.0 / float(z["bpm"]) / int(z["beat_subdiv"])
+            return np.arange(len(P)) * slot, P, d
+    return None
+
+
+def draw(song, ours, ours_h, human, human_h, mb, bpm, t_start, t_end, out, label,
+         probs=None):
     d = np.load(REPO / "outputs" / "stem_onset_cache" / f"{song}.npz", allow_pickle=True)
     stems = {s: np.sort(d[f"onsets_{s}"]) for s in STEMS if f"onsets_{s}" in d.files}
     tol = _tol(mb.period)
     beats = mb.runs if len(mb.runs) >= 20 else mb.grid
 
-    lanes = list(STEMS) + ["MAIN BEAT", "OURS"] + (["HUMAN"] if human is not None else [])
+    lanes = (["Stage-1 p", ""] if probs is not None else []) + list(STEMS) \
+        + ["MAIN BEAT", "OURS"] + (["HUMAN"] if human is not None else [])
     ypos = {n: len(lanes) - 1 - i for i, n in enumerate(lanes)}
     npanel = int(np.ceil((t_end - t_start) / PANEL))
-    fig, axes = plt.subplots(npanel, 1, figsize=(20, 3.6 * npanel), squeeze=False)
+    fig, axes = plt.subplots(npanel, 1, figsize=(20, 4.4 * npanel), squeeze=False)
     axes = axes[:, 0]
 
     for pi, ax in enumerate(axes):
         a, b = t_start + pi * PANEL, min(t_start + (pi + 1) * PANEL, t_end)
+        if probs is not None:
+            # Two lanes tall and filled: at one lane height the curve was a thin
+            # unreadable band. The point of this lane is to SEE whether the peaks
+            # sit on the beat markers below, so it must be legible.
+            pt, pv, _ = probs
+            base = ypos[""] - 0.45
+            m = (pt >= a - 0.2) & (pt <= b + 0.2)
+            ax.fill_between(pt[m], base, base + 1.85 * pv[m], color="#666",
+                            alpha=0.30, lw=0, zorder=2)
+            ax.plot(pt[m], base + 1.85 * pv[m], color="#333", lw=0.9, zorder=3)
+            ax.axhline(base, color="0.8", lw=0.6, zorder=0)
+            # drop a guide at each main beat so alignment is judged, not guessed
+            for t in beats[(beats >= a) & (beats <= b)]:
+                ax.plot([t, t], [base, base + 1.85], color="#c9002b", lw=0.5,
+                        alpha=0.35, zorder=1)
         for s in STEMS:
             if s not in stems:
                 continue
@@ -182,6 +220,9 @@ def main() -> None:
                     help="jump to the stretch where we miss the most main beats")
     ap.add_argument("--span", type=float, default=36.0)
     ap.add_argument("--out", default=None)
+    ap.add_argument("--probs", default=None,
+                    help="dir of BEAT_PROBS_DUMP npz; auto-detected if omitted")
+    ap.add_argument("--no-probs", action="store_true")
     a = ap.parse_args()
     globals()["PANEL"] = a.secs
 
@@ -215,8 +256,11 @@ def main() -> None:
     out = pathlib.Path(a.out) if a.out else \
         REPO / "outputs" / f"mainbeat_{a.song}_{int(t0)}_{int(t1)}.png"
     out.parent.mkdir(parents=True, exist_ok=True)
+    pr = None if a.no_probs else load_probs(a.song, a.probs)
+    if pr is not None:
+        print(f"probability lane from {pr[2]}")
     draw(a.song, ours, ours_h, human, human_h, mb, bpm, t0, t1, out,
-         pathlib.Path(a.map).stem)
+         pathlib.Path(a.map).stem, probs=pr)
 
 
 if __name__ == "__main__":
