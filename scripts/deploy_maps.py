@@ -48,6 +48,13 @@ VARIANT_COLOURS: dict[str, tuple[int, int, int]] = {
 CANDIDATE_ROOTS = [
     Path.home() / ".local/share/bs-manager/BSInstances",
     Path.home() / ".local/share/bs-manager",
+    # BSManager's installation folder is user-chosen at first-run setup. Kyle put
+    # it on the big NVMe on 2026-08-04 because / had only 33 GB free against
+    # /mnt/giga_speed's 825 GB, and BSManager keeps whole ~2 GB Beat Saber
+    # versions plus the map library. Without this entry auto-detection silently
+    # finds nothing and deploy_maps tells you to install Beat Saber first.
+    Path("/mnt/giga_speed/BSManager"),
+    Path("/mnt/giga_speed/BSManager/BSInstances"),
     Path("/mnt/giga_speed/SteamLibrary/steamapps/common/Beat Saber"),
     Path.home() / ".local/share/Steam/steamapps/common/Beat Saber",
 ]
