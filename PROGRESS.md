@@ -259,6 +259,44 @@ the model knows where it goes*, which is what makes a **per-song** `BEAT_NOTE_BU
 
 ---
 
+## ★★★ W4 CONFIRMED — WE LEAVE HOLES IN SUNG PHRASES (and the first metric hid it) (2026-08-04)
+
+> *"A few times the singer is still finishing a sentence and there's no notes."*
+
+`scripts/eval_phrase_abandon.py`. Phrases come from the `vocals` stem in the seeded onset cache (runs
+separated by < 1.2 s, ≥ 2 s long) — no new model needed.
+
+**First attempt said there was no defect.** `tail_ratio` (note density in the final third ÷ the first
+two thirds) came out at **exactly 1.000 for both cohorts**, and `abandon_rate` exceedance named only
+4 of 20 songs against a human 9.2 % — **p ≈ 0.13, inside chance. NOT REPRODUCED.**
+
+**The metric was blunt, and the null was a property of the instrument.** A *ratio of densities cannot
+see a hole*: thinning 4 notes to 2, and dropping to nothing for a second, score alike once averaged
+over a third of a phrase. Kyle never said the map thins — he said *there's no notes*. Measuring
+**silence** instead — the largest stretch inside a sung phrase with no note at all:
+
+| metric | ours (n=60) | human (n=120) |
+|---|---|---|
+| **`share_over_1s`** — sung phrases containing a **>1 s** hole | **0.539** (p90 0.836) | **0.250** (p90 0.500) |
+| `share_over_2s` — containing a **>2 s** hole | 0.074 | **0.000** |
+| `med_hole` — median largest hole per phrase | 1.071 s | 0.698 s |
+
+★**More than half our sung phrases contain a second or more of silence, against a quarter of the
+human's — 2.2×.** The human median for a >2 s hole is **zero**. W4 is **CONFIRMED**.
+
+★★**METHOD — this is the single most repeated lesson in the project, hit again**: the first
+measurement returned a clean null, and the null was about *the metric*, not the music. The doc
+convention already says a null from a suspected-blunt instrument is *"not yet measurable"* rather than
+*refuted*; following that rule instead of closing W4 is what produced the 2.2×. Both metrics are kept
+in the script — `tail_ratio` stays, labelled, so nobody re-derives it and believes it.
+
+⚠️Diagnostic only until it clears a control battery. It reads note times, so position-permuting
+controls will be blind to it by construction — but `metronome` must be checked, since a constant pulse
+trivially leaves no holes and would score *better than human* here exactly as it did on
+`halfbeat_rate`. **Assume it fails as a steering target until shown otherwise.**
+
+---
+
 ## ★ W2 FOLLOW-UP — THE MARGINAL NOTE IS MUCH WORSE THAN THE AVERAGE NOTE (2026-08-03)
 
 `BEAT_NOTE_BUDGET` built and swept. Before the axis numbers landed, `scripts/view_ab_diff.py` answered

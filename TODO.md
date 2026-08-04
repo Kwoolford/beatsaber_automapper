@@ -282,12 +282,32 @@ down without losing its A+ character.
 build-up sits at **0.87×** against a 0.9× DoD, and **3:20–3:28 at 0.54×**. Design against the 3:20
 window; it is far worse and barely moved under any lever so far.
 
-**Tasks**
-1. Detect phrase boundaries (vocal lines especially — the `vocals` stem is in the cache now) and
-   ensure a phrase is not abandoned mid-way.
-2. Re-open the shelved A5 structure axis with "cover the whole crescendo, not just its peak".
+### ✅ CONFIRMED 2026-08-04 — `scripts/eval_phrase_abandon.py`. Full data in PROGRESS.md.
 
-**DoD**: no phrase ends with the vocal still going; 3:20–3:28 responds at ≥0.9× the song median.
+| metric | ours (n=60) | human (n=120) |
+|---|---|---|
+| **`share_over_1s`** — sung phrases containing a **>1 s** hole with no notes | **0.539** | **0.250** |
+| `share_over_2s` | 0.074 | **0.000** |
+| `med_hole` | 1.071 s | 0.698 s |
+
+**2.2×.** More than half our sung phrases contain a second or more of silence; the human median for a
+>2 s hole is **zero**. ⚠️**The first metric (`tail_ratio`, density of the final third ÷ the first two
+thirds) reported NO defect — both cohorts exactly 1.000.** A ratio of densities cannot see a hole.
+Both are kept in the script, the blunt one labelled, so nobody re-derives it and believes it.
+
+**Tasks**
+1. Phrase boundaries are now cheap and already implemented (`vocal_phrases()`). The lever: when a
+   vocal phrase is active, do not let the note stream go silent for >1 s. ⚠️Build it as a **budget
+   redistribution**, not an insertion of notes at arbitrary times — W2 showed the marginal note is
+   drawn from a much worse pool (31.8 % of added notes sit near no onset at all), and filling a hole
+   with filler is exactly that failure.
+2. ⚠️**Run the control battery first, and expect a `metronome` failure**: a constant pulse leaves no
+   holes at all and would score *better than human* here, exactly as it did on `halfbeat_rate`.
+   Assume this cannot steer a lever until shown otherwise.
+3. Re-open the shelved A5 structure axis with "cover the whole crescendo, not just its peak".
+
+**DoD**: `share_over_1s` falls from 0.539 toward the human 0.250 **without** the added notes repeating
+W2's k-distribution collapse (check with `scripts/view_ab_diff.py`), at ≥3 seeds. Then Kyle's ear.
 
 ---
 
