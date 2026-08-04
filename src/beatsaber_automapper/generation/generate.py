@@ -506,6 +506,75 @@ def _audio_onset_times(waveform: torch.Tensor, sample_rate: int) -> "np.ndarray 
     return np.asarray(ons, dtype=np.float64) if len(ons) else None
 
 
+_CO_GRACE = 0.12   # keep the note ON the coincidence, not one past it
+_OUTRO_ONSETS = 8  # a stem this active after the last coincidence = a real outro   # enough to keep the note ON the coincidence, not one past it
+
+
+def _last_coincidence_sec(stems: dict, sr: int, kmin: int = 3,
+                          link: float = 0.030) -> float | None:
+    """Time of the last event where >= `kmin` DISTINCT stems hit together.
+
+    Why this exists (2026-08-04): human mappers end a map on a multi-instrument
+    hit. Measured over 13 songs, the human's final note sits on 3-4 stems while
+    ours sits on 1 -- Hunger's human ends on bass+drums+other, we end on a lone
+    bass onset 0.32s later; アリスブルー's human ends on all four stems, we end on
+    vocals alone. "Last onset of any stem" therefore over-runs the music, because
+    a decaying bass or a held vocal outlasts the pulse.
+
+    Mirrors the clustering in scripts/eval_coincidence.py so the generator and the
+    evaluator agree on what a coincidence is.
+    """
+    import librosa as _lr
+
+    pairs: list[tuple[float, str]] = []
+    for name, ten in stems.items():
+        arr = ten.detach().cpu().numpy()
+        if arr.ndim > 1:
+            arr = arr.mean(axis=tuple(range(arr.ndim - 1)))
+        for t in _lr.onset.onset_detect(y=arr.astype("float32"), sr=sr,
+                                        units="time", backtrack=True):
+            pairs.append((float(t), name))
+    if len(pairs) < 50:
+        return None
+    pairs.sort()
+    last = None
+    cur_t, cur_s = [pairs[0][0]], {pairs[0][1]}
+    for t, s in pairs[1:]:
+        if t - cur_t[-1] <= link:
+            cur_t.append(t)
+            cur_s.add(s)
+        else:
+            if len(cur_s) >= kmin:
+                last = float(np.mean(cur_t))
+            cur_t, cur_s = [t], {s}
+    if len(cur_s) >= kmin:
+        last = float(np.mean(cur_t))
+    if last is None:
+        return None
+
+    # ⚠️GUARD — never cut into a real OUTRO SECTION. Fallen Kingdom's band stops
+    # at 222s but a soft vocal carries to ~250s, and its HUMAN map places 28 notes
+    # in that stretch; cutting at the last coincidence would delete all of them.
+    # Hunger has only 4 decaying bass onsets after its final 3-stem hit and nothing
+    # else, so cutting there is right and lands on the human's last note exactly.
+    # Counting what any SINGLE stem still produces afterwards separates the two
+    # cleanly: Hunger 4, Fallen Kingdom ~34.
+    for name, ten in stems.items():
+        arr = ten.detach().cpu().numpy()
+        if arr.ndim > 1:
+            arr = arr.mean(axis=tuple(range(arr.ndim - 1)))
+        on = np.asarray(_lr.onset.onset_detect(y=arr.astype("float32"), sr=sr,
+                                               units="time", backtrack=True))
+        after = int((on > last + 1.0).sum())
+        if after >= _OUTRO_ONSETS:
+            logger.info(
+                "trim-coincidence: %d %s onsets continue past the last %d-stem hit "
+                "(%.2fs) — that is an outro SECTION, not a tail. Not cutting.",
+                after, name, kmin, last)
+            return None
+    return last
+
+
 def _last_onset_sec(waveform: torch.Tensor, sample_rate: int) -> float | None:
     """Time (s) of the last detected musical onset, or None if undetectable.
 
@@ -2601,12 +2670,49 @@ def generate_v7_level(
             _grace = -1.0
         _end = None
         if _grace >= 0:
+            # BEAT_TRIM_END_COINCIDENCE (2026-08-04, default OFF) — a better cut
+            # POINT, not a different grace. Measured over 13 songs: human mappers
+            # end the map on a MULTI-INSTRUMENT hit, while we end on a lone
+            # straggler. Their last note sits on 3-4 stems (Hunger bass+drums+
+            # other, アリスブルー all four); ours sits on one (Hunger bass only,
+            # アリスブルー vocals only). Relative to the carrying instrument's final
+            # hit the human median is +0.00s and ours is -0.30s with a -5.6..+19.3
+            # spread, so the *reference* the default uses -- the last onset of ANY
+            # stem -- is wrong: a decaying bass or a held vocal outlasts the pulse,
+            # which is exactly how Hunger's straggler survived the trim and became
+            # the 172ms delay Kyle still heard after BEAT_END_RESOLVE.
+            #
+            # So cut at the last k>=N stem coincidence instead.
+            # ⚠️NOT SAFE EVERYWHERE: Fallen Kingdom's human maps 24.5s of a soft
+            # vocal outro that carries NO detected coincidence at all, so this
+            # would delete legitimate mapping there. Hence default OFF, and the
+            # cut is never allowed to move EARLIER than the plain onset+grace.
+            _ce = None
+            _kmin = int(os.environ.get("BEAT_TRIM_END_COINCIDENCE", "0") or 0)
+            if _kmin > 0:
+                try:
+                    _ce = _last_coincidence_sec(stems, DEMUCS_SR, _kmin)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("trim-coincidence failed (%s)", exc)
             _lo = _last_onset_sec(waveform, src_sr)
             if _lo is not None:
                 _end = _lo + _grace
             else:
                 # Fall back to the silence heuristic rather than doing nothing.
                 _end = _music_end_sec(waveform, src_sr, 0.15)
+            if _ce is not None and _end is not None:
+                # ⚠️Use a SMALL grace of its own, not `_grace`. The measured human
+                # behaviour is to end AT the coincidence (median +0.00s relative to
+                # the carrier's last hit), so re-adding the 0.5s tail grace here
+                # puts the cut back past the straggler and the lever silently
+                # no-ops -- which is exactly what the first version did.
+                _cand = _ce + _CO_GRACE
+                logger.info(
+                    "BEAT_TRIM_END_COINCIDENCE(k>=%d): last %d-stem hit %.2fs -> "
+                    "candidate cut %.2fs (plain cut was %.2fs) — %s",
+                    _kmin, _kmin, _ce, _cand, _end,
+                    "APPLIED" if _cand < _end else "no change")
+                _end = min(_end, _cand)
         if _end is not None:
             _slot_t = (np.arange(n_slots) / BEAT_SUBDIV) * (60.0 / bpm if bpm > 0 else 0.5)
             _keep = {int(i) for i in range(n_slots) if _slot_t[i] <= _end}

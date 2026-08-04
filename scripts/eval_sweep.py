@@ -622,6 +622,21 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "deal14":  ({**_DS25, **_W2BASE, "BEAT_HAND_DEAL": "0.14"}, []),
     "deal10":  ({**_DS25, **_W2BASE, "BEAT_HAND_DEAL": "0.10"}, []),
     "deal20":  ({**_DS25, **_W2BASE, "BEAT_HAND_DEAL": "0.20"}, []),
+    # --- W7 round 2 (2026-08-04): end the map where a HUMAN ends it.
+    # Measured over 13 songs: the human's last note sits on a MULTI-INSTRUMENT hit
+    # (Hunger bass+drums+other, アリスブルー all four) while ours sits on a lone
+    # straggler (Hunger bass only, アリスブルー vocals only). Relative to the carrying
+    # instrument's final hit the human median is +0.00s and ours is -0.30s with a
+    # -5.6..+19.3 spread. So BEAT_TRIM_TAIL's reference -- the last onset of ANY
+    # stem -- is wrong: a decaying bass outlasts the pulse, which is how Hunger's
+    # straggler survived and became the 172ms delay Kyle still heard.
+    # Verified: Hunger 272.07 -> 271.76 against a human 271.76 (exact), 3 notes.
+    # Guarded: Fallen Kingdom's soft vocal outro carries 28 HUMAN-mapped notes past
+    # the last coincidence, so the guard detects the continuing stem and declines
+    # to cut (788 -> 788 notes). That guard is the whole reason this is safe.
+    "trimco3": ({**_DS25, **_W2BASE, "BEAT_TRIM_END_COINCIDENCE": "3"}, []),
+    "trimco3_endres": ({**_DS25, **_W2BASE, "BEAT_TRIM_END_COINCIDENCE": "3",
+                        "BEAT_END_RESOLVE": "0.75"}, []),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
