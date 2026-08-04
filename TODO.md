@@ -349,15 +349,33 @@ Kyle's ear picked shape. **Task**: make the cut conditional on the map actually 
 past the last coincidence, rather than cutting whenever a coincidence is found earlier than the plain
 cut.
 
-**S1 🔴 TWO SONGS ARE ON A DISPLACED GRID ENTIRELY (8 % of the songset).**
-`1fa48` main-beat coverage **0.002**, `1f9a0` **0.000**, against human 0.734 / 0.506. The view shows
-why at a glance: nearly every main beat is **orange** (we played *near* it but off-grid), not red.
-Measured offset **+110 ms (sd 6)** on 1fa48 — ≈ **half its 238 ms period**, i.e. we play its offbeat
-wholesale — and **−108 ms (sd 0)** on 1f9a0. Their *human* maps sit at −10 / +14 ms, so the music's
-grid is fine and **ours is shifted**. ⚠️sd of 0–6 ms means a hard constant displacement, not scatter —
-this is a bug with a single cause, not a tuning issue.
-**Task**: find where the displacement enters (tempo fit phase? `snap_bpm`? the slot grid anchor at
-t=0?). These two songs are the cheapest possible test case because the error is noise-free.
+**S1 🔴 STAGE-1's PROBABILITY FIELD IS ONE SLOT OUT OF PHASE ON 2 OF 24 SONGS.**
+`1fa48` main-beat coverage **0.002**, `1f9a0` **0.000**, against human 0.734 / 0.506. Diagnosed to the
+mechanism, and it is **not** a tempo or trim issue — both cohorts use the same bpm (126 / 93) and our
+notes sit exactly on our own slot grid.
+
+Stage-1's probability alternates with the beat period. Median probability by slot offset from the main
+beat (0 = the beat):
+
+| song | −2 | −1 | **0** | +1 | +2 |
+|---|---|---|---|---|---|
+| 1f333 (healthy) | 0.687 | 0.080 | **0.692** | 0.076 | 0.686 |
+| **1fa48** | 0.117 | **0.754** | **0.117** | 0.738 | 0.117 |
+| **1f9a0** | 0.038 | **0.705** | **0.036** | 0.711 | 0.035 |
+
+⇒ the model fires confidently, on a **strict alternation, exactly one slot away from the beat**.
+★**The human map is the tie-breaker and it sides with the grid**: human notes sit −8 ms (1fa48) and
+−32 ms (1f9a0) from my main beat, so the grid is right and **Stage-1 is displaced**. That also rules
+out the metrical-phase ambiguity I first suspected in my own fit.
+
+⚠️I initially filed this as "our map is on a displaced grid" and as a possible C2 phase bug. Both were
+wrong: the slot grid covers the main beats to within 9 ms. It is a **selection** consequence of a
+**displaced probability field**.
+
+**Task**: find why the probability lands one slot early/late on these two songs — MERT pooling phase
+(`pool_to_beat_grid` anchors at t=0), or the tempo fit's unconsumed `phase_s`. ★These are the cheapest
+debugging targets in the project: the error is **noise-free** (sd 0–6 ms) and there is a healthy
+control song (1f333) to diff against.
 **DoD**: 1fa48 and 1f9a0 coverage rise from ~0.00 into the cohort range without moving other songs.
 
 **S2 ✅ FIXED IN-TOOL — the main-beat grid was ~18 ms early.** Symptom: on 11 of 13 songs OUR median
