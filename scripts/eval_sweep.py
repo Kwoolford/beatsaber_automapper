@@ -678,6 +678,17 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "v8_nb120_mbb025": ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.20",
                          "BEAT_MAIN_BEAT_BONUS": "0.25"},
                         ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
+    # PLAYFEEL RECOVERY (2026-08-04). v8_nb120_mbb025 is the best arm on Kyle's
+    # metric (continuity 0.657 vs human 0.697) but pays a RESOLVABLE playfeel cost
+    # (0.674 -> 1.127, ~8 sd) driven by nps rising to 4.123 against a human median
+    # near 3.9. Playfeel's sub-metric IS nps, so back the budget off and see how
+    # much continuity survives. The question is where the knee is.
+    "v8_nb105_mbb025": ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.05",
+                         "BEAT_MAIN_BEAT_BONUS": "0.25"},
+                        ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
+    "v8_nb112_mbb015": ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.12",
+                         "BEAT_MAIN_BEAT_BONUS": "0.15"},
+                        ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
