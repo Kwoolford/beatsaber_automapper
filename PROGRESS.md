@@ -326,6 +326,52 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★ NEW COHORT DEFECT: WE PLAY ONLY 61 % OF AN OBVIOUS STEADY PULSE — but it is still not "empty" (2026-08-04)
+
+`scripts/eval_pulse_consistency.py`, built to sharpen Kyle's *"we play like 1 out of 2/3 notes of an
+obvious slow beat"*. A beat counts as "played by the music" if a stem onset falls within 60 ms of it;
+only runs of ≥4 consecutive music-played beats are judged, so isolated hits cannot penalise correct
+restraint.
+
+| metric | ours (n=60) | human (n=137) |
+|---|---|---|
+| `pulse_coverage` — music-played beats we answer | **0.612** | **0.811** |
+| `pulse_continuity` — P(play beat n+1 │ played beat n) | 0.714 | 0.832 |
+
+✅**A real, general defect**: on an obvious steady beat we answer **61 %** of it against the human's
+**81 %**. Continuity 0.714 vs 0.832 says we also break the run more often. Worth fixing on its own
+merits — but see below for what it is *not*.
+
+### 🔴 …AND IT IS THE FOURTH INSTRUMENT THAT FAILS TO EXPLAIN "EMPTY"
+
+Per song, as a ratio to that song's own human map:
+
+| instrument | Hunger (**A+**) | Fallen Kingdom (**"really empty"**) |
+|---|---|---|
+| distinct-nps / human | 0.650 | **0.781** |
+| k≥3 response | 0.545 (human 0.873) | **0.667** (human 0.756) |
+| >1 s phrase holes | 0.500 (human 0.200) | 0.538 (human 0.154) |
+| **pulse_coverage / human** | 0.72 | **0.94** |
+| **pulse_continuity / human** | 0.80 | **0.92** |
+
+★**On every single instrument, the map he called empty is equal to or BETTER than the map he graded
+A+.** The script pre-registered what to do in exactly this case — *"if Fallen Kingdom does not separate
+from Hunger here either, four instruments have failed and the honest report is that we cannot measure
+it yet; ask him what he hears, do not keep inventing metrics"* — so that is the report.
+
+★**The most likely explanation is that the two verdicts are not on the same scale.** His words on
+Hunger were *"the vast majority of the 1f333 song is A+ **and better than what we had before**"* — a
+judgement relative to **our previous maps**. His words on Fallen Kingdom compare it to **the song's own
+obvious beat**. If A+ is relative to our history and "empty" is relative to the music, no metric
+computed against the human corpus can separate them, and inventing a fifth would be
+looking-for-the-keys-under-the-streetlight.
+
+**Question to put to Kyle** (logged, not blocking — he is asleep): *does Fallen Kingdom feel empty
+compared to what our model used to do, or compared to what the song obviously wants?* One sentence
+from him decides whether this is a regression or a ceiling, and no amount of measurement substitutes.
+
+---
+
 ## ★★★ W4 CONFIRMED — WE LEAVE HOLES IN SUNG PHRASES (and the first metric hid it) (2026-08-04)
 
 > *"A few times the singer is still finishing a sentence and there's no notes."*

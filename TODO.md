@@ -243,12 +243,20 @@ different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the de
    inference from it does not.)
    ⚠️And **none of tonight's metrics separates the two songs**: k≥3 response is *better* on Fallen
    Kingdom (0.667) than Hunger (0.545), and >1 s phrase holes are near-identical (0.538 vs 0.500).
-3. ★**THE LIVE QUESTION — sharpen "empty" before sweeping again.** His words were *"we play like 1 out
-   of 2/3 notes of an obvious slow beat"*: a claim that a **simple repeating pulse gets played
-   intermittently**, not a claim about totals. Build the instrument for *that* — e.g. in sections with
-   a steady pulse, what share of consecutive on-pulse positions carry a note, ours vs human. **W4's
-   lesson applies directly**: `tail_ratio` returned a clean 1.000 null and the defect was real; a null
-   from a blunt instrument is "not yet measurable", not "refuted".
+3. ✅**BUILT** (`scripts/eval_pulse_consistency.py`) and it found **a real, separate cohort defect**:
+   on an obvious steady beat we answer **`pulse_coverage` 0.612 vs the human 0.811**, and
+   `pulse_continuity` 0.714 vs 0.832. **Worth fixing on its own merits** — but it does *not* explain
+   "empty" either (see 4).
+4. 🔴❓**"EMPTY" IS NOT MEASURABLE YET — FOUR INSTRUMENTS HAVE FAILED. STOP INVENTING METRICS.**
+   On distinct-nps/human, k≥3 response, >1 s phrase holes, pulse coverage AND pulse continuity, the
+   map he called empty (**Fallen Kingdom**) is **equal to or better than** the map he graded A+
+   (**Hunger**). ★Most likely explanation: **the two verdicts are on different scales** — Hunger was
+   *"A+ **and better than what we had before**"* (relative to our own history) while Fallen Kingdom was
+   judged against *the song's obvious beat*. No metric computed against the human corpus can separate
+   those.
+   ★**ASK KYLE, do not build a fifth metric**: *"Does Fallen Kingdom feel empty compared to what our
+   model used to do, or compared to what the song obviously wants?"* One sentence decides whether this
+   is a regression or a ceiling.
    ★**Measured 2026-08-03 — the marginal note is much worse than the average note.** Notes added by
    `nb130` on Fallen Kingdom are **31.8 % k=0** (vs our existing 9.5 %) and **0.9 % k≥3** (vs 21.3 %),
    while still landing on a real human note ~56 % of the time. So a global bump closes the **count**
