@@ -326,6 +326,51 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★★★ C5 ATTACKED — `BEAT_HAND_DEAL` lands distinct-times on the human value (2026-08-04, axes pending)
+
+C5 was "root cause found, **untouched**" for days: Stage-1's two hand channels correlate 0.985–0.993,
+so per-hand selection makes both hands pick the **same** slots. `BEAT_HAND_DEAL` selects the top
+(bL + bR) slots **once** and deals them out, so neither hand is ever pushed below the 2k-th best slot —
+the exact failure of the shelved `BEAT_HAND_INTERLEAVE` — then doubles the strongest slots back to a
+target share.
+
+**Cohort, 24 songs, seed 0:**
+
+| cohort | distinct times | double share | `role_asymmetry` |
+|---|---|---|---|
+| control | 462 | 0.6605 | 0.1196 |
+| **deal10 (lead-aware)** | **656** | **0.1003** | **0.1139** |
+| human | **646** | 0.1536 | 0.1172 |
+
+★**Distinct times 462 → 656 against a human 646.** That is C5's stated target metric and it is the
+**untuned** number — it fell out of the mechanism. ⚠️The double share landing near its target is **by
+construction** (the parameter *is* the target) and proves nothing; `deal10` realises 0.1003 from a 0.10
+setting, so the control is clean but circular. On that basis **`deal14` should be the best-matched arm**
+against the human 0.1536.
+
+### ⚠️ THE PRE-REGISTERED HAZARD FIRED FIRST — and the fix is what makes this work
+
+Checked as soon as the arms existed rather than waiting for the sweep. A **strict alternating** deal
+gave `role_asymmetry` **0.0645** against the control's **0.1196** (human 0.1172): perfect alternation
+makes every 2-bar window exactly balanced, destroying the effect `BEAT_HAND_LEAD` exists to create —
+and that lever is a **confirmed positive by Kyle's ear**. Trading it for a structural metric win is the
+trade this project's own rules forbid.
+
+**Fix**: deal **proportionally to the lead multipliers** — each slot goes to whichever hand is furthest
+behind its target share for that window. With no lead active the targets are 50/50 and it reduces to
+alternation. `role_asymmetry` returns to **0.1139**, and the distinct-times gain is untouched.
+
+🔴**PROCESS ERROR, now a landmine in TODO**: I edited `generate.py` **while the deal sweep was
+running**. `eval_sweep` spawns a fresh `generate.py` subprocess **per map**, so the fix took effect
+mid-run and the deal arms became half strict-alternation and half lead-aware. **It does not crash and
+it still prints a number.** Killed the sweep, deleted every deal-arm cache (the control arm never
+touches that code path and was unaffected), relaunched clean.
+
+⚠️**NOTHING IS CLAIMED UNTIL THE SIX AXES RETURN.** A structural win that costs rhythm or flow is
+exactly how `BEAT_HAND_INTERLEAVE` failed. Default OFF; Kyle's ear decides regardless.
+
+---
+
 ## ★★★★ γ CONFIRMED AS THE ALLOCATION MECHANISM — flattening it buys much better marginal notes (2026-08-04)
 
 `logs/overnight/gamma_budget_2026-08-04.log`, 4 arms × 3 seeds × 24 songs. Hypothesis under test (from
