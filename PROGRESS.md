@@ -326,6 +326,36 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## 🔴 THE ADAPTIVE PRIOR LOSES TO THE SIMPLE ONE — my reasoning was wrong (2026-08-04)
+
+From the phase-inversion finding I argued: *"a ×1.25 boost on 0.320 gives 0.40, still below the 0.59
+next door — a multiplicative prior cannot win a race it starts at half distance."* So I built
+`BEAT_MAIN_BEAT_LIFT`, which raises an under-performing main beat toward its own **local ceiling**
+(`p ← max(p, α · local_p90)`), capped so it can never invent activity in a quiet passage.
+
+**It lost, on 3 of 3 songs, per note added:**
+
+| song | arm | notes | covered | continuity |
+|---|---|---|---|---|
+| 1f8d6 | bonus ×1.25 | 816 | **0.771** | **0.809** |
+| 1f8d6 | lift 0.8 | 861 | 0.741 | 0.767 |
+| 1f333 | bonus ×1.25 | 1394 | **0.550** | **0.548** |
+| 1f333 | lift 0.8 | 1432 | 0.506 | 0.453 |
+| 1f767 | bonus ×1.25 | 879 | 0.518 | 0.425 |
+| 1f767 | lift 0.8 | 1002 | 0.555 | 0.434 |
+
+★**WHY, and it is a design flaw I should have seen**: `max(p, α·p90)` **flattens the main-beat
+probability profile.** A beat already above the target gets nothing; every weak beat is lifted to the
+*same* value. That destroys the ranking *among* main beats, and top-k selection then breaks ties
+arbitrarily. The multiplicative bonus preserves that ordering, which is apparently worth more than
+closing the absolute gap.
+
+⇒ **The premise ("cannot win a race it starts at half distance") was wrong in practice** — it treated
+selection as a per-slot threshold when it is a per-window *ranking*. Order matters more than level.
+**Abandoned; `BEAT_MAIN_BEAT_BONUS` at mbb015/mbb025 remains the candidate.**
+
+---
+
 ## ★★★★★★★ THE CORE DEFECT, ISOLATED AND CONTROLLED — Stage-1's probability inverts phase (2026-08-04)
 
 Kyle asked for a suite so *"you can see the correlation to the config of the model."* This is that,

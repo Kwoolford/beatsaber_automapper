@@ -2522,7 +2522,8 @@ def generate_v7_level(
         # (Fallen Kingdom 788 -> 816 at bonus 0.25, +3.5%). Attribute any density
         # change to that, not to BEAT_NOTE_BUDGET.
         _mbb = float(os.environ.get("BEAT_MAIN_BEAT_BONUS", "0") or 0.0)
-        if _mbb > 0.0:
+        _lift_env = float(os.environ.get("BEAT_MAIN_BEAT_LIFT", "0") or 0.0)
+        if _mbb > 0.0 or _lift_env > 0.0:
             try:
                 import librosa as _lr2
                 _car: list[float] = []
@@ -2547,7 +2548,44 @@ def generate_v7_level(
                         _d = np.minimum(_d, np.abs(_slot_sec - _grid[_j]))
                     _on = torch.as_tensor(_d <= _tolm, device=beat_probs.device)
                     beat_probs = beat_probs.clone()
-                    beat_probs[_on] = (beat_probs[_on] * (1.0 + _mbb)).clamp(max=1.0)
+                    # BEAT_MAIN_BEAT_LIFT (2026-08-04) — the ADAPTIVE form.
+                    # ★WHY A FIXED MULTIPLIER IS NOT ENOUGH. Measured over 352
+                    # windows x 24 songs: in our worst windows Stage-1's probability
+                    # is INVERTED -- 0.590 one slot off the beat against 0.320 ON it
+                    # -- while in good windows it is 0.725 on and 0.301 off. Human
+                    # maps cover the main beat 0.653 in exactly those windows and the
+                    # offbeat only 0.104, so the model is wrong, not the grid.
+                    # A x1.25 boost on 0.320 gives 0.40, still below the 0.59 next
+                    # door: A MULTIPLICATIVE PRIOR CANNOT WIN A RACE IT STARTS AT
+                    # HALF DISTANCE, which is exactly why BEAT_MAIN_BEAT_BONUS closes
+                    # a third of the gap and stops.
+                    #
+                    # So lift an under-performing main beat toward the LOCAL ceiling
+                    # instead: p <- max(p, alpha * local_p90). Two properties matter.
+                    # (1) It is capped by what the model already believes NEARBY, so
+                    #     it can never invent activity in a quiet passage -- a low
+                    #     local p90 yields no lift. That structurally excludes the
+                    #     metronome failure that killed halfbeat_rate and
+                    #     share_over_1s as steering targets.
+                    # (2) It does nothing where the model is already right, because
+                    #     p is already >= alpha * p90 there.
+                    _lift = float(os.environ.get("BEAT_MAIN_BEAT_LIFT", "0") or 0.0)
+                    if _lift > 0.0:
+                        _wl = max(1, int(round(2.0 / max(_slot_sec[1] - _slot_sec[0], 1e-6))))
+                        _pn = beat_probs.max(dim=1).values.detach().cpu().numpy()
+                        _ceil = np.empty(n_slots, dtype=np.float32)
+                        for _i in range(0, n_slots, _wl):
+                            _seg = _pn[max(0, _i - _wl):min(n_slots, _i + 2 * _wl)]
+                            _ceil[_i:_i + _wl] = np.percentile(_seg, 90) if len(_seg) else 0.0
+                        _tgt = torch.as_tensor(_ceil * _lift, device=beat_probs.device)
+                        _m = _on.nonzero(as_tuple=True)[0]
+                        for _c in range(beat_probs.shape[1]):
+                            beat_probs[_m, _c] = torch.maximum(beat_probs[_m, _c],
+                                                               _tgt[_m])
+                        logger.info("BEAT_MAIN_BEAT_LIFT=%.2f: lifted main beats to "
+                                    "%.2f x the local p90", _lift, _lift)
+                    elif _mbb > 0.0:
+                        beat_probs[_on] = (beat_probs[_on] * (1.0 + _mbb)).clamp(max=1.0)
                     logger.info(
                         "BEAT_MAIN_BEAT_BONUS=%.2f: main beat period %.0fms, "
                         "boosted %d of %d slots", _mbb, _period * 1000,
