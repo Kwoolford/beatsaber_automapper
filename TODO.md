@@ -263,7 +263,21 @@ different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the de
    gap (497 → 607 vs human 646) and not the **quality** gap. **Likely mechanism**:
    `DENSITY_SELECT_GAMMA=2.5` concentrates budget into loud windows, so extra budget goes deeper down
    the ranking *inside windows already served* while quiet windows holding good onsets stay starved
-   (documented independently in C1). ⇒**next experiment: lower γ and raise budget TOGETHER.**
+   (documented independently in C1).
+   ✅**MECHANISM CONFIRMED 2026-08-04** (`logs/overnight/gamma_budget_2026-08-04.log`). At budget 1.30,
+   lowering γ improves everything monotonically at the same note count:
+
+   | γ | rhythm | playfeel | added notes on k≥3 | added on k=0 |
+   |---|---|---|---|---|
+   | 2.5 | 0.917 | 1.511 | **0.9 %** | **31.8 %** |
+   | 1.5 | 0.638 | 1.344 | 7.7 % | 20.5 % |
+   | 1.0 | **0.445** | **1.289** | **10.8 %** | **18.3 %** |
+
+   ⇒**RULE FOR ANY FUTURE LEVER THAT PLACES MORE NOTES: flatten γ at the same time, or it will spend
+   them on filler.** ⚠️Not a promotion candidate — γ2.5 was chosen to buy `density_corr`, which this
+   sweep does not score, and the W2 premise for raising the budget at all is in doubt (see 2).
+   ✅Also: the pre-registered worry that lowering γ wrecks handrole did **not** reproduce (1.071 at
+   γ1.5 vs 1.148 control) — the old result was probably confounded by the pre-tempo-fit grid (C4).
 4. ⚠️The corpus median (3.91) was already a suspect target; it is now doubly so — it is measured over
    ~200 random corpus maps, a **different song population** from our 24-song eval set, so comparing
    our cohort nps to it compares two different things. Use each song's own human map, and even then

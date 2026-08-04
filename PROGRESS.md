@@ -326,6 +326,49 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★★ γ CONFIRMED AS THE ALLOCATION MECHANISM — flattening it buys much better marginal notes (2026-08-04)
+
+`logs/overnight/gamma_budget_2026-08-04.log`, 4 arms × 3 seeds × 24 songs. Hypothesis under test (from
+C1, and from the round-1 finding that the marginal note is far worse than the average):
+`DENSITY_SELECT_GAMMA=2.5` concentrates budget into **loud** windows, so extra budget goes deeper down
+the ranking *inside windows already served* while quiet windows holding good onsets stay starved.
+
+**At a raised budget (nb130 = `BEAT_NOTE_BUDGET` 1.30), lowering γ improves everything that matters,
+monotonically:**
+
+| arm | γ | rhythm | playfeel | added notes on **k≥3** | added on **k=0** |
+|---|---|---|---|---|---|
+| `nb130` | 2.5 | 0.917 | 1.511 | **0.9 %** | **31.8 %** |
+| `nb130_g15` | 1.5 | 0.638 | 1.344 | 7.7 % | 20.5 % |
+| `nb130_g10` | 1.0 | **0.445** | **1.289** | **10.8 %** | **18.3 %** |
+
+★**A 12× improvement in the share of added notes landing on a multi-instrument event (0.9 % → 10.8 %)
+and a near-halving of added notes sitting near no onset at all (31.8 % → 18.3 %)** — at the same note
+count (nps 4.94 / 5.03 / 5.04). For scale: 12.9 % of all events in that song are k≥3, so at γ1.0 the
+*marginal* note is finally approaching the base rate, though still below our existing notes' 21.3 %.
+**Confirmed from two independent directions** — the axis costs and the note-placement quality move
+together.
+
+**γ1.5 at the SAME budget (`g15`) redistributes rather than adds**: 30 notes added, 28 removed, and the
+added ones are 10.0 % k≥3 against the removed ones' 3.6 % — it moves notes from low-k to higher-k
+slots. Its axis trade is real and mixed: **playfeel 0.674 → 0.449 (better, resolvable)** but **rhythm
+0.409 → 0.668 and flow 0.292 → 0.526 (both worse, resolvable)**; alignment, idiom, handrole and
+precision all move in the *improving* direction inside noise.
+
+✅**A pre-registered worry did NOT reproduce**: the script warned that lowering γ previously wrecked
+handrole (1.84 → 2.70). Here handrole is **1.071 at γ1.5 vs 1.148 control** — better, not worse. The
+old result was presumably confounded by the pre-tempo-fit grid (C4).
+
+⚠️**NOT a promotion candidate, and the original justification for γ2.5 is untested here.** γ was raised
+to 2.5 on 2026-06-30 specifically to buy `density_corr`, and this sweep does not score that axis — so
+"lower γ is better" is established *for marginal-note quality, rhythm and playfeel at raised budget*,
+not in general. ⚠️And the whole W2 premise for raising the budget at all is now in doubt (Kyle graded
+A+ a map at 0.650 of its human's density), so **do not ship a budget rise on the strength of this.**
+What this establishes is the **mechanism**: if a future lever needs to place more notes, it must flatten
+γ at the same time or it will spend them on filler.
+
+---
+
 ## 🔴 W3 NOT REPRODUCED — AND ITS STATED EVIDENCE WAS A CROSS-POPULATION COMPARISON (2026-08-04)
 
 `scripts/eval_intensity_alloc.py`. Both cohorts scored on **byte-identical audio** (the eval songset
