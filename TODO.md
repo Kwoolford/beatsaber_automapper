@@ -440,10 +440,29 @@ different thing from these coverage buckets. Do not conflate them.
 ⇒**It also explains the ceiling on `BEAT_MAIN_BEAT_BONUS`**: a ×1.25 boost on 0.328 gives 0.41, still
 far below the ~0.7 competitors elsewhere in the window. **A multiplicative prior cannot win a race it
 starts at half distance.**
-**Task**: either an *adaptive* bonus (stronger where p@mainbeat is low relative to its own window), or
-accept that this is representation and fix it in Stage-1. ⚠️An adaptive bonus is one step from
-"force a note onto every main beat", which is the metronome. Score it against `notes_on_main` and
-rhythm, not coverage alone.
+**❌ The adaptive bonus was BUILT AND LOST** (`BEAT_MAIN_BEAT_LIFT`, 3 of 3 songs, per note added) —
+`max(p, α·p90)` flattens the main-beat profile and destroys the ranking *among* main beats. Selection
+is a per-window RANKING, not a per-slot threshold; order beats level. Documented in PROGRESS.md.
+
+**❌ AND THE INVERSION HAS NO SIMPLE PREDICTOR — three candidates tested, all null or weak:**
+
+| predictor | worst | mid | best |
+|---|---|---|---|
+| bass % / drums % of onsets | 0.276 / 0.323 | 0.273 / 0.306 | 0.273 / 0.333 |
+| **drums landing on the main beat** | **0.828** | 0.856 | 0.850 |
+| onsets per second | 14.37 | 14.77 | 13.70 |
+| position in song | 0.507 | 0.467 | 0.423 |
+| beat-to-slot offset | 0.168 | 0.144 | 0.142 |
+| slots per main beat | **2.00** | 2.09 | 2.19 |
+
+★**The drums land on the main beat 83 % of the time in the very windows where the model peaks OFF
+it.** The audio in our worst windows is indistinguishable from our best by stem mix, stem-to-beat
+alignment or onset density. ⇒**the inversion is not a preprocessing artifact and not a property of the
+music — it is internal to Stage-1**, which is the strongest argument yet that this needs the retrain
+rather than another decode lever.
+⚠️One weak signal worth a follow-up: worst windows average **2.00 slots per main beat** vs 2.19 —
+i.e. they concentrate on songs whose main beat sits at the eighth level, where "off by one slot" *is*
+the half-beat error. Not strong enough to act on alone.
 
 **S3 🟠 FALLEN KINGDOM IS INVERTED — starved where the music is busy, dense where it is silent.**
 210–230 s: **10 and 8** notes per 10 s against the human's **28 and 22**, while the music runs 73 stem
