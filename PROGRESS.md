@@ -366,6 +366,35 @@ mid-run and the deal arms became half strict-alternation and half lead-aware. **
 it still prints a number.** Killed the sweep, deleted every deal-arm cache (the control arm never
 touches that code path and was unaffected), relaunched clean.
 
+### ★ AND IT FIXES THE PULSE-COVERAGE DEFECT TOO — one lever, three items
+
+`pulse_coverage` (the share of an obvious steady beat we answer, built earlier tonight from his *"we
+play like 1 out of 2/3 notes of an obvious slow beat"*), 24 songs:
+
+| arm | `pulse_coverage` | `pulse_continuity` |
+|---|---|---|
+| control | 0.6100 | 0.7125 |
+| **deal14** | **0.8327** | **0.9069** |
+| human | 0.7978 | 0.8266 |
+
+⇒ **one lever moves C5 (distinct times 462 → 656 vs human 646), the pulse-coverage defect
+(0.61 → 0.83 vs human 0.80), and should relieve W3 (fewer simultaneous notes)** — while holding
+`role_asymmetry`. That makes it the most consequential change since the tempo fit.
+
+⚠️**TWO CAUTIONS, both pointing the same way — it may now be TOO regular.**
+1. `pulse_continuity` **overshoots** the human: 0.9069 vs 0.8266. We break the run *less often* than
+   humans do. ★Every regularity-rewarding metric measured tonight is **metronome-gameable**, so
+   overshooting toward regularity is a **yellow flag, not a win**.
+2. On Fallen Kingdom, `deal14` gives **763 distinct times against the human's 646** — also an
+   overshoot.
+
+**The rhythm axis is the check that matters**, and `BEAT_HAND_INTERLEAVE` is the precedent: it also
+looked right on its target metric before the suite killed it.
+
+**Review set built for Kyle**: `outputs/kyle_review_2026-08-04/` — 12 zips plus `NUMBERS.txt`, giving
+each standing review song as BEFORE (the promoted baseline he graded A+) / `A_endresolve` (W7) /
+`B_handdeal14` (C5), with the human map's numbers alongside. ⚠️In gitignored `outputs/` per C6.
+
 ⚠️**NOTHING IS CLAIMED UNTIL THE SIX AXES RETURN.** A structural win that costs rhythm or flow is
 exactly how `BEAT_HAND_INTERLEAVE` failed. Default OFF; Kyle's ear decides regardless.
 
