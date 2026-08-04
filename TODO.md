@@ -234,10 +234,21 @@ different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the de
 **Tasks**
 1. Build `BEAT_NOTE_BUDGET` as a **user-facing multiplier** (he wants it in the UI — see
    [[feedback-levers-are-user-facing]]): clean range, monotone behaviour, default 1.0 = baseline.
-2. ★Then the real fix: make the budget a **per-song function of the song's own supply** rather than a
-   global constant, targeting the human `used/supply` *distribution* (median 0.854, wide) instead of
-   our flat 0.58. ⚠️**Do NOT just raise `BEAT_DIFFICULTY_SCALE`** — Hunger is A+ at the current budget
-   and W3 says parts are already too intense. The point is the *variance*, not the level.
+2. 🔴🔴**DO NOT CHASE HUMAN DENSITY — REFUTED 2026-08-04 BY KYLE'S OWN VERDICT.** Distinct-nps as a
+   fraction of each song's *own* human map: **Hunger (graded A+) 0.650**, **Fallen Kingdom ("really
+   empty") 0.781**, アリスブルー 0.867. **The song he loved is the furthest below its human; the song he
+   called empty is denser relative to its human.** The ratio is backwards from his verdict, so a
+   budget lever aimed at human density optimises the wrong thing. (My earlier note here said to target
+   the human `used/supply` median 0.854 — withdrawn. The 0.582-vs-0.854 measurement stands; the
+   inference from it does not.)
+   ⚠️And **none of tonight's metrics separates the two songs**: k≥3 response is *better* on Fallen
+   Kingdom (0.667) than Hunger (0.545), and >1 s phrase holes are near-identical (0.538 vs 0.500).
+3. ★**THE LIVE QUESTION — sharpen "empty" before sweeping again.** His words were *"we play like 1 out
+   of 2/3 notes of an obvious slow beat"*: a claim that a **simple repeating pulse gets played
+   intermittently**, not a claim about totals. Build the instrument for *that* — e.g. in sections with
+   a steady pulse, what share of consecutive on-pulse positions carry a note, ours vs human. **W4's
+   lesson applies directly**: `tail_ratio` returned a clean 1.000 null and the defect was real; a null
+   from a blunt instrument is "not yet measurable", not "refuted".
    ★**Measured 2026-08-03 — the marginal note is much worse than the average note.** Notes added by
    `nb130` on Fallen Kingdom are **31.8 % k=0** (vs our existing 9.5 %) and **0.9 % k≥3** (vs 21.3 %),
    while still landing on a real human note ~56 % of the time. So a global bump closes the **count**
@@ -245,8 +256,10 @@ different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the de
    `DENSITY_SELECT_GAMMA=2.5` concentrates budget into loud windows, so extra budget goes deeper down
    the ranking *inside windows already served* while quiet windows holding good onsets stay starved
    (documented independently in C1). ⇒**next experiment: lower γ and raise budget TOGETHER.**
-3. Check whether the corpus median (3.91) is the wrong target for slow songs — human nps almost
-   certainly correlates with tempo, and we apply one number.
+4. ⚠️The corpus median (3.91) was already a suspect target; it is now doubly so — it is measured over
+   ~200 random corpus maps, a **different song population** from our 24-song eval set, so comparing
+   our cohort nps to it compares two different things. Use each song's own human map, and even then
+   only as context, never as a target (see 2).
 
 **DoD**: Fallen Kingdom's first minute plays the main beat; Hunger does not get denser.
 
@@ -338,7 +351,7 @@ be built together.
 
 ---
 
-### 🟢 W7 — DIAGNOSED: the map ends on an ORPHANED HALF-DOUBLE (fix not built)
+### ✅ W7 — DIAGNOSED **AND FIXED**, awaiting Kyle's ear (lever default OFF)
 > *"The final note of the song did not line up together, the map was like .5 seconds late."*
 
 **Read it literally — "together" means the two hands.** On Hunger the map plays doubles at 271.596 /
@@ -350,10 +363,16 @@ metric (final event not a double while ≥3 of the previous 4 were): **ours 0.15
 **no general "we end late" defect**: `last_onset − last_note` is 0.723 s for us vs 0.789 s for humans
 over 13 songs. **Do not re-open this as a timing bug.** Full write-up in PROGRESS.md.
 
-**Task (the only thing left)**: `BEAT_END_RESOLVE` — a postprocess rule, default OFF, that makes the
-map resolve: if the final event is a single and the recent pattern was doubles, either add its partner
-or drop it back to the last full double. Verify at ≥3 seeds that it moves the 0.159 toward 0.036 while
-the six axes stay inside noise, then Kyle's ear.
+✅**`BEAT_END_RESOLVE=0.75` BUILT AND VALIDATED at 3 seeds × 24 songs** (2026-08-04): orphaned ending
+**0.1528 → 0.0139** (human 0.036 — it lands *below* the human rate) and it **costs nothing** — rhythm,
+idiom, playfeel, precision and nps are unchanged to three decimals; alignment, flow and handrole move
+≤0.014, all in the improving direction. Paired note-count check over 34 matched (seed, song) pairs:
+**28 deltas of 0, 6 of −1, never positive.** It drops the orphan rather than inventing a partner.
+**Only step left: Kyle plays it.** ⚠️Do not promote unilaterally.
+
+⚠️**Sweep-table reading trap**: the `delta / resolvable?` column compares the **second** arm to the
+control, not the last. Difference the columns directly or `endres` looks like it costs +0.382 playfeel
+when it costs 0.000.
 
 ---
 

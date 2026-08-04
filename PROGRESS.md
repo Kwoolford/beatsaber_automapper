@@ -259,6 +259,73 @@ the model knows where it goes*, which is what makes a **per-song** `BEAT_NOTE_BU
 
 ---
 
+## ★★★★★★ W2/W7 SWEEP HARVESTED — AND THE DENSITY TARGET IS REFUTED BY KYLE'S OWN VERDICT (2026-08-04)
+
+`logs/overnight/budget_endres_2026-08-03.log`, 5 arms × 3 seeds × 24 songs.
+
+### ✅ W7 — `BEAT_END_RESOLVE` MEETS ITS DoD
+
+**Orphaned ending 0.1528 → 0.0139** (human 0.036) — it lands *below* the human rate. And it costs
+nothing: comparing the endres column against the control column directly,
+
+| axis | control | endres |
+|---|---|---|
+| alignment | 0.260 | **0.255** |
+| rhythm | 0.409 | **0.409** |
+| flow | 0.292 | **0.282** |
+| idiom | 0.568 | **0.568** |
+| handrole | 1.148 | **1.134** |
+| playfeel | 0.674 | **0.674** |
+| prec / nps | 0.919 / 3.882 | **0.919 / 3.882** |
+
+Rhythm, idiom, playfeel, prec and nps are **unchanged to three decimals**; the three that move do so by
+≤0.014 and all in the improving direction. Corroborated by a paired note-count check over 34 matched
+(seed, song) pairs: **28 deltas of 0, 6 of −1, never positive** — it removes exactly one note on
+exactly the maps that had an orphan. ⇒ **DoD met. Ready for Kyle's ear; still default OFF.**
+
+⚠️**READING TRAP IN THE SWEEP TABLE**: its `delta / resolvable?` column compares the **second arm**
+(nb115) to the control, *not* the last one. Verified: playfeel 1.056 − 0.674 = +0.382 matches the
+printed delta exactly. Read `endres` by differencing the columns, never off that column, or the lever
+appears to cost +0.382 playfeel when it costs 0.000.
+
+### 🔴 W2 — THE PRICE CURVE, AND THEN THE RESULT THAT KILLS THE PLAN
+
+Monotone and exactly as pre-registered — nps 3.882 → 4.426 → 4.940 → 5.436, playfeel **0.674 → 1.056 →
+1.511 → 1.899** (resolvable), alignment 0.260 → 0.557, precision 0.919 → 0.901. More notes cost
+quality on every axis that measures it, which is the price being quoted, not a failure.
+
+★★★**But the per-song numbers refute the target itself.** Distinct-note-time nps as a fraction of *that
+song's own human map*:
+
+| song | Kyle's verdict | ours / human |
+|---|---|---|
+| **Hunger** | **A+** | **0.650** |
+| **Fallen Kingdom** | *"really empty"* | **0.781** |
+| アリスブルー | — | 0.867 |
+
+★**The song he graded A+ is the FURTHEST below its human map. The song he called empty is DENSER
+relative to its human.** The ratio is backwards from his verdict. Nor do the other candidates separate
+them — k≥3 response is *better* on Fallen Kingdom (0.667) than on Hunger (0.545), and >1 s phrase holes
+are near-identical (0.538 vs 0.500).
+
+⇒ 🔴**"Match the human's note count" is REFUTED as a target**, per-song or global. Kyle graded A+ a map
+at 65 % of its human's density. **And none of tonight's metrics distinguishes the map he loved from the
+one he called empty** — whatever "empty" is, it is not overall density, not coincidence response, and
+not phrase holes.
+
+🔴**CORRECTION to my own recommendation from earlier tonight.** I wrote into TODO that W2's fix is a
+per-song budget "targeting the human `used/supply` distribution (median 0.854)". The measurement behind
+that (ours 0.582 vs human 0.854, ours nearly constant vs human varying 4×) still stands as a *fact* —
+but the inference that we should move toward 0.854 does not, because his ear approved 0.650. **Do not
+build a lever that chases human density.**
+
+**What is still open and worth building**: his actual words were *"we play like 1 out of 2/3 notes of
+an obvious slow beat"* — a claim about a **specific simple repeating pulse being played intermittently**,
+not about totals. That is a *consistency* claim and needs its own instrument, exactly as W4's "no notes"
+needed one after `tail_ratio` returned a clean null. Sharpen the question before sweeping again.
+
+---
+
 ## ★★★ W4 CONFIRMED — WE LEAVE HOLES IN SUNG PHRASES (and the first metric hid it) (2026-08-04)
 
 > *"A few times the singer is still finishing a sentence and there's no notes."*
