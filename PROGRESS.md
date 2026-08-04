@@ -326,6 +326,49 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## 🔴 W3 NOT REPRODUCED — AND ITS STATED EVIDENCE WAS A CROSS-POPULATION COMPARISON (2026-08-04)
+
+`scripts/eval_intensity_alloc.py`. Both cohorts scored on **byte-identical audio** (the eval songset
+`.ogg` files were verified md5-identical to the audio inside the human zips on 2026-08-02), same 4 s
+window, each song against **its own** human map. Paired over 13 songs:
+
+| metric | ours | human | paired delta | verdict |
+|---|---|---|---|---|
+| `peak_intensity` (loudness where we play hardest) | 0.727 | 0.735 | −0.044 | NO (noise) |
+| `intensity_corr` (Spearman nps vs loudness) | 0.223 | 0.308 | −0.054 | NO (noise) |
+| `peak_offset` (loudest window ↔ densest window) | 54 s | 52 s | +1.7 | NO (noise) |
+| **`peak_nps`** | **4.00** | **5.25** | **−1.21** | **resolvable** |
+
+🔴**TODO's stated evidence for W3 was "peak nps 6.5 vs human 5.5, and on Hunger it reaches 9.5". That
+does not survive.** Measured per-song against the same songs' own human maps, **we peak LOWER than
+humans, resolvably** — and on **Hunger specifically, ours is 7.00 against its human's 9.25**. The
+"9.5" in the TODO is close to *the human's* value, not ours. We peak lower than the human on 9 of 13
+songs.
+
+★**The 6.5-vs-5.5 was a cross-population comparison** — our 24-song eval set against a median over
+~200 random corpus maps. That is the **same category error** caught twice already tonight (comparing
+our cohort nps to the corpus median, and comparing added notes' `k` to an *event* base rate instead of
+the human *note* distribution). **Three instances in one session; it is the project's most repeated
+measurement mistake.**
+
+**And the location hypothesis is not supported either**: `peak_intensity` 0.727 vs 0.735 is a wash, so
+our hardest passages sit on parts of the song just as loud as the human's do. ⚠️Note the human's own
+`peak_offset` is **52 s** — even human mappers do not put peak density at peak loudness, so an axis
+built on "peaks should be at the loudest moment" would have been calibrated against a false premise.
+
+### So what did Kyle hear?
+
+★**Most likely: "really intense to play" is not density at all — it is execution difficulty.** A
+passage can be exhausting at 5 nps if the patterns are awkward, and `peak_nps` cannot see that. The
+project already has the right instrument (`scripts/eval_reachability.py`, `hard_rate`), and W3's own
+TODO entry already flagged the suspect: *"plausibly `BEAT_ONSET_EVIDENCE`'s documented cost"* — that
+lever **is** recorded as degrading reachability (1f333 0.098 → 0.157). ⇒ **Re-open W3 against
+`hard_rate` localised to Hunger's intense passages, not against nps.** Cohort `hard_rate` is already
+matched (0.0590 vs 0.0592), so this must be measured *per-window*, not per-cohort — the K1 lesson
+about cohort medians hiding subset defects applies directly.
+
+---
+
 ## ★★★ NEW COHORT DEFECT: WE PLAY ONLY 61 % OF AN OBVIOUS STEADY PULSE — but it is still not "empty" (2026-08-04)
 
 `scripts/eval_pulse_consistency.py`, built to sharpen Kyle's *"we play like 1 out of 2/3 notes of an

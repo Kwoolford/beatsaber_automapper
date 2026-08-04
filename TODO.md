@@ -279,18 +279,38 @@ different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the de
 > assigning intensity to each part of the song like beat drop and what not and having higher nps for
 > those sections."*
 
-**Evidence**: baseline peak nps **6.5 vs human 5.5**, and on Hunger it reaches **9.5**. So we do have
-peaks — they are in the wrong places. Corroborated by the A5 **structure axis, built and shelved as a
-negative result** (2026-07-27) — it should be re-opened with this sharper target.
+🔴🔴**THE STATED EVIDENCE IS RETRACTED (2026-08-04).** It read *"baseline peak nps 6.5 vs human 5.5,
+and on Hunger it reaches 9.5"*. That compared our **24-song eval set** against a median over **~200
+random corpus maps** — two different song populations. Measured properly (`eval_intensity_alloc.py`:
+per-song, same 4 s window, **byte-identical audio**, each song against **its own** human map, n=13):
+
+| metric | ours | human | paired delta |
+|---|---|---|---|
+| `peak_nps` | **4.00** | **5.25** | **−1.21 (resolvable)** |
+| `peak_intensity` | 0.727 | 0.735 | −0.044 (noise) |
+| `intensity_corr` | 0.223 | 0.308 | −0.054 (noise) |
+
+**We peak LOWER than humans, not higher** — on 9 of 13 songs, and on **Hunger ours is 7.00 vs its
+human's 9.25** (the "9.5" in the old note is close to *the human's* number, not ours). **And the
+location hypothesis fails too**: `peak_intensity` is a wash, so our hardest passages sit on parts as
+loud as the human's. ⚠️The human's own `peak_offset` is **52 s** — humans do not put peak density at
+peak loudness either, so "peaks should land on the loudest moment" would have been a false premise for
+an axis.
+
+★**REFRAME — "really intense to play" is probably not density.** A passage can be exhausting at 5 nps
+if the patterns are awkward, and `peak_nps` cannot see that. W3's own note already named the suspect:
+*"plausibly `BEAT_ONSET_EVIDENCE`'s documented cost"* — and that lever **is** recorded as degrading
+reachability (1f333 0.098 → 0.157).
 
 **Tasks**
-1. Detect sections and classify intensity (drop / chorus / verse / breakdown). `_detect_sections_energy`
-   already exists and `section_gate="loud_only"` uses it — start there rather than rebuilding.
-2. Add his relative-loudness idea: intensity as **energy relative to the rest of the song**, not absolute.
-3. Allocate the note budget by section intensity, so peaks land on drops.
-
-**DoD**: peak nps lands in the sections Kyle would name as peaks; Hunger's over-intense passages calm
-down without losing its A+ character.
+1. ★**Re-open W3 against `hard_rate` (`scripts/eval_reachability.py`), not nps**, localised to
+   Hunger's intense passages. ⚠️Cohort `hard_rate` is already matched (0.0590 vs human 0.0592), so it
+   **must be measured per-window** — the K1 lesson (a cohort median cannot see a subset defect)
+   applies exactly.
+2. Only if (1) also comes back null: ask Kyle to name a timestamp in Hunger that felt too intense.
+   Four instruments have already failed on "empty"; do not repeat that pattern here.
+3. His relative-loudness idea is **built** — `view_song_strip.py` plots RMS-relative intensity against
+   our nps per song, and `eval_intensity_alloc.py` scores it.
 
 ---
 
