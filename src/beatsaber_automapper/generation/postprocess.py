@@ -118,6 +118,23 @@ def postprocess_beatmap(
         if _s > 0 and _t > 0:
             beatmap = enforce_speed_diagonals(beatmap, bpm, _t, _s)
 
+    # W7 (2026-08-03): make the map RESOLVE. Kyle on Hunger: "The final note of the
+    # song did not line up together, the map was like .5 seconds late." Read
+    # literally -- "together" is the two hands. The map plays doubles at 271.596 /
+    # 271.755 / 271.915 and then ends on a LONE RED; the blue hand just stops.
+    # Cohort rate of that shape is ours 0.159 vs human 0.036 (4.4x). This runs
+    # BEFORE fix_parity so parity repairs whatever it changes.
+    # BEAT_END_RESOLVE = the share of the preceding events that must have been
+    # doubles before a trailing single counts as orphaned (e.g. "0.75"). Default OFF.
+    _er = os.environ.get("BEAT_END_RESOLVE", "")
+    if _er:
+        try:
+            _thr = float(_er)
+        except ValueError:
+            _thr = 0.0
+        if 0.0 < _thr <= 1.0:
+            beatmap = resolve_ending(beatmap, _thr)
+
     beatmap = convert_dot_notes(beatmap)
     beatmap = fix_parity(beatmap)
     beatmap = fix_arc_chain_connectivity(beatmap, bpm)
@@ -1121,6 +1138,58 @@ def convert_dot_notes(beatmap: DifficultyBeatmap) -> DifficultyBeatmap:
 
     if converted > 0:
         logger.info("Dot note conversion: converted %d direction-8 to real directions", converted)
+    return beatmap
+
+
+def resolve_ending(beatmap: DifficultyBeatmap, prev_share: float = 0.75,
+                   lookback: int = 4) -> DifficultyBeatmap:
+    """W7 — stop maps ending on an ORPHANED HALF-DOUBLE.
+
+    Kyle, on the Hunger map he graded A+: *"The final note of the song did not
+    line up together, the map was like .5 seconds late."* Measured: the map plays
+    doubles at 271.596 / 271.755 / 271.915 and then ends on a lone red. It is not
+    a timing defect at all -- the last note sits 0.47 s BEFORE the trim cut, and
+    our cohort ends no later than humans do (0.723 s vs 0.789 s after the last
+    onset). It is the two hands failing to finish together.
+
+    Cohort rate of "final event is a single while >= `prev_share` of the previous
+    `lookback` events were doubles": **ours 0.159, human 0.036** -- 4.4x. It is
+    seed-dependent rather than song-dependent (9 of 24 songs on at least one seed,
+    0 of 24 on all three), so it is a per-map coin flip we lose too often.
+
+    The repair DROPS the orphan rather than inventing a partner for it: a
+    fabricated note needs a position and a direction that nothing in the model
+    chose, and the human ending this was calibrated against resolves by *stopping*
+    on a full event. Dropping one note also cannot break parity for anything that
+    follows, because nothing follows.
+    """
+    notes = sorted(beatmap.color_notes, key=lambda n: n.beat)
+    if len(notes) < 12:
+        return beatmap
+
+    by_beat: dict[float, list] = {}
+    for n in notes:
+        by_beat.setdefault(round(n.beat, 4), []).append(n)
+    beats = sorted(by_beat)
+    if len(beats) < lookback + 2:
+        return beatmap
+
+    final = by_beat[beats[-1]]
+    if len({n.color for n in final}) >= 2:
+        return beatmap                      # already resolves on a double
+
+    prev = beats[-1 - lookback:-1]
+    doubles = sum(1 for b in prev if len({n.color for n in by_beat[b]}) >= 2)
+    if doubles / float(lookback) < prev_share:
+        return beatmap                      # the map was not playing doubles anyway
+
+    beatmap.color_notes = [n for n in beatmap.color_notes
+                           if round(n.beat, 4) != beats[-1]]
+    logger.info(
+        "BEAT_END_RESOLVE: dropped %d orphaned final note(s) at beat %.4f "
+        "(%d of the previous %d events were doubles); map now resolves at %.4f",
+        len(final), beats[-1], doubles, lookback, beats[-2],
+    )
     return beatmap
 
 
