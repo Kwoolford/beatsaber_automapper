@@ -326,6 +326,60 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★★★★★ THE CORE DEFECT, ISOLATED AND CONTROLLED — Stage-1's probability inverts phase (2026-08-04)
+
+Kyle asked for a suite so *"you can see the correlation to the config of the model."* This is that,
+and it unifies S1, S3 and S6 into one statement.
+
+**Bucketing 352 windows × 24 songs by our main-beat coverage**, then reading the cached Stage-1
+probability at each slot offset from the beat:
+
+| bucket | −2 | −1 | **0 (the beat)** | +1 | +2 |
+|---|---|---|---|---|---|
+| our **best** windows | 0.694 | 0.301 | **0.725** | 0.287 | 0.693 |
+| our **worst** windows | 0.330 | **0.590** | **0.320** | **0.577** | 0.322 |
+
+★**Exactly inverted.** In good windows the probability peaks on the beat and troughs between; in bad
+windows it peaks *between* and troughs *on*. Not weak — **confidently wrong** (0.59 off-beat against
+0.32 on-beat).
+
+### The control that makes it a defect rather than an artifact
+
+The obvious alternative: the music is genuinely syncopated there, the model follows the emphasis, and
+**my grid** is locally wrong. The human map decides it:
+
+| bucket | our coverage | **human coverage** | human **offbeat** coverage |
+|---|---|---|---|
+| our worst windows | 0.100 | **0.653** | **0.104** |
+| our best windows | 0.791 | 0.807 | 0.368 |
+
+⇒ In the windows where our probability inverts, **the human plays the main beat 65 % of the time and
+the offbeat only 10 %**. The grid is right; Stage-1 is wrong. (And note the human plays *more* offbeat
+in our GOOD windows, 0.368 — so their syncopation is not where we fail.)
+
+### What this unifies
+
+- **S1**: the same inversion, whole-song, on 1fa48 and 1f9a0 (coverage ~0.00).
+- **S3/S6**: the same inversion, locally, in ~15 % of windows on every song.
+- **Kyle's "it hits the main flow partially"**: the audible consequence.
+- **The ceiling on `BEAT_MAIN_BEAT_BONUS`**: ×1.25 on 0.320 gives 0.40, still below the 0.59 next
+  door. **A multiplicative prior cannot win a race it starts at half distance** — which is precisely
+  why the lever gains a third of the gap and then stops.
+
+⚠️These windows are **not note-starved**: 30.5 notes per 12 s against 29.7 in mid windows, and normal
+overall window probability (0.362 vs 0.356). We play a normal amount, in the wrong places.
+
+### Where this points
+
+**This is a Stage-1 defect, and the decode can only paper over it.** Two directions:
+1. **Find why the phase inverts.** It is noise-free on 1fa48/1f9a0 (sd 0–6 ms) with a healthy control
+   song to diff — the cheapest debugging target in the project.
+2. **An adaptive prior** — boost proportional to how far p@beat sits below its own window — could in
+   principle close a 2× deficit where a fixed ×1.25 cannot. ⚠️One step from "force a note onto every
+   main beat", which is the metronome; score it on `notes_on_main` and rhythm, never coverage alone.
+
+---
+
 ## ★★★★★★ BEAT_MAIN_BEAT_BONUS — THE FIRST RESOLVABLE AXIS *IMPROVEMENT* IN THE SESSION (2026-08-04)
 
 `logs/overnight/mainbeat_2026-08-04.log`, 4 arms × 3 seeds × 24 songs. Built from Kyle's *"it hits the
