@@ -302,13 +302,29 @@ if the patterns are awkward, and `peak_nps` cannot see that. W3's own note alrea
 *"plausibly `BEAT_ONSET_EVIDENCE`'s documented cost"* — and that lever **is** recorded as degrading
 reachability (1f333 0.098 → 0.157).
 
+### ✅ ROUND 2 DONE (2026-08-04) — **W3 IS PROBABLY C5 WEARING A DIFFERENT HAT**
+Per-window `hard_rate` on Hunger is **also null** — we are *easier* than its human at every quantile
+(median 0.037 vs 0.064, p90 0.115 vs 0.174) and only **1 of 62** windows passes the human's own p90.
+★But that window is **4:24, inside Hunger's closing run** — the same run W7 found ending orphaned.
+There, on identical 160 ms grids:
+
+| | events | double share | notes/s |
+|---|---|---|---|
+| ours | 50 | **0.640** | **6.56** |
+| human | 66 | **0.015** | 5.36 |
+
+**The human plays a fast alternating single-hand run; we play a run of DOUBLES** — fewer distinct
+moments, more notes per second, both hands firing together every 160 ms. Cohort (n=13, paired): peak
+**events**/s −1.21 ± 0.47 (**resolvable**), peak **notes**/s +0.56 ± 0.56 (**noise — do not quote**).
+⇒ **PARTLY CONFIRMED**: strong on the named song, not yet at cohort level.
+
 **Tasks**
-1. ★**Re-open W3 against `hard_rate` (`scripts/eval_reachability.py`), not nps**, localised to
-   Hunger's intense passages. ⚠️Cohort `hard_rate` is already matched (0.0590 vs human 0.0592), so it
-   **must be measured per-window** — the K1 lesson (a cohort median cannot see a subset defect)
-   applies exactly.
-2. Only if (1) also comes back null: ask Kyle to name a timestamp in Hunger that felt too intense.
-   Four instruments have already failed on "empty"; do not repeat that pattern here.
+1. ★**Treat W3 as a symptom of [C5](#c5), not a separate item** — C5's double share 0.66 vs human
+   0.1366 has a known structural cause (Stage-1's hand channels correlate 0.985–0.993). Fixing C5
+   should fix W3; do not build a separate intensity lever first.
+2. ⚠️**Any future difficulty axis must count NOTES, not distinct events.** Measured on events we look
+   *easier* than human (4.00 vs 5.25) while the map plays *harder* — `peak_nps` actively hid this.
+3. If a direct check is wanted: raise n beyond 13 to see whether the notes/s excess resolves.
 3. His relative-loudness idea is **built** — `view_song_strip.py` plots RMS-relative intensity against
    our nps per song, and `eval_intensity_alloc.py` scores it.
 

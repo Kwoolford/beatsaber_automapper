@@ -356,6 +356,48 @@ our hardest passages sit on parts of the song just as loud as the human's do. �
 `peak_offset` is **52 s** — even human mappers do not put peak density at peak loudness, so an axis
 built on "peaks should be at the loudest moment" would have been calibrated against a false premise.
 
+### W3 ROUND 2 — `hard_rate` is also null, but the RIGHT instrument is notes/s, and it points at C5
+
+Per-window (8 s) `hard_rate` on **Hunger**, ours vs its own human map, 62 comparable windows:
+
+| | median | p90 | max |
+|---|---|---|---|
+| ours | 0.0370 | 0.115 | 0.234 |
+| human | 0.0643 | 0.174 | 0.268 |
+
+**We are easier than the human at every quantile**, and only **1 of 62** windows exceeds the human's
+own p90 (1.6 % against 10 % by construction). ⇒ reach-difficulty is **not** what he felt either.
+
+★**But that one window is at 4:24 — inside Hunger's closing run, the same run whose final event W7
+found orphaned.** Looking at 4:20–4:32 on identical 160 ms grids:
+
+| | events | double share | **notes/s** |
+|---|---|---|---|
+| ours | 50 | **0.640** | **6.56** |
+| human | 66 | **0.015** | 5.36 |
+
+★★**The human plays a fast ALTERNATING single-hand run; we play a run of DOUBLES.** We produce *fewer
+distinct moments* but *more notes per second*, because both hands fire together every 160 ms. That is
+much more demanding to execute than the human's alternating line at the same grid — and it is exactly
+*"really intense to play, even though it's not where you'd expect the peak difficulty."*
+
+**Cohort check (n=13, paired, 4 s window):**
+
+| | ours | human | paired delta |
+|---|---|---|---|
+| peak **events**/s | 4.00 | 5.25 | **−1.21 ± 0.47 — RESOLVABLE** |
+| peak **notes**/s | 7.00 | 6.25 | +0.56 ± 0.56 — *not resolvable* |
+
+⇒ **PARTLY CONFIRMED.** The events/s deficit is solid; the notes/s excess is directionally right but
+**inside noise at n=13 — do not quote it as established.** The named-song evidence (Hunger's closing
+run, 0.640 vs 0.015 doubles) is strong; the cohort claim is not yet.
+
+★**W3 most likely folds into C5 rather than needing its own fix.** C5 already says our double share is
+0.66 vs the human 0.1366 and that the cause is structural (Stage-1's two hand channels correlate
+0.985–0.993, so both hands pick the same slots). W3 is what that defect *feels like* under the
+fingers. **`peak_nps` measured on distinct events actively hides it** — it made us look *easier* than
+human while the map plays harder. Any future difficulty axis must count **notes**, not events.
+
 ### So what did Kyle hear?
 
 ★**Most likely: "really intense to play" is not density at all — it is execution difficulty.** A
