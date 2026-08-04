@@ -282,6 +282,43 @@ explicitly valued by ear. Check both before promoting anything.
 
 ---
 
+## 🛠️ SPARE-TIME STANDING TASK — the visual EDA suite (Kyle, 2026-08-03)
+
+> *"We were in the process of building out an eval suite that mapped song notes to beatsaber notes you
+> could visually see and do eda on so that the time between me needing to give input between iterations
+> would be slowed down. If at any point overnight you have spare time continue to build out that
+> functionality."*
+
+**Purpose: raise the number of questions answerable without his ear.** Every iteration that currently
+needs him to put on a headset is a day of latency. Work this whenever a GPU job is running and there is
+no CPU-bound experiment queued.
+
+**What exists already** — extend these, do not restart:
+- `scripts/render_map.py` — PNG lattice panels, density strip over audio RMS, swing-path parity trace.
+- `scripts/map_view.py` — the map as a readable text score, with stem lanes.
+- `scripts/cohort_eda.py` — per-cohort reference stats.
+
+**The actual gap, named by tonight's work**: nothing plots **per-instrument onsets against our notes**.
+The offbeat defect (W1a — we sit half a beat off multi-instrument hits 2.6× more than humans) was found
+through three separate numeric scripts and would have been **obvious at a glance** in a view with the
+bass/drums/other/vocals onset lanes drawn against our note times and the human's. The seeded
+`outputs/stem_onset_cache/` (274 songs) already has everything needed.
+
+**Build order**
+1. **Song-vs-map alignment view** — stem onset lanes + coincidence order `k` per event, our notes and
+   the human's on the same time axis, beat grid drawn. Mark k≥3 events we missed and notes sitting a
+   half-beat off one. This is the view that makes W1a visible.
+2. **Whole-song strip** — nps, `halfbeat_rate` and per-section intensity along the song, so W2/W3
+   (empty songs, misallocated peaks) are readable without playing.
+3. **A/B diff view** — two arms on one axis, only the notes that differ highlighted. Most sweeps change
+   little; showing everything hides the change.
+4. Make it a single HTML artifact per song rather than loose PNGs, so he can scroll one file.
+
+**DoD**: Kyle can open one file per song and answer *"did this lever help, and where"* without playing
+the map. It never replaces his ear as the promotion gate — it replaces his ear as the **triage** gate.
+
+---
+
 ## 🔵 P2 — CARRIED FORWARD
 
 ### C1 — Precision sits at the greedy optimum; gains need better probabilities, not better picking
