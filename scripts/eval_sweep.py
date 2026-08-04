@@ -666,6 +666,18 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
                   ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
     "v8_mbb025": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.25"},
                   ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
+    # DENSITY-MATCHED v8 (2026-08-04). The v8 arms lost on main-beat coverage
+    # (0.503 vs control 0.546) while emitting 17% FEWER notes -- nps 3.215 vs
+    # 3.882, the only resolvable delta in that table. Fewer notes mechanically
+    # cover fewer beats, so the comparison was confounded. BEAT_NOTE_BUDGET 1.20
+    # brings v8 back to roughly the control's density (3.215 * 1.20 = 3.86) and
+    # asks the question properly: with the SAME number of notes, does the model
+    # whose probability is not phase-inverted put them on the beat more often?
+    "v8_nb120":        ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.20"},
+                        ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
+    "v8_nb120_mbb025": ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.20",
+                         "BEAT_MAIN_BEAT_BONUS": "0.25"},
+                        ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
