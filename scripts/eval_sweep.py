@@ -637,6 +637,22 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "trimco3": ({**_DS25, **_W2BASE, "BEAT_TRIM_END_COINCIDENCE": "3"}, []),
     "trimco3_endres": ({**_DS25, **_W2BASE, "BEAT_TRIM_END_COINCIDENCE": "3",
                         "BEAT_END_RESOLVE": "0.75"}, []),
+    # --- P0 / Kyle's #1 description (2026-08-04): BEAT_MAIN_BEAT_BONUS.
+    # "every couple main beat notes were mapped instead of most of the main beats
+    # ... it hits the main flow partially." Measured: we cover ~0.49 of the main
+    # beat vs the human ~0.70. Cause traced: at the main beats we SKIP, Stage-1's
+    # median probability is 0.591 against 0.408 at a random slot -- the model
+    # KNOWS, and 19 of 24 songs read "decode". Selection is probability-ranked, so
+    # a main beat at 0.59 loses to a louder non-main onset at 0.75.
+    # Smoke test (Fallen Kingdom): coverage 0.678 -> 0.771 (b=0.25) -> 0.806
+    # (b=0.5) against a human 0.703.
+    # ⚠️WATCH FOR OVERSHOOT: `notes_on_main` goes 0.648 -> 0.750 -> 0.785 while the
+    # HUMAN sits at 0.517. Humans cover most of the main beat AND play plenty off
+    # it; becoming main-beat-dominated is the metronome failure this project has
+    # hit twice. Judge coverage AND notes_on_main AND rhythm together.
+    "mbb025": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.25"}, []),
+    "mbb050": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.50"}, []),
+    "mbb015": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.15"}, []),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",

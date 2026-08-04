@@ -506,6 +506,45 @@ def _audio_onset_times(waveform: torch.Tensor, sample_rate: int) -> "np.ndarray 
     return np.asarray(ons, dtype=np.float64) if len(ons) else None
 
 
+def _main_beat_grid(car: "np.ndarray", bpm: float, end: float):
+    """The metrical level the MUSIC is on -> (grid positions, period).
+
+    Deliberately mirrors `scripts/main_beat.py` so the generator and the evaluator
+    cannot disagree about what "the main beat" is. Two-sided scoring:
+      support = share of grid positions carrying a carrier onset
+      capture = share of carrier onsets explained by the grid
+    ⚠️The tolerance MUST scale with the period. A flat one makes `capture` 1.0 by
+    construction for fine grids (spacing < 2*tol), which picked a 16th grid on 20
+    of 24 songs when this was first written.
+    """
+    if car is None or len(car) < 40 or bpm <= 0 or end <= 0:
+        return None
+    beat = 60.0 / bpm
+    best = None
+    for r in (0.5, 1.0, 2.0):
+        period = beat * r
+        if period <= 0 or period > end / 8:
+            continue
+        tol = min(0.070, 0.25 * period)
+        for ph in np.arange(0, period, max(period / 16, 0.01)):
+            grid = np.arange(ph, end, period)
+            if len(grid) < 8:
+                continue
+            i = np.searchsorted(car, grid)
+            d = np.full(len(grid), np.inf)
+            for o in (-1, 0):
+                j = np.clip(i + o, 0, len(car) - 1)
+                d = np.minimum(d, np.abs(grid - car[j]))
+            support = float(np.mean(d <= tol))
+            k = np.round((car - ph) / period)
+            capture = float(np.mean(np.abs(car - (ph + k * period)) <= tol))
+            f1 = 0.0 if support + capture <= 0 else \
+                2 * support * capture / (support + capture)
+            if best is None or f1 > best[0]:
+                best = (f1, grid, period)
+    return (best[1], best[2]) if best else None
+
+
 _CO_GRACE = 0.12   # keep the note ON the coincidence, not one past it
 _OUTRO_ONSETS = 8  # a stem this active after the last coincidence = a real outro   # enough to keep the note ON the coincidence, not one past it
 
@@ -2459,6 +2498,70 @@ def generate_v7_level(
         _gamma = float(os.environ.get("DENSITY_SELECT_GAMMA", "2.5"))
         _win   = float(os.environ.get("DENSITY_SELECT_WIN", "2.0"))
         _slot_sec = (np.arange(n_slots) / BEAT_SUBDIV) * (60.0 / bpm)
+
+        # ---- BEAT_MAIN_BEAT_BONUS (2026-08-04). Default OFF. ----
+        # ★KYLE'S #1 DESCRIPTION, MEASURED AND TRACED TO ITS CAUSE.
+        # He said: "every couple main beat notes were mapped instead of most of the
+        # main beats... it hits the main flow partially." Measured: we cover ~0.49
+        # of the main beat, humans ~0.70.
+        #
+        # WHY. At the main beats we SKIP, Stage-1's median probability is 0.591 --
+        # against 0.408 at a random slot and ~0.77 at the beats we DO play (24
+        # songs). ⇒ THE MODEL KNOWS THOSE BEATS ARE THERE; 19 of 24 songs read
+        # "decode". Selection is purely probability-ranked, so a main beat at 0.59
+        # loses its window to a louder NON-main onset at 0.75 -- which is exactly
+        # the second half of his sentence, "the map still maps a lot of non main
+        # beat notes."
+        #
+        # So supply the metrical prior the ranking has no way to express: a
+        # multiplicative bonus on slots sitting on the song's own main beat, so a
+        # main beat wins its window against equally-probable filler.
+        # ⚠️IT IS NOT BUDGET-NEUTRAL, despite being a reordering in spirit. The
+        # re-threshold below admits slots the boost lifted over `thr`, and `_bL/_bR`
+        # are read from the thresholded sets, so the note count rises a little
+        # (Fallen Kingdom 788 -> 816 at bonus 0.25, +3.5%). Attribute any density
+        # change to that, not to BEAT_NOTE_BUDGET.
+        _mbb = float(os.environ.get("BEAT_MAIN_BEAT_BONUS", "0") or 0.0)
+        if _mbb > 0.0:
+            try:
+                import librosa as _lr2
+                _car: list[float] = []
+                for _s in ("drums", "bass"):
+                    if _s not in stems:
+                        continue
+                    _a = stems[_s].detach().cpu().numpy()
+                    if _a.ndim > 1:
+                        _a = _a.mean(axis=tuple(range(_a.ndim - 1)))
+                    _car.extend(_lr2.onset.onset_detect(
+                        y=_a.astype("float32"), sr=DEMUCS_SR, units="time",
+                        backtrack=True).tolist())
+                _mb = _main_beat_grid(np.sort(np.asarray(_car, dtype=float)),
+                                      bpm, float(_slot_sec[-1]))
+                if _mb is not None:
+                    _grid, _period = _mb
+                    _tolm = min(0.070, 0.25 * _period)
+                    _idx = np.searchsorted(_grid, _slot_sec)
+                    _d = np.full(n_slots, np.inf)
+                    for _o in (-1, 0):
+                        _j = np.clip(_idx + _o, 0, len(_grid) - 1)
+                        _d = np.minimum(_d, np.abs(_slot_sec - _grid[_j]))
+                    _on = torch.as_tensor(_d <= _tolm, device=beat_probs.device)
+                    beat_probs = beat_probs.clone()
+                    beat_probs[_on] = (beat_probs[_on] * (1.0 + _mbb)).clamp(max=1.0)
+                    logger.info(
+                        "BEAT_MAIN_BEAT_BONUS=%.2f: main beat period %.0fms, "
+                        "boosted %d of %d slots", _mbb, _period * 1000,
+                        int(_on.sum()), n_slots)
+                    # Re-threshold AFTER boosting, or the bonus cannot recover a
+                    # slot the NMS/threshold stage already discarded — which would
+                    # make the lever a near no-op.
+                    left_thr = _nms(beat_probs[:, 0].to(device_obj), thr_L,
+                                    beat_nms_radius)
+                    right_thr = _nms(beat_probs[:, 1].to(device_obj), thr_R,
+                                     beat_nms_radius)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("BEAT_MAIN_BEAT_BONUS failed (%s) — skipped", exc)
+
         # If hand-role reassignment is on it will de-double most slots (our maps
         # currently play both hands on ~86% of beats vs a human 17.5%), which by
         # itself would delete ~38% of the notes and push density BELOW human.
