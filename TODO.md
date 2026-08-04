@@ -282,43 +282,70 @@ explicitly valued by ear. Check both before promoting anything.
 ---
 
 
-## 🛠️ SPARE-TIME STANDING TASK — the visual EDA suite (Kyle, 2026-08-03)
+## 🔴🔴 P0 — THE EVAL SUITE IS NOW THE TOP PRIORITY (Kyle, 2026-08-04)
 
-> *"We were in the process of building out an eval suite that mapped song notes to beatsaber notes you
-> could visually see and do eda on so that the time between me needing to give input between iterations
-> would be slowed down. If at any point overnight you have spare time continue to build out that
-> functionality."*
+> *"I can only communicate the problem but you can see the correlation to the config of the model… if
+> you had a view of all notes of the instruments and vocals the way I did, the iteration speed would
+> increase dramatically. I think this should be our top priority going forward. Create a way for you to
+> see the song and map in a way that gives you my vision."*
 
-**Purpose: raise the number of questions answerable without his ear.** Every iteration that currently
-needs him to put on a headset is a day of latency. Work this whenever a GPU job is running and there is
-no CPU-bound experiment queued.
+**This outranks every W-item.** The bottleneck is not ideas, it is that finding a defect currently
+costs one of his listening sessions. Every hour spent here buys back many of his.
 
-**What exists already** — extend these, do not restart:
-- `scripts/render_map.py` — PNG lattice panels, density strip over audio RMS, swing-path parity trace.
-- `scripts/map_view.py` — the map as a readable text score, with stem lanes.
-- `scripts/cohort_eda.py` — per-cohort reference stats.
+### ★ HIS DEFECT DESCRIPTION, NOW MEASURED — this is what the view must make visible
+> *"It feels like every couple main beat notes were mapped instead of most of the main beats. Maybe
+> this is hidden because the map still maps a lot of non main beat notes. Like it hits the main flow
+> partially."*
 
-**The actual gap, named by tonight's work**: nothing plots **per-instrument onsets against our notes**.
-The offbeat defect (W1a — we sit half a beat off multi-instrument hits 2.6× more than humans) was found
-through three separate numeric scripts and would have been **obvious at a glance** in a view with the
-bass/drums/other/vocals onset lanes drawn against our note times and the human's. The seeded
-`outputs/stem_onset_cache/` (274 songs) already has everything needed.
+Measured (n=12, "main beat" = fitted beat grid carried by drums|bass, inside runs of ≥4):
 
-**Build order**
-1. **Song-vs-map alignment view** — stem onset lanes + coincidence order `k` per event, our notes and
-   the human's on the same time axis, beat grid drawn. Mark k≥3 events we missed and notes sitting a
-   half-beat off one. This is the view that makes W1a visible.
-2. **Whole-song strip** — nps, `halfbeat_rate` and per-section intensity along the song, so W2/W3
-   (empty songs, misallocated peaks) are readable without playing.
-3. **A/B diff view** — two arms on one axis, only the notes that differ highlighted. Most sweeps change
-   little; showing everything hides the change.
-4. Make it a single HTML artifact per song rather than loose PNGs, so he can scroll one file.
+| | ours | human |
+|---|---|---|
+| **main beats we cover** | **0.665** | **0.857** |
+| share of our notes ON the main beat | 0.439 | 0.440 |
 
-**DoD**: Kyle can open one file per song and answer *"did this lever help, and where"* without playing
-the map. It never replaces his ear as the promotion gate — it replaces his ear as the **triage** gate.
+⇒ we hit **2 of 3** main beats where humans hit **6 of 7**, while carrying the **same proportion** of
+non-main notes. His "it's hidden" intuition is right: total density looks fine, the main *line* is
+partial. ⚠️Two outliers (1fa48 human 0.097, 1fb44 human 1.000) prove the definition is fragile —
+**a single metrical level is not enough** (see P0.1).
 
----
+### 🔑 A CONSTRAINT THAT SHAPES THE WHOLE DESIGN
+**I can only "see" an image by rendering it to a file and reading it back.** So the primary artifact
+must be **PNG**, sized and cropped so detail survives; HTML is for *him*, not for me. A beautiful
+interactive page I cannot look at would be a tool built for the wrong reader.
 
+### THE PLAN
+
+**P0.1 — Robust MAIN BEAT identification** *(the crux; everything else rests on it)*
+Score every metrical level (½×, 1×, 2×, 4× the fitted beat, plus a downbeat phase) against the
+carrier stems and pick the level the *music* supports. Report the level and a confidence. Show **all**
+levels in the view so the map's chosen level is visible when it differs from the music's.
+
+**P0.2 — The view** — per song, stacked PNG panels at a readable seconds-per-inch:
+bass / drums / other / vocals onset lanes · the main-beat lane with **missed beats ringed** ·
+our notes split by hand · human notes · off-main notes marked. Bars and section boundaries.
+
+**P0.3 — Metrics panel** in the same render: main-beat coverage, non-main share, per-section, ours vs
+human — so a picture is never separated from its numbers.
+
+**P0.4 — Robustness**: any song, no human map required, missing stems tolerated, one command,
+fast enough to run over all 24 songs.
+
+**P0.5 — Close the loop**: fold `review_map.py`'s ranked timestamps into the same artifact, so
+"where to look" and "what it looks like" are one output.
+
+### Answers he gave 2026-08-04 (do not re-ask)
+- **The soft outro SHOULD be mapped sparsely** (Fallen Kingdom) — not left empty, not filled.
+- **"Empty" is relative to THE SONG, not our old maps** — *"they both feel empty compared to song."*
+  ⇒ the human corpus is not the reference for this defect; the song's own main beat is.
+
+### What exists already — extend, do not restart
+- `scripts/review_map.py` — ranked timestamped findings (STARVED / MISSED_HIT / OFFBEAT / PHRASE_HOLE /
+  MAPPING_SILENCE / ENDING). Reproduced both of his 2026-08-04 ear observations unprompted.
+- `scripts/view_song_vs_map.py` — stem lanes + coincidence order + notes by hand.
+- `scripts/view_song_strip.py` — whole-song nps / intensity / response / offbeat.
+- `scripts/view_ab_diff.py` — only what a lever changed, bucketed by coincidence order.
+- `scripts/render_map.py`, `scripts/map_view.py` — lattice PNGs and the text score.
 
 ## 🔵 P2 — CARRIED FORWARD
 
