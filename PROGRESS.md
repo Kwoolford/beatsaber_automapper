@@ -259,6 +259,40 @@ the model knows where it goes*, which is what makes a **per-song** `BEAT_NOTE_BU
 
 ---
 
+## ★ W2 FOLLOW-UP — THE MARGINAL NOTE IS MUCH WORSE THAN THE AVERAGE NOTE (2026-08-03)
+
+`BEAT_NOTE_BUDGET` built and swept. Before the axis numbers landed, `scripts/view_ab_diff.py` answered
+the question the lever actually poses — **when the budget buys more notes, what does it buy?** On
+Fallen Kingdom, bucketing every note by the coincidence order `k` of its nearest stem-onset event:
+
+| cohort | k=0 | k=1 | k=2 | k=3 | k=4 | n |
+|---|---|---|---|---|---|---|
+| **HUMAN's notes** (the target) | 10.4 % | 43.8 % | 28.0 % | 14.7 % | 3.1 % | 646 |
+| ours, control | 9.5 % | 38.8 % | 30.4 % | 17.9 % | 3.4 % | 497 |
+| **notes ADDED by nb130** | **31.8 %** | 45.5 % | 21.8 % | **0.9 %** | **0.0 %** | 110 |
+| human notes we still MISS (control → nb130) | 18.7→18.4 % | 49.8→48.0 % | 23.7→23.5 % | 6.2→7.8 % | 1.7→2.2 % | 241→179 |
+
+★**The marginal note is drawn from a far worse pool than the average note**: added notes are **3.3×
+more likely to sit near no detected onset at all** (31.8 % vs our 9.5 %) and **~20× less likely** to
+land on a multi-instrument event (0.9 % vs 21.3 %).
+
+⚠️**But it is NOT pure filler, and my first read of this was wrong.** 34 of 61 added notes at nb115 and
+62 of 110 at nb130 land within 50 ms of a real human note — **~56 % efficiency**. I initially judged
+the added notes against *the base rate of k≥3 events in the song* (12.9 %) and called them filler; the
+correct denominator is **the human's own note distribution**, and humans also put 54 % of their notes
+on k≤1. Comparing a note distribution to an event distribution is a category error.
+
+**Net for W2**: a global budget bump closes the **count** gap (497 → 607 against the human's 646)
+without closing the **quality** gap — the still-missed human notes barely shift in character
+(k≥3 6.2 % → 7.8 %). ⇒ **This is the pre-registered "no global setting satisfies both" outcome taking
+shape, and it argues for the per-song / per-window allocation (W2 task 2) rather than shipping a
+global dial.** Likely mechanism, already documented from the other direction: `DENSITY_SELECT_GAMMA`
+2.5 concentrates budget into loud windows, so extra budget goes *deeper down the ranking inside
+windows that were already served* while the quiet windows holding good onsets stay starved. **Testable
+next: lower γ and raise budget together.**
+
+---
+
 ## W7 SOLVED — "the final note did not line up together" is LITERAL: an orphaned half-double (2026-08-03)
 
 **CONFIRMED, and the standing hypothesis was wrong.** TODO carried W7 as *"suspicious given

@@ -238,6 +238,13 @@ different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the de
    global constant, targeting the human `used/supply` *distribution* (median 0.854, wide) instead of
    our flat 0.58. ⚠️**Do NOT just raise `BEAT_DIFFICULTY_SCALE`** — Hunger is A+ at the current budget
    and W3 says parts are already too intense. The point is the *variance*, not the level.
+   ★**Measured 2026-08-03 — the marginal note is much worse than the average note.** Notes added by
+   `nb130` on Fallen Kingdom are **31.8 % k=0** (vs our existing 9.5 %) and **0.9 % k≥3** (vs 21.3 %),
+   while still landing on a real human note ~56 % of the time. So a global bump closes the **count**
+   gap (497 → 607 vs human 646) and not the **quality** gap. **Likely mechanism**:
+   `DENSITY_SELECT_GAMMA=2.5` concentrates budget into loud windows, so extra budget goes deeper down
+   the ranking *inside windows already served* while quiet windows holding good onsets stay starved
+   (documented independently in C1). ⇒**next experiment: lower γ and raise budget TOGETHER.**
 3. Check whether the corpus median (3.91) is the wrong target for slow songs — human nps almost
    certainly correlates with tempo, and we apply one number.
 
