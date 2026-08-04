@@ -2512,8 +2512,35 @@ def generate_v7_level(
             _pool = sorted(_density_aware_select(
                 _combined, _slot_sec, _win, _gamma, _bL + _bR, beat_nms_radius,
                 win_mult=_mult))
-            left_onsets = set(_pool[0::2])
-            right_onsets = set(_pool[1::2])
+            # ⚠️A STRICT ALTERNATING DEAL DESTROYS BEAT_HAND_LEAD. Measured
+            # 2026-08-04: role_asymmetry fell 0.1196 (control, ~exactly the human
+            # 0.1172) to 0.0645, because perfect alternation makes every 2-bar
+            # window exactly balanced. BEAT_HAND_LEAD is a confirmed positive by
+            # Kyle's ear ("a giant difference maker... noticeably great impact on
+            # the flow"), so that trade is not acceptable.
+            #
+            # Instead deal PROPORTIONALLY to the lead multipliers: walk the pool in
+            # time order and give each slot to whichever hand is furthest behind
+            # its target share for that window. With no lead active the targets are
+            # 50/50 and this reduces exactly to alternation; with a lead it skews
+            # the window the way BEAT_HAND_LEAD intended, so both the distinct-slot
+            # gain and the role asymmetry survive.
+            left_onsets, right_onsets = set(), set()
+            _dl = _dr = 0.0                      # accumulated share debt
+            for _s in _pool:
+                if _lmul is not None and _rmul is not None:
+                    _wi = min(int(_slot_sec[_s] / _win), len(_lmul) - 1)
+                    _tl, _tr = float(_lmul[_wi]), float(_rmul[_wi])
+                    _tot = _tl + _tr
+                    _tl, _tr = (_tl / _tot, _tr / _tot) if _tot > 0 else (0.5, 0.5)
+                else:
+                    _tl = _tr = 0.5
+                if _dl <= _dr:
+                    left_onsets.add(_s)
+                    _dl += 1.0 / max(_tl, 1e-6)
+                else:
+                    right_onsets.add(_s)
+                    _dr += 1.0 / max(_tr, 1e-6)
             _n_dbl = int(round(min(_deal, 0.95) * len(_pool)))
             if _n_dbl > 0:
                 _strong = sorted(_pool, key=lambda s: float(_combined[s]),

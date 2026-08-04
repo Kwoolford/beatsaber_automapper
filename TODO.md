@@ -401,6 +401,11 @@ reference changes** or the snapshot silently drifts. `data/` is gitignored too, 
 - Redirecting into a path that may be a **symlink** can truncate the target — `~/.local/bin/arcviewer`
   was a symlink to the running ArcViewer binary and was saved only by `ETXTBSY`.
 - Logs under `logs/` and everything in `outputs/` are artifacts, not commits (see C6).
+- 🔴**NEVER EDIT `generate.py` (or anything it imports) WHILE A SWEEP IS RUNNING.** `eval_sweep`
+  spawns a **fresh `python scripts/generate.py` per map**, so an edit takes effect mid-run and the
+  arm silently becomes half one algorithm and half another. It does not crash and it still prints a
+  number. Hit 2026-08-04 (the `BEAT_HAND_DEAL` strict→lead-aware fix landed mid-sweep); the deal-arm
+  caches had to be deleted and the sweep relaunched. **Either wait, or copy the tree first.**
 
 ### Explicitly deprecated (do not revisit)
 | Thing | Why |
