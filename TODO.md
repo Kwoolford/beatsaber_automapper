@@ -373,6 +373,15 @@ effect. But the conclusion that matters survives: **a window at 17 % coverage st
 biggest remaining target. The bonus buys a roughly uniform +0.02…+0.06 everywhere; it does not rescue
 a starved passage.
 
+### ★★ S7 — THE INSTRUMENT MODEL DOES NOT INVERT (2026-08-04)
+Probability-on-beat vs neighbouring slots, same passages: `version_4` **0.55 (inverted)** in our worst
+windows, `version_8` **1.74 (not inverted)**; all-window ratio 5.56 → 7.70.
+⚠️**This does NOT contradict last night's null** — that measured `win_rate` at k≥3 coincidences (which
+*event* to answer, half-beat away); this measures metrical **phase** (adjacent slots). The instrument
+projection does not help pick the event but does keep the model on the beat. Two different failures.
+**Task**: generate with `version_8` + `BEAT_MAIN_BEAT_BONUS` and score main-beat coverage AND the six
+axes. ⚠️v8's maps scored worse on the axes in the B-1 sweep, so this is an experiment, not a promotion.
+
 ### 🔎 FOUND BY THE SUITE — new work items (2026-08-04)
 
 **S4 🟠 `BEAT_TRIM_END_COINCIDENCE` IS RIGHT ON HUNGER AND MIXED ELSEWHERE.** Fires on 6/24 songs;

@@ -326,6 +326,47 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★★★★★★ THE INSTRUMENT MODEL DOES NOT INVERT — Track B fixes the core defect (2026-08-04)
+
+Probability peaked ON the main beat vs the two neighbouring slots, same passages of the same songs
+(windows bucketed by the PRODUCTION map's coverage in both cases). Ratio > 1 = peaks on the beat:
+
+| model | all windows | best | **worst** |
+|---|---|---|---|
+| `version_4` (production, `drum_proj` + `mix_proj`) | 5.56 | 2.46 | **0.55 — INVERTED** |
+| **`version_8` (B-1 instrument, `--use-instr`)** | **7.70** | **4.23** | **1.74 — not inverted** |
+
+★**The instrument model does not have the defect.** In the very windows where production's probability
+flips to the offbeat (0.590 off / 0.320 on), `version_8` holds the beat (0.248 off / 0.414 on). That is
+a **sign flip**, not merely a sharper distribution — although note v8 IS sharper everywhere (5.56 →
+7.70), so part of the gain is general.
+
+### ⚠️ THIS REVERSES LAST NIGHT'S CONCLUSION, AND THE REASON MATTERS
+
+On 2026-08-03 I tested `version_8` against production and recorded a clean paired null (**+0.0098 ±
+0.0135, t = 0.73**), concluding *"Track B as already built does NOT fix W1a."* **That conclusion stands
+for the question it asked and does not transfer to this one.** The two tests differ:
+
+- **Last night**: `win_rate` at **k≥3 multi-instrument coincidences**, comparing the event slot against
+  the slot a **half-beat** away. A question about *which musical event* to answer.
+- **Today**: probability at the **main beat** against the **adjacent slots**. A question about *metrical
+  phase*.
+
+⇒ **The instrument projection does not help pick the right event, but it does keep the model on the
+beat.** Both results are true; they are about different failures. ★The lesson is that "does Track B
+help?" was never one question, and a null on one framing was never evidence about the other.
+
+### What follows
+
+Kyle's #1 complaint (*"it hits the main flow partially"*) traces to the phase inversion, the inversion
+is absent in `version_8`, and the decode lever is capped at a third of the gap precisely because it
+cannot beat a 2× probability deficit. ⇒ **generating with `version_8` + `BEAT_MAIN_BEAT_BONUS` is the
+experiment worth running**, and it is cheap — both already exist.
+⚠️**Do not read this as "promote v8".** Its generated maps scored WORSE on the six axes when swept
+(B-1 arms, 2026-08-01), so it has costs elsewhere that this metric cannot see.
+
+---
+
 ## 🔴 THE ADAPTIVE PRIOR LOSES TO THE SIMPLE ONE — my reasoning was wrong (2026-08-04)
 
 From the phase-inversion finding I argued: *"a ×1.25 boost on 0.320 gives 0.40, still below the 0.59
