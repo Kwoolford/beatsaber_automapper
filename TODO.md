@@ -169,14 +169,25 @@ its own purpose — songs whose grid really is misplaced — it is just not this
    0.0859, inside noise) — it detects wrong-slot *selection*, not sloppiness.
 2. ⚠️**Do not commit a GPU night to a decode lever on a 57 % edge** — that is what the pre-registered
    band says.
-3. ★**The indicated path is Track B** — Stage-1 has no instrument projection
-   (`docs/stage1_instrument_rebuild.md`), and "better probabilities, not better picking" is now C1's
-   conclusion reached from a **fourth** independent direction. A model that could hear *which*
-   instrument hit would have the information needed to separate the beat from the offbeat.
-4. Cheap unblocked next step: check whether `win_rate` correlates with anything about the SONG (tempo,
+3. 🔴**TRACK B AS ALREADY BUILT DOES NOT FIX THIS — tested, clean negative.** B-1 (`version_8` ep 12,
+   `--use-instr`) vs prod `version_4` on the same 24 songs: `win_rate` 0.5797 vs 0.5731, **paired delta
+   +0.0098 ± 0.0135 se (t = 0.73), better on 12 of 23 songs.** Not resolvable. Knowing *which
+   instrument* plays does not tell the model *where the downbeat is* — B-1's real win was
+   un-lockstepping the hands, a different capability. **Do not spend a retrain night on this
+   expecting W1a to move.**
+4. ★**The live hypothesis instead: give Stage-1 an explicit METRICAL-POSITION feature** — where each
+   slot sits within the beat and the bar, from the tempo fit `data/tempo.py` already computes and
+   nothing consumes. ⚠️This is **not** the refuted "shift the grid by the phase" idea: phase as an
+   *input to the probability* is a different mechanism from phase as an *offset to the grid*, and only
+   the latter dies to the half-beat-is-two-slots arithmetic. Neither `version_4` nor `version_8`
+   encodes metrical position at all — which would explain a model that finds the active region
+   (2.0–2.9× a random slot) but picks within it at 57 %.
+5. ⚠️Unexplained, check before building: under v8, **1f767** reports `vs_random` **64×** and **1f9a0**
+   `p_on_event` **0.0079** — the instrument model's probabilities are far peakier on some songs.
+6. Cheap unblocked next step: check whether `win_rate` correlates with anything about the SONG (tempo,
    genre, stem separability) — Fallen Kingdom at 0.900 vs 1f336 at 0.49 is a 2× spread and the reason
    is unknown.
-5. ✅The battery has now been RUN (`scripts/audit_phase_metrics.py`) — see item 1 for its verdict.
+7. ✅The battery has now been RUN (`scripts/audit_phase_metrics.py`) — see item 1 for its verdict.
 
 **DoD**: `halfbeat_rate` moves from 0.245 toward the human 0.095 with `on_event_rate` held or improved,
 at ≥3 seeds — then Kyle's ear on SO TIRED ROCK.

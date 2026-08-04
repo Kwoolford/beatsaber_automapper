@@ -134,6 +134,42 @@ half-beat displacement: the slot grid is `subdiv=4`, so **a half beat is two who
 not where the grid sits. C2 remains valid for its own purpose (songs whose grid is genuinely
 misplaced); it is simply not the W1a lever.
 
+### 🔴 TRACK B AS ALREADY BUILT DOES **NOT** FIX W1a — clean paired negative
+
+Before committing a retrain night to the instrument rebuild, the cheap version of the question: B-1
+(`version_8` epoch 12, `--use-instr`) **already exists**. Does *its* probability field separate the
+beat from the offbeat better than production `version_4`? Same 24 songs, same seed, same everything
+but the Stage-1 checkpoint (`scripts/overnight_2026-08-03c.sh`).
+
+| | v4 (prod) | v8 (instrument) |
+|---|---|---|
+| `win_rate` median | 0.5731 | 0.5797 |
+
+**Paired over 23 songs: delta mean +0.0098, sd 0.0646, se 0.0135 ⇒ t = +0.73.** Improved on **12 of 23**
+songs — a coin flip. ⇒ **NOT RESOLVABLE. The instrument projection does not improve phase
+discrimination.**
+
+★This is a **different capability from the one B-1 actually won**: the instrument model's documented
+gain was *un-lockstepping the hands* (doubles fell monotonically with epoch, `role_asymmetry` rose).
+Knowing *which instrument* is playing evidently does not tell the model *where the downbeat is*. Those
+are separate things, and only the second one is W1a.
+
+⇒ **W1a now has no indicated fix**: no decode lever is justified (57 % edge, and `halfbeat_rate` may
+not steer), and Track B as built does not move it. **It needs a different idea.** The strongest
+candidate, from this result rather than from priors: feed Stage-1 an explicit **metrical-position
+feature** — where each slot sits within the beat and the bar — from the tempo fit that
+`data/tempo.py` already computes and nothing consumes. Note this is *not* the "shift the grid"
+proposal that was refuted earlier: phase as an **input to the probability** is a different mechanism
+from phase as an **offset applied to the grid**, and only the latter was ruled out by the
+half-beat-is-two-slots arithmetic. Nothing in `version_4` or `version_8` encodes metrical position at
+all, which would explain a model that finds the active region (2.0–2.9× a random slot) but picks
+within it at 57 %.
+
+⚠️Two songs behaved oddly under v8 and are worth a look before building on this: **1f767** reports
+`vs_random` **64×** and **1f9a0** has `p_on_event` **0.0079** — the instrument model's probabilities
+are far peakier/sparser on some songs than v4's. That is unexplained and could be a defect in its own
+right.
+
 ### 🔴 CONTROL BATTERY: `halfbeat_rate` FAILS AS A STEERING TARGET (`scripts/audit_phase_metrics.py`)
 
 Run before letting either new metric select a lever, expectations declared in the script's docstring
