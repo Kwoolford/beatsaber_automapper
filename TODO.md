@@ -186,6 +186,14 @@ at ≥3 seeds — then Kyle's ear on SO TIRED ROCK.
 Kingdom is **3.21** against a corpus median of 3.91 — and this is a *slow* song, so a fixed global
 budget under-serves it.
 
+★**Now visible in one picture** — `scripts/view_song_strip.py --song 1f8d6` (added 2026-08-03):
+- our NPS runs **~0.5 below the human's for essentially the whole first 175 s** — the "empty" feeling
+  is a persistent level offset, not a few missed moments;
+- **response to k≥3 multi-instrument events falls to 0.0 across ~185–200 s** and to 0.1–0.2 at
+  ~90–100 s and ~210–230 s — whole passages with the music hitting hard and no notes;
+- its **offbeat rate is low** (halfbeat_rate 0.056, better than the human 0.095) ⇒ **W2 is a distinct
+  defect from W1a**, and fixing one will not fix the other.
+
 ⚠️**Do not just raise `BEAT_DIFFICULTY_SCALE` globally** — Hunger is A+ at the current budget and he
 separately complains that parts of it are *too* intense (W3). The defect is **per-song / per-section
 allocation**, not the global total.
