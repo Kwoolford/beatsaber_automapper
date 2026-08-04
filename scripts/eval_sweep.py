@@ -69,6 +69,11 @@ B1_EPOCHS = (0, 3, 6, 9, 12, 15, 17)
 
 # ---- ARMS: name -> (env overrides, extra generate flags). Add theories here. ----
 _DS25 = {"DENSITY_SELECT": "1", "DENSITY_SELECT_GAMMA": "2.5"}
+# The 2026-08-03 PROMOTED baseline, as env. Spelled out once so W2/W7 arms cannot
+# silently diverge from it if a generate.py default is ever changed.
+_W2BASE = {"BEAT_DIFFICULTY_SCALE": "0.48", "BEAT_HAND_LEAD": "0.14",
+           "BEAT_TEMPO_FIT": "1", "BEAT_TRIM_TAIL": "0.5",
+           "BEAT_ONSET_EVIDENCE": "0.3", "BEAT_REACH": "3:0.3:0.5"}
 # A theory = one entry: name -> (env overrides, extra generate.py flags).
 # History (2026-06-30): the density-select gamma sweep found g2.5 best (5/6 pass);
 # a Stage-2 temperature sweep was a dead end (layout collapse was a decode bug, now
@@ -564,24 +569,41 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     # was set to 0.48 precisely because Kyle called 6.18 nps "Expert+, not Expert",
     # and W3 says parts of Hunger are ALREADY too intense. The question this sweep
     # answers is what the axes charge for the notes, not whether more is better.
-    "nb115":  ({"BEAT_DIFFICULTY_SCALE": "0.48",
+    "nb115":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                  "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                  "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
                  "BEAT_REACH": "3:0.3:0.5", "BEAT_NOTE_BUDGET": "1.15"}, []),
-    "nb130":  ({"BEAT_DIFFICULTY_SCALE": "0.48",
+    "nb130":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                  "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                  "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
                  "BEAT_REACH": "3:0.3:0.5", "BEAT_NOTE_BUDGET": "1.30"}, []),
-    "nb145":  ({"BEAT_DIFFICULTY_SCALE": "0.48",
+    "nb145":  ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                  "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                  "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
                  "BEAT_REACH": "3:0.3:0.5", "BEAT_NOTE_BUDGET": "1.45"}, []),
     # W7: drop a trailing lone note when the map had been playing doubles, so the
     # map resolves. Cohort orphaned-ending ours 0.159 vs human 0.036.
-    "endres": ({"BEAT_DIFFICULTY_SCALE": "0.48",
+    "endres": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                  "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                  "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
                  "BEAT_REACH": "3:0.3:0.5", "BEAT_END_RESOLVE": "0.75"}, []),
+    # --- W2 round 2 (2026-08-03). The budget arms showed the MARGINAL note is far
+    # worse than the average: notes added by nb130 on Fallen Kingdom are 31.8% k=0
+    # (vs our existing 9.5%) and 0.9% k>=3 (vs 21.3%). Mechanism hypothesis, which
+    # C1 documented independently: DENSITY_SELECT_GAMMA=2.5 concentrates budget into
+    # LOUD windows, so extra budget goes deeper down the ranking inside windows
+    # already served while quiet windows holding a few good onsets stay starved. If
+    # that is right, lowering gamma WHILE raising budget buys better notes than
+    # raising budget alone -- similar count, different places.
+    # PRE-REGISTERED: gamma was raised to 2.5 on 2026-06-30 to buy density_corr, and
+    # lowering it wrecked handrole (1.84 -> 2.70) in an earlier sweep. Expect a cost.
+    # The question is whether the k-distribution of the ADDED notes improves enough
+    # to pay for it -- judge with scripts/view_ab_diff.py, not the axis count alone.
+    "nb130_g15": ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.30",
+                   "DENSITY_SELECT_GAMMA": "1.5"}, []),
+    "nb130_g10": ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.30",
+                   "DENSITY_SELECT_GAMMA": "1.0"}, []),
+    "g15":       ({**_DS25, **_W2BASE, "DENSITY_SELECT_GAMMA": "1.5"}, []),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
