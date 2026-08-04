@@ -554,6 +554,34 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
                            "BEAT_REACH": "3:0.3:0.5"}, []),
+    # --- W2 + W7 (2026-08-03), all against the PROMOTED baseline above.
+    # W2: BEAT_NOTE_BUDGET is the user-facing "how many notes" dial. Measured
+    # headroom -- we emit 0.582 of the slots Stage-1 scores above 0.5 while humans
+    # take 0.854, and on Fallen Kingdom the 48 human notes we skip carry prob 0.734.
+    # Verified 1.0 is BYTE-IDENTICAL to the baseline and the response is monotone
+    # (788 / 982 / 1173 notes at 1.0 / 1.25 / 1.5 on 1f8d6).
+    # ⚠️Expect a TENSION, do not read a budget rise as free: BEAT_DIFFICULTY_SCALE
+    # was set to 0.48 precisely because Kyle called 6.18 nps "Expert+, not Expert",
+    # and W3 says parts of Hunger are ALREADY too intense. The question this sweep
+    # answers is what the axes charge for the notes, not whether more is better.
+    "nb115":  ({"BEAT_DIFFICULTY_SCALE": "0.48",
+                 "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                 "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                 "BEAT_REACH": "3:0.3:0.5", "BEAT_NOTE_BUDGET": "1.15"}, []),
+    "nb130":  ({"BEAT_DIFFICULTY_SCALE": "0.48",
+                 "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                 "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                 "BEAT_REACH": "3:0.3:0.5", "BEAT_NOTE_BUDGET": "1.30"}, []),
+    "nb145":  ({"BEAT_DIFFICULTY_SCALE": "0.48",
+                 "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                 "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                 "BEAT_REACH": "3:0.3:0.5", "BEAT_NOTE_BUDGET": "1.45"}, []),
+    # W7: drop a trailing lone note when the map had been playing doubles, so the
+    # map resolves. Cohort orphaned-ending ours 0.159 vs human 0.036.
+    "endres": ({"BEAT_DIFFICULTY_SCALE": "0.48",
+                 "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
+                 "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
+                 "BEAT_REACH": "3:0.3:0.5", "BEAT_END_RESOLVE": "0.75"}, []),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",

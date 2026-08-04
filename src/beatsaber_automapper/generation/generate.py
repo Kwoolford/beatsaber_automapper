@@ -2406,9 +2406,26 @@ def generate_v7_level(
         # compete for, so the shape of the density curve is preserved and only
         # its overall level drops. Default 1.0 = OFF (current behaviour).
         _diff_scale = float(os.environ.get("BEAT_DIFFICULTY_SCALE", "0.48"))
-        if _diff_scale != 1.0:
-            _bL = max(0, int(round(_bL * _diff_scale)))
-            _bR = max(0, int(round(_bR * _diff_scale)))
+        # W2 (2026-08-03) — BEAT_NOTE_BUDGET is the USER-FACING "how many notes do
+        # you want" dial Kyle asked for, so a UI has one clean knob instead of a
+        # calibration constant. It multiplies the same total budget, so 1.0 is
+        # EXACTLY the promoted baseline and the density SHAPE is untouched — only
+        # its level moves. Deliberately separate from BEAT_DIFFICULTY_SCALE: that
+        # one is a calibrated default (0.48) fitted against the human nps median,
+        # and a player turning a dial should not silently redefine it.
+        #
+        # The headroom is measured: on Fallen Kingdom Stage-1 scores the human's
+        # note slots 0.797 vs 0.0032 for slots generally, and scores the 48 human
+        # notes we SKIPPED at 0.734. Across 13 songs we emit 0.582 of the slots
+        # above 0.5 while humans take 0.854 — the model points, the decode declines.
+        _budget = float(os.environ.get("BEAT_NOTE_BUDGET", "1.0"))
+        _scale = _diff_scale * _budget
+        if _budget != 1.0:
+            logger.info("BEAT_NOTE_BUDGET=%.3f (effective budget scale %.4f)",
+                        _budget, _scale)
+        if _scale != 1.0:
+            _bL = max(0, int(round(_bL * _scale)))
+            _bR = max(0, int(round(_bR * _scale)))
         if _hr_pre > 0.0:
             _union = len(left_thr | right_thr) or 1
             _D = len(left_thr & right_thr) / _union
