@@ -282,114 +282,46 @@ explicitly valued by ear. Check both before promoting anything.
 ---
 
 
-## 🔴🔴 P0 — THE EVAL SUITE IS NOW THE TOP PRIORITY (Kyle, 2026-08-04)
+## 🔴🔴 P0 — THE EVAL SUITE (Kyle, 2026-08-04) — ✅ BUILT, now the working instrument
 
-> *"I can only communicate the problem but you can see the correlation to the config of the model… if
-> you had a view of all notes of the instruments and vocals the way I did, the iteration speed would
-> increase dramatically. I think this should be our top priority going forward. Create a way for you to
-> see the song and map in a way that gives you my vision."*
+> *"Create a way for you to see the song and map in a way that gives you my vision… I want to empower
+> you."*
 
-**This outranks every W-item.** The bottleneck is not ideas, it is that finding a defect currently
-costs one of his listening sessions. Every hour spent here buys back many of his.
+**📖 How to use it: [`docs/EVAL_SUITE.md`](docs/EVAL_SUITE.md).** Start with
+`python scripts/suite_report.py --song X`.
 
-### ★ HIS DEFECT DESCRIPTION, NOW MEASURED — this is what the view must make visible
-> *"It feels like every couple main beat notes were mapped instead of most of the main beats. Maybe
-> this is hidden because the map still maps a lot of non main beat notes. Like it hits the main flow
-> partially."*
+**Status: P0.1–P0.5 all done.** `main_beat.py` (which pulse the song is on) · `view_main_beat.py` (the
+picture, incl. a Stage-1 probability lane) · `review_map.py` (ranked timestamps) · `suite_report.py`
+(one command) · `view_ab_diff.py` · `view_song_strip.py` · `audit_phase_metrics.py`. All 24 songs
+render clean.
 
-Measured over the full songset with the robust multi-level grid (`scripts/main_beat.py`, n=24):
+### ★ HIS DEFECT, MEASURED — and half his guess was wrong
+> *"Every couple main beat notes were mapped instead of most of the main beats. Maybe this is hidden
+> because the map still maps a lot of non main beat notes."*
 
 | | ours | human |
 |---|---|---|
-| main beats **covered** | **0.546** | **0.704** |
-| **`main_continuity`** — P(play beat n+1 │ played beat n) | **0.523** | **0.697** |
-| share of our notes ON the main beat | 0.637 | 0.617 |
+| **`main_continuity`** — P(play beat n+1 │ played n) | **0.523** | **0.697** |
+| main beats covered | 0.546 | 0.704 |
+| share of notes on the main beat | 0.637 | 0.617 |
 
-★**`main_continuity` IS THE METRIC FOR HIS COMPLAINT.** *"Every couple main beat notes were mapped
-instead of most of the main beats"* is exactly "given we played one, do we play the next" — ours
-**0.523** vs the human's **0.697**. We drop in and out of the line; humans hold it.
-
-⚠️**But the second half of his sentence is NOT what distinguishes us.** He guessed it was *"hidden
-because the map still maps a lot of non main beat notes"* — proportionally we sit at **0.637** against
-the human's **0.617**, i.e. the same. We do not play more filler than a human. The line is partial and
-the filler is normal, which is presumably *why* it reads as hidden.
-
-### 🔑 A CONSTRAINT THAT SHAPES THE WHOLE DESIGN
-**I can only "see" an image by rendering it to a file and reading it back.** So the primary artifact
-must be **PNG**, sized and cropped so detail survives; HTML is for *him*, not for me. A beautiful
-interactive page I cannot look at would be a tool built for the wrong reader.
-
-### THE PLAN
-
-**P0.1 — Robust MAIN BEAT identification** *(the crux; everything else rests on it)*
-Score every metrical level (½×, 1×, 2×, 4× the fitted beat, plus a downbeat phase) against the
-carrier stems and pick the level the *music* supports. Report the level and a confidence. Show **all**
-levels in the view so the map's chosen level is visible when it differs from the music's.
-
-**P0.2 — The view** — per song, stacked PNG panels at a readable seconds-per-inch:
-bass / drums / other / vocals onset lanes · the main-beat lane with **missed beats ringed** ·
-our notes split by hand · human notes · off-main notes marked. Bars and section boundaries.
-
-**P0.3 — Metrics panel** in the same render: main-beat coverage, non-main share, per-section, ours vs
-human — so a picture is never separated from its numbers.
-
-**P0.4 — Robustness**: any song, no human map required, missing stems tolerated, one command,
-fast enough to run over all 24 songs.
-
-**P0.5 — Close the loop**: fold `review_map.py`'s ranked timestamps into the same artifact, so
-"where to look" and "what it looks like" are one output.
+`main_continuity` **is** his sentence. ⚠️But we do **not** play more filler than a human (0.637 vs
+0.617) — the line is partial and the filler is normal, which is presumably why it reads as hidden.
 
 ### Answers he gave 2026-08-04 (do not re-ask)
-- **The soft outro SHOULD be mapped sparsely** (Fallen Kingdom) — not left empty, not filled.
+- The soft outro **should** be mapped, **sparsely** (Fallen Kingdom).
 - **"Empty" is relative to THE SONG, not our old maps** — *"they both feel empty compared to song."*
-  ⇒ the human corpus is not the reference for this defect; the song's own main beat is.
+  ⇒ the human corpus is not the reference for that defect; the song's own main beat is.
 
-### ✅ S5 — `BEAT_MAIN_BEAT_BONUS` WORKS AND NEEDS HIS EAR (2026-08-04)
-Built from his "it hits the main flow partially" after the probability dumps proved the model knows
-about the beats we skip. 3 seeds × 24 songs:
-**alignment 0.260 → 0.087 (RESOLVABLE, 3×)**, precision 0.919 → 0.930, rhythm/idiom/handrole all
-improving inside noise, **nothing regressing resolvably at mbb015/mbb025**. Main-beat coverage
-0.546 → 0.596, continuity 0.523 → 0.559 (human 0.704 / 0.697).
-⚠️**Helps ~1/3 of the way, does not solve.** ⚠️mbb050 turns over (idiom 0.854). ⚠️`notes_on_main` drifts
-past the human from mbb025 up — metronome direction; mbb015 is the conservative pick.
-**Next**: review set built at `outputs/kyle_review_2026-08-04b/` (BEFORE / A_mainbeat015 /
-B_mainbeat025 on the four standing songs).
-
-★**AND A LIMIT FOUND BY LOOKING, NOT BY THE AGGREGATE.** On Fallen Kingdom the song-level coverage
-rises 67.8 % → 77.1 %, but the **worst stretch (216–228 s) only moves 35 % → 40 %**. Binned over 352
-windows × 24 songs:
-
-| baseline coverage | n | base | mbb025 | gain |
-|---|---|---|---|---|
-| **0–30 % (worst)** | 54 | 0.109 | **0.172** | +0.063 |
-| 30–50 % | 69 | 0.420 | 0.467 | +0.047 |
-| 50–70 % | 154 | 0.587 | 0.630 | +0.043 |
-| 70–100 % | 75 | 0.807 | 0.827 | +0.019 |
-
-⚠️I predicted the gain would be *smallest* in the worst bin (ranking cannot help where nothing is
-selected). **That was wrong** — the gain is largest there, and the small gain at the top is a ceiling
-effect. But the conclusion that matters survives: **a window at 17 % coverage still ignores the beat.**
-⇒**S3's starvation is a SECOND, INDEPENDENT defect that a ranking prior cannot fix**, and it is now the
-biggest remaining target. The bonus buys a roughly uniform +0.02…+0.06 everywhere; it does not rescue
-a starved passage.
-
-### ★★ S7 — THE INSTRUMENT MODEL DOES NOT INVERT (2026-08-04)
-Probability-on-beat vs neighbouring slots, same passages: `version_4` **0.55 (inverted)** in our worst
-windows, `version_8` **1.74 (not inverted)**; all-window ratio 5.56 → 7.70.
-⚠️**This does NOT contradict last night's null** — that measured `win_rate` at k≥3 coincidences (which
-*event* to answer, half-beat away); this measures metrical **phase** (adjacent slots). The instrument
-projection does not help pick the event but does keep the model on the beat. Two different failures.
-**✅ IT DOES TRANSFER — density was the confound (see below).** ~~RUN, AND IT DID NOT TRANSFER.~~ v8 covers **0.503** vs control 0.546; v8+bonus 0.548 vs the bonus
-alone **0.596**. Rhythm 0.692 and playfeel 1.146 are much worse too.
-★**Confound**: v8 emits **17 % fewer notes** (nps 3.215 vs 3.882 — the only *resolvable* delta in the
-table), and fewer notes mechanically cover fewer beats. **Status: unresolved, not refuted.**
-✅**DONE. v8 at budget 1.20 + mbb025 is the best arm on Kyle's metric**: continuity **0.523 → 0.657**
-(human 0.697, ~77 % of the gap), coverage 0.546 → 0.630, **alignment 0.260 → 0.109** and **precision
-0.919 → 0.932** both resolvable. 🔴**Cost: playfeel 0.674 → 1.127, resolvable (~8 sd)**, driven by nps
-rising to 4.123. **Next tune: budget between 1.0 and 1.2 to recover playfeel.**
-★★**Lesson recorded**: S7's measurement stands (v8's probability is not inverted) but its inference
-does not. **A property of the probability field is not a property of the map** — selection, thresholds
-and density sit in between. Third time this project has been caught by that gap.
+### 🔑 Design constraints that shaped it (keep)
+1. **PNG is the primary artifact** — an agent can only see an image by rendering and re-reading it.
+   HTML is for Kyle.
+2. **Tolerance must scale with the period** or `capture` = 1.0 by construction picks a 16th grid.
+3. **Calibrate against humans, never our own output** (the grid's 18 ms detector bias).
+4. **Metrics that reward regularity are metronome-gameable** — diagnose, never steer.
+5. ★**A property of the probability field is not a property of the map**, *and* **a map-level
+   comparison between models with different note counts is not a comparison of the models.**
+   Both halves cost a wrong conclusion today.
 
 ### 🔎 FOUND BY THE SUITE — new work items (2026-08-04)
 
