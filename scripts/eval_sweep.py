@@ -604,6 +604,24 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "nb130_g10": ({**_DS25, **_W2BASE, "BEAT_NOTE_BUDGET": "1.30",
                    "DENSITY_SELECT_GAMMA": "1.0"}, []),
     "g15":       ({**_DS25, **_W2BASE, "DENSITY_SELECT_GAMMA": "1.5"}, []),
+    # --- C5 / W3 (2026-08-04): BEAT_HAND_DEAL. The known root cause, finally
+    # attacked. Stage-1's two hand channels correlate 0.985-0.993, so selecting
+    # each hand independently makes them pick the SAME slots: 809 distinct times
+    # on Hunger vs the human's 1245, double share 0.6415 vs 0.1478. The deal
+    # selects the top (bL+bR) slots ONCE and alternates them, so neither hand is
+    # ever sent below the 2k-th best slot -- the exact failure of the shelved
+    # BEAT_HAND_INTERLEAVE -- then doubles the strongest slots back to the target.
+    #
+    # ⚠️READ THE RESULT CAREFULLY. The double share landing on the human value is
+    # BY CONSTRUCTION (the parameter IS the target) and is NOT evidence. The
+    # untuned number is DISTINCT TIMES: 809 -> 1193 against a human 1245 on Hunger.
+    # ⚠️1f333 is a documented single-song probe trap; that is why this sweeps 24.
+    # ⚠️MUST CHECK role_asymmetry -- BEAT_HAND_LEAD is a confirmed positive by
+    # Kyle's ear ("a giant difference maker") and the deal takes over the L/R split
+    # it used to own, so its target must be re-verified, not assumed.
+    "deal14":  ({**_DS25, **_W2BASE, "BEAT_HAND_DEAL": "0.14"}, []),
+    "deal10":  ({**_DS25, **_W2BASE, "BEAT_HAND_DEAL": "0.10"}, []),
+    "deal20":  ({**_DS25, **_W2BASE, "BEAT_HAND_DEAL": "0.20"}, []),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",

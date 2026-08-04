@@ -2473,6 +2473,59 @@ def generate_v7_level(
             right_onsets = _density_aware_select(
                 beat_probs[:, 1], _slot_sec, _win, _gamma, _bR, beat_nms_radius,
                 win_mult=_rmul)
+        # ---- C5 / W3: HAND DEAL (2026-08-04). Default OFF. ----
+        # ROOT CAUSE (measured): the two hand channels of Stage-1 correlate
+        # 0.985-0.993, so selecting each hand independently makes them pick the
+        # SAME slots. Our maps carry 467 distinct beat positions against a human
+        # 626 at matched note count, and a double share of 0.66 vs the human
+        # 0.1366. That is structurally guaranteed, not mis-tuned -- which is why
+        # BEAT_HAND_INTERLEAVE (pushed the right hand to WORSE slots) and
+        # BEAT_HAND_ROLE (leaves the times untouched) both failed.
+        #
+        # W3 is the same defect felt under the fingers: at Hunger 4:20-4:32, on an
+        # identical 160ms grid, the human plays 66 events at 0.015 double share
+        # while we play 50 at 0.640 -- fewer moments but MORE notes per second.
+        #
+        # THE FIX MUST RAISE THE DISTINCT-SLOT COUNT, not redistribute. Select the
+        # top (bL + bR) slots ONCE from the stronger of the two channels, then DEAL
+        # them alternately in time order. Both hands draw from the same pool, so
+        # neither is ever sent below the 2k-th best slot -- the exact failure of
+        # BEAT_HAND_INTERLEAVE -- and the map gets ~2k distinct positions at the
+        # same note count.
+        # BEAT_HAND_DEAL = TARGET DOUBLE SHARE (0 = OFF), e.g. "0.14" for the human
+        # median 0.1366. A strict alternate deal drives doubles to EXACTLY 0.000,
+        # which overshoots: humans play ~14% real doubles and this project already
+        # learned the hand levers must be soft, never a hard exclusion. So after
+        # dealing, the strongest slots by combined probability are given to BOTH
+        # hands -- a double lands where the music is most emphatic, which is where
+        # a human puts one.
+        _deal = float(os.environ.get("BEAT_HAND_DEAL", "0") or 0.0)
+        if _deal > 0.0:
+            _combined = torch.maximum(beat_probs[:, 0], beat_probs[:, 1])
+            _mult = None
+            if _lmul is not None and _rmul is not None:
+                # Preserve BEAT_HAND_LEAD's density pacing (a confirmed positive by
+                # Kyle's ear) by keeping the COMBINED per-window shape. The L/R
+                # split it used to create now comes from the deal instead, so
+                # role_asymmetry must be re-checked, not assumed.
+                _mult = [(a + b) / 2.0 for a, b in zip(_lmul, _rmul)]
+            _pool = sorted(_density_aware_select(
+                _combined, _slot_sec, _win, _gamma, _bL + _bR, beat_nms_radius,
+                win_mult=_mult))
+            left_onsets = set(_pool[0::2])
+            right_onsets = set(_pool[1::2])
+            _n_dbl = int(round(min(_deal, 0.95) * len(_pool)))
+            if _n_dbl > 0:
+                _strong = sorted(_pool, key=lambda s: float(_combined[s]),
+                                 reverse=True)[:_n_dbl]
+                left_onsets.update(_strong)
+                right_onsets.update(_strong)
+            logger.info(
+                "BEAT_HAND_DEAL=%.3f: %d distinct slots dealt L=%d R=%d, %d doubled "
+                "on the strongest slots (independent selection gave ~%d distinct)",
+                _deal, len(_pool), len(left_onsets), len(right_onsets), _n_dbl,
+                max(_bL, _bR))
+
         # HAND ROLE (eval-suite v2 axis A6, 2026-07-27). Discovered by reading a
         # map next to its human counterpart: within a passage a human mapper gives
         # ONE hand the lead — a sustained run — while the other punctuates, then
