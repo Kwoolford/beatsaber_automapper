@@ -297,17 +297,22 @@ costs one of his listening sessions. Every hour spent here buys back many of his
 > this is hidden because the map still maps a lot of non main beat notes. Like it hits the main flow
 > partially."*
 
-Measured (n=12, "main beat" = fitted beat grid carried by drums|bass, inside runs of ≥4):
+Measured over the full songset with the robust multi-level grid (`scripts/main_beat.py`, n=24):
 
 | | ours | human |
 |---|---|---|
-| **main beats we cover** | **0.665** | **0.857** |
-| share of our notes ON the main beat | 0.439 | 0.440 |
+| main beats **covered** | **0.546** | **0.704** |
+| **`main_continuity`** — P(play beat n+1 │ played beat n) | **0.523** | **0.697** |
+| share of our notes ON the main beat | 0.637 | 0.617 |
 
-⇒ we hit **2 of 3** main beats where humans hit **6 of 7**, while carrying the **same proportion** of
-non-main notes. His "it's hidden" intuition is right: total density looks fine, the main *line* is
-partial. ⚠️Two outliers (1fa48 human 0.097, 1fb44 human 1.000) prove the definition is fragile —
-**a single metrical level is not enough** (see P0.1).
+★**`main_continuity` IS THE METRIC FOR HIS COMPLAINT.** *"Every couple main beat notes were mapped
+instead of most of the main beats"* is exactly "given we played one, do we play the next" — ours
+**0.523** vs the human's **0.697**. We drop in and out of the line; humans hold it.
+
+⚠️**But the second half of his sentence is NOT what distinguishes us.** He guessed it was *"hidden
+because the map still maps a lot of non main beat notes"* — proportionally we sit at **0.637** against
+the human's **0.617**, i.e. the same. We do not play more filler than a human. The line is partial and
+the filler is normal, which is presumably *why* it reads as hidden.
 
 ### 🔑 A CONSTRAINT THAT SHAPES THE WHOLE DESIGN
 **I can only "see" an image by rendering it to a file and reading it back.** So the primary artifact
