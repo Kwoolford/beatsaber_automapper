@@ -352,7 +352,18 @@ grid that was wrong on 20 of 21 songs. Their conclusions are not necessarily wro
 scored with a bad ruler and never re-checked with a good one. Re-derive before building further on
 them.
 
-### C5 — Doubles: ROOT CAUSE FOUND, untouched ★**NOW ALSO THE CAUSE OF W3**
+### C5 — Doubles: root cause found; 🔴**decode fix ATTEMPTED 2026-08-04 and it FAILED**
+🔴**`BEAT_HAND_DEAL` is a measured NEGATIVE — do not revive it.** It hit every structural target
+(distinct times 462→656 vs human 646, doubles 0.66→0.10, pulse coverage 0.61→0.83 vs human 0.80,
+`role_asymmetry` held) **and rhythm degraded 6× (0.409 → 2.450, resolvable)**, with alignment,
+flow, playfeel and precision all resolvably worse. Only handrole improved (1.148 → 0.738).
+★**Mechanism**: the deal needs **2× as many distinct slots**, which means going deeper down the
+probability ranking — **precision falls 0.919 → 0.893**, i.e. the added slots are off real onsets.
+Identical to W2's "the marginal note is much worse than the average note".
+⇒🔴**C5 IS NOT REACHABLE BY DECODE.** Our probability field does not contain ~646 slots worth
+playing. **This is C1's "better probabilities, not better picking" from a FIFTH direction.** Tuning
+the parameter does nothing (rhythm 2.453/2.450/2.451 at deal10/14/20) — the damage is the dealing.
+★**Still also the cause of W3.**
 ★**2026-08-04: W3 ("some parts get really intense to play") resolves to this item.** At Hunger
 4:20–4:32, on identical 160 ms grids, the human plays **66 events at 0.015 double share** while we play
 **50 at 0.640** — fewer distinct moments but **more notes per second** (6.56 vs 5.36), which is what

@@ -395,8 +395,51 @@ looked right on its target metric before the suite killed it.
 each standing review song as BEFORE (the promoted baseline he graded A+) / `A_endresolve` (W7) /
 `B_handdeal14` (C5), with the human map's numbers alongside. ⚠️In gitignored `outputs/` per C6.
 
-⚠️**NOTHING IS CLAIMED UNTIL THE SIX AXES RETURN.** A structural win that costs rhythm or flow is
-exactly how `BEAT_HAND_INTERLEAVE` failed. Default OFF; Kyle's ear decides regardless.
+### 🔴🔴 VERDICT: **THE SUITE KILLS IT.** `BEAT_HAND_DEAL` FAILS — and the yellow flag was right
+
+3 seeds × 24 songs, paired against the promoted baseline:
+
+| axis | control | deal10 | deal14 | deal20 | paired verdict |
+|---|---|---|---|---|---|
+| **rhythm** | **0.409** | **2.453** | **2.450** | **2.451** | **+2.044 — RESOLVABLE, 6× worse** |
+| alignment | 0.260 | 0.724 | 0.725 | 0.725 | +0.464 — resolvable, worse |
+| flow | 0.292 | 0.526 | 0.717 | 0.450 | +0.235 — resolvable, worse |
+| playfeel | 0.674 | 0.812 | 0.806 | 0.986 | +0.138 — resolvable, worse |
+| precision | 0.919 | 0.893 | 0.893 | 0.893 | −0.026 — resolvable, worse |
+| idiom | 0.568 | 0.464 | 0.523 | 0.477 | −0.104 — noise |
+| **handrole** | 1.148 | 0.768 | **0.738** | **0.695** | **−0.379 — resolvable, BETTER** |
+
+**Rhythm degrades 6×.** Every structural metric it was built for looked perfect — distinct times on
+the human value, doubles on the human value, pulse coverage on the human value, `role_asymmetry` held
+— **and the resulting map is rhythmically much worse.** This is the `BEAT_HAND_INTERLEAVE` failure
+repeating exactly, in a lever explicitly designed to avoid it.
+
+★**The yellow flag called it.** Before the axes returned, `pulse_continuity` overshooting the human
+(0.9069 vs 0.8266) was recorded as "we break the run *less* often than humans — a yellow flag, not a
+win, because every regularity-rewarding metric here is metronome-gameable." The rhythm axis is that
+suspicion confirmed: filling every available slot alternately makes the union rhythm mechanical.
+
+★★**THE MECHANISM, and it is the same wall as everywhere else.** The deal must find **2× as many
+distinct slots** (bL + bR instead of ~k). Those extra slots are further down the probability ranking —
+and **precision drops 0.919 → 0.893**, i.e. the added slots sit off real onsets. It is the *identical*
+finding to W2's "the marginal note is much worse than the average note", reached from a different
+direction.
+
+⇒ 🔴**C5 IS NOT REACHABLE BY DECODE EITHER.** The human has ~646 good distinct slots per song; our
+probability field does not contain 646 slots worth playing. Raising the count means going deeper into
+a ranking that has already run out. **This is C1's conclusion — "better probabilities, not better
+picking" — now reached from a FIFTH direction** (after density, γ, probability floor, IOI prior, and
+the W1a phase work).
+
+**What survives**: the lever is a clean, isolated demonstration that (a) the distinct-slot count *can*
+be moved to human levels by decode alone, (b) doing so costs rhythm catastrophically, and (c) handrole
+genuinely improves when doubles fall — the only axis that got better. **Keep it default OFF, do not
+promote, do not tune it further.** Tuning `deal10/14/20` changes almost nothing (rhythm 2.453/2.450/
+2.451) — the damage is from the dealing itself, not the double-share parameter.
+
+⚠️Kyle's ear is still the final court and the review set exists, but **I am not asking him to play a
+lever the suite says is 6× worse on rhythm** — that would waste the one resource this project cannot
+generate more of.
 
 ---
 
