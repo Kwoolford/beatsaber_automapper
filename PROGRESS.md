@@ -326,6 +326,52 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★★★★ BEAT_MAIN_BEAT_BONUS — THE FIRST RESOLVABLE AXIS *IMPROVEMENT* IN THE SESSION (2026-08-04)
+
+`logs/overnight/mainbeat_2026-08-04.log`, 4 arms × 3 seeds × 24 songs. Built from Kyle's *"it hits the
+main flow partially"* after the probability dumps showed the model KNOWS about the beats we skip
+(p 0.591 at skipped main beats vs 0.408 at a random slot).
+
+| metric | control | **mbb015** | mbb025 | mbb050 |
+|---|---|---|---|---|
+| **alignment** | 0.260 | **0.087** | 0.140 | 0.190 |
+| rhythm | 0.409 | 0.309 | 0.336 | 0.497 |
+| flow | 0.292 | 0.360 | 0.307 | 0.425 |
+| idiom | 0.568 | 0.481 | 0.480 | 0.854 |
+| handrole | 1.148 | 1.142 | 1.100 | 0.950 |
+| playfeel | 0.674 | 0.713 | 0.812 | 0.902 |
+| **precision** | 0.919 | 0.927 | **0.930** | 0.924 |
+| npass | 3.667 | 3.333 | 4.333 | 4.667 |
+| nps | 3.882 | 3.960 | 4.010 | 4.109 |
+
+★**alignment 0.260 → 0.087 is RESOLVABLE (−0.173, sd 0.052/0.057) — a 3× improvement on the axis that
+exists because of Kyle's original "the notes are off beat".** Precision rises too (0.919 → 0.930), and
+rhythm, idiom and handrole all move in the improving direction at mbb015/mbb025 (inside noise).
+**Nothing regresses resolvably at mbb015 or mbb025.** That is the first lever all session to *gain* an
+axis rather than trade one.
+
+**And on the metric it was built for:**
+
+| | control | mbb015 | mbb025 | mbb050 | human |
+|---|---|---|---|---|---|
+| main covered | 0.546 | 0.581 | **0.596** | 0.582 | **0.704** |
+| main continuity | 0.523 | 0.547 | 0.559 | **0.635** | **0.697** |
+| notes on main | 0.636 | 0.643 | 0.669 | 0.688 | 0.617 |
+
+⚠️**It HELPS but does not SOLVE.** Coverage moves 0.546 → 0.596 against a human 0.704 — about **one
+third of the way**. Kyle's complaint is reduced, not answered.
+⚠️**mbb050 is too much**: idiom 0.568 → 0.854 and rhythm → 0.497 while coverage actually *falls* back to
+0.582. The curve turns over.
+⚠️**Not budget-neutral** (nps 3.882 → 4.010 at mbb025) — but note precision *rose*, so the extra notes
+are better placed, not filler. That is the opposite of the W2 budget finding and worth keeping in mind.
+⚠️`notes_on_main` drifts past the human (0.617) from mbb025 up — the metronome direction. mbb015 sits at
+0.643, barely above, which is why **mbb015 is the conservative pick and mbb025 the aggressive one**.
+
+⇒**THIS IS THE FIRST THING IN A WHILE THAT DESERVES KYLE'S EAR**, and it is aimed squarely at the
+defect he has now described twice. Default OFF.
+
+---
+
 ## 🔴 W7 ROUND 2 HARVESTED — `trimco3` has NO cohort benefit; `endres` trades shape for time (2026-08-04)
 
 `logs/overnight/trimco_2026-08-04.log`, 4 arms × 3 seeds × 24 songs.

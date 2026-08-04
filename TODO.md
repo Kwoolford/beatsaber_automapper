@@ -344,6 +344,16 @@ fast enough to run over all 24 songs.
 - **"Empty" is relative to THE SONG, not our old maps** — *"they both feel empty compared to song."*
   ⇒ the human corpus is not the reference for this defect; the song's own main beat is.
 
+### ✅ S5 — `BEAT_MAIN_BEAT_BONUS` WORKS AND NEEDS HIS EAR (2026-08-04)
+Built from his "it hits the main flow partially" after the probability dumps proved the model knows
+about the beats we skip. 3 seeds × 24 songs:
+**alignment 0.260 → 0.087 (RESOLVABLE, 3×)**, precision 0.919 → 0.930, rhythm/idiom/handrole all
+improving inside noise, **nothing regressing resolvably at mbb015/mbb025**. Main-beat coverage
+0.546 → 0.596, continuity 0.523 → 0.559 (human 0.704 / 0.697).
+⚠️**Helps ~1/3 of the way, does not solve.** ⚠️mbb050 turns over (idiom 0.854). ⚠️`notes_on_main` drifts
+past the human from mbb025 up — metronome direction; mbb015 is the conservative pick.
+**Next**: build the review pair (BEFORE vs mbb015 vs mbb025) on the four standing songs for his ear.
+
 ### 🔎 FOUND BY THE SUITE — new work items (2026-08-04)
 
 **S4 🟠 `BEAT_TRIM_END_COINCIDENCE` IS RIGHT ON HUNGER AND MIXED ELSEWHERE.** Fires on 6/24 songs;
