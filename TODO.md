@@ -352,7 +352,26 @@ improving inside noise, **nothing regressing resolvably at mbb015/mbb025**. Main
 0.546 → 0.596, continuity 0.523 → 0.559 (human 0.704 / 0.697).
 ⚠️**Helps ~1/3 of the way, does not solve.** ⚠️mbb050 turns over (idiom 0.854). ⚠️`notes_on_main` drifts
 past the human from mbb025 up — metronome direction; mbb015 is the conservative pick.
-**Next**: build the review pair (BEFORE vs mbb015 vs mbb025) on the four standing songs for his ear.
+**Next**: review set built at `outputs/kyle_review_2026-08-04b/` (BEFORE / A_mainbeat015 /
+B_mainbeat025 on the four standing songs).
+
+★**AND A LIMIT FOUND BY LOOKING, NOT BY THE AGGREGATE.** On Fallen Kingdom the song-level coverage
+rises 67.8 % → 77.1 %, but the **worst stretch (216–228 s) only moves 35 % → 40 %**. Binned over 352
+windows × 24 songs:
+
+| baseline coverage | n | base | mbb025 | gain |
+|---|---|---|---|---|
+| **0–30 % (worst)** | 54 | 0.109 | **0.172** | +0.063 |
+| 30–50 % | 69 | 0.420 | 0.467 | +0.047 |
+| 50–70 % | 154 | 0.587 | 0.630 | +0.043 |
+| 70–100 % | 75 | 0.807 | 0.827 | +0.019 |
+
+⚠️I predicted the gain would be *smallest* in the worst bin (ranking cannot help where nothing is
+selected). **That was wrong** — the gain is largest there, and the small gain at the top is a ceiling
+effect. But the conclusion that matters survives: **a window at 17 % coverage still ignores the beat.**
+⇒**S3's starvation is a SECOND, INDEPENDENT defect that a ranking prior cannot fix**, and it is now the
+biggest remaining target. The bonus buys a roughly uniform +0.02…+0.06 everywhere; it does not rescue
+a starved passage.
 
 ### 🔎 FOUND BY THE SUITE — new work items (2026-08-04)
 
