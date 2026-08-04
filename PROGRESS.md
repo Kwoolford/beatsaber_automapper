@@ -326,6 +326,37 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ⚠️ TEMPERING S7 — the continuity gain is substantially BOUGHT WITH NOTES (2026-08-04, close)
+
+The playfeel-recovery tune was stopped mid-run to free the GPU (Kyle went to play), but **3 of its 4
+arms completed all 3 seeds**, so those numbers are final:
+
+| arm | covered | **continuity** | distinct nps |
+|---|---|---|---|
+| control | 0.546 | 0.523 | 2.35 |
+| **v8 + bonus, budget 1.20** | **0.630** | **0.657** | 2.56 |
+| v8 + bonus, **budget 1.05** | 0.570 | **0.561** | 2.32 |
+| human | 0.704 | 0.697 | 3.62 |
+
+🔴**Backing the budget from 1.20 to 1.05 gives back most of the gain**: continuity **0.657 → 0.561**,
+against a control of 0.523. So the headline "77 % of the gap closed" is **not** purely a placement
+effect — a large part of it is simply **more notes**.
+
+★**This is the honest reading, and it matters before Kyle listens**: the arm in his review folder
+(`B_v8_plus_bonus`, budget 1.20) buys its continuity partly with density, which is also exactly why its
+playfeel is resolvably worse (0.674 → 1.127). **"Just lower the budget to fix playfeel" would hand back
+most of the benefit.** The two are the same knob.
+
+**Status: PARTLY CONFIRMED.** What survives independent of density is smaller than the headline. The
+middle arm (`v8_nb112_mbb015`, budget 1.12 with the weaker prior) was **9/72 maps in** when stopped and
+is the missing point — it would say whether there is a knee or a straight line. **Resume:**
+```
+nohup bash scripts/overnight_2026-08-04g.sh >/dev/null 2>&1 &
+```
+Three of four arms are fully cached, so it only regenerates the last one (~25 min).
+
+---
+
 ## ★★★★★★★★★ S7 **DOES** TRANSFER — density was the confound. Best result of the day (2026-08-04)
 
 The density-matched rerun (v8 at `BEAT_NOTE_BUDGET` 1.20, bringing 3.215 → 3.810 nps):
