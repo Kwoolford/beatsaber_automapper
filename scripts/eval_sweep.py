@@ -653,6 +653,19 @@ ARMS: dict[str, tuple[dict[str, str], list[str]]] = {
     "mbb025": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.25"}, []),
     "mbb050": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.50"}, []),
     "mbb015": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.15"}, []),
+    # --- S7 (2026-08-04): the instrument model does NOT invert phase.
+    # Probability-on-beat vs neighbouring slots, same passages: version_4 reads
+    # 0.55 (INVERTED) in our worst windows, version_8 reads 1.74 (not inverted).
+    # Kyle's #1 complaint traces to that inversion, and BEAT_MAIN_BEAT_BONUS is
+    # capped at a third of the gap precisely because a x1.25 prior cannot beat a
+    # 2x probability deficit. So pair the model that has the right phase with the
+    # prior that exploits it.
+    # ⚠️NOT a promotion candidate: v8's generated maps scored WORSE on the six
+    # axes in the B-1 sweep (2026-08-01), so judge coverage AND the axes.
+    "v8":        ({**_DS25, **_W2BASE},
+                  ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
+    "v8_mbb025": ({**_DS25, **_W2BASE, "BEAT_MAIN_BEAT_BONUS": "0.25"},
+                  ["--beat-ckpt", _b1_ckpt(12), "--use-instr"]),
     "tf_trim_ev03_rc07": ({**_DS25, "BEAT_DIFFICULTY_SCALE": "0.48",
                            "BEAT_HAND_LEAD": "0.14", "BEAT_TEMPO_FIT": "1",
                            "BEAT_TRIM_TAIL": "0.5", "BEAT_ONSET_EVIDENCE": "0.3",
