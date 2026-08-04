@@ -326,6 +326,40 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## 🔴 S7 DID NOT TRANSFER — v8's better phase produces WORSE beat coverage (2026-08-04)
+
+The experiment S7 pointed at, run: 4 arms × 3 seeds × 24 songs.
+
+| arm | covered | continuity | on_main | rhythm | playfeel | **nps** |
+|---|---|---|---|---|---|---|
+| control | 0.546 | 0.523 | 0.636 | 0.409 | 0.674 | 3.882 |
+| **mbb025** | **0.596** | **0.559** | 0.669 | 0.336 | 0.812 | 4.010 |
+| v8 | **0.503** | **0.467** | 0.663 | 0.692 | 1.146 | **3.215** |
+| v8_mbb025 | 0.548 | 0.526 | 0.709 | 0.516 | 1.075 | 3.459 |
+| human | 0.704 | 0.697 | 0.617 | — | — | — |
+
+🔴**The model whose probability is NOT inverted produces the WORSE map on exactly the metric the
+inversion was supposed to explain.** v8 covers 0.503 against control's 0.546, and v8+bonus (0.548)
+lands *below* the bonus alone (0.596). Rhythm and playfeel are much worse too (0.692 / 1.146).
+
+★**The likely confound, and it is measurable: v8 emits 17 % fewer notes** — nps **3.215 vs 3.882**, the
+one *resolvable* difference in the whole table. Fewer notes mechanically cover fewer beats. So this
+does **not** cleanly refute S7; it shows the probability advantage is swamped by a density loss at the
+same thresholds. **A density-matched rerun (v8 at `BEAT_NOTE_BUDGET` ≈ 1.2) is what would settle it**,
+and until that exists the honest status is *unresolved*, not *refuted*.
+
+★★**WHAT IS SETTLED, AND IT IS THE LESSON**: S7's *measurement* stands — v8's probability field is not
+phase-inverted (0.55 → 1.74 in our worst windows). Its *inference* — "therefore v8 will cover the beat
+better" — is **wrong as stated**. That is the second time today a probability-level result failed to
+predict the generated map (the first was my adaptive-lift reasoning). ⇒**A property of the probability
+field is not a property of the map.** Selection, thresholds and density sit in between, and this
+project has now been caught by that gap three times counting the 2026-08-02 probs-replay.
+
+⇒`BEAT_MAIN_BEAT_BONUS` on **production** `version_4` remains the best candidate: 0.596 coverage, the
+resolvable alignment win, and nothing regressing resolvably.
+
+---
+
 ## ★★★★★★★★ THE INSTRUMENT MODEL DOES NOT INVERT — Track B fixes the core defect (2026-08-04)
 
 Probability peaked ON the main beat vs the two neighbouring slots, same passages of the same songs

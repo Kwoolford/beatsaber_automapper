@@ -379,8 +379,14 @@ windows, `version_8` **1.74 (not inverted)**; all-window ratio 5.56 → 7.70.
 ⚠️**This does NOT contradict last night's null** — that measured `win_rate` at k≥3 coincidences (which
 *event* to answer, half-beat away); this measures metrical **phase** (adjacent slots). The instrument
 projection does not help pick the event but does keep the model on the beat. Two different failures.
-**Task**: generate with `version_8` + `BEAT_MAIN_BEAT_BONUS` and score main-beat coverage AND the six
-axes. ⚠️v8's maps scored worse on the axes in the B-1 sweep, so this is an experiment, not a promotion.
+**❌ RUN, AND IT DID NOT TRANSFER.** v8 covers **0.503** vs control 0.546; v8+bonus 0.548 vs the bonus
+alone **0.596**. Rhythm 0.692 and playfeel 1.146 are much worse too.
+★**Confound**: v8 emits **17 % fewer notes** (nps 3.215 vs 3.882 — the only *resolvable* delta in the
+table), and fewer notes mechanically cover fewer beats. **Status: unresolved, not refuted.**
+**Task**: density-matched rerun — v8 at `BEAT_NOTE_BUDGET` ≈ 1.2 — is the only thing that settles it.
+★★**Lesson recorded**: S7's measurement stands (v8's probability is not inverted) but its inference
+does not. **A property of the probability field is not a property of the map** — selection, thresholds
+and density sit in between. Third time this project has been caught by that gap.
 
 ### 🔎 FOUND BY THE SUITE — new work items (2026-08-04)
 
