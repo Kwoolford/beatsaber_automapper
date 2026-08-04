@@ -8,6 +8,24 @@ same controls as `audit_eval_suite.py` against the two new diagnostics:
     halfbeat_rate    (eval_beat_phase.py)   share of k>=3 multi-instrument events
                                             whose nearest note is a half beat off
     coincidence lift (eval_coincidence.py)  P(hit | k>=3) / P(hit | k==1)
+    share_over_1s    (eval_phrase_abandon)  share of sung phrases holding a >1s
+                                            stretch with no notes
+
+RESULTS (2026-08-04, n=12, this script's own cohort): BOTH halfbeat_rate AND
+share_over_1s FAIL, for the SAME reason -- a METRONOME beats a human on each:
+
+    halfbeat_rate    metronome 0.0362   human 0.0843
+    share_over_1s    metronome 0.2000   human 0.2500
+    (timing_random correctly fails both: 0.1944 and 0.6667)
+
+A constant pulse covers the beat grid densely AND never leaves a hole, so
+"minimise this metric" is satisfiable by becoming the for-sport degenerate.
+
+★THE STRUCTURAL POINT: every metric that rewards REGULARITY is gameable by the
+metronome, and both 2026-08-03/04 metrics reward regularity. Both stay valid as
+DIAGNOSTICS against human maps at matched density -- which is all they have been
+used for -- but neither may select a lever alone. Any lever aimed at either must
+carry a metronome guard (rhythm A2 / pulse_stability) scored alongside it.
 
 **Axis-aware expectation, declared BEFORE running** — the same reasoning A8 and
 A2 are already audited under. Both metrics read only note TIMES, so:
@@ -47,13 +65,14 @@ from audit_eval_suite import CONTROLS  # noqa: E402
 from calibrate_playfeel import load_expert_only  # noqa: E402
 from eval_beat_phase import OUTER  # noqa: E402
 from eval_coincidence import events_for  # noqa: E402
+from eval_phrase_abandon import phrase_silence, vocal_phrases  # noqa: E402
 
 TOL = 0.050
 TIMING_CONTROLS = ("metronome", "timing_random", "timing_jitter")
 POSITION_CONTROLS = ("random", "shuffled", "zigzag")
 
 
-def metrics_from_times(notes, bpm: float, ev) -> dict | None:
+def metrics_from_times(notes, bpm: float, ev, song_id: str = "") -> dict | None:
     times, ks = ev
     beat = 60.0 / bpm
     spb = 60.0 / bpm
@@ -66,17 +85,23 @@ def metrics_from_times(notes, bpm: float, ev) -> dict | None:
         c = [nt[j] for j in (i - 1, i) if 0 <= j < len(nt)]
         return min(c, key=lambda x: abs(t - x)) - t if c else np.inf
 
+    vph = vocal_phrases(song_id, 1.2, 2.0) if song_id else []
     e3 = times[ks >= 3]
     e1 = times[ks == 1]
     if len(e3) < 50 or len(e1) < 20:
         return None
 
     d3 = np.array([nearest_signed(t) for t in e3])
-    ph = np.abs((d3 + beat / 2) % beat - beat / 2)
     hit3 = np.mean(np.abs(d3) <= TOL)
     hit1 = np.mean([abs(nearest_signed(t)) <= TOL for t in e1])
-    return {"halfbeat_rate": float(np.mean(ph >= OUTER * beat)),
-            "lift": float(hit3 / hit1) if hit1 > 0 else float("nan")}
+    out = {"halfbeat_rate": float(np.mean(np.abs((d3 + beat / 2) % beat - beat / 2)
+                                          >= OUTER * beat)),
+           "lift": float(hit3 / hit1) if hit1 > 0 else float("nan")}
+    if vph:
+        sil = phrase_silence(nt, vph)
+        if sil:
+            out["share_over_1s"] = sil["share_over_1s"]
+    return out
 
 
 def main() -> None:
@@ -105,14 +130,14 @@ def main() -> None:
         if not L:
             continue
         bm, bpm = L[0], float(L[1])
-        base = metrics_from_times(bm.color_notes, bpm, ev)
+        base = metrics_from_times(bm.color_notes, bpm, ev, zp.stem)
         if not base:
             continue
         cohorts["human"].append(base)
         for name, fn in CONTROLS.items():
             try:
                 ctrl = fn(copy.deepcopy(bm.color_notes), rng)
-                m = metrics_from_times(ctrl, bpm, ev)
+                m = metrics_from_times(ctrl, bpm, ev, zp.stem)
             except Exception:  # noqa: BLE001
                 m = None
             if m:
@@ -121,7 +146,7 @@ def main() -> None:
         print(f"  {zp.stem}: scored")
 
     print(f"\n=== CONTROL BATTERY (n={used} songs) ===")
-    print(f"{'cohort':16s}{'halfbeat_rate':>16s}{'lift':>10s}")
+    print(f"{'cohort':16s}{'halfbeat_rate':>16s}{'lift':>10s}{'share_over_1s':>16s}")
     med = {}
     for name, rows in cohorts.items():
         if not rows:
@@ -129,12 +154,14 @@ def main() -> None:
             continue
         hb = st.median([r["halfbeat_rate"] for r in rows])
         lf = st.median([r["lift"] for r in rows if r["lift"] == r["lift"]])
-        med[name] = (hb, lf)
-        print(f"{name:16s}{hb:16.4f}{lf:10.4f}")
+        sv = [r["share_over_1s"] for r in rows if "share_over_1s" in r]
+        so = st.median(sv) if len(sv) >= 4 else float("nan")
+        med[name] = (hb, lf, so)
+        print(f"{name:16s}{hb:16.4f}{lf:10.4f}{so:16.4f}")
 
     if "human" not in med:
         sys.exit("no human baseline scored")
-    h_hb, h_lf = med["human"]
+    h_hb, h_lf, h_so = med["human"]
 
     print("\n=== VERDICT (expectations declared in the docstring, before the run) ===")
     ok = True
@@ -154,6 +181,13 @@ def main() -> None:
         print(f"  {'PASS' if same else 'NOTE'}  {c:14s} identical to human: {same}"
               f"   (blind BY CONSTRUCTION — these keep human note times)")
 
+    if h_so == h_so:
+        print("\n  share_over_1s (W4):")
+        for c in ("metronome", "timing_random"):
+            if c in med and med[c][2] == med[c][2]:
+                worse = med[c][2] > h_so
+                print(f"    {'PASS' if worse else 'FAIL'}  {c:14s} {med[c][2]:.4f} vs human {h_so:.4f}")
+                ok &= worse
     print(f"\n  OVERALL: {'PASS — the metrics may steer levers' if ok else 'FAIL — do not steer with these'}")
 
     if a.json:
