@@ -46,6 +46,20 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 RATIOS = (0.5, 1.0, 2.0)
 TOL = 0.070
 
+# ★DETECTOR BIAS COMPENSATION (calibrated 2026-08-04 against the HUMAN corpus).
+# Symptom that exposed it: on 11 of 13 songs OUR median offset from the fitted
+# grid EXACTLY equalled the HUMAN's (-29.6/-29.6, -27.5/-27.5, -52.1/-52.1 …).
+# Two independent cohorts cannot share a defect — so the GRID was wrong, not the
+# maps. Cause: `librosa.onset.onset_detect(backtrack=True)` moves every onset back
+# to the preceding local minimum, so a grid fitted to those onsets lands BEFORE the
+# actual transient. Measured human offset: median -18.1ms (n=13, sd 18.8).
+# At a 40-70ms tolerance an 18ms bias was eating a third of the budget and
+# understating coverage for BOTH cohorts.
+# ⚠️Calibrated on the HUMAN corpus deliberately — where real mappers put notes is
+# ground truth for "where the beat is". Calibrating on our own output would be the
+# h_dist circularity.
+DETECTOR_BIAS = 0.018
+
 
 def _tol(period: float) -> float:
     """⚠️THE TOLERANCE MUST SCALE WITH THE PERIOD.
@@ -154,6 +168,8 @@ def find_main_beat(song_id: str, bpm: float, end: float,
             i = j
         else:
             i += 1
+    grid = grid + DETECTOR_BIAS          # see DETECTOR_BIAS above
+    phase = phase + DETECTOR_BIAS
     return MainBeat(period=period, phase=phase, ratio=r, support=support,
                     capture=capture, f1=f, grid=grid, runs=grid[runs],
                     candidates=sorted(cands, key=lambda c: -c["f1"]))

@@ -339,6 +339,33 @@ fast enough to run over all 24 songs.
 - **"Empty" is relative to THE SONG, not our old maps** — *"they both feel empty compared to song."*
   ⇒ the human corpus is not the reference for this defect; the song's own main beat is.
 
+### 🔎 FOUND BY THE SUITE — new work items (2026-08-04)
+
+**S1 🔴 TWO SONGS ARE ON A DISPLACED GRID ENTIRELY (8 % of the songset).**
+`1fa48` main-beat coverage **0.002**, `1f9a0` **0.000**, against human 0.734 / 0.506. The view shows
+why at a glance: nearly every main beat is **orange** (we played *near* it but off-grid), not red.
+Measured offset **+110 ms (sd 6)** on 1fa48 — ≈ **half its 238 ms period**, i.e. we play its offbeat
+wholesale — and **−108 ms (sd 0)** on 1f9a0. Their *human* maps sit at −10 / +14 ms, so the music's
+grid is fine and **ours is shifted**. ⚠️sd of 0–6 ms means a hard constant displacement, not scatter —
+this is a bug with a single cause, not a tuning issue.
+**Task**: find where the displacement enters (tempo fit phase? `snap_bpm`? the slot grid anchor at
+t=0?). These two songs are the cheapest possible test case because the error is noise-free.
+**DoD**: 1fa48 and 1f9a0 coverage rise from ~0.00 into the cohort range without moving other songs.
+
+**S2 ✅ FIXED IN-TOOL — the main-beat grid was ~18 ms early.** Symptom: on 11 of 13 songs OUR median
+offset from the grid *exactly* equalled the HUMAN's (−29.6/−29.6, −52.1/−52.1 …). Two independent
+cohorts cannot share a defect, so the grid was wrong. Cause: `onset_detect(backtrack=True)` moves each
+onset to the preceding local minimum. Compensated by the human-corpus median (**−18.1 ms, n=13**),
+calibrated on humans deliberately — calibrating on our own output would be the `h_dist` circularity.
+⚠️The coverage gap is **unchanged** by the fix (ours ~0.49 vs human ~0.70), which is the reassuring
+outcome: the headline defect is not a phase artifact.
+
+**S3 🟠 FALLEN KINGDOM IS INVERTED — starved where the music is busy, dense where it is silent.**
+210–230 s: **10 and 8** notes per 10 s against the human's **28 and 22**, while the music runs 73 stem
+onsets. 240–250 s: **13** notes against the human's **6**, over an outro carrying **1** stem onset.
+★Kyle 2026-08-04: the outro **should** be mapped, **sparsely** — so this is a *distribution* bug, not
+a trim question. **Task**: check whether `section_gate="loud_only"` is suppressing the final chorus.
+
 ### What exists already — extend, do not restart
 - `scripts/review_map.py` — ranked timestamped findings (STARVED / MISSED_HIT / OFFBEAT / PHRASE_HOLE /
   MAPPING_SILENCE / ENDING). Reproduced both of his 2026-08-04 ear observations unprompted.
