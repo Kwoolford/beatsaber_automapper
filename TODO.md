@@ -145,16 +145,32 @@ outer third of the beat:
 onset, so it **passes A8**. Third instance of *a lever can pass every axis and still carry a defect no
 axis measures.*
 
+**Where the defect lives — measured 2026-08-03, PARTLY CONFIRMED.** A 24-song `BEAT_PROBS_DUMP` run
+compared Stage-1's probability at each k≥3 event slot against the slot half a beat away:
+**`win_rate` median 0.573** — it prefers the right slot, but only just, landing in the *pre-registered*
+"partial, commit nothing either way" band (≥0.60 decode / ≤0.55 Track B). ★But
+**`corr(win_rate, halfbeat_rate) = −0.494` over 23 songs**: the songs where Stage-1 cannot separate the
+slots are the songs where we play the offbeat (Fallen Kingdom 0.900 → halfbeat 0.056; 1f336 0.49 →
+0.31). ⇒ real driver, thin (57 %) edge for any decode lever.
+
+⚠️🔴**DO NOT try to fix this with grid phase.** The slot grid is `subdiv=4`, so **a half beat is two
+whole slots** and the grid already has a slot in both places; a phase shift moves notes by at most
+±half a slot (≤61 ms). This is a **selection** defect, not a grid-placement one. (C2 stays valid for
+its own purpose — songs whose grid really is misplaced — it is just not this lever.)
+
 **Tasks**
-1. Wire the **already-estimated grid phase** through — `data/tempo.py` computes it and **nothing
-   consumes it** (this is C2, now with a motive and a metric).
-2. Then re-measure `halfbeat_rate`. ⚠️It must fall **without** `on_event_rate` falling — otherwise the
-   lever merely deleted offbeat notes instead of moving them, the failure `BEAT_REACH` was
-   pre-registered against.
-3. Track B still stands as the deeper fix (Stage-1 has no instrument projection,
-   `docs/stage1_instrument_rebuild.md`) — choosing the wrong side of the beat may itself be downstream
-   of not telling instruments apart. This measurement does **not** refute it.
-4. ⚠️Before either metric steers anything it must clear `scripts/audit_eval_suite.py`.
+1. ⚠️**Do not commit a GPU night to a decode lever on a 57 % edge** — that is what the pre-registered
+   band says. If one is tried anyway, it must be scored on `halfbeat_rate` falling **without**
+   `on_event_rate` falling, or it merely deleted the offbeat notes instead of moving them (the failure
+   `BEAT_REACH` was pre-registered against).
+2. ★**The indicated path is Track B** — Stage-1 has no instrument projection
+   (`docs/stage1_instrument_rebuild.md`), and "better probabilities, not better picking" is now C1's
+   conclusion reached from a **fourth** independent direction. A model that could hear *which*
+   instrument hit would have the information needed to separate the beat from the offbeat.
+3. Cheap unblocked next step: check whether `win_rate` correlates with anything about the SONG (tempo,
+   genre, stem separability) — Fallen Kingdom at 0.900 vs 1f336 at 0.49 is a 2× spread and the reason
+   is unknown.
+4. ⚠️Before any of these metrics steers the generator it must clear `scripts/audit_eval_suite.py`.
 
 **DoD**: `halfbeat_rate` moves from 0.245 toward the human 0.095 with `on_event_rate` held or improved,
 at ≥3 seeds — then Kyle's ear on SO TIRED ROCK.

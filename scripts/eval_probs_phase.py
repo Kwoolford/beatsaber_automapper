@@ -66,7 +66,12 @@ def analyse(npz: pathlib.Path, kmin: int = 3) -> dict | None:
         return None
 
     on = pmax[si]
-    off = np.maximum(pmax[si + half], pmax[si - half])
+    # ⚠️ The offbeat reference is the MEAN of the two half-beat neighbours, not
+    # their max. Taking a max over two draws beats a single draw by construction,
+    # which dragged the first run of this script from 0.573 down to 0.464 and very
+    # nearly produced a "Stage-1 is phase-blind, W1 is Track B only" verdict off a
+    # statistic that was rigged against the on-beat slot. Caught 2026-08-03.
+    off = 0.5 * (pmax[si + half] + pmax[si - half])
     rng = np.random.default_rng(0)
     rand = pmax[rng.integers(half, len(P) - half, size=max(len(si), 500))]
 

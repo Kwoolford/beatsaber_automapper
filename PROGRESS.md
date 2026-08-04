@@ -90,6 +90,56 @@ phase and *nothing consumes it*.
 ⚠️Both new metrics are **DIAGNOSTICS, not axes**: neither may steer the generator until it clears
 `scripts/audit_eval_suite.py`.
 
+### W1a follow-up — is the offbeat defect in the PROBABILITIES or the DECODE? **PARTLY CONFIRMED**
+
+24-song `BEAT_PROBS_DUMP` run (`logs/overnight/probsphase_2026-08-03.log`,
+`scripts/eval_probs_phase.py`): for every k≥3 event, compare Stage-1's raw probability at the event's
+slot against the slot half a beat away.
+
+**Result: `win_rate` median 0.573** (p10 0.48, p90 0.72) — Stage-1 prefers the correct slot, but only
+just. Against the bands **pre-registered in the script before the run** (≥0.60 = decode fix available;
+≤0.55 = phase-blind, Track B only; between = partial), 0.573 lands in the middle ⇒ the pre-registered
+instruction is *"report as PARTLY CONFIRMED and do not commit a GPU night either way"*, which is what
+this is. Neither branch of the story is earned.
+
+★**But the per-song link is real: `corr(win_rate, our halfbeat_rate) = −0.494` over 23 songs.** The
+songs where Stage-1 cannot separate the two slots are the songs where we actually play the offbeat.
+The extremes are stark:
+
+| song | Stage-1 win_rate | our halfbeat_rate |
+|---|---|---|
+| Fallen Kingdom (1f8d6) | **0.900** | **0.056** (better than human 0.095) |
+| 1f3d7 | 0.715 | 0.115 |
+| SO TIRED ROCK | 0.551 | 0.316 |
+| 1f336 / 1fbfb | ~0.49 | ~0.31 |
+
+⇒ the probability field's phase discrimination is a **genuine driver** of the defect (r² ≈ 0.24), but a
+decode lever would have only a **57 % edge** to select on — thin. The durable fix is better
+probabilities, which is **C1's conclusion reached from a fourth independent direction**.
+
+🔴🔴**CORRECTION — A STATISTIC RIGGED AGAINST ITSELF, CAUGHT AFTER IT WAS COMMITTED.** The first run of
+this compared the event slot against **`max(prob[+half], prob[−half])`**. A max over two draws beats a
+single draw *by construction*, so the on-beat slot was competing against the better of two rivals.
+That reported `win_rate` **0.464** — below chance — and would have licensed the confident verdict
+*"Stage-1 is phase-blind, no decode lever can ever work, W1 is Track B only."* On the unbiased
+statistic (the **mean** of the two neighbours) the same dumps give **0.573**, and SO TIRED ROCK goes
+**0.492 → 0.551**. ⇒ **Every "coin flip" phrasing in commit `8bb7768` is WITHDRAWN.** The fix is in
+`eval_probs_phase.py` with the reason written at the line.
+
+🔴**CORRECTION 2 — GRID PHASE CANNOT FIX THIS, and TODO said it could.** W1a's first task was written
+as *"wire the already-estimated grid phase through (C2)"*. That is arithmetically incapable of fixing a
+half-beat displacement: the slot grid is `subdiv=4`, so **a half beat is two whole slots** and the grid
+*already has a slot in both places*. A phase shift can only move notes by up to ±half a slot (≤61 ms at
+123 BPM) — it cannot move one from the offbeat to the beat. The defect is **which slot gets selected**,
+not where the grid sits. C2 remains valid for its own purpose (songs whose grid is genuinely
+misplaced); it is simply not the W1a lever.
+
+★**METHOD, twice in one session**: both errors were caught by *checking the arithmetic of my own
+measurement* rather than by any test — the max-of-two bias by asking what the statistic compares, the
+phase idea by counting slots in a half beat. The first had already been committed and pushed. This is
+the same failure family as the three measurement artifacts of 2026-08-03: **the code did exactly what
+it said, and nobody had asked whether what it said was what was wanted.**
+
 ⚠️Confound found while verifying, relevant to his SO TIRED ROCK verdict: **all three SOTIREDROCK zips
 he played carried an mp3 mislabeled `song.ogg`** (see the `convert_to_ogg` fix in commit `6bc8455`).
 Corpus songs were unaffected. His timing complaints were reproduced from the `.dat` and the audio
