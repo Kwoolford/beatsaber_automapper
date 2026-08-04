@@ -420,6 +420,31 @@ calibrated on humans deliberately — calibrating on our own output would be the
 ⚠️The coverage gap is **unchanged** by the fix (ours ~0.49 vs human ~0.70), which is the reassuring
 outcome: the headline defect is not a phase artifact.
 
+**S6 ★★ S1 AND S3 ARE THE SAME DEFECT AT DIFFERENT SCALES — Stage-1's probability drifts off the beat.**
+Bucketing 352 windows × 24 songs by main-beat coverage, against the cached probability dumps:
+
+| bucket | coverage | **p@mainbeat** | p@window | notes/12 s |
+|---|---|---|---|---|
+| worst | 0.109 | **0.328** | 0.362 | **30.5** |
+| mid | 0.535 | 0.714 | 0.356 | 29.7 |
+| best | 0.807 | 0.717 | 0.463 | 42.1 |
+
+★**The worst windows are not note-starved — they are BEAT-starved.** We place a normal number of notes
+there (30.5 vs 29.7) and the window's overall probability is normal (0.362 vs 0.356), but the
+probability **at the main beats is less than half** (0.328 vs 0.714). The model is confidently active
+and pointing somewhere other than the beat.
+⇒**This is S1 (probability one slot out of phase, whole-song, 2 songs) happening LOCALLY, in ~15 % of
+windows on every song.** One phenomenon, two scales.
+⚠️**Correct the name**: `review_map`'s `STARVED` compares our note count to the human's, which is a
+different thing from these coverage buckets. Do not conflate them.
+⇒**It also explains the ceiling on `BEAT_MAIN_BEAT_BONUS`**: a ×1.25 boost on 0.328 gives 0.41, still
+far below the ~0.7 competitors elsewhere in the window. **A multiplicative prior cannot win a race it
+starts at half distance.**
+**Task**: either an *adaptive* bonus (stronger where p@mainbeat is low relative to its own window), or
+accept that this is representation and fix it in Stage-1. ⚠️An adaptive bonus is one step from
+"force a note onto every main beat", which is the metronome. Score it against `notes_on_main` and
+rhythm, not coverage alone.
+
 **S3 🟠 FALLEN KINGDOM IS INVERTED — starved where the music is busy, dense where it is silent.**
 210–230 s: **10 and 8** notes per 10 s against the human's **28 and 22**, while the music runs 73 stem
 onsets. 240–250 s: **13** notes against the human's **6**, over an outro carrying **1** stem onset.
