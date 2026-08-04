@@ -204,12 +204,29 @@ budget under-serves it.
 separately complains that parts of it are *too* intense (W3). The defect is **per-song / per-section
 allocation**, not the global total.
 
+### ✅ DIAGNOSED 2026-08-03 — **the budget is a fixed fraction of supply; Stage-1 is innocent**
+Task 2 below is **done**, and the answer is decisive. On Fallen Kingdom's first minute Stage-1 scores
+the human's note slots at **0.797** against **0.0032** for slots generally (~250×) — and it scores the
+**48 human notes we skipped at 0.734**, essentially as high as the ones we played. The model is
+pointing right at them and the decode declines. Across 13 songs, `used/supply` (slots emitted ÷ slots
+with prob > 0.5):
+
+| cohort | median | spread (p90 − p10) |
+|---|---|---|
+| ours | **0.582** | **0.115** |
+| human | **0.854** | **0.435** |
+
+⇒ we under-use the supply by **~45 %**, and our fraction is **nearly constant** while the human's
+varies ~4× more (0.520 on 1f9a0 → 1.294 on 1f8a3). **A global budget cannot serve songs needing
+different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the decode today**, unlike W1a.
+
 **Tasks**
 1. Build `BEAT_NOTE_BUDGET` as a **user-facing multiplier** (he wants it in the UI — see
    [[feedback-levers-are-user-facing]]): clean range, monotone behaviour, default 1.0 = baseline.
-2. Separately, diagnose *why* Fallen Kingdom is starved: is Stage-1's probability low on that beat, or
-   is the budget being spent elsewhere? Dump probabilities against the human map's note times for the
-   first minute.
+2. ★Then the real fix: make the budget a **per-song function of the song's own supply** rather than a
+   global constant, targeting the human `used/supply` *distribution* (median 0.854, wide) instead of
+   our flat 0.58. ⚠️**Do NOT just raise `BEAT_DIFFICULTY_SCALE`** — Hunger is A+ at the current budget
+   and W3 says parts are already too intense. The point is the *variance*, not the level.
 3. Check whether the corpus median (3.91) is the wrong target for slow songs — human nps almost
    certainly correlates with tempo, and we apply one number.
 

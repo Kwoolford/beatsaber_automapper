@@ -181,6 +181,48 @@ directly, so the measurements above stand — but he should re-hear a cleanly pa
 
 ---
 
+## ★★★★ W2 DIAGNOSED — THE BUDGET IS A FIXED FRACTION OF SUPPLY, AND STAGE-1 IS INNOCENT (2026-08-03)
+
+Kyle: *"It's on beat, but it's also an expert song… it just feels really empty for no reason."*
+TODO asked the right question — *is Stage-1's probability low on that beat, or is the budget being
+spent elsewhere?* Answered with the cached `BEAT_PROBS_DUMP` for Fallen Kingdom:
+
+| window | human nps | our nps | Stage-1 prob at HUMAN note slots | …at the human notes **we missed** | prob over ALL slots |
+|---|---|---|---|---|---|
+| first minute (his ask) | 2.70 | 1.98 | **0.797** | **0.734** | **0.0032** |
+| 180–205 s (the hole) | 2.04 | 1.36 | 0.709 | 0.636 | 0.041 |
+| 60–180 s | 2.98 | 2.49 | 0.720 | 0.555 | 0.135 |
+
+★**Stage-1 scores the human's note slots at 0.797 against 0.0032 for slots generally — a ~250×
+separation — and it scores the 48 notes WE SKIPPED at 0.734, essentially as high as the ones we
+played.** The model is confidently pointing at those notes and **the decode is declining them.**
+⇒ **W2 is an ALLOCATION defect, fixable in the decode today.** This is the exact opposite of W1a,
+which the probability dumps sent to Track B — the two objections have different causes and need
+different fixes.
+
+**Generalised across 13 songs** — `supply` = slots with prob > 0.5, `used/supply` = note times emitted
+as a fraction of it:
+
+| cohort | used/supply median | spread (p90 − p10) |
+|---|---|---|
+| ours | **0.582** | **0.115** |
+| human | **0.854** | **0.435** |
+
+Two things at once:
+1. **We under-use the supply by ~45 %** (0.854 / 0.582 = 1.47).
+2. ★**Our fraction is nearly CONSTANT (spread 0.115) while the human's varies almost 4× more (0.435).**
+   Humans range from 0.520 (1f9a0) to 1.294 (1f8a3 — more notes than the >0.5 supply); we are pinned
+   in 0.51–0.66 on every song. **That is Kyle's complaint stated exactly: a global budget cannot serve
+   songs that need different amounts.**
+
+⚠️`supply > 0.5` is an arbitrary cut; the ours-vs-human comparison is valid because both are measured
+against the same definition, but do not read 0.582 as a physical constant.
+⚠️**This does NOT license raising `BEAT_DIFFICULTY_SCALE` globally** — Hunger is A+ at the current
+budget and W3 says parts of it are already too intense. The finding is that the *headroom exists and
+the model knows where it goes*, which is what makes a **per-song** `BEAT_NOTE_BUDGET` buildable.
+
+---
+
 ## W7 SOLVED — "the final note did not line up together" is LITERAL: an orphaned half-double (2026-08-03)
 
 **CONFIRMED, and the standing hypothesis was wrong.** TODO carried W7 as *"suspicious given
