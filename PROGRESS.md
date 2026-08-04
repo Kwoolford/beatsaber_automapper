@@ -134,7 +134,41 @@ half-beat displacement: the slot grid is `subdiv=4`, so **a half beat is two who
 not where the grid sits. C2 remains valid for its own purpose (songs whose grid is genuinely
 misplaced); it is simply not the W1a lever.
 
-★**METHOD, twice in one session**: both errors were caught by *checking the arithmetic of my own
+### 🔴 CONTROL BATTERY: `halfbeat_rate` FAILS AS A STEERING TARGET (`scripts/audit_phase_metrics.py`)
+
+Run before letting either new metric select a lever, expectations declared in the script's docstring
+*before* execution. n=12 songs:
+
+| cohort | `halfbeat_rate` | `lift` |
+|---|---|---|
+| human | 0.0843 | 1.912 |
+| random / shuffled / zigzag | 0.0843 | 1.912 | *(identical — blind by construction, these keep human note times)* |
+| **metronome** | **0.0362** | 1.707 |
+| timing_random | 0.1944 | 0.966 |
+| timing_jitter | 0.0859 | 1.850 |
+
+🔴**A METRONOME SCORES BETTER THAN A HUMAN ON `halfbeat_rate`** (0.036 vs 0.084). A constant pulse at
+the song's tempo covers the beat grid densely, so its nearest note to any event is rarely a half beat
+off. ⇒ **a lever tuned to minimise `halfbeat_rate` could reach the "for-sport" metronome degenerate** —
+exactly the map shape Kyle hates most. **VERDICT: FAIL. `halfbeat_rate` may NOT steer a lever on its
+own.** It remains valid as a *diagnostic* comparing our maps against human maps at matched density —
+which is all it has been used for tonight.
+
+⚠️Second, smaller limit: `timing_jitter` moves it only 0.0843 → 0.0859 and lift 1.912 → 1.850. Those
+margins are inside any plausible noise floor ⇒ **the metric is insensitive to small timing error**. It
+detects *wrong-slot* selection, not sloppiness. The nominal "PASS" the script printed for that row is
+too generous and should be read as "did not discriminate".
+
+✅What did work: `timing_random` is caught decisively on both (0.194, lift 0.966 ≈ no coincidence
+response at all), and the three position-only controls are bit-identical to human — the correct,
+declared-in-advance outcome for metrics that read only note times.
+
+★**This is the rule paying for itself.** The lever this would have justified —
+"minimise `halfbeat_rate`" — was one step from being queued, and the battery showed its optimum is a
+metronome. Any future lever here must be co-scored against a metronome guard (rhythm A2 /
+`pulse_stability`), not against `halfbeat_rate` and `on_event_rate` alone as TODO previously said.
+
+★**METHOD, three times in one session**: two errors were caught by *checking the arithmetic of my own
 measurement* rather than by any test — the max-of-two bias by asking what the statistic compares, the
 phase idea by counting slots in a half beat. The first had already been committed and pushed. This is
 the same failure family as the three measurement artifacts of 2026-08-03: **the code did exactly what

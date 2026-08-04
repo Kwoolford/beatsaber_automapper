@@ -159,18 +159,24 @@ whole slots** and the grid already has a slot in both places; a phase shift move
 its own purpose — songs whose grid really is misplaced — it is just not this lever.)
 
 **Tasks**
-1. ⚠️**Do not commit a GPU night to a decode lever on a 57 % edge** — that is what the pre-registered
-   band says. If one is tried anyway, it must be scored on `halfbeat_rate` falling **without**
-   `on_event_rate` falling, or it merely deleted the offbeat notes instead of moving them (the failure
-   `BEAT_REACH` was pre-registered against).
-2. ★**The indicated path is Track B** — Stage-1 has no instrument projection
+1. 🔴⚠️**`halfbeat_rate` MAY NOT STEER A LEVER — it failed the control battery**
+   (`scripts/audit_phase_metrics.py`, 2026-08-03): a **metronome scores 0.036 against the human
+   0.084**, i.e. better. A constant pulse covers the beat grid densely, so minimising this metric can
+   be achieved by becoming metronomic — the "for-sport" degenerate. It stays valid as a *diagnostic*
+   vs human maps at matched density, which is all it has been used for. Any lever here must be
+   co-scored against a **metronome guard** (rhythm A2 / `pulse_stability`), not merely against
+   `on_event_rate`. ⚠️It is also insensitive to small timing error (`timing_jitter` moves it 0.0843 →
+   0.0859, inside noise) — it detects wrong-slot *selection*, not sloppiness.
+2. ⚠️**Do not commit a GPU night to a decode lever on a 57 % edge** — that is what the pre-registered
+   band says.
+3. ★**The indicated path is Track B** — Stage-1 has no instrument projection
    (`docs/stage1_instrument_rebuild.md`), and "better probabilities, not better picking" is now C1's
    conclusion reached from a **fourth** independent direction. A model that could hear *which*
    instrument hit would have the information needed to separate the beat from the offbeat.
-3. Cheap unblocked next step: check whether `win_rate` correlates with anything about the SONG (tempo,
+4. Cheap unblocked next step: check whether `win_rate` correlates with anything about the SONG (tempo,
    genre, stem separability) — Fallen Kingdom at 0.900 vs 1f336 at 0.49 is a 2× spread and the reason
    is unknown.
-4. ⚠️Before any of these metrics steers the generator it must clear `scripts/audit_eval_suite.py`.
+5. ✅The battery has now been RUN (`scripts/audit_phase_metrics.py`) — see item 1 for its verdict.
 
 **DoD**: `halfbeat_rate` moves from 0.245 toward the human 0.095 with `on_event_rate` held or improved,
 at ≥3 seeds — then Kyle's ear on SO TIRED ROCK.
