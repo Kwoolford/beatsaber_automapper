@@ -227,16 +227,22 @@ be built together.
 
 ---
 
-### 🟢 W7 — Hunger's final note was ~0.5 s late
-> *"The final note of the song did not line up together, the map was like .5 seconds late. Maybe an
-> arc viewer thing but taking note."*
+### 🟢 W7 — DIAGNOSED: the map ends on an ORPHANED HALF-DOUBLE (fix not built)
+> *"The final note of the song did not line up together, the map was like .5 seconds late."*
 
-⚠️Suspicious given `BEAT_TRIM_TAIL` now cuts at `last_onset + 0.5 s` — **the grace may be exactly what
-he heard.** Cheap to check.
+**Read it literally — "together" means the two hands.** On Hunger the map plays doubles at 271.596 /
+271.755 / 271.915 and then ends on a **lone red at 272.074**; the blue hand simply stops. Cohort
+metric (final event not a double while ≥3 of the previous 4 were): **ours 0.159 vs human 0.036 —
+4.4×**. Seed-dependent, not song-dependent (9/24 songs on ≥1 seed, **0/24 on all three**).
 
-**Tasks**: compare Hunger's last note time against the last audio onset and the song end; if the trim
-grace is the cause, consider snapping the final note to the last strong onset rather than allowing
-0.5 s of slack. Rule out ArcViewer by checking the `.dat` directly.
+✅**`BEAT_TRIM_TAIL` is EXONERATED** — our last note sits **0.47 s before** the cut point, and there is
+**no general "we end late" defect**: `last_onset − last_note` is 0.723 s for us vs 0.789 s for humans
+over 13 songs. **Do not re-open this as a timing bug.** Full write-up in PROGRESS.md.
+
+**Task (the only thing left)**: `BEAT_END_RESOLVE` — a postprocess rule, default OFF, that makes the
+map resolve: if the final event is a single and the recent pattern was doubles, either add its partner
+or drop it back to the last full double. Verify at ≥3 seeds that it moves the 0.159 toward 0.036 while
+the six axes stay inside noise, then Kyle's ear.
 
 ---
 

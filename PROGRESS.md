@@ -7,6 +7,63 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## W7 SOLVED — "the final note did not line up together" is LITERAL: an orphaned half-double (2026-08-03)
+
+**CONFIRMED, and the standing hypothesis was wrong.** TODO carried W7 as *"suspicious given
+`BEAT_TRIM_TAIL` cuts at last_onset + 0.5 s — the grace may be exactly what he heard."*
+**`BEAT_TRIM_TAIL` is exonerated, twice over:**
+
+1. On Hunger our last note is at **272.074 s** while the last detected onset is at **272.544 s** — the
+   note sits **0.47 s BEFORE** the cut point, so the grace window never bound.
+2. What trim actually removed on this song were notes at **273.67 / 274.15 / 274.55 / 274.71 / 274.95 s**
+   — genuinely past the music. It did its job.
+
+**What Kyle actually heard.** Read his words literally: *"The final note of the song did not line up
+**together**."* The two hands did not line up. Hunger's ending in the map he played:
+
+| t (s) | red | blue |
+|-------|-----|------|
+| 271.596 | ✓ | ✓ |
+| 271.755 | ✓ | ✓ |
+| 271.915 | ✓ | ✓ |
+| **272.074** | **✓** | **—** |
+
+Three doubles in a row establish the pattern, then the map ends on a **lone red**. The blue hand just
+stops. That is a broken resolution, not a late note — and "the map was like .5 seconds late" is the
+*feel* of a run that dribbles out instead of landing.
+
+For contrast the **human** map's ending is a clean alternating single-hand run with **no doubles at
+all** in its last eight notes, resolving on a red at 271.755 s. So ending on a single is not itself
+wrong; ending on a single *after establishing doubles* is.
+
+**Generalised to a cohort metric** (final event is not a double while ≥3 of the previous 4 were):
+
+| cohort | n | orphaned ending |
+|--------|---|-----------------|
+| ours (`tf_trim_ev03_rc05`, 24 songs × 3 seeds) | 69 | **0.159** |
+| human (strict Expert, `load_expert_only`) | 249 | **0.036** |
+
+**4.4× the human rate.** ⚠️It is **seed-dependent, not song-dependent**: 9 of 24 songs orphan on at
+least one seed and **0 of 24 orphan on all three**, so this is a per-map coin flip we lose ~16 % of the
+time and humans lose ~4 %. Do not attribute it to particular songs.
+
+⚠️**Cohort-timing check says there is NO general "we end late" defect** — over 13 songs with both a
+human map and a cached generated map, `last_onset − last_note` is **0.723 s median for us vs 0.789 s
+for humans**, and we end later than the human on only 5 of 13. The ending defect is structural
+(unpaired), not temporal. Anyone re-reading W7 as a timing bug will chase nothing.
+
+**Fix shape (not built):** a postprocess rule — if the final event is a single and the recent pattern
+was doubles, either give it its partner or drop it so the map resolves on the last full double.
+Default OFF, needs a sweep and Kyle's ear like every other lever.
+
+★**METHOD**: the diagnosis came from *reading the user's sentence literally* ("together") after the
+plausible technical hypothesis (the trim grace) had been falsified by a two-minute measurement. The
+number that mattered — 0.47 s **before** the cut, not after — took one script and killed the whole
+premise. Same shape as the three measurement artifacts of 2026-08-03: the code did exactly what it
+said; nobody had checked whether that was the thing being complained about.
+
+---
+
 ## ★ FIRST PROMOTION IN THE PROJECT'S HISTORY — Kyle graded *Hunger* A+ (2026-08-03)
 
 > *"The vast majority of the 1f333 song is A+ and better than what we had before so promote it."*
