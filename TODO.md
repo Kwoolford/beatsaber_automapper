@@ -70,9 +70,11 @@ Eight defaults flipped in `generate.py` / `postprocess.py`: `BEAT_TEMPO_FIT=1`,
 **Verified**: a bare `generate.py` with no env vars reproduces `ExpertStandard.dat` sha `a432690c…`
 on Hunger at seed 0 — byte-identical to the map he played. **Baseline: `docs/BASELINE_2026-08-03.md`.**
 
-⚠️Carried into the baseline as known costs: `BEAT_ONSET_EVIDENCE` **degrades reachability** (repaired
-by `BEAT_REACH`) and pushes **peak nps 6.25 → 6.50 against a human 5.5** — which is very likely part
-of what W3 is about. Its only non-circular evidence is the rhythm axis.
+⚠️Carried into the baseline as a known cost: `BEAT_ONSET_EVIDENCE` **degrades reachability** (repaired
+by `BEAT_REACH`); its only non-circular evidence is the rhythm axis.
+⚠️🔴**The old note here also said it "pushes peak nps 6.25 → 6.50 against a human 5.5" and blamed W3 —
+that human 5.5 is RETRACTED** (2026-08-04). It was a ~200-map corpus median compared against our
+24-song eval set. Per song, against each song's own human map, **we peak LOWER** (4.00 vs 5.25). See W3.
 
 ---
 
@@ -91,294 +93,127 @@ best-mapper cohort (needed for aspirational axes) stays blocked **by his choice*
 
 ---
 
-### 🔴 W1 — THE MODEL DOES NOT FIND THE CORE TEMPO-CARRYING INSTRUMENT ★ his biggest complaint
+
+### 🔴 W1 — HE CANNOT FIND THE CORE TEMPO-CARRYING INSTRUMENT ★ his biggest complaint
 > *"Our model still fundamentally struggles to find the core aha tempo/instrument that a mapper
-> obviously adheres to."*
+> obviously adheres to."* … SO TIRED ROCK's dooming bass ignored; its 0:14 guitar drop *"never
+> generated across every model"*; 0:46 guitar+bass collision → nothing; Digital Life Hacker's chanted
+> pulse unrecognised.
 
-**Evidence, all from his ear:**
-- **SO TIRED ROCK** (his motivation song, *"always sucked on our model"*): a deep dooming bass lays
-  the tempo for the whole song and *"the notes are stubbornly not being placed on this tempo. They
-  are being placed on all of the other little sounds."*
-- **SO TIRED ROCK @ 0:14** — a big guitar drop *"I don't think we have ever generated notes for
-  across every model."*
-- **SO TIRED ROCK @ 0:46** — a booming guitar plays 3 notes in sync with the booming bass and we map
-  **nothing**: *"this epic coordination of instruments colliding doesn't exist."*
-- **Digital Life Hacker**: a deep powerful bass on an interval other notes line up to (people
-  chanting *"hey, hey, hey, hey"*) *"is not even recognized… they get confused on more electric songs."*
+**MEASURED 2026-08-03/04 — full data in PROGRESS.md. Summary of what is settled:**
+- ✅His **coincidence hypothesis is right**: humans map a 4-instrument collision **84.5 %** of the time
+  (0.407 → 0.845 as k goes 1 → 4, n=263), and `k` is **not** a loudness proxy (conditioning retains
+  110 %; `corr(k, strength)` = −0.146).
+- ❌**We are not coincidence-blind** (our lift 1.915 vs human 1.732) ⇒ **do not build "weight the budget
+  by coincidence count"**. We under-respond uniformly at every k (0.70×), ≈ C5's distinct-times ratio.
+- 🔴**The live defect is that we play the OFFBEAT** at multi-instrument events: `halfbeat_rate`
+  **0.245 vs human 0.095** (2.6×), SO TIRED ROCK worst at 0.316. **No existing axis sees it** — a note
+  on a lone-stem "little sound" is still on an onset and passes A8.
 
-★ **This is almost certainly a REPRESENTATION gap, not a decode one, and we already have the receipt**:
-Stage-1 `version_4` has only `drum_proj` + `mix_proj` — **no instrument projection**. It *literally
-cannot hear the guitar* (recorded 2026-07-27). No decode lever can fix an input the model never sees.
-That makes this **Track B**, and the largest open item in the project.
+**What is RULED OUT for W1a — do not retry these:**
+1. ⚠️**Grid phase.** `subdiv=4` ⇒ a half beat is **two whole slots**; the grid already has one in both
+   places. A phase shift moves a note ≤ half a slot. It is a **selection** defect.
+2. ⚠️**Track B as already built.** B-1 (`version_8` ep 12, `--use-instr`) vs prod: paired delta
+   **+0.0098 ± 0.0135 (t = 0.73)**, better on 12 of 23 songs. Knowing *which instrument* plays does not
+   tell the model *where the downbeat is*.
+3. ⚠️**A decode lever on the current signal.** Stage-1 prefers the right slot only **57.3 %** of the
+   time — inside the band this project pre-registered as "commit nothing either way". (But
+   `corr(win_rate, halfbeat_rate) = −0.494` over 23 songs, so the probability field is a real driver.)
+4. ⚠️**`halfbeat_rate` may not STEER anything** — a metronome beats a human on it (0.036 vs 0.084).
 
-**His own proposals, all worth building:**
-1. *"Maybe the demucs could parse and allow us to specify?"* — an explicit lead-instrument channel.
-2. *"Maybe demucs should flag specific alignments when key instruments hit the same beat consistently
-   and that could be a big flag for when a note should get placed."* — a **coincidence detector**.
-3. *"Also maybe a sound compared to rest of song to easily draw intensity."* — relative loudness.
-
-### ✅ MEASURED 2026-08-03 — his hypothesis is RIGHT, but the gap is elsewhere. Full data in PROGRESS.md.
-
-- **His coincidence idea is CONFIRMED**: humans map a 4-instrument collision **84.5 %** of the time
-  (response 0.407 → 0.575 → 0.724 → 0.845 as k goes 1 → 4, n=263).
-- **Control passed**: `k` is **not** a loudness proxy — conditioning on onset-strength deciles retains
-  **110 %** of the lift and `corr(k, strength)` is **−0.146**. `BEAT_ONSET_EVIDENCE` does not capture it.
-- 🔴**BUT WE ARE NOT COINCIDENCE-BLIND**: our lift **1.915 vs human 1.732** — we respond *more* steeply.
-  We under-respond **uniformly at every k** (0.352 vs 0.504 = **0.70×**), and **0.70 ≈ C5's
-  distinct-times ratio 467/626 = 0.75** ⇒ **W1's symptom and C5's root cause are plausibly the same
-  defect.** ⇒ ❌**DO NOT build "weight the budget by coincidence count"** — that pushes on the one
-  thing we are not failing at.
-
-### 🔴 W1a — THE LIVE DEFECT: we play the OFFBEAT at multi-instrument events
-`scripts/eval_beat_phase.py` — `halfbeat_rate` = share of k≥3 events whose nearest note sits in the
-outer third of the beat:
-
-| cohort | n | halfbeat_rate |
-|---|---|---|
-| ours | 72 | **0.245** |
-| human | 188 | **0.095** |
-| SO TIRED ROCK (ours) | 1 | **0.316** ← past our own p90 |
-
-**2.6× the human rate**, worst on his motivation song. At SO TIRED ROCK 0:14 the phase histogram is
-**bimodal** — 203 events on-beat, **111 at exactly −½ beat** (0.244 s at 123 BPM).
-★**No existing axis can see this**: a note parked on a lone-stem "little sound" is still on a real
-onset, so it **passes A8**. Third instance of *a lever can pass every axis and still carry a defect no
-axis measures.*
-
-**Where the defect lives — measured 2026-08-03, PARTLY CONFIRMED.** A 24-song `BEAT_PROBS_DUMP` run
-compared Stage-1's probability at each k≥3 event slot against the slot half a beat away:
-**`win_rate` median 0.573** — it prefers the right slot, but only just, landing in the *pre-registered*
-"partial, commit nothing either way" band (≥0.60 decode / ≤0.55 Track B). ★But
-**`corr(win_rate, halfbeat_rate) = −0.494` over 23 songs**: the songs where Stage-1 cannot separate the
-slots are the songs where we play the offbeat (Fallen Kingdom 0.900 → halfbeat 0.056; 1f336 0.49 →
-0.31). ⇒ real driver, thin (57 %) edge for any decode lever.
-
-⚠️🔴**DO NOT try to fix this with grid phase.** The slot grid is `subdiv=4`, so **a half beat is two
-whole slots** and the grid already has a slot in both places; a phase shift moves notes by at most
-±half a slot (≤61 ms). This is a **selection** defect, not a grid-placement one. (C2 stays valid for
-its own purpose — songs whose grid really is misplaced — it is just not this lever.)
-
-**Tasks**
-1. 🔴⚠️**`halfbeat_rate` MAY NOT STEER A LEVER — it failed the control battery**
-   (`scripts/audit_phase_metrics.py`, 2026-08-03): a **metronome scores 0.036 against the human
-   0.084**, i.e. better. A constant pulse covers the beat grid densely, so minimising this metric can
-   be achieved by becoming metronomic — the "for-sport" degenerate. It stays valid as a *diagnostic*
-   vs human maps at matched density, which is all it has been used for. Any lever here must be
-   co-scored against a **metronome guard** (rhythm A2 / `pulse_stability`), not merely against
-   `on_event_rate`. ⚠️It is also insensitive to small timing error (`timing_jitter` moves it 0.0843 →
-   0.0859, inside noise) — it detects wrong-slot *selection*, not sloppiness.
-2. ⚠️**Do not commit a GPU night to a decode lever on a 57 % edge** — that is what the pre-registered
-   band says.
-3. 🔴**TRACK B AS ALREADY BUILT DOES NOT FIX THIS — tested, clean negative.** B-1 (`version_8` ep 12,
-   `--use-instr`) vs prod `version_4` on the same 24 songs: `win_rate` 0.5797 vs 0.5731, **paired delta
-   +0.0098 ± 0.0135 se (t = 0.73), better on 12 of 23 songs.** Not resolvable. Knowing *which
-   instrument* plays does not tell the model *where the downbeat is* — B-1's real win was
-   un-lockstepping the hands, a different capability. **Do not spend a retrain night on this
-   expecting W1a to move.**
-4. ★**The live hypothesis instead: give Stage-1 an explicit METRICAL-POSITION feature** — where each
-   slot sits within the beat and the bar, from the tempo fit `data/tempo.py` already computes and
-   nothing consumes. ⚠️This is **not** the refuted "shift the grid by the phase" idea: phase as an
-   *input to the probability* is a different mechanism from phase as an *offset to the grid*, and only
-   the latter dies to the half-beat-is-two-slots arithmetic. Neither `version_4` nor `version_8`
-   encodes metrical position at all — which would explain a model that finds the active region
-   (2.0–2.9× a random slot) but picks within it at 57 %.
-5. ⚠️Unexplained, check before building: under v8, **1f767** reports `vs_random` **64×** and **1f9a0**
-   `p_on_event` **0.0079** — the instrument model's probabilities are far peakier on some songs.
-6. Cheap unblocked next step: check whether `win_rate` correlates with anything about the SONG (tempo,
-   genre, stem separability) — Fallen Kingdom at 0.900 vs 1f336 at 0.49 is a 2× spread and the reason
-   is unknown.
-7. ✅The battery has now been RUN (`scripts/audit_phase_metrics.py`) — see item 1 for its verdict.
-
-**DoD**: `halfbeat_rate` moves from 0.245 toward the human 0.095 with `on_event_rate` held or improved,
-at ≥3 seeds — then Kyle's ear on SO TIRED ROCK.
+★**THE LIVE HYPOTHESIS: give Stage-1 an explicit METRICAL-POSITION feature** — where each slot sits in
+the beat and the bar, from the tempo fit `data/tempo.py` already computes and nothing consumes. This is
+*not* idea (1): phase as an **input to the probability** differs from phase as an **offset to the grid**.
+Neither `version_4` nor `version_8` encodes metrical position at all, which would explain a model that
+finds the active region (2–2.9× random) but picks inside it at 57 %.
+⚠️Unexplained, check first: under v8, **1f767** reports `vs_random` **64×** and **1f9a0** `p_on_event`
+**0.0079** — its probabilities are far peakier on some songs.
 
 ---
 
-### 🔴 W2 — FALLEN KINGDOM IS TOO EMPTY; and he wants a "how many notes" lever
-> *"Its on beat, but its also an expert song and we shouldn't be afraid to play a simple beat thats
-> medium tempo. Review the first minute and youll see what I mean. It just feels really empty for no
-> reason."* … *"Maybe we should introduce a toggle that is 'How many notes do you want'."*
+### 🔴 W2 — "FALLEN KINGDOM FEELS REALLY EMPTY" — ❓CAUSE STILL UNIDENTIFIED
+> *"It just feels really empty for no reason… we play like 1 out of 2/3 notes of an obvious slow beat."*
+> Plus: *"maybe we should introduce a toggle that is 'How many notes do you want'."*
 
-**Evidence**: we play *"like 1 out of 2/3 notes"* of an obvious slow beat. Baseline nps on Fallen
-Kingdom is **3.21** against a corpus median of 3.91 — and this is a *slow* song, so a fixed global
-budget under-serves it.
+✅**The toggle is BUILT**: `BEAT_NOTE_BUDGET` (default 1.0 = byte-identical to baseline; monotone,
+788/982/1173 notes at 1.0/1.25/1.5 on Fallen Kingdom). Ready for the UI he wants.
 
-★**Now visible in one picture** — `scripts/view_song_strip.py --song 1f8d6` (added 2026-08-03):
-- our NPS runs **~0.5 below the human's for essentially the whole first 175 s** — the "empty" feeling
-  is a persistent level offset, not a few missed moments;
-- **response to k≥3 multi-instrument events falls to 0.0 across ~185–200 s** and to 0.1–0.2 at
-  ~90–100 s and ~210–230 s — whole passages with the music hitting hard and no notes;
-- its **offbeat rate is low** (halfbeat_rate 0.056, better than the human 0.095) ⇒ **W2 is a distinct
-  defect from W1a**, and fixing one will not fix the other.
+🔴🔴**BUT THE CAUSE IS NOT FOUND, AND FOUR INSTRUMENTS HAVE FAILED.** As a ratio to each song's *own*
+human map, the map he called empty is **equal or better** than the map he graded A+ on every one:
 
-⚠️**Do not just raise `BEAT_DIFFICULTY_SCALE` globally** — Hunger is A+ at the current budget and he
-separately complains that parts of it are *too* intense (W3). The defect is **per-song / per-section
-allocation**, not the global total.
-
-### ✅ DIAGNOSED 2026-08-03 — **the budget is a fixed fraction of supply; Stage-1 is innocent**
-Task 2 below is **done**, and the answer is decisive. On Fallen Kingdom's first minute Stage-1 scores
-the human's note slots at **0.797** against **0.0032** for slots generally (~250×) — and it scores the
-**48 human notes we skipped at 0.734**, essentially as high as the ones we played. The model is
-pointing right at them and the decode declines. Across 13 songs, `used/supply` (slots emitted ÷ slots
-with prob > 0.5):
-
-| cohort | median | spread (p90 − p10) |
+| instrument | Hunger (**A+**) | Fallen Kingdom (**"empty"**) |
 |---|---|---|
-| ours | **0.582** | **0.115** |
-| human | **0.854** | **0.435** |
+| distinct-nps / human | 0.650 | **0.781** |
+| k≥3 response / human | 0.62 | **0.88** |
+| >1 s phrase holes | 0.500 | 0.538 |
+| pulse coverage / human | 0.72 | **0.94** |
 
-⇒ we under-use the supply by **~45 %**, and our fraction is **nearly constant** while the human's
-varies ~4× more (0.520 on 1f9a0 → 1.294 on 1f8a3). **A global budget cannot serve songs needing
-different amounts — Kyle's complaint, measured.** ⇒**W2 is fixable in the decode today**, unlike W1a.
+⇒🔴**"Match human density" is REFUTED as a target** — he graded A+ a map at **0.650** of its human's
+density. (My earlier advice here to target the human `used/supply` 0.854 is **withdrawn**; the
+0.582-vs-0.854 measurement stands, the inference does not.)
+★**Best explanation: the two verdicts are on different scales** — Hunger was *"A+ **and better than
+what we had before**"* (vs our own history), Fallen Kingdom judged against *the song's obvious beat*.
+No corpus-relative metric can separate those.
 
-**Tasks**
-1. Build `BEAT_NOTE_BUDGET` as a **user-facing multiplier** (he wants it in the UI — see
-   [[feedback-levers-are-user-facing]]): clean range, monotone behaviour, default 1.0 = baseline.
-2. 🔴🔴**DO NOT CHASE HUMAN DENSITY — REFUTED 2026-08-04 BY KYLE'S OWN VERDICT.** Distinct-nps as a
-   fraction of each song's *own* human map: **Hunger (graded A+) 0.650**, **Fallen Kingdom ("really
-   empty") 0.781**, アリスブルー 0.867. **The song he loved is the furthest below its human; the song he
-   called empty is denser relative to its human.** The ratio is backwards from his verdict, so a
-   budget lever aimed at human density optimises the wrong thing. (My earlier note here said to target
-   the human `used/supply` median 0.854 — withdrawn. The 0.582-vs-0.854 measurement stands; the
-   inference from it does not.)
-   ⚠️And **none of tonight's metrics separates the two songs**: k≥3 response is *better* on Fallen
-   Kingdom (0.667) than Hunger (0.545), and >1 s phrase holes are near-identical (0.538 vs 0.500).
-3. ✅**BUILT** (`scripts/eval_pulse_consistency.py`) and it found **a real, separate cohort defect**:
-   on an obvious steady beat we answer **`pulse_coverage` 0.612 vs the human 0.811**, and
-   `pulse_continuity` 0.714 vs 0.832. **Worth fixing on its own merits** — but it does *not* explain
-   "empty" either (see 4).
-4. 🔴❓**"EMPTY" IS NOT MEASURABLE YET — FOUR INSTRUMENTS HAVE FAILED. STOP INVENTING METRICS.**
-   On distinct-nps/human, k≥3 response, >1 s phrase holes, pulse coverage AND pulse continuity, the
-   map he called empty (**Fallen Kingdom**) is **equal to or better than** the map he graded A+
-   (**Hunger**). ★Most likely explanation: **the two verdicts are on different scales** — Hunger was
-   *"A+ **and better than what we had before**"* (relative to our own history) while Fallen Kingdom was
-   judged against *the song's obvious beat*. No metric computed against the human corpus can separate
-   those.
-   ★**ASK KYLE, do not build a fifth metric**: *"Does Fallen Kingdom feel empty compared to what our
-   model used to do, or compared to what the song obviously wants?"* One sentence decides whether this
-   is a regression or a ceiling.
-   ★**Measured 2026-08-03 — the marginal note is much worse than the average note.** Notes added by
-   `nb130` on Fallen Kingdom are **31.8 % k=0** (vs our existing 9.5 %) and **0.9 % k≥3** (vs 21.3 %),
-   while still landing on a real human note ~56 % of the time. So a global bump closes the **count**
-   gap (497 → 607 vs human 646) and not the **quality** gap. **Likely mechanism**:
-   `DENSITY_SELECT_GAMMA=2.5` concentrates budget into loud windows, so extra budget goes deeper down
-   the ranking *inside windows already served* while quiet windows holding good onsets stay starved
-   (documented independently in C1).
-   ✅**MECHANISM CONFIRMED 2026-08-04** (`logs/overnight/gamma_budget_2026-08-04.log`). At budget 1.30,
-   lowering γ improves everything monotonically at the same note count:
+**Task — ★ASK KYLE, do not build a fifth metric:**
+> *"Does Fallen Kingdom feel empty compared to what our model used to do, or compared to what the song
+> obviously wants?"*
 
-   | γ | rhythm | playfeel | added notes on k≥3 | added on k=0 |
-   |---|---|---|---|---|
-   | 2.5 | 0.917 | 1.511 | **0.9 %** | **31.8 %** |
-   | 1.5 | 0.638 | 1.344 | 7.7 % | 20.5 % |
-   | 1.0 | **0.445** | **1.289** | **10.8 %** | **18.3 %** |
+One sentence decides whether this is a regression or a ceiling.
 
-   ⇒**RULE FOR ANY FUTURE LEVER THAT PLACES MORE NOTES: flatten γ at the same time, or it will spend
-   them on filler.** ⚠️Not a promotion candidate — γ2.5 was chosen to buy `density_corr`, which this
-   sweep does not score, and the W2 premise for raising the budget at all is in doubt (see 2).
-   ✅Also: the pre-registered worry that lowering γ wrecks handrole did **not** reproduce (1.071 at
-   γ1.5 vs 1.148 control) — the old result was probably confounded by the pre-tempo-fit grid (C4).
-4. ⚠️The corpus median (3.91) was already a suspect target; it is now doubly so — it is measured over
-   ~200 random corpus maps, a **different song population** from our 24-song eval set, so comparing
-   our cohort nps to it compares two different things. Use each song's own human map, and even then
-   only as context, never as a target (see 2).
+✅**Separately, a REAL defect was found on the way** (independent of "empty"): on an obvious steady
+beat we answer **`pulse_coverage` 0.612 vs the human 0.811**, `pulse_continuity` 0.714 vs 0.832
+(`scripts/eval_pulse_consistency.py`). Worth fixing on its own merits.
 
-**DoD**: Fallen Kingdom's first minute plays the main beat; Hunger does not get denser.
+✅**And the allocation mechanism is now understood** — at budget 1.30, γ 2.5→1.5→1.0 moves rhythm
+0.917→0.445, playfeel 1.511→1.289, added-notes-on-k≥3 **0.9 %→10.8 %**, added-on-k=0 31.8 %→18.3 %, at
+the same note count. ⇒**RULE: any lever that places more notes must flatten γ, or it buys filler.**
+⚠️Not promotable as-is (γ2.5 was chosen to buy `density_corr`, unscored here).
 
 ---
 
-### 🟠 W3 — INTENSITY IS MISALLOCATED (revive the shelved structure work)
-> *"Some parts of the song get really intense to play, even though they are not the main beat where
-> you would expect the peak difficulty to be. Maybe we should revive some of the old work we did with
-> assigning intensity to each part of the song like beat drop and what not and having higher nps for
-> those sections."*
+### 🟠 W3 — "SOME PARTS GET REALLY INTENSE TO PLAY" ⇒ **THIS IS C5**
+> *"Some parts of the song get really intense to play, even though they are not the main beat where you
+> would expect the peak difficulty to be."*
 
-🔴🔴**THE STATED EVIDENCE IS RETRACTED (2026-08-04).** It read *"baseline peak nps 6.5 vs human 5.5,
-and on Hunger it reaches 9.5"*. That compared our **24-song eval set** against a median over **~200
-random corpus maps** — two different song populations. Measured properly (`eval_intensity_alloc.py`:
-per-song, same 4 s window, **byte-identical audio**, each song against **its own** human map, n=13):
+🔴**Its old stated evidence is RETRACTED** — *"peak nps 6.5 vs human 5.5, Hunger 9.5"* compared our
+24-song set against a ~200-map corpus median (**different populations**). Per-song on identical audio:
+**we peak LOWER (4.00 vs 5.25, resolvable)**; on Hunger ours is 7.00 vs its human's **9.25**. Location
+fails too (`peak_intensity` 0.727 vs 0.735), and per-window `hard_rate` on Hunger is *easier* than its
+human at every quantile.
 
-| metric | ours | human | paired delta |
-|---|---|---|---|
-| `peak_nps` | **4.00** | **5.25** | **−1.21 (resolvable)** |
-| `peak_intensity` | 0.727 | 0.735 | −0.044 (noise) |
-| `intensity_corr` | 0.223 | 0.308 | −0.054 (noise) |
-
-**We peak LOWER than humans, not higher** — on 9 of 13 songs, and on **Hunger ours is 7.00 vs its
-human's 9.25** (the "9.5" in the old note is close to *the human's* number, not ours). **And the
-location hypothesis fails too**: `peak_intensity` is a wash, so our hardest passages sit on parts as
-loud as the human's. ⚠️The human's own `peak_offset` is **52 s** — humans do not put peak density at
-peak loudness either, so "peaks should land on the loudest moment" would have been a false premise for
-an axis.
-
-★**REFRAME — "really intense to play" is probably not density.** A passage can be exhausting at 5 nps
-if the patterns are awkward, and `peak_nps` cannot see that. W3's own note already named the suspect:
-*"plausibly `BEAT_ONSET_EVIDENCE`'s documented cost"* — and that lever **is** recorded as degrading
-reachability (1f333 0.098 → 0.157).
-
-### ✅ ROUND 2 DONE (2026-08-04) — **W3 IS PROBABLY C5 WEARING A DIFFERENT HAT**
-Per-window `hard_rate` on Hunger is **also null** — we are *easier* than its human at every quantile
-(median 0.037 vs 0.064, p90 0.115 vs 0.174) and only **1 of 62** windows passes the human's own p90.
-★But that window is **4:24, inside Hunger's closing run** — the same run W7 found ending orphaned.
-There, on identical 160 ms grids:
-
-| | events | double share | notes/s |
-|---|---|---|---|
-| ours | 50 | **0.640** | **6.56** |
-| human | 66 | **0.015** | 5.36 |
-
-**The human plays a fast alternating single-hand run; we play a run of DOUBLES** — fewer distinct
-moments, more notes per second, both hands firing together every 160 ms. Cohort (n=13, paired): peak
-**events**/s −1.21 ± 0.47 (**resolvable**), peak **notes**/s +0.56 ± 0.56 (**noise — do not quote**).
-⇒ **PARTLY CONFIRMED**: strong on the named song, not yet at cohort level.
+★**What he actually felt**: at Hunger 4:20–4:32, on identical 160 ms grids, the human plays **66 events
+at 0.015 double share** while we play **50 at 0.640** ⇒ fewer moments, **more notes/s (6.56 vs 5.36)**,
+far harder to execute. **That is C5.** ⚠️Cohort notes/s is +0.56 ± 0.56 = **noise, do not quote**;
+PARTLY CONFIRMED on the named song only.
 
 **Tasks**
-1. ★**Treat W3 as a symptom of [C5](#c5), not a separate item** — C5's double share 0.66 vs human
-   0.1366 has a known structural cause (Stage-1's hand channels correlate 0.985–0.993). Fixing C5
-   should fix W3; do not build a separate intensity lever first.
-2. ⚠️**Any future difficulty axis must count NOTES, not distinct events.** Measured on events we look
-   *easier* than human (4.00 vs 5.25) while the map plays *harder* — `peak_nps` actively hid this.
-3. If a direct check is wanted: raise n beyond 13 to see whether the notes/s excess resolves.
-3. His relative-loudness idea is **built** — `view_song_strip.py` plots RMS-relative intensity against
-   our nps per song, and `eval_intensity_alloc.py` scores it.
+1. ★**Treat W3 as a symptom of C5** — fix C5, then re-check. Do not build a separate intensity lever.
+2. ⚠️**LANDMINE: any difficulty axis must count NOTES, not distinct events.** On events we look
+   *easier* than human while the map plays *harder*; `peak_nps` actively hid this.
 
 ---
 
-### 🟠 W4 — PHRASES ARE NOT RESPECTED (absorbs the old K4)
-> *"It also still feels like the phrase level playing isn't fully fledged, like normally a mapper
-> builds a sequence through different sections of the song and we still aren't generating according to
-> full phrases, a few times the singer is still finishing a sentence and there's no notes."*
+### 🟠 W4 — PHRASES ARE ABANDONED MID-VOCAL ✅**CONFIRMED**
+> *"A few times the singer is still finishing a sentence and there's no notes."*
 
-**Measured, still failing**: notes-per-onset against each map's own median — Hunger's 1:30–1:33
-build-up sits at **0.87×** against a 0.9× DoD, and **3:20–3:28 at 0.54×**. Design against the 3:20
-window; it is far worse and barely moved under any lever so far.
-
-### ✅ CONFIRMED 2026-08-04 — `scripts/eval_phrase_abandon.py`. Full data in PROGRESS.md.
-
-| metric | ours (n=60) | human (n=120) |
+| metric | ours | human |
 |---|---|---|
-| **`share_over_1s`** — sung phrases containing a **>1 s** hole with no notes | **0.539** | **0.250** |
-| `share_over_2s` | 0.074 | **0.000** |
-| `med_hole` | 1.071 s | 0.698 s |
+| sung phrases with a **>1 s** hole | **0.539** | **0.250** |
+| with a **>2 s** hole | 0.074 | **0.000** |
 
-**2.2×.** More than half our sung phrases contain a second or more of silence; the human median for a
->2 s hole is **zero**. ⚠️**The first metric (`tail_ratio`, density of the final third ÷ the first two
-thirds) reported NO defect — both cohorts exactly 1.000.** A ratio of densities cannot see a hole.
-Both are kept in the script, the blunt one labelled, so nobody re-derives it and believes it.
+**2.2×** (`scripts/eval_phrase_abandon.py`, n=60/120). ⚠️**Its first metric `tail_ratio` reported NO
+defect — both cohorts exactly 1.000.** A ratio of densities cannot see a hole. Both are kept in the
+script, the blunt one labelled.
 
 **Tasks**
-1. Phrase boundaries are now cheap and already implemented (`vocal_phrases()`). The lever: when a
-   vocal phrase is active, do not let the note stream go silent for >1 s. ⚠️Build it as a **budget
-   redistribution**, not an insertion of notes at arbitrary times — W2 showed the marginal note is
-   drawn from a much worse pool (31.8 % of added notes sit near no onset at all), and filling a hole
-   with filler is exactly that failure.
-2. ⚠️**Run the control battery first, and expect a `metronome` failure**: a constant pulse leaves no
-   holes at all and would score *better than human* here, exactly as it did on `halfbeat_rate`.
-   Assume this cannot steer a lever until shown otherwise.
-3. Re-open the shelved A5 structure axis with "cover the whole crescendo, not just its peak".
-
-**DoD**: `share_over_1s` falls from 0.539 toward the human 0.250 **without** the added notes repeating
-W2's k-distribution collapse (check with `scripts/view_ab_diff.py`), at ≥3 seeds. Then Kyle's ear.
+1. Lever: when a vocal phrase is active, do not let the note stream go silent >1 s. `vocal_phrases()`
+   already exists. ⚠️Build it as **budget redistribution, not insertion** — the marginal note is drawn
+   from a much worse pool (31.8 % of added notes sit near no onset), so filling a hole with filler is
+   that failure again. And **flatten γ** while doing it (see W2).
+2. ⚠️**`share_over_1s` may not STEER** — a metronome beats a human on it (0.200 vs 0.250), the same
+   failure as `halfbeat_rate`. ★**Every metric that rewards REGULARITY is metronome-gameable**; any
+   lever here needs a metronome guard (rhythm A2 / `pulse_stability`) scored alongside.
 
 ---
 
@@ -409,6 +244,7 @@ be built together.
 
 ---
 
+
 ### ✅ W7 — DIAGNOSED **AND FIXED**, awaiting Kyle's ear (lever default OFF)
 > *"The final note of the song did not line up together, the map was like .5 seconds late."*
 
@@ -434,6 +270,7 @@ when it costs 0.000.
 
 ---
 
+
 ### 🛡️ Confirmed positives — protect these
 - **Hand-lead alternation**: *"a giant difference maker... noticeably great impact on the flow."*
 - **Density pacing**: *"when there is a slow spot we let the player breathe... we no longer have the
@@ -443,6 +280,7 @@ Any lever that regresses A6 hand-role or the density-select behaviour trades awa
 explicitly valued by ear. Check both before promoting anything.
 
 ---
+
 
 ## 🛠️ SPARE-TIME STANDING TASK — the visual EDA suite (Kyle, 2026-08-03)
 
@@ -481,6 +319,7 @@ the map. It never replaces his ear as the promotion gate — it replaces his ear
 
 ---
 
+
 ## 🔵 P2 — CARRIED FORWARD
 
 ### C1 — Precision sits at the greedy optimum; gains need better probabilities, not better picking
@@ -513,7 +352,13 @@ grid that was wrong on 20 of 21 songs. Their conclusions are not necessarily wro
 scored with a bad ruler and never re-checked with a good one. Re-derive before building further on
 them.
 
-### C5 — Doubles: ROOT CAUSE FOUND, untouched
+### C5 — Doubles: ROOT CAUSE FOUND, untouched ★**NOW ALSO THE CAUSE OF W3**
+★**2026-08-04: W3 ("some parts get really intense to play") resolves to this item.** At Hunger
+4:20–4:32, on identical 160 ms grids, the human plays **66 events at 0.015 double share** while we play
+**50 at 0.640** — fewer distinct moments but **more notes per second** (6.56 vs 5.36), which is what
+makes it exhausting. Fixing C5 should fix W3. ⚠️Any difficulty axis must count **notes, not events**:
+measured on events we look *easier* than human while the map plays *harder*.
+
 Not "too many notes" — **too few distinct times**. Same note budget as human (nps ~3.9) but spread
 over **467 distinct beat positions vs the human 626**; double share 0.661 vs **0.1366** (⚠️the old
 0.231 was the human *p90*, not the median — we are 4.8× not 3.4×).
@@ -535,6 +380,7 @@ All seven calibration references are snapshotted to tracked `docs/eval_reference
 ⚠️It is a **copy, not the live path** — the suite still reads `outputs/`, so **re-copy whenever a
 reference changes** or the snapshot silently drifts. `data/` is gitignored too, hence `docs/`.
 **Decision owed**: move the live path into version control, or keep copy-and-remember.
+
 
 
 ## 🧭 REFERENCE
