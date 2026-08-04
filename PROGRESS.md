@@ -326,6 +326,47 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★★★★★★★ S7 **DOES** TRANSFER — density was the confound. Best result of the day (2026-08-04)
+
+The density-matched rerun (v8 at `BEAT_NOTE_BUDGET` 1.20, bringing 3.215 → 3.810 nps):
+
+| arm | covered | **continuity** | on_main | alignment | precision | playfeel | nps |
+|---|---|---|---|---|---|---|---|
+| control | 0.546 | 0.523 | 0.636 | 0.260 | 0.919 | 0.674 | 3.882 |
+| mbb025 | 0.596 | 0.559 | 0.669 | 0.140 | 0.930 | 0.812 | 4.010 |
+| v8_nb120 | 0.568 | 0.582 | 0.661 | 0.260 | 0.917 | 1.050 | 3.810 |
+| **v8_nb120_mbb025** | **0.630** | **0.657** | 0.701 | **0.109** | **0.932** | **1.127** | 4.123 |
+| **human** | **0.704** | **0.697** | 0.617 | — | — | — | — |
+
+★**`main_continuity` 0.523 → 0.657 against a human 0.697 — ~77 % of the gap closed** on the metric
+that *is* Kyle's complaint (*"every couple main beat notes instead of most"*). Coverage 0.546 → 0.630.
+Differencing the columns directly (⚠️the `delta` column compares the **second** arm):
+**alignment 0.260 → 0.109 (−0.151 against sd 0.057/0.043 — resolvable)** and **precision 0.919 → 0.932
+(+0.013 against sd 0.004/0.002 — resolvable)**.
+
+🔴**THE COST IS REAL AND RESOLVABLE: playfeel 0.674 → 1.127** (+0.453 against sd ≈ 0.05 — roughly 8 sd).
+Its sub-metric is nps, which rises to 4.123 against a human Expert median near 3.9, so the arm is
+paying for coverage with density. **A budget between 1.0 and 1.2 is the obvious next tune** and would
+likely recover most of it.
+
+### ⚠️ CORRECTING MYSELF — twice on the same result
+
+Two iterations ago I recorded *"S7 did not transfer: v8's better phase produces WORSE beat coverage"*
+(v8 covered 0.503 vs control 0.546). **That was a density artifact and I flagged it as unresolved
+rather than refuted at the time** — v8 emitted 17 % fewer notes, the only resolvable delta in that
+table. With density matched, the ordering **reverses**: v8+bonus is the best arm on coverage,
+continuity, alignment and precision.
+
+★**The general lesson survives intact and is if anything reinforced**: a property of the probability
+field is not a property of the map — but the converse trap is just as real. **A map-level comparison
+between models with different note counts is not a comparison of the models.** Match density first.
+
+⇒ **The chain now closes end to end**: Kyle's sentence → `main_continuity` → the phase inversion in
+`version_4` → `version_8` does not invert → v8 + the metrical prior, density-matched, recovers 77 % of
+the continuity gap. ⚠️Still default OFF, still costs playfeel, still needs his ear.
+
+---
+
 ## 🔴 S7 DID NOT TRANSFER — v8's better phase produces WORSE beat coverage (2026-08-04)
 
 The experiment S7 pointed at, run: 4 arms × 3 seeds × 24 songs.

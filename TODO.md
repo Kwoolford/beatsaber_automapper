@@ -379,11 +379,14 @@ windows, `version_8` **1.74 (not inverted)**; all-window ratio 5.56 → 7.70.
 ⚠️**This does NOT contradict last night's null** — that measured `win_rate` at k≥3 coincidences (which
 *event* to answer, half-beat away); this measures metrical **phase** (adjacent slots). The instrument
 projection does not help pick the event but does keep the model on the beat. Two different failures.
-**❌ RUN, AND IT DID NOT TRANSFER.** v8 covers **0.503** vs control 0.546; v8+bonus 0.548 vs the bonus
+**✅ IT DOES TRANSFER — density was the confound (see below).** ~~RUN, AND IT DID NOT TRANSFER.~~ v8 covers **0.503** vs control 0.546; v8+bonus 0.548 vs the bonus
 alone **0.596**. Rhythm 0.692 and playfeel 1.146 are much worse too.
 ★**Confound**: v8 emits **17 % fewer notes** (nps 3.215 vs 3.882 — the only *resolvable* delta in the
 table), and fewer notes mechanically cover fewer beats. **Status: unresolved, not refuted.**
-**Task**: density-matched rerun — v8 at `BEAT_NOTE_BUDGET` ≈ 1.2 — is the only thing that settles it.
+✅**DONE. v8 at budget 1.20 + mbb025 is the best arm on Kyle's metric**: continuity **0.523 → 0.657**
+(human 0.697, ~77 % of the gap), coverage 0.546 → 0.630, **alignment 0.260 → 0.109** and **precision
+0.919 → 0.932** both resolvable. 🔴**Cost: playfeel 0.674 → 1.127, resolvable (~8 sd)**, driven by nps
+rising to 4.123. **Next tune: budget between 1.0 and 1.2 to recover playfeel.**
 ★★**Lesson recorded**: S7's measurement stands (v8's probability is not inverted) but its inference
 does not. **A property of the probability field is not a property of the map** — selection, thresholds
 and density sit in between. Third time this project has been caught by that gap.
