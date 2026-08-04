@@ -578,19 +578,37 @@ def convert_to_ogg(input_path: Path | str, output_path: Path | str) -> Path:
         shutil.copy2(input_path, output_path)
         return output_path
 
-    try:
-        cmd = [
-            "ffmpeg", "-y", "-i", str(input_path),
-            "-c:a", "libvorbis", "-q:a", "6", str(output_path),
-        ]
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-        if result.returncode != 0:
-            logger.warning("ffmpeg ogg conversion failed, using original file")
+    # `-vn` drops embedded cover art: without it ffmpeg tries to encode the artwork
+    # into the ogg container as theora, which is disabled in most builds, and the
+    # WHOLE conversion fails. Two encoder spellings are tried because builds differ
+    # — this box's ffmpeg has no `libvorbis`, only the native `vorbis` (which needs
+    # `-strict -2`). Both failure modes had the same silent symptom: an mp3 packed
+    # as `song.ogg` that Beat Saber will not load. Caught 2026-08-03.
+    attempts = (
+        ["-c:a", "libvorbis", "-q:a", "6"],
+        ["-c:a", "vorbis", "-strict", "-2", "-q:a", "6"],
+    )
+    last_err = "no stderr"
+    for codec_args in attempts:
+        try:
+            cmd = ["ffmpeg", "-y", "-i", str(input_path), "-vn",
+                   *codec_args, str(output_path)]
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        except FileNotFoundError:
+            logger.warning("ffmpeg not found — using original audio format in zip")
             shutil.copy2(input_path, output_path)
-    except FileNotFoundError:
-        logger.warning("ffmpeg not found — using original audio format in zip")
-        shutil.copy2(input_path, output_path)
+            return output_path
+        if result.returncode == 0:
+            return output_path
+        lines = (result.stderr or "").strip().splitlines()
+        last_err = lines[-1] if lines else "no stderr"
 
+    logger.warning(
+        "ffmpeg ogg conversion failed (%s) — packing the ORIGINAL file as %s; "
+        "Beat Saber will probably refuse to load this map",
+        last_err, output_path.name,
+    )
+    shutil.copy2(input_path, output_path)
     return output_path
 
 
