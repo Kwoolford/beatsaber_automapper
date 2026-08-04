@@ -326,6 +326,38 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## 🔴 W7 ROUND 2 HARVESTED — `trimco3` has NO cohort benefit; `endres` trades shape for time (2026-08-04)
+
+`logs/overnight/trimco_2026-08-04.log`, 4 arms × 3 seeds × 24 songs.
+
+**✅ Both levers are FREE.** Every one of the six axes is unmoved for every arm — alignment, rhythm,
+flow, idiom, handrole, playfeel, precision and nps all inside noise. Whatever they do, they do not
+cost anything.
+
+**🔴 But `BEAT_TRIM_END_COINCIDENCE` does not earn promotion.** It fires on only **6 of 24 songs**, and
+among the 4 with a human map to score against it helps 2 and hurts 2:
+
+| song | base | trimco3 | human | |
+|---|---|---|---|---|
+| **1f333 (Hunger)** | 272.07 | **271.76** | **271.76** | ✅ exact — the song Kyle complained about |
+| 1fb71 | 161.33 | 160.00 | 156.17 | ✅ closer |
+| 1fbfb | 151.08 | 147.83 | 150.00 | ❌ over-cut |
+| 1fa48 | 182.14 | 181.67 | 182.02 | ❌ over-cut |
+
+Median |ours − human| ending offset is **0.469 s for both baseline and trimco3** — no cohort movement,
+exactly as the per-song table predicts. ⇒**Right on Hunger, mixed elsewhere. Do not promote as a
+general default.** The guard that protects Fallen Kingdom is doing its job, but the lever's reach is
+narrow.
+
+**⚠️ And `BEAT_END_RESOLVE` makes the ending *time* worse while fixing its *shape*.** Ending offset
+**0.469 → 0.750 s**. Its own DoD (orphaned endings 0.153 → 0.014, no axis cost) still stands — but it
+removes the final note on ~17 % of maps, and on maps that already ended before the human that pushes
+them further away. ★These are two different criteria: `endres` targets the **shape** of the ending
+(both hands finishing together), the offset metric targets its **time**. Kyle's ear preferred the
+shape ("noticeably better"). **Record the tension; do not quietly treat one metric as settling it.**
+
+---
+
 ## ★★★★★★ 2026-08-04 (morning) — THE REVIEW TOOL, AND WHAT IT FOUND ON ITS FIRST RUN
 
 Kyle: *"did you work on improving your own eval suite? So you could look at demucs compared to our

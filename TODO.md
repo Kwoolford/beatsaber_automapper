@@ -341,6 +341,14 @@ fast enough to run over all 24 songs.
 
 ### 🔎 FOUND BY THE SUITE — new work items (2026-08-04)
 
+**S4 🟠 `BEAT_TRIM_END_COINCIDENCE` IS RIGHT ON HUNGER AND MIXED ELSEWHERE.** Fires on 6/24 songs;
+among the 4 scoreable it helps 2 (Hunger exactly: 272.07 → 271.76 = human) and over-cuts 2 (1fbfb,
+1fa48). Cohort ending offset unmoved (0.469 s). **Do not promote as a default.** ⚠️`BEAT_END_RESOLVE`
+separately worsens ending *time* (0.469 → 0.750 s) while fixing ending *shape* — two criteria, and
+Kyle's ear picked shape. **Task**: make the cut conditional on the map actually having a straggler
+past the last coincidence, rather than cutting whenever a coincidence is found earlier than the plain
+cut.
+
 **S1 🔴 TWO SONGS ARE ON A DISPLACED GRID ENTIRELY (8 % of the songset).**
 `1fa48` main-beat coverage **0.002**, `1f9a0` **0.000**, against human 0.734 / 0.506. The view shows
 why at a glance: nearly every main beat is **orange** (we played *near* it but off-grid), not red.
