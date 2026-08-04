@@ -117,21 +117,47 @@ That makes this **Track B**, and the largest open item in the project.
    and that could be a big flag for when a note should get placed."* — a **coincidence detector**.
 3. *"Also maybe a sound compared to rest of song to easily draw intensity."* — relative loudness.
 
-**Tasks**
-1. **Coincidence detector first — it is cheap and testable today.** We already have a seeded per-stem
-   onset cache for **274 songs** (`outputs/stem_onset_cache/`). Compute, per slot, how many stems have
-   an onset there; test whether *multi-stem coincidences* predict human note placement better than the
-   union does. **This is his hypothesis stated as a measurement, and it needs no retrain.**
-2. Measure the specific failures: at SO TIRED ROCK 0:14 and 0:46, what do the stem onsets say, what
-   does Stage-1's probability say, and what did the human map do? **Look at the data before theorising**
-   — that has found every real cause in this project.
-3. If (1) holds, the decode lever is to weight the note budget by coincidence count rather than raw
-   onset density (a sharpening of `BEAT_ONSET_EVIDENCE`).
-4. Track B proper: re-add an instrument projection to Stage-1 so the two hand channels and the
-   probability field can differ by instrument. See `docs/stage1_instrument_rebuild.md`.
+### ✅ MEASURED 2026-08-03 — his hypothesis is RIGHT, but the gap is elsewhere. Full data in PROGRESS.md.
 
-**DoD**: on SO TIRED ROCK, notes land on the bass pulse Kyle describes, and 0:14 and 0:46 are mapped.
-His ear is the judge — no existing axis measures this.
+- **His coincidence idea is CONFIRMED**: humans map a 4-instrument collision **84.5 %** of the time
+  (response 0.407 → 0.575 → 0.724 → 0.845 as k goes 1 → 4, n=263).
+- **Control passed**: `k` is **not** a loudness proxy — conditioning on onset-strength deciles retains
+  **110 %** of the lift and `corr(k, strength)` is **−0.146**. `BEAT_ONSET_EVIDENCE` does not capture it.
+- 🔴**BUT WE ARE NOT COINCIDENCE-BLIND**: our lift **1.915 vs human 1.732** — we respond *more* steeply.
+  We under-respond **uniformly at every k** (0.352 vs 0.504 = **0.70×**), and **0.70 ≈ C5's
+  distinct-times ratio 467/626 = 0.75** ⇒ **W1's symptom and C5's root cause are plausibly the same
+  defect.** ⇒ ❌**DO NOT build "weight the budget by coincidence count"** — that pushes on the one
+  thing we are not failing at.
+
+### 🔴 W1a — THE LIVE DEFECT: we play the OFFBEAT at multi-instrument events
+`scripts/eval_beat_phase.py` — `halfbeat_rate` = share of k≥3 events whose nearest note sits in the
+outer third of the beat:
+
+| cohort | n | halfbeat_rate |
+|---|---|---|
+| ours | 72 | **0.245** |
+| human | 188 | **0.095** |
+| SO TIRED ROCK (ours) | 1 | **0.316** ← past our own p90 |
+
+**2.6× the human rate**, worst on his motivation song. At SO TIRED ROCK 0:14 the phase histogram is
+**bimodal** — 203 events on-beat, **111 at exactly −½ beat** (0.244 s at 123 BPM).
+★**No existing axis can see this**: a note parked on a lone-stem "little sound" is still on a real
+onset, so it **passes A8**. Third instance of *a lever can pass every axis and still carry a defect no
+axis measures.*
+
+**Tasks**
+1. Wire the **already-estimated grid phase** through — `data/tempo.py` computes it and **nothing
+   consumes it** (this is C2, now with a motive and a metric).
+2. Then re-measure `halfbeat_rate`. ⚠️It must fall **without** `on_event_rate` falling — otherwise the
+   lever merely deleted offbeat notes instead of moving them, the failure `BEAT_REACH` was
+   pre-registered against.
+3. Track B still stands as the deeper fix (Stage-1 has no instrument projection,
+   `docs/stage1_instrument_rebuild.md`) — choosing the wrong side of the beat may itself be downstream
+   of not telling instruments apart. This measurement does **not** refute it.
+4. ⚠️Before either metric steers anything it must clear `scripts/audit_eval_suite.py`.
+
+**DoD**: `halfbeat_rate` moves from 0.245 toward the human 0.095 with `on_event_rate` held or improved,
+at ≥3 seeds — then Kyle's ear on SO TIRED ROCK.
 
 ---
 

@@ -7,6 +7,96 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★★★★ W1 MEASURED — KYLE'S COINCIDENCE HYPOTHESIS IS RIGHT, BUT THE GAP IS NOT WHERE HE (OR WE) THOUGHT (2026-08-03)
+
+Three new CPU-only diagnostics, no retrain, all on the seeded 274-song stem cache:
+`scripts/eval_coincidence.py`, `scripts/eval_coincidence_control.py`, `scripts/eval_beat_phase.py`.
+
+### (A) His hypothesis is CONFIRMED, and strongly
+
+> *"Maybe demucs should flag specific alignments when key instruments hit the same beat consistently
+> and that could be a big flag for when a note should get placed."*
+
+Clustering per-stem onsets into events (30 ms link) and counting **distinct stems** per event `k`,
+then asking how often a map puts a note there (±50 ms). **Human cohort, n=263 strict Expert:**
+
+| k (instruments hitting together) | human responds | ours responds |
+|---|---|---|
+| 1 | 0.407 | 0.267 |
+| 2 | 0.575 | 0.400 |
+| 3 | 0.724 | 0.505 |
+| **4** | **0.845** | **0.585** |
+
+**A four-instrument collision is mapped by a human 85 % of the time.** Monotone, huge, and human
+`lift` = P(hit│k≥3)/P(hit│k=1) is **1.73 with p10 1.24**, so ≥90 % of human maps show it individually.
+This is a real mapping rule and Kyle identified it from his ear alone.
+
+### The control that mattered: `k` is NOT a loudness proxy
+
+The obvious alternative explanation is that a loud downbeat simply has everything hitting it, in which
+case `BEAT_ONSET_EVIDENCE` (a loudness-ish prior) already captures this. Conditioning on **within-song
+onset-strength deciles** (n=60 human maps, audio from inside the zips):
+
+- `lift_raw` **1.857** → `lift_cond` **1.945** ⇒ **110 % retained.** Conditioning *strengthens* it.
+- **`corr(k, onset_strength)` = −0.146** — coincidence order is mildly **anti**-correlated with loudness.
+
+⇒ Instrument coincidence is an **independent signal**, not a restatement of energy. Corroborated from
+the other side: the pre-`ev03` arm scores lift **1.847** vs the promoted arm's **1.915**, so almost
+none of our coincidence response comes from `BEAT_ONSET_EVIDENCE`.
+
+### (B) But we are NOT coincidence-blind — and this redirects W1
+
+Our `lift` is **1.915 vs the human 1.732**. We respond to coincidence *more* steeply than humans do,
+not less. What we have is a **uniform level deficit at every k**: overall response 0.352 vs 0.504.
+
+★**That ratio is 0.70 — and the C5 distinct-times ratio is 467/626 = 0.75.** Our under-response to
+musical events at *every* coincidence order is very nearly fully accounted for by **having too few
+distinct note times**. **W1's symptom and C5's root cause look like the same defect**: both hands land
+on the same slot, so the map has ~30 % fewer moments available to answer the music with.
+
+⇒ **Do NOT build "weight the note budget by coincidence count".** We already over-weight coincidence
+relative to humans; that lever would push on the one thing we are not failing at.
+
+### ★ The actual defect, and it is new: WE PLAY THE OFFBEAT AT MULTI-INSTRUMENT EVENTS
+
+Chasing SO TIRED ROCK 0:14 song-locally: our notes there sit on an even 0.49 s grid (one beat at
+123 BPM) while the k=4 events sit **~0.22 s off it** — and a half-beat at 123 BPM is **0.244 s**. The
+phase histogram of "offset from a k≥3 event to our nearest note" is **bimodal**: 203 events on-beat,
+**111 events at exactly −½ beat**.
+
+Generalised as `halfbeat_rate` — share of k≥3 events whose nearest note falls in the outer third of
+the beat (`scripts/eval_beat_phase.py`):
+
+| cohort | n | `halfbeat_rate` |
+|---|---|---|
+| ours (`tf_trim_ev03_rc05`, 24 × 3) | 72 | **0.245** (p10 0.109, p90 0.310) |
+| human (strict Expert) | 188 | **0.095** (p10 0.020, p90 0.189) |
+| **SO TIRED ROCK, ours** | 1 | **0.316** — past our own p90 |
+
+**2.6× the human rate, and his motivation song is our worst case.** This is *"the notes are stubbornly
+not being placed on this tempo. They are being placed on all of the other little sounds"* as a number.
+
+★★**AND NO EXISTING AXIS CAN SEE IT.** A8 alignment asks *"is this note on a real onset?"* — a note
+parked on one of the "other little sounds" is on a lone-stem onset and **passes A8**. A8 is blind to
+*which* onset we chose, by construction. This is the third instance of the standing lesson: **a lever
+can pass every axis in the suite and still carry a defect no axis measures** (after
+`BEAT_ONSET_EVIDENCE`/reachability, and the W7 orphaned ending).
+
+⚠️**This does not refute Track B.** Choosing the wrong side of the beat could itself be downstream of
+Stage-1 being unable to tell instruments apart. What it establishes is that there is a **measurable,
+decode-side target available today**, and it connects to **C2** — `data/tempo.py` already estimates
+phase and *nothing consumes it*.
+
+⚠️Both new metrics are **DIAGNOSTICS, not axes**: neither may steer the generator until it clears
+`scripts/audit_eval_suite.py`.
+
+⚠️Confound found while verifying, relevant to his SO TIRED ROCK verdict: **all three SOTIREDROCK zips
+he played carried an mp3 mislabeled `song.ogg`** (see the `convert_to_ogg` fix in commit `6bc8455`).
+Corpus songs were unaffected. His timing complaints were reproduced from the `.dat` and the audio
+directly, so the measurements above stand — but he should re-hear a cleanly packed map.
+
+---
+
 ## W7 SOLVED — "the final note did not line up together" is LITERAL: an orphaned half-double (2026-08-03)
 
 **CONFIRMED, and the standing hypothesis was wrong.** TODO carried W7 as *"suspicious given
