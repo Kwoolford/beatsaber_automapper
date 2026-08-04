@@ -104,9 +104,14 @@ def review(song: str, ours: np.ndarray, bpm: float,
     F: list[dict] = []
 
     # ---- 1/2. per-window density vs the music and vs the human -------------
+    # ⚠️`arange(0, end - WIN, WIN)` DROPS THE FINAL WINDOW, which is exactly where
+    # outros live -- MAPPING_SILENCE fired on 0 of 24 songs because of it, while
+    # Fallen Kingdom demonstrably places 13 notes over a 240-250s outro carrying a
+    # single stem onset. Cover the tail. Caught 2026-08-04.
+    windows = np.arange(0, end, WIN)
     med_ours = np.median([((ours >= t) & (ours < t + WIN)).sum()
-                          for t in np.arange(0, end - WIN, WIN)] or [0])
-    for t0 in np.arange(0, end - WIN, WIN):
+                          for t in windows] or [0])
+    for t0 in windows:
         t1 = t0 + WIN
         n_o = int(((ours >= t0) & (ours < t1)).sum())
         act = {s: int(((v >= t0) & (v < t1)).sum()) for s, v in stems.items()}
@@ -158,19 +163,32 @@ def review(song: str, ours: np.ndarray, bpm: float,
     # Hunger: the human's last note lands on the final DRUM hit; ours goes one
     # 16th further on a residual bass onset. "Last onset of any stem" is the wrong
     # reference -- a decaying bass or a held vocal outlasts the pulse.
+    # ★VALIDATED COHORT-WIDE (13 songs, 2026-08-04): human mappers end the map on
+    # the carrier's final hit — median (human_end − carrier_end) = **+0.00 s**,
+    # with 1f3d7 +0.01, 1f333 +0.01, 1fbfb +0.02, 1fb44 +0.06, 1f7f1 +0.00. Ours
+    # scatters: median −0.30 s, range −5.55 to +19.30. So the reference is right.
+    # ⚠️But "stops early" is ONLY a defect where the HUMAN does not also stop early:
+    # on 1f9a0 the human ends 10.35 s before the last drum hit and 1fb71 5.68 s,
+    # so measuring against the carrier alone would flag correct restraint. Compare
+    # to the human whenever one exists.
     carrier = max(("drums", "bass"), key=lambda s: len(stems.get(s, [])))
     if len(stems.get(carrier, [])):
         c_last = float(stems[carrier].max())
         d = ours.max() - c_last
-        if d > 0.05:
-            F.append(dict(kind="ENDING", t=float(ours.max()), sev=min(abs(d), 2.0),
-                          msg=f"last note is {d * 1000:.0f}ms PAST the final "
-                              f"{carrier} hit ({mmss(c_last)}) — the pulse has "
-                              f"stopped and we play on"))
-        elif d < -1.5:
-            F.append(dict(kind="ENDING", t=float(ours.max()), sev=min(abs(d), 2.0),
-                          msg=f"last note is {-d:.2f}s BEFORE the final {carrier} "
-                              f"hit ({mmss(c_last)}) — we stop early"))
+        # ⚠️The +0.00 fallback for songs with no human map is the MEDIAN of n=13,
+        # and that distribution has a long negative tail (+0.69, −1.68, −1.89,
+        # −5.68, −10.35 all occur). So a "SHORT OF" finding on a song without a
+        # human map is WEAK evidence — some human mappers really do stop seconds
+        # early. Findings carrying `the human` in the message are the solid ones.
+        ref, refname = (float(human.max()) - c_last, "the human") if human is not None \
+            else (0.0, "the human norm (+0.00s, n=13, weak)")
+        rel = d - ref
+        if abs(rel) > 0.25:
+            word = "PAST" if rel > 0 else "SHORT OF"
+            F.append(dict(kind="ENDING", t=float(ours.max()), sev=min(abs(rel), 2.0),
+                          msg=f"ends {abs(rel):.2f}s {word} where {refname} ends, "
+                              f"relative to the final {carrier} hit ({mmss(c_last)})"
+                              f" [ours {d:+.2f}s, ref {ref:+.2f}s]"))
     return F
 
 

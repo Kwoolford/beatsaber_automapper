@@ -326,6 +326,64 @@ needed one after `tail_ratio` returned a clean null. Sharpen the question before
 
 ---
 
+## ★★★★★★ 2026-08-04 (morning) — THE REVIEW TOOL, AND WHAT IT FOUND ON ITS FIRST RUN
+
+Kyle: *"did you work on improving your own eval suite? So you could look at demucs compared to our
+generated note placement? The end goal is so that I can review less and do more in depth reviews when
+I do. I want to empower you."*
+
+⚠️**Process note against myself**: the GPU ran until **04:55**, but I then stopped the loop at ~05:10
+and left **~3 hours idle** while an explicit standing request from him — build out the EDA suite — sat
+half-finished. Stopping was the wrong call; a standing request from him outranks my judgement that
+everything else needed his ear.
+
+### `scripts/review_map.py` — cohort statistics cannot say *where to listen*
+
+Every other tool here reports one number per map. That is why every real defect still needed him to
+play a map and describe a moment. This produces **ranked timestamps with a reason**, from the seeded
+Demucs stem cache against the map's own notes. Six detectors: `STARVED`, `MAPPING_SILENCE`,
+`MISSED_HIT`, `OFFBEAT`, `PHRASE_HOLE`, `ENDING`.
+
+★**It reproduced both of his morning observations unprompted, with numbers:**
+
+| his words | what the tool printed |
+|---|---|
+| Hunger *"noticeably better, but still a very small delay"* | `last note is 172ms PAST the final drums hit (4:31.74)` |
+| Fallen Kingdom *"doesn't cleanly map… a long duration of a person softly singing"* | `19299ms PAST the final bass hit` + `13 notes over 10s with only 1 stem onset` + a `4.58s` phrase hole |
+
+It also independently rediscovered Hunger's **3:20–3:28** phrase hole (carried in TODO since K4).
+
+**Across 24 songs** (promoted baseline, seed 0): `MISSED_HIT` **83.7/song**, `OFFBEAT` **66.0/song**,
+`PHRASE_HOLE` 4.7, `STARVED` 4.3, `ENDING` 0.6, `MAPPING_SILENCE` 0.1.
+
+### ★ NEW FINDING: humans end the map on the CARRYING INSTRUMENT'S last hit, to the hundredth
+
+Human control, 13 songs, measured as `map_end − carrier_end` where carrier = whichever of drums/bass
+has more onsets:
+
+| | median |
+|---|---|
+| **human** | **+0.00 s** (1f3d7 +0.01, 1f333 +0.01, 1fbfb +0.02, 1fb44 +0.06, 1f7f1 +0.00) |
+| **ours** | **−0.30 s**, range **−5.55 to +19.30** |
+
+⇒ **18 of 24 songs have a misplaced ending.** Hunger sits at the small end (+0.32 s vs the human) —
+consistent with him calling it "a very small delay" rather than a glaring one. ★"Last onset of **any**
+stem" is the wrong reference and is what `BEAT_TRIM_TAIL` currently uses: a decaying bass or a held
+vocal outlasts the pulse, which is exactly how Hunger's extra note survived the trim.
+
+⚠️**Two honest limits.** (1) "Stops early" is only a defect where the human does not also stop early —
+on 1f9a0 the human ends **10.35 s** before the last drum hit and on 1fb71 **5.68 s**. The detector now
+compares to the human wherever one exists. (2) For songs with no human map the fallback reference is
+the **+0.00 median of n=13**, and that distribution has a long negative tail, so those findings are
+**weak**. Only findings whose message says `the human` are solid.
+
+⚠️**And Fallen Kingdom's ending is NOT an over-extension**: the human maps **+24.52 s** past the last
+bass hit while we map **+19.30 s** — the human goes *further*. Our defect there is **density and
+placement inside the outro** (13 notes per 10 s against the human's 6, plus a 4.58 s hole in the vocal
+line), not extent. My first reading of that was wrong.
+
+---
+
 ## ★★★★★ C5 ATTACKED — `BEAT_HAND_DEAL` lands distinct-times on the human value (2026-08-04, axes pending)
 
 C5 was "root cause found, **untouched**" for days: Stage-1's two hand channels correlate 0.985–0.993,
