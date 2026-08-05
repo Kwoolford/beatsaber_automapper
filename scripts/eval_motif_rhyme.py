@@ -78,8 +78,10 @@ def rotate(V: dict, k: int) -> dict:
             "count": np.roll(V["count"], k, axis=0)}
 
 
-def song_scores(song: str, bm, bpm: float, B: ss.Bars, A: dict) -> dict | None:
-    V = ss.map_bar_vectors(notes_xydc(bm, bpm), B)
+def song_scores(notes: list[tuple], B: ss.Bars, A: dict) -> dict | None:
+    """`notes` = [(time_s, x, y, direction, color)] — taken as a plain list so the
+    control battery can feed synthetic maps through the identical estimator."""
+    V = ss.map_bar_vectors(notes, B)
     if V["count"].sum() < 60:
         return None
     S = ss.bar_map_similarity(V)
@@ -151,11 +153,11 @@ def main() -> None:
         A = ss.bar_audio_matrix(song, B)
         if A is None:
             continue
-        ours = song_scores(song, bm, bpm, B, A)
+        ours = song_scores(notes_xydc(bm, bpm), B, A)
         # ⚠️HUMAN SIDE MUST USE load_expert_only — scorecard._load_any silently
         # prefers ExpertPlus and contaminated three references before.
         H = load_expert_only(REPO / "data" / "raw" / f"{song}.zip")
-        human = song_scores(song, H[0], float(H[1]), B, A) if H else None
+        human = song_scores(notes_xydc(H[0], float(H[1])), B, A) if H else None
         if ours is None:
             continue
         rows.append({"song": song, "bars": B.n, "bar_s": round(B.dur, 2),
