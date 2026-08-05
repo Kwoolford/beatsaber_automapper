@@ -361,6 +361,49 @@ per-slot decision is made.
 ✅Two things v8 does do at n=149, both real: **`double_share` −0.041** (fewer doubles, resolvable,
 and the right direction against C5) and `follow_drums` +0.010 (a diagnostic-only axis).
 
+### ★★ IS THE SUITE WELL-FORMED? — the M-axes are orthogonal to everything that came before
+
+`audit_axis_redundancy.py` scores the same 149 maps on both suites and takes Spearman correlations
+across songs. Two questions: is a new axis an old finding restated, and are two new axes the same
+measurement twice?
+
+**Against the classic suite (A1 flow, A2 rhythm, A3 idiom, A6 handrole, A8 alignment, playfeel):**
+
+| axis | max \|r\| vs anything classic | nearest classic metric |
+|---|---|---|
+| `harm_place` | **0.114** | ioi_entropy |
+| `lead_persistence` | 0.105 | ioi_entropy |
+| `hands_x_coincid` | 0.129 | angle_change |
+| `timb_rhythm` | 0.142 | pulse_stability |
+| `hands_x_downbeat` | 0.155 | role_asymmetry |
+| `rhy_rhythm` | 0.196 | pulse_stability |
+| `follow_mean` | 0.202 | ioi_entropy |
+| `follow_vocals` | 0.294 | travel |
+
+★**Nothing exceeds 0.30.** The six-axis suite was blind to every one of these — that was the premise
+the M-axes were built on, and it is now **measured rather than asserted**. (Only `double_share` reaches
+0.462, against `pulse_stability`, and it was never a new finding.)
+
+🔴**AND A CORRECTION TO MY OWN REPORTING.** Inside the M2 family:
+
+    follow_mean <-> follow_best    r = 0.844
+    follow_mean <-> follow_drums   r = 0.648
+    follow_mean <-> follow_vocals  r = 0.499
+
+`follow_mean`, `follow_best` and `follow_drums` are substantially **one measurement**. Every summary
+tonight that listed them as separate resolvable findings — including the headline "every follow axis
+resolvable" — was **double-counting one defect**. The honest statement is: *one* rhythm-fidelity
+finding, with `follow_vocals` as a partly-separate second (r=0.50).
+
+⇒**Report M2 as one axis with `follow_vocals` beside it.** The count of resolvable findings tonight
+drops accordingly; the size of the gap does not change.
+
+★By contrast M1's three views are only 0.28–0.33 correlated with each other, so harmonic, timbral and
+rhythmic repetition really are three questions — and **`harm_place` is the single most independent
+axis in the entire suite (max r 0.18 against anything, classic or new) while also carrying the
+largest defect (86.6 % exceedance).** Most independent and largest is the best possible combination
+for deciding what to build next.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame
