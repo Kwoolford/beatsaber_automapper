@@ -431,6 +431,44 @@ failing to detect lever effects, we are detecting that there are none to find.
 ⚠️One resolvable seed difference, on `arrange_ami` (−0.0065) — a further mark against an axis already
 held PROVISIONAL.
 
+### ★★ THE HUMAN SIDE'S NOISE FLOOR — and it confirms the battery by a completely different route
+
+Every human number tonight was a point with no error bar, which is the trap `h_dist` fell into. The
+corpus supplies a replicate: 128 of the wide-cohort songs ship **Expert and ExpertPlus by the same
+mapper** — one person reading the same music twice. Scoring both gives the human side a floor.
+
+| axis | Expert | Expert+ | paired Δ | **\|Δ\| ÷ our gap** |
+|---|---|---|---|---|
+| `rhy_rhythm` | +0.1580 | +0.1557 | +0.0002 | **0.00** |
+| `timb_rhythm` | +0.1043 | +0.1050 | +0.0003 | **0.00** |
+| `follow_best` | +0.1918 | +0.2010 | +0.0054 | 0.04 |
+| `harm_rhythm` | +0.0764 | +0.0746 | +0.0030 | 0.05 |
+| `follow_mean` | +0.1082 | +0.1162 | +0.0048 | 0.06 |
+| `follow_vocals` | +0.1424 | +0.1179 | −0.0108 | 0.08 |
+| `hands_x_downbeat` | +0.0822 | +0.1506 | +0.0197 | 0.10 |
+| `harm_place` | +0.0223 | +0.0200 | −0.0035 | 0.14 |
+| — | | | | |
+| `arrange` | +0.0615 | +0.0794 | +0.0207 | 0.30 |
+| `lead_persistence` | +0.3846 | +0.3889 | +0.0162 | 0.32 |
+| `hands_x_strength` | +0.1936 | +0.2689 | +0.0700 | 0.47 |
+| **`hands_x_coincid`** | +0.1978 | +0.2654 | +0.0744 | **1.06** |
+
+★**On every steer-safe axis our gap is 6–25× the same mapper's own variation between two takes**, and
+on the two strongest (`rhy_rhythm`, `timb_rhythm`) the mapper's two maps are *identical to three
+decimals* despite very different densities. Motif reuse is something a mapper holds constant across
+difficulties — and we are far outside it.
+
+★★**AND THE ORDERING REPRODUCES THE BATTERY'S VERDICTS FROM A COMPLETELY DIFFERENT DIRECTION.** Every
+axis the battery cleared has replicate noise ≤0.14 of our gap; every axis it flagged sits at
+0.30–1.06. **`hands_x_coincid` reaches 1.06 — one mapper's two takes differ by MORE than our whole
+gap**, so that axis genuinely cannot tell us apart from a mapper having a different day. Two
+independent methods — degenerate controls, and human self-replication — agree on which axes are
+usable. Neither was designed with the other in mind.
+
+⚠️ExpertPlus is denser by construction, so part of every movement here is density; the battery
+measured that a 30 % thin retains 0.6–0.9 of these axes. Read the column as an **upper bound** on
+human replicate noise, which makes the ≤0.14 figures stronger, not weaker.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame

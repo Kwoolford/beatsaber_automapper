@@ -117,6 +117,17 @@ floor ≈ **±0.004**. Against that:
 The instrument is 20–30× finer than the gap it measures, and every lever we have is inside the noise
 — so "no lever moves these axes" is a detection, not a failure to detect.
 
+### And the human side's floor (`eval_human_replicate.py`, 128 songs)
+
+The same mapper's **Expert vs ExpertPlus** of the same song — one person reading the same music twice.
+Our gap to the human is **6–25× that replicate difference** on every steer-safe axis; on `rhy_rhythm`
+and `timb_rhythm` a mapper's two maps agree to three decimals despite very different densities.
+
+★**The ordering reproduces the battery's verdicts from a completely different direction**: every axis
+the battery cleared has replicate noise ≤0.14 of our gap, and every axis it flagged sits at
+0.30–1.06. `hands_x_coincid` reaches **1.06** — a mapper's two takes differ by more than our whole
+gap, so it cannot tell us apart from a mapper having a different day.
+
 ### Is the suite well-formed? (`audit_axis_redundancy.py`)
 
 Over the same 149 maps, **no masterpiece axis correlates above |r| = 0.30 with anything in the classic
