@@ -31,10 +31,22 @@ lifeless, because intent is not a property of an instant. It is a property of a
 
 | axis | question | verdict |
 |---|---|---|
-| **M1** `eval_motif_rhyme.py` | when the music comes back, does the pattern come back? | `rhy_rhythm` / `harm_rhythm` / `timb_rhythm` **may steer** |
+| **M1** `eval_motif_rhyme.py` | when the music comes back, does the pattern come back? | `*_rhythm` and `*_place` **may steer** |
 | **M2** `eval_rhythm_fidelity.py` | is the map playing *this bar's* figure, and whose? | `follow_mean` / `follow_best` / `follow_vocals` **may steer** |
 | **M3** `eval_accent.py` | is emphasis spent where the music emphasises? | `hands_x_downbeat` **may steer**; the rest diagnostic |
-| **M4** `eval_arrangement.py` | does the map turn when the song turns? | ⚠️**fails its own control — not yet measurable** |
+| **M4** `eval_arrangement.py` | does the map turn when the song turns? | ⚠️**not usable** (v1 and v2 both fail) |
+| **M5** `eval_hand_intent.py` | do the two hands do two different jobs? | ⚠️**not measurable** — the human mean is 0 |
+| **M6** `eval_anticipation.py` | does the map build *into* a drop? | ⚠️**null** — neither cohort does |
+
+**The roster, by what a lever may be steered by:**
+
+- ✅**MAY STEER (passes on both cohorts)** — `rhy_rhythm`, `harm_rhythm`, `timb_rhythm`,
+  `harm_place`, `timb_place`, `rhy_place`, `follow_mean`, `follow_best`, `follow_vocals`,
+  `hands_x_downbeat`.
+- ⚠️**PROVISIONAL (verdict flips between cohorts — a flipping verdict is not a verdict)** —
+  `follow_drums`, `hands_x_strength`, `arrange_ami`.
+- ❌**DIAGNOSTIC ONLY** — `travel_*`, `turn_*`, `hand_stem*`, `arrange`, `hands_x_coincid`
+  (resolvable at n=13, did **not** replicate at n=42), `double_share`, `corr_at_0`.
 
 ### ★ Why these are the first steer-safe axes here
 
@@ -79,6 +91,7 @@ and are therefore **PROVISIONAL** — a verdict that flips with the sample is no
 | metric | ours | human | paired Δ | resolvable |
 |---|---|---|---|---|
 | `rhy_rhythm` | +0.060 | +0.148 | −0.116 | **yes** |
+| `harm_place` (movement reuse) | +0.002 | +0.016 | −0.020 | **yes** (~9×, the largest ratio) |
 | `follow_mean` | +0.033 | +0.107 | −0.089 | **yes** |
 | `follow_vocals` | +0.020 | +0.149 | −0.129 | **yes** |
 | `follow_best` | +0.074 | +0.218 | −0.142 | **yes** |
