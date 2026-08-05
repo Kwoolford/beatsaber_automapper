@@ -77,13 +77,43 @@ def find_custom_levels() -> list[Path]:
     return uniq
 
 
+def corpus_title(song_id: str) -> tuple[str, str] | None:
+    """Real title + artist from the CORPUS zip for this id, if we have it.
+
+    Added 2026-08-05: the wide cohort is 149 corpus songs, and without this every
+    one of them lands in the song browser as an opaque hex id like `236e7`. The
+    human map for the same id already carries the real metadata.
+    ⚠️Exact basename match on info.dat — "BPMInfo.dat" also ends with "info.dat"
+    and 73 of 300 corpus zips list it FIRST.
+    """
+    z = Path(__file__).resolve().parents[1] / "data" / "raw" / f"{song_id}.zip"
+    if not z.exists():
+        return None
+    try:
+        with zipfile.ZipFile(z) as zf:
+            name = next((n for n in zf.namelist()
+                         if n.split("/")[-1].lower() == "info.dat"), None)
+            if name is None:
+                return None
+            d = json.loads(zf.read(name).decode("utf-8-sig"))
+        title = str(d.get("_songName") or "").strip()
+        artist = str(d.get("_songAuthorName") or "").strip()
+        return (title, artist or "Unknown Artist") if title else None
+    except Exception:
+        return None
+
+
 def parse_stem(stem: str) -> tuple[str, str, str, str]:
     """`1f333_AFTER2_reach` -> (id, variant, rest, pretty title)."""
     parts = stem.split("_")
     song_id = parts[0]
     variant = parts[1] if len(parts) > 1 else ""
     rest = "_".join(parts[2:])
-    title, artist = SONGS.get(song_id, (song_id, "Unknown Artist"))
+    if song_id in SONGS:
+        title, artist = SONGS[song_id]
+    else:
+        got = corpus_title(song_id)
+        title, artist = got if got else (song_id, "Unknown Artist")
     return song_id, variant, rest, title
 
 
