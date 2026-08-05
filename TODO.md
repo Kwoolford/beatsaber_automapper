@@ -420,6 +420,69 @@ onsets. 240–250 s: **13** notes against the human's **6**, over an outro carry
 ★Kyle 2026-08-04: the outro **should** be mapped, **sparsely** — so this is a *distribution* bug, not
 a trim question. **Task**: check whether `section_gate="loud_only"` is suppressing the final chorus.
 
+## 🔴 P0b — THE MASTERPIECE AXES (M1–M4, built 2026-08-04 night) — ✅ BUILT, 7 axes cleared to steer
+
+> *"We created a model to create a playable map but now need a model to start producing masterpieces
+> which we are far off from… syncing to rhythm more and making significantly more intelligent and
+> intentional placements of notes."* — Kyle
+
+**📖 How to use them: [`docs/EVAL_SUITE.md`](docs/EVAL_SUITE.md).** One command:
+`python scripts/masterpiece_report.py --arm X [--vs Y]`. The picture:
+`python scripts/view_structure.py --song 1f8d6`. Validity: `python scripts/audit_masterpiece.py`.
+
+**Where we stand (paired, 13 songs with a strict Expert human map):**
+
+| metric | ours | human | resolvable |
+|---|---|---|---|
+| `follow_vocals` — do we play the vocal line's figure | +0.020 | +0.149 | **yes (7×)** |
+| `follow_mean` — do we play *this bar's* figure at all | +0.033 | +0.107 | **yes (3×)** |
+| `rhy_rhythm` — when the groove repeats, does the map | +0.060 | +0.148 | **yes** |
+| `hands_x_downbeat` — is the double used to mark the downbeat | +0.036 | +0.182 | **yes** |
+| `lead_persistence` — do we stay with one instrument | 0.292 | 0.387 | **yes** |
+
+★**These are the first steer-safe axes in this area**, because they score a CONTRAST rather than a
+level: a metronome, random note times, a bar-rotated map and another song's map all score ~0 by
+construction. Which ones may steer is decided by `audit_masterpiece.py`, not by argument.
+
+⚠️**`hands_x_downbeat` has a seed sd of 0.066 (≈ its own value)** — quote it as a cohort statement,
+never to rank two arms. `follow_mean`'s sd is **0.0006**, so that one ranks arms cleanly.
+
+---
+
+### 🔴 M-A — NO DECODE LEVER MOVES ANY OF THESE ⇒ the sixth confirmation of C1
+mbb015 / mbb025 / endres / trimco3 all sit within **±0.008** of baseline on every M axis, against an
+ours-vs-human gap of 0.089 on `follow_mean`. The only arms that move anything are the **instrument
+model**: v8 gains `follow_vocals` +0.0082 and v8+bonus **+0.0147** (both >2 sd across seeds), and both
+LOSE `rhy_rhythm` (−0.020 / −0.017).
+**Task**: treat `follow_vocals` as the acceptance metric for the Track B / instrument-projection work
+— it is the first axis that responds to it at all.
+**DoD**: an instrument-aware arm reaches `follow_vocals` ≥ 0.05 (a third of the human 0.149) **without**
+losing `rhy_rhythm` resolvably.
+
+### 🟠 M-B — LEVER CANDIDATE: mark the downbeat
+We spend the double — the loudest thing a map can say — on **0.667** of all events (human 0.196), so
+it marks nothing, and our downbeat emphasis is 0.036 against a human 0.182. A lever that biases
+double placement toward the bar's first slot is the most concrete "intentional placement" change the
+suite can currently justify.
+**DoD**: `hands_x_downbeat` rises toward the human at **≥5 seeds** (the axis is seed-noisy) or on the
+wide cohort, with `double_share` NOT rising and the six-axis suite unmoved. ⚠️Check `rhythm` (A2) and
+`pulse_stability` alongside — moving emphasis onto the metrical grid is exactly the shape of change a
+metronome would also make.
+
+### 🟠 M-C — REPLICATE AT n≈150 (running)
+`scripts/build_wide_cohort.py` is generating our maps for corpus songs that already have a strict
+Expert map + a seeded stem cache, to take the paired cohort from **13 → ~150**. The eval songset stays
+the fixed historical ruler; this is a second cohort for statistical power only.
+**DoD**: rerun `masterpiece_report.py` on the wide cohort. Findings that hold at n≈150 are CONFIRMED;
+those that vanish were n=13 talking. ⚠️Nothing from tonight should be promoted before this.
+
+### 🟡 M-D — TWO INSTRUMENTS ARE TOO BLUNT TO USE
+- **M4 `arrange`** fails its own control (a bar-rotated map scores 0.67× the human) ⇒ **not yet
+  measurable**. Needs a section-conditioned descriptor rather than a boundary jump.
+- **`harm_place`** — a 30 %-thinned human map scores 1.34× the human. Both cohorts read ~0.01, which
+  is *not yet measurable*, **not** "humans don't reuse placement". Needs a pattern-level similarity
+  (n-grams of position/direction) instead of the per-slot L1 agreement.
+
 ### What exists already — extend, do not restart
 - `scripts/review_map.py` — ranked timestamped findings (STARVED / MISSED_HIT / OFFBEAT / PHRASE_HOLE /
   MAPPING_SILENCE / ENDING). Reproduced both of his 2026-08-04 ear observations unprompted.
