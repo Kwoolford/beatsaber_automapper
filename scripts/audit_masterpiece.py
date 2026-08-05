@@ -55,6 +55,7 @@ sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "scripts"))
 
 import eval_accent as m3  # noqa: E402
+import eval_arrangement as m4  # noqa: E402
 import eval_motif_rhyme as m1  # noqa: E402
 import eval_rhythm_fidelity as m2  # noqa: E402
 import song_structure as ss  # noqa: E402
@@ -66,7 +67,8 @@ M1_KEYS = ("rhy_rhythm", "harm_rhythm", "timb_rhythm", "harm_place")
 M2_KEYS = ("follow_mean", "follow_best", "follow_drums", "follow_vocals")
 M3_KEYS = ("hands_x_strength", "hands_x_coincid", "hands_x_downbeat",
            "travel_x_strength", "turn_x_strength")
-ALL_KEYS = M1_KEYS + M2_KEYS + M3_KEYS
+M4_KEYS = ("arrange",)
+ALL_KEYS = M1_KEYS + M2_KEYS + M3_KEYS + M4_KEYS
 
 # ★AXIS-AWARE VERDICTS. `shuffled_attrs` permutes (x, y, dir) and leaves every note
 # TIME untouched, so a metric computed on times alone scores it EXACTLY equal to
@@ -84,6 +86,9 @@ DOMAIN = {  # metric -> the domain it reads
     "hands_x_strength": "time", "hands_x_coincid": "time",
     "hands_x_downbeat": "metre",
     "travel_x_strength": "place", "turn_x_strength": "place",
+    # `arrange` is dominated by the per-bar note COUNT channel, which shuffling
+    # (x, y, dir) leaves untouched -> time domain.
+    "arrange": "time",
 }
 CONTROL_DOMAIN = {  # control -> the domains it perturbs
     "metronome": {"time", "place", "metre"},
@@ -202,6 +207,8 @@ def main() -> None:
         stems = m2.stem_onsets(song)
         if A is None or len(stems) < 3:
             continue
+        nov = m4.novelty(A)
+        bnds = m4.boundaries(nov) if nov is not None else []
 
         cands = {"human": human, "ours": ours}
         cands.update(make_controls(human, B, rng))
@@ -217,9 +224,11 @@ def main() -> None:
             times = np.sort(np.array([n[0] for n in notes]))
             s2 = m2.score_map(times, B, stems) or {}
             s3 = m3.score_map(notes, song, B) or {}
+            s4 = (m4.score_map(notes, B, bnds) or {}) if len(bnds) >= 4 else {}
             row[name] = ({k: s1.get(k) for k in M1_KEYS}
                          | {k: s2.get(k) for k in M2_KEYS}
-                         | {k: s3.get(k) for k in M3_KEYS})
+                         | {k: s3.get(k) for k in M3_KEYS}
+                         | {k: s4.get(k) for k in M4_KEYS})
         per_song.append(row)
         print(f"  scored {song}")
 
