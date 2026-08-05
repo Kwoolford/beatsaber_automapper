@@ -98,12 +98,19 @@ def main() -> None:
                     help="prod = the promoted defaults; v8 = the instrument model")
     a = ap.parse_args()
 
-    out_dir = OUT if a.variant == "prod" else REPO / "outputs" / f"wide_cohort_{a.variant}"
+    # ⚠️The seed must be in the directory name or a second seed silently "resumes"
+    # into the first one's files and you get one cohort labelled as two.
+    tag = a.variant + ("" if a.seed == 0 else f"_s{a.seed}")
+    out_dir = OUT if tag == "prod" else REPO / "outputs" / f"wide_cohort_{tag}"
     out_dir.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
     cands = candidates()[: a.n]
-    if a.variant == "v8":
-        # only songs the prod arm actually produced, so the comparison stays paired
+    if out_dir != OUT:
+        # ⚠️ANY secondary cohort — another arm OR another seed — must cover exactly
+        # the songs the primary one produced. Otherwise the difference between two
+        # arms is partly a difference between two song SETS, which is this
+        # project's most repeated mistake. Caught when the seed-1 run started
+        # walking 200 candidates against the primary cohort's 149.
         have = {p.stem for p in OUT.glob("*.zip")}
         cands = [c for c in cands if c in have]
     print(f"{len(cands)} candidate songs (strict Expert + stem cache + audio)")
