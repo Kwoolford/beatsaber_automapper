@@ -322,6 +322,45 @@ tail printed a meaningless 0.0 % before this was fixed.
 ⚠️This is a **norm** bar. Kyle's target is the best mappers, so on an aspirational axis the corpus
 median is a floor, not a target — ask him norm-or-aspiration before treating any of these as a goal.
 
+### 🔴🔴 RETRACTED — v8's VOCAL GAIN DOES NOT SURVIVE n=149. **Nothing we have moves a masterpiece axis.**
+
+Earlier tonight I wrote, in commits, in TODO and in memory: *"the ONE thing that moves a masterpiece
+axis is the instrument model — v8 gains `follow_vocals` +0.0082 and v8+bonus +0.0147, both >2 sd
+across seeds."* That was measured on the 24-song eval songset (13 paired). Generating the **same v8
+arm over the same 149 wide-cohort songs, same audio, same seed** — differing from prod in exactly the
+checkpoint and `--use-instr` — gives:
+
+| axis | songset Δ (n=13) | **wide Δ (n=148)** | resolvable |
+|---|---|---|---|
+| `follow_vocals` | **+0.0082** | **+0.0004** | **no** |
+| `rhy_rhythm` | −0.0204 | −0.0054 | no |
+| `harm_rhythm` | −0.0221 | +0.0036 | no |
+| `follow_mean` | −0.0034 | +0.0015 | no |
+| `follow_drums` | — | +0.0101 | yes (diagnostic-only axis) |
+| `double_share` | −0.041 | −0.0414 | **yes** |
+
+⇒**The gain is withdrawn, and so is the loss**: both shrank by ~5–20× at 11× the sample. The songset
+result was n=13 inflating an effect size — **the exact failure `hands_x_coincid` demonstrated the same
+night** (−0.196 at n=13 vs −0.071 at n=149). Two independent demonstrations in one night that **13
+paired songs inflates effect sizes**, which is now the strongest methodological result here.
+
+🔴**THE CONSEQUENCE IS BIGGER THAN THE RETRACTION.** Combined with the earlier arm sweep (mbb015,
+mbb025, endres, trimco3 all within ±0.008 on every M-axis), the statement is now:
+
+★**NO ARM THIS PROJECT HAS — not one decode lever, and not the instrument model — moves any
+steer-safe masterpiece axis.** The structural gap is untouched by everything built so far. That is
+C1's *"better probabilities, not better picking"* extended: it is not only that better *picking* will
+not do it, it is that a better *probability field* (v8 hears instruments) does not either, because
+neither changes the fact that each slot is decided on its own.
+
+⇒**M-E (structure-conditioned decode) is not merely the best idea left; it is the only one with an
+argument behind it.** It is the only proposal that changes *what a decision depends on* — reuse the
+map already generated where the audio says this passage repeats — rather than changing how well a
+per-slot decision is made.
+
+✅Two things v8 does do at n=149, both real: **`double_share` −0.041** (fewer doubles, resolvable,
+and the right direction against C5) and `follow_drums` +0.010 (a diagnostic-only axis).
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame
