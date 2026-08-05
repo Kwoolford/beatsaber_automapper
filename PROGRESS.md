@@ -222,6 +222,32 @@ back neither the movement nor, mostly, the rhythm.
 ✅Battery: **MAY STEER on BOTH cohorts** — thinned_30 retains 0.21 (songset) / 0.36 (wide) against
 1.34 before, and every degenerate control sits at ≤0.35× of the human.
 
+### M4 v2 (`arrange_ami`) — the redesign fixed what it targeted and is still not usable
+
+Clustering the bars twice (audio vs map descriptors) and scoring the agreement with **adjusted**
+mutual information fixed v1's exact failure: the bar-ROTATED control falls from **0.67×** the human
+to **0.15×** (songset) / **0.06×** (wide). The estimator now genuinely requires the map's sections to
+line up with the song's.
+
+🔴**And the verdict FLIPS between cohorts, so it is PROVISIONAL and must not steer anything.**
+
+| control (as a fraction of human) | songset n=13 | wide n=40 |
+|---|---|---|
+| metronome | **0.67** | 0.49 |
+| random_times | **0.51** | 0.29 |
+| bar_rotated | 0.15 | 0.06 |
+| **verdict** | DIAGNOSTIC ONLY | MAY STEER |
+
+A metronome reaching two thirds of the human is disqualifying wherever it happens: a map with no
+sections at all should not be able to have its sections agree with the song's. The cohort delta is
+also unresolved (ours +0.069 vs human +0.113 at n=13). **M4 stays NOT USABLE** — now for a different
+and better-understood reason than v1.
+
+★The pattern across M4, M5 and `harm_place`: **a failing axis is worth rebuilding exactly once, and
+then only if the failure names the fix.** `harm_place`'s did (it paid for deleting notes ⇒ use a
+measure where omissions count) and the rebuild succeeded. M4's first failure named a fix that worked
+and exposed a second problem underneath.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame
