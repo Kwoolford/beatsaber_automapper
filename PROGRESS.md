@@ -154,6 +154,31 @@ line and does not help it repeat itself.
 A thinner map should therefore score LOWER, and v8 scores higher — the gain is if anything
 understated. (The `rhy_rhythm` loss is not protected this way and remains partly confounded.)
 
+### ✅ REPLICATION ON AN INDEPENDENT COHORT — every headline finding holds, and two get stronger
+
+`build_wide_cohort.py` generated our maps (promoted defaults, seed 0) for corpus songs **disjoint
+from the eval songset** that already had a strict Expert human map and a seeded stem cache. First
+harvest at **n=42** (against the songset's 13):
+
+| metric | songset Δ (n=13) | wide Δ (n=42) | replicates |
+|---|---|---|---|
+| `follow_vocals` | −0.129 **YES** | −0.148 **YES** | ✅ |
+| `follow_best` | −0.142 **YES** | −0.148 **YES** | ✅ |
+| `rhy_rhythm` | −0.116 **YES** | −0.127 **YES** | ✅ |
+| `follow_mean` | −0.089 **YES** | −0.086 **YES** | ✅ |
+| `hands_x_downbeat` | −0.387 **YES** | −0.197 **YES** | ✅ |
+| `lead_persistence` | −0.111 **YES** | −0.061 **YES** | ✅ |
+| `harm_rhythm` | −0.035 no | −0.061 **YES** | ✅ **strengthened** |
+| `timb_rhythm` | −0.041 no | −0.082 **YES** | ✅ **strengthened** |
+| `hands_x_coincid` | −0.196 **YES** | −0.048 **no** | 🔴 **does NOT replicate** |
+| `arrange` (M4) | −0.023 no | −0.040 no | ✅ null holds |
+
+★**Two findings that n=13 could not resolve are resolvable at n=42** — the harmonic and timbral motif
+views join the rhythmic one, so the statement is now *whenever* the music repeats, not just when the
+groove does. 🔴**And one finding did not survive**: `hands_x_coincid` (emphasis on multi-stem hits)
+was resolvable on the songset and is not here — it was already DIAGNOSTIC ONLY from the battery, so
+nothing was built on it, but it is a clean demonstration of why n=13 needed this.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame

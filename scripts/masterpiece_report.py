@@ -76,13 +76,24 @@ def score_one(song: str, notes: list[tuple], B, A, stems, bnds) -> dict:
     return out
 
 
-def collect(arm: str, seed: str, rebuild: bool = False) -> list[dict]:
+def collect(arm: str, seed: str, rebuild: bool = False,
+            wide: bool = False) -> list[dict]:
+    """Score one arm over the eval songset, or `wide=True` over the wide cohort.
+
+    ⚠️The two cohorts are NOT interchangeable. The eval songset is the fixed ruler
+    every historical arm was scored against; the wide cohort exists only to ask
+    whether a finding survives a bigger n (`build_wide_cohort.py`). Never merge
+    them into one median — that would be the population error again.
+    """
     CACHE.mkdir(parents=True, exist_ok=True)
-    cf = CACHE / f"{arm}#{seed}.json"
+    cf = CACHE / f"{'wide_' if wide else ''}{arm}#{seed}.json"
     if cf.exists() and not rebuild:
         return json.loads(cf.read_text())
-    files = sorted(glob.glob(str(REPO / f"outputs/eval_sweep_cache/{arm}#{seed}__*.zip"))) \
-        or sorted(glob.glob(str(REPO / f"outputs/eval_sweep_cache/{arm}__*.zip")))
+    if wide:
+        files = sorted(glob.glob(str(REPO / "outputs/wide_cohort/*.zip")))
+    else:
+        files = sorted(glob.glob(str(REPO / f"outputs/eval_sweep_cache/{arm}#{seed}__*.zip"))) \
+            or sorted(glob.glob(str(REPO / f"outputs/eval_sweep_cache/{arm}__*.zip")))
     rows = []
     for f in files:
         song = pathlib.Path(f).stem.split("__")[-1]
@@ -126,6 +137,8 @@ def main() -> None:
     ap.add_argument("--vs", default="", help="second arm; prints the PAIRED arm delta")
     ap.add_argument("--seeds", default="s0")
     ap.add_argument("--rebuild", action="store_true")
+    ap.add_argument("--wide", action="store_true",
+                    help="score the WIDE cohort (build_wide_cohort.py) instead of the songset")
     ap.add_argument("--by-song", action="store_true",
                     help="rank the songs by how far below the human they sit")
     ap.add_argument("--json", default="")
@@ -133,7 +146,7 @@ def main() -> None:
 
     seeds = a.seeds.split(",")
     print(f"collecting {a.arm} at seeds {seeds}")
-    rows_by_seed = {s: collect(a.arm, s, a.rebuild) for s in seeds}
+    rows_by_seed = {s: collect(a.arm, s, a.rebuild, a.wide) for s in seeds}
     rows = rows_by_seed[seeds[0]]
     verdicts = steer_verdicts()
 
@@ -194,7 +207,7 @@ def main() -> None:
     # ---- arm vs arm, paired by song (the only valid arm comparison)
     if a.vs:
         print(f"\ncollecting {a.vs}")
-        other = collect(a.vs, seeds[0], a.rebuild)
+        other = collect(a.vs, seeds[0], a.rebuild, a.wide)
         by_song = {r["song"]: r["ours"] for r in other}
         merged = [{"a": r["ours"], "b": by_song[r["song"]]}
                   for r in rows if r["song"] in by_song]
