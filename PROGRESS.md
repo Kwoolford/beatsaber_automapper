@@ -179,6 +179,22 @@ groove does. 🔴**And one finding did not survive**: `hands_x_coincid` (emphasi
 was resolvable on the songset and is not here — it was already DIAGNOSTIC ONLY from the battery, so
 nothing was built on it, but it is a clean demonstration of why n=13 needed this.
 
+### The battery, re-run on the independent cohort — and two verdicts that FLIP
+
+| axis | songset (n=13) | wide (n=40) |
+|---|---|---|
+| `rhy_rhythm`, `harm_rhythm`, `timb_rhythm` | MAY STEER | MAY STEER |
+| `follow_mean`, `follow_best`, `follow_vocals` | MAY STEER | MAY STEER |
+| `hands_x_downbeat` | MAY STEER | MAY STEER |
+| `follow_drums` | diagnostic (jitter 1.03×) | **MAY STEER** |
+| `hands_x_strength` | diagnostic (bar-rotated 0.63×) | **MAY STEER** (0.30×) |
+| `harm_place`, `travel_*`, `turn_*`, `hand_stem*`, `arrange` | diagnostic | diagnostic |
+
+★**Seven axes pass on BOTH cohorts** — those are the ones a lever may be steered by. **Two flip**, and
+a verdict that flips between samples is not a verdict: `follow_drums` and `hands_x_strength` are
+recorded as **PROVISIONAL** and must not steer anything until they pass on both. The failures are
+stable across cohorts, which is the more reassuring half.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame

@@ -179,10 +179,13 @@ def main() -> None:
     ap.add_argument("--n", type=int, default=13)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--json", default="")
+    ap.add_argument("--wide", action="store_true",
+                    help="run the battery on the WIDE cohort (independent songs)")
     a = ap.parse_args()
     rng = np.random.default_rng(a.seed)
 
-    files = sorted(glob.glob(str(REPO / f"outputs/eval_sweep_cache/{a.arm}#s0__*.zip")))
+    files = (sorted(glob.glob(str(REPO / "outputs/wide_cohort/*.zip"))) if a.wide
+             else sorted(glob.glob(str(REPO / f"outputs/eval_sweep_cache/{a.arm}#s0__*.zip"))))
     per_song = []
     human_pool: dict[str, list[tuple]] = {}
 
@@ -196,7 +199,8 @@ def main() -> None:
     print(f"battery over {len(songs)} songs with a human Expert map\n")
 
     for song in songs:
-        f = REPO / f"outputs/eval_sweep_cache/{a.arm}#s0__{song}.zip"
+        f = (REPO / f"outputs/wide_cohort/{song}.zip" if a.wide
+             else REPO / f"outputs/eval_sweep_cache/{a.arm}#s0__{song}.zip")
         L = scorecard._load_any(f)
         if not L:
             continue
