@@ -68,7 +68,7 @@ M1_KEYS = ("rhy_rhythm", "harm_rhythm", "timb_rhythm", "harm_place")
 M2_KEYS = ("follow_mean", "follow_best", "follow_drums", "follow_vocals")
 M3_KEYS = ("hands_x_strength", "hands_x_coincid", "hands_x_downbeat",
            "travel_x_strength", "turn_x_strength")
-M4_KEYS = ("arrange",)
+M4_KEYS = ("arrange", "arrange_ami")
 M5_KEYS = ("hand_stem", "hand_stem_p90")
 ALL_KEYS = M1_KEYS + M2_KEYS + M3_KEYS + M4_KEYS + M5_KEYS
 
@@ -90,7 +90,7 @@ DOMAIN = {  # metric -> the domain it reads
     "travel_x_strength": "place", "turn_x_strength": "place",
     # `arrange` is dominated by the per-bar note COUNT channel, which shuffling
     # (x, y, dir) leaves untouched -> time domain.
-    "arrange": "time",
+    "arrange": "time", "arrange_ami": "time",
     # hand/colour is an attribute: `shuffled_attrs` permutes it, so it IS a test here
     "hand_stem": "place", "hand_stem_p90": "place",
 }
@@ -232,7 +232,7 @@ def main() -> None:
             times = np.sort(np.array([n[0] for n in notes]))
             s2 = m2.score_map(times, B, stems) or {}
             s3 = m3.score_map(notes, song, B) or {}
-            s4 = (m4.score_map(notes, B, bnds) or {}) if len(bnds) >= 4 else {}
+            s4 = m4.score_map(notes, B, bnds, A=A) or {}
             s5 = m5.score_map(notes, stems) or {}
             row[name] = ({k: s1.get(k) for k in M1_KEYS}
                          | {k: s2.get(k) for k in M2_KEYS}

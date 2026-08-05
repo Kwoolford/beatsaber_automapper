@@ -62,7 +62,7 @@ REPORT_KEYS = [
     ("M2", "follow_drums"), ("M2", "lead_persistence"),
     ("M3", "hands_x_downbeat"), ("M3", "hands_x_strength"), ("M3", "hands_x_coincid"),
     ("M3", "double_share"),
-    ("M4", "arrange"),
+    ("M4", "arrange"), ("M4", "arrange_ami"),
 ]
 
 
@@ -71,8 +71,7 @@ def score_one(song: str, notes: list[tuple], B, A, stems, bnds) -> dict:
     out.update(m1.song_scores(notes, B, A) or {})
     out.update(m2.score_map(np.sort(np.array([n[0] for n in notes])), B, stems) or {})
     out.update(m3.score_map(notes, song, B) or {})
-    if len(bnds) >= 4:
-        out.update(m4.score_map(notes, B, bnds) or {})
+    out.update(m4.score_map(notes, B, bnds, A=A) or {})
     return out
 
 

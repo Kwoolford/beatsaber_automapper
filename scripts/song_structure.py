@@ -318,6 +318,47 @@ def map_bar_vectors(notes_xydc: list[tuple], B: Bars,
     return {"rhythm": rhythm, "place": place, "count": cnt.sum(axis=1)}
 
 
+def _place_sim(Ri, Pi, Rj, Pj, bins: int = 4) -> float:
+    """Placement similarity as a weighted JACCARD over swing TRANSITIONS.
+
+    🔴WHY NOT THE OBVIOUS THING. v1 averaged a per-slot agreement over the slots
+    BOTH bars played, and it failed the control battery in the most embarrassing
+    way available: a human map with **30 % of its notes deleted** scored 1.34× the
+    intact one. Of course it did — dropping notes removes the slots where the two
+    bars disagree, and an average over survivors goes UP. Any "mean agreement over
+    what they share" has that defect built in.
+
+    Jaccard cannot be gamed that way: what one bar plays and the other does not
+    counts in the denominator, so deleting notes costs. And the unit is a
+    TRANSITION (where the hand came from, where it goes, and how the cut direction
+    changes) rather than a slot, because a pattern is recognisable as the same
+    pattern through its movement, not through its absolute coordinates.
+    """
+    ii = np.flatnonzero(Ri > 0)
+    jj = np.flatnonzero(Rj > 0)
+    if len(ii) < 2 or len(jj) < 2:
+        return np.nan
+
+    def grams(idx, P):
+        out: dict[tuple, float] = {}
+        for a, b in zip(idx, idx[1:]):
+            va, vb = P[a], P[b]
+            key = (int(b - a),                                   # slots between
+                   int(np.clip(round((vb[0] - va[0]) * bins), -bins, bins)),   # Δcol
+                   int(np.clip(round((vb[1] - va[1]) * bins), -bins, bins)),   # Δrow
+                   int(np.sign(round(vb[2] * 2))), int(np.sign(round(vb[3] * 2))))
+            out[key] = out.get(key, 0.0) + 1.0
+        return out
+
+    ga, gb = grams(ii, Pi), grams(jj, Pj)
+    if not ga or not gb:
+        return np.nan
+    keys = set(ga) | set(gb)
+    inter = sum(min(ga.get(k, 0.0), gb.get(k, 0.0)) for k in keys)
+    union = sum(max(ga.get(k, 0.0), gb.get(k, 0.0)) for k in keys)
+    return float(inter / union) if union > 0 else np.nan
+
+
 def bar_map_similarity(V: dict, min_notes: int = 3) -> dict:
     """Self-similarity of the MAP, in the two senses above.
 
@@ -350,12 +391,7 @@ def bar_map_similarity(V: dict, min_notes: int = 3) -> dict:
             po = float((R[i] == R[j]).mean())
             pe = dens[i] * dens[j] + (1 - dens[i]) * (1 - dens[j])
             S_r[i, j] = 0.0 if pe >= 1.0 else float((po - pe) / (1 - pe))
-            both = (R[i] > 0) & (R[j] > 0)
-            if both.sum() >= 2:
-                a, b = P[i][both], P[j][both]
-                # mean per-slot agreement: 1 - normalised L1 over the 4 channels
-                diff = np.abs(a - b).mean(axis=1)
-                S_p[i, j] = float(np.clip(1.0 - diff, 0, 1).mean())
+            S_p[i, j] = _place_sim(R[i], P[i], R[j], P[j])
     return {"rhythm": S_r, "place": S_p}
 
 

@@ -170,12 +170,59 @@ def arrangement(D: np.ndarray, bnds: list[int],
             "n_boundaries": len(real)}
 
 
+def arrange_ami(D: np.ndarray, A: dict, k: int = 5, seed: int = 0) -> dict | None:
+    """★THE SECOND ESTIMATOR, after the first one failed its own control.
+
+    v1 asked *how big is the change at a boundary* and a bar-ROTATED human map
+    scored 0.67× the real one — because every map changes somewhere, and a boundary
+    is a place where some change usually happens, so the question could be answered
+    without knowing anything about the song.
+
+    This asks the question that cannot: **do the map's own sections LINE UP with the
+    song's?** Cluster the bars twice — once on the audio (chroma + MFCC), once on
+    the map descriptors — and score the agreement with **adjusted** mutual
+    information. Adjusted means chance-corrected, so more clusters cannot buy score,
+    and a rotated map has its labels in the wrong place and must fall to ~0.
+    """
+    try:
+        from sklearn.cluster import KMeans
+        from sklearn.metrics import adjusted_mutual_info_score
+    except Exception:
+        return None
+    n = D.shape[0]
+    if n < 4 * k:
+        return None
+    parts = []
+    for key in ("harm", "timb"):
+        M = A.get(key)
+        if M is None:
+            continue
+        M = np.nan_to_num(M, nan=0.0)
+        parts.append(M)
+    if not parts:
+        return None
+    # rows of the SSM are a usable bar embedding: bar i described by how it relates
+    # to every other bar, which is exactly the structure being clustered on.
+    X = np.hstack(parts)
+    Xs = (X - X.mean(axis=0)) / np.maximum(X.std(axis=0), 1e-9)
+    Ds = (D - D.mean(axis=0)) / np.maximum(D.std(axis=0), 1e-9)
+    try:
+        la = KMeans(n_clusters=k, n_init=8, random_state=seed).fit_predict(Xs)
+        lm = KMeans(n_clusters=k, n_init=8, random_state=seed).fit_predict(Ds)
+    except Exception:
+        return None
+    return {"arrange_ami": round(float(adjusted_mutual_info_score(la, lm)), 4)}
+
+
 def score_map(notes: list[tuple], B: ss.Bars, bnds: list[int],
-              seed: int = 0) -> dict | None:
+              seed: int = 0, A: dict | None = None) -> dict | None:
     D = bar_descriptors(notes, B)
     if D is None:
         return None
-    return arrangement(D, bnds, np.random.default_rng(seed))
+    out = arrangement(D, bnds, np.random.default_rng(seed)) or {}
+    if A is not None:
+        out.update(arrange_ami(D, A, seed=seed) or {})
+    return out or None
 
 
 def paired(rows, key):
@@ -214,21 +261,25 @@ def main() -> None:
         bnds = boundaries(nov)
         if len(bnds) < 4:
             continue
-        ours = score_map(notes_xydc(bm, bpm), B, bnds)
+        ours = score_map(notes_xydc(bm, bpm), B, bnds, A=A)
         H = load_expert_only(REPO / "data" / "raw" / f"{song}.zip")
-        human = score_map(notes_xydc(H[0], float(H[1])), B, bnds) if H else None
+        human = score_map(notes_xydc(H[0], float(H[1])), B, bnds, A=A) if H else None
         if ours is None:
             continue
         rows.append({"song": song, "bars": B.n, "n_bnd": len(bnds),
                      "ours": ours, "human": human})
-        print(f"  {song:22s} {len(bnds):2d} boundaries   ours {ours['arrange']:+.4f}"
-              + (f"   human {human['arrange']:+.4f}" if human else "   (no human)"))
+        oa = ours.get("arrange_ami")
+        ha = human.get("arrange_ami") if human else None
+        print(f"  {song:22s} {len(bnds):2d} boundaries   "
+              f"ami ours {oa if oa is not None else float('nan'):+.4f}"
+              + (f"   human {ha if ha is not None else float('nan'):+.4f}"
+                 if human else "   (no human)"))
 
     print(f"\n{'='*80}\nM4 ARRANGEMENT — arm {a.arm}, {len(rows)} songs (PAIRED subset)\n{'='*80}")
     print(f"{'metric':<18} {'n':>3} {'ours':>9} {'human':>9} {'paired Δ':>10} "
           f"{'Δ median':>10} {'resolvable':>11}")
     summary = {}
-    for k in ("arrange", "arrange_ratio"):
+    for k in ("arrange", "arrange_ratio", "arrange_ami"):
         both = [r for r in rows if r.get("human")
                 and r["ours"].get(k) is not None and r["human"].get(k) is not None]
         if len(both) < 6:
