@@ -43,6 +43,9 @@ lifeless, because intent is not a property of an instant. It is a property of a
 - ✅**MAY STEER (passes on both cohorts)** — `rhy_rhythm`, `harm_rhythm`, `timb_rhythm`,
   `harm_place`, `timb_place`, `rhy_place`, `follow_mean`, `follow_best`, `follow_vocals`,
   `hands_x_downbeat`.
+  ⚠️**But count M2 once.** `follow_mean` / `follow_best` / `follow_drums` correlate 0.65–0.84 across
+  149 songs — they are substantially one measurement. Report **one** rhythm-fidelity finding, with
+  `follow_vocals` (r = 0.50) beside it. Listing all four is double-counting one defect.
 - ⚠️**PROVISIONAL (verdict flips between cohorts — a flipping verdict is not a verdict)** —
   `follow_drums`, `hands_x_strength`, `arrange_ami`.
 - ❌**DIAGNOSTIC ONLY** — `travel_*`, `turn_*`, `hand_stem*`, `arrange`, `hands_x_coincid`
@@ -101,6 +104,18 @@ and are therefore **PROVISIONAL** — a verdict that flips with the sample is no
 Read together: we reproduce a bar's figure about a third as faithfully as a human, we
 follow the **vocal** line 7× less, we change which instrument we are following far more
 often, and we do not mark the downbeat. None of it is visible to any earlier axis.
+
+### Is the suite well-formed? (`audit_axis_redundancy.py`)
+
+Over the same 149 maps, **no masterpiece axis correlates above |r| = 0.30 with anything in the classic
+suite** (flow, rhythm, idiom, handrole, alignment, playfeel). The old suite was blind to all of this —
+measured, not asserted. `harm_place` is the most independent axis in the whole suite (max r 0.18
+against anything) *and* carries the largest defect (86.6 % exceedance), which is why M-E is the next
+build.
+
+★**Run this whenever an axis is added.** This project has shipped a "new" finding that was an old one
+restated (W3 turned out to be C5 wearing a hat), and it double-counted M2 for a whole night before
+this audit existed.
 
 ### Rules these axes added (learned the same night)
 
