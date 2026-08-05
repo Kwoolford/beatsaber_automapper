@@ -39,44 +39,23 @@ until Kyle's correction forced the metric to exist.
 
 ---
 
-## 🔴 P0 — SEED LOTTERY: **CLOSED** (cause + fix in PROGRESS.md)
+## ✅ P0 — SEED LOTTERY: CLOSED *(cause + fix in PROGRESS.md)*
 
-Nothing in the generation path was ever seeded. `generate.py --seed` / `BSA_SEED` +
-`eval_sweep --seeds N`. Verified: same seed → byte-identical map, from a fresh process, after a whole
-sweep ran in between.
+`generate.py --seed` / `BSA_SEED`; same seed → byte-identical map. **Three habits that outlived it:**
+1. **Score every arm at ≥3 seeds and quote the sd.** ⚠️n=3 *underestimates* sd — treat it as a screen.
+2. **`npass` is not a ranking statistic** (an identical config scored 4, 4, 2). Rank per-axis with error bars.
+3. **Pairing helps alignment only** — it rides the postprocess `random` stream; the rest ride the torch decode.
 
-**Three habits to keep**
-1. **Score every arm at ≥3 seeds and quote the sd.** ⚠️n=3 *underestimates* sd (idiom's went
-   0.043 → 0.107 by adding two seeds) — treat n=3 as a screen, n=5 as a verdict.
-2. **`npass` is not a ranking statistic** — an identical config scored 4, 4, 2. Rank on per-axis gaps
-   with error bars.
-3. **Pairing helps alignment only** (sd 0.033 vs 0.143) — it rides the postprocess `random` stream;
-   the other axes ride the torch decode, which diverges once configs differ.
+**Open**: the spread bar (0.35) sits inside the noise. Recommendation: stop gating on it, keep a hard
+alarm near 0.15. Not done unilaterally — it changes scorecard semantics.
 
-**Open**: the spread bar (0.35) sits inside the noise, so pass/fail on it is a coin flip. The bar is
-not miscalibrated (human `min_spread` is 0.923; 0.35 was set as a mode-collapse alarm) — we simply sit
-on it at 0.39–0.46. **Recommendation: stop gating on spread**, report it with its sd, keep a hard
-alarm near 0.15. Not done unilaterally: it changes scorecard semantics and breaks comparability.
+## ✅ P1 — PROMOTED 2026-08-03 (Kyle's call, on *Hunger*) *(details in PROGRESS.md)*
 
-
-## ✅ P1 — PROMOTED 2026-08-03 (Kyle's call, on *Hunger*)
-
-> *"The vast majority of the 1f333 song is A+ and better than what we had before so promote it."*
-
-Eight defaults flipped in `generate.py` / `postprocess.py`: `BEAT_TEMPO_FIT=1`,
-`BEAT_DIFFICULTY_SCALE=0.48`, `DENSITY_SELECT=1`, `DENSITY_SELECT_GAMMA=2.5`, `BEAT_HAND_LEAD=0.14`,
-`BEAT_TRIM_TAIL=0.5`, `BEAT_ONSET_EVIDENCE=0.3`, `BEAT_REACH=3:0.3:0.5`. All still env-overridable.
-
-**Verified**: a bare `generate.py` with no env vars reproduces `ExpertStandard.dat` sha `a432690c…`
-on Hunger at seed 0 — byte-identical to the map he played. **Baseline: `docs/BASELINE_2026-08-03.md`.**
-
-⚠️Carried into the baseline as a known cost: `BEAT_ONSET_EVIDENCE` **degrades reachability** (repaired
-by `BEAT_REACH`); its only non-circular evidence is the rhythm axis.
-⚠️🔴**The old note here also said it "pushes peak nps 6.25 → 6.50 against a human 5.5" and blamed W3 —
-that human 5.5 is RETRACTED** (2026-08-04). It was a ~200-map corpus median compared against our
-24-song eval set. Per song, against each song's own human map, **we peak LOWER** (4.00 vs 5.25). See W3.
-
----
+Eight defaults flipped in `generate.py` / `postprocess.py`; a bare invocation reproduces the exact map
+he played. **Baseline: [`docs/BASELINE_2026-08-03.md`](docs/BASELINE_2026-08-03.md).**
+⚠️Carried cost: `BEAT_ONSET_EVIDENCE` **degrades reachability** (repaired by `BEAT_REACH`); its only
+non-circular evidence is the rhythm axis. ⚠️Its old "peak nps 6.25→6.50 vs a human 5.5" claim is
+**RETRACTED** — that human 5.5 was a cross-population number; per song we peak LOWER (see W3).
 
 ## 🎯 W1–W7 — FROM KYLE'S PLAY-THROUGH OF THE PROMOTED MODEL (2026-08-03)
 
@@ -172,27 +151,13 @@ the same note count. ⇒**RULE: any lever that places more notes must flatten γ
 
 ---
 
-### 🟠 W3 — "SOME PARTS GET REALLY INTENSE TO PLAY" ⇒ **THIS IS C5**
-> *"Some parts of the song get really intense to play, even though they are not the main beat where you
-> would expect the peak difficulty to be."*
-
-🔴**Its old stated evidence is RETRACTED** — *"peak nps 6.5 vs human 5.5, Hunger 9.5"* compared our
-24-song set against a ~200-map corpus median (**different populations**). Per-song on identical audio:
-**we peak LOWER (4.00 vs 5.25, resolvable)**; on Hunger ours is 7.00 vs its human's **9.25**. Location
-fails too (`peak_intensity` 0.727 vs 0.735), and per-window `hard_rate` on Hunger is *easier* than its
-human at every quantile.
-
-★**What he actually felt**: at Hunger 4:20–4:32, on identical 160 ms grids, the human plays **66 events
-at 0.015 double share** while we play **50 at 0.640** ⇒ fewer moments, **more notes/s (6.56 vs 5.36)**,
-far harder to execute. **That is C5.** ⚠️Cohort notes/s is +0.56 ± 0.56 = **noise, do not quote**;
-PARTLY CONFIRMED on the named song only.
-
-**Tasks**
-1. ★**Treat W3 as a symptom of C5** — fix C5, then re-check. Do not build a separate intensity lever.
-2. ⚠️**LANDMINE: any difficulty axis must count NOTES, not distinct events.** On events we look
-   *easier* than human while the map plays *harder*; `peak_nps` actively hid this.
-
----
+### 🟠 W3 — "SOME PARTS GET REALLY INTENSE TO PLAY" ⇒ **THIS IS C5** *(evidence in PROGRESS.md)*
+Its old evidence ("peak nps 6.5 vs human 5.5") is **RETRACTED** — a cross-population comparison. Per
+song we peak **LOWER** (4.00 vs 5.25). What he felt: at Hunger 4:20–4:32 the human plays 66 events at
+0.015 doubles, we play 50 at **0.640** — fewer moments, MORE notes/s, far harder to execute.
+**Task**: fix C5, then re-check. Do not build a separate intensity lever.
+⚠️**LANDMINE: any difficulty axis must count NOTES, not distinct events.** On events we look *easier*
+than human while the map plays *harder*; `peak_nps` actively hid this.
 
 ### 🟠 W4 — PHRASES ARE ABANDONED MID-VOCAL ✅**CONFIRMED**
 > *"A few times the singer is still finishing a sentence and there's no notes."*
@@ -245,31 +210,15 @@ be built together.
 ---
 
 
-### ✅ W7 — DIAGNOSED **AND FIXED**, awaiting Kyle's ear (lever default OFF)
-> *"The final note of the song did not line up together, the map was like .5 seconds late."*
+### ✅ W7 — FIXED, awaiting Kyle's ear (lever default OFF) *(full write-up in PROGRESS.md)*
+> *"The final note of the song did not line up together."* — read literally: the two HANDS.
 
-**Read it literally — "together" means the two hands.** On Hunger the map plays doubles at 271.596 /
-271.755 / 271.915 and then ends on a **lone red at 272.074**; the blue hand simply stops. Cohort
-metric (final event not a double while ≥3 of the previous 4 were): **ours 0.159 vs human 0.036 —
-4.4×**. Seed-dependent, not song-dependent (9/24 songs on ≥1 seed, **0/24 on all three**).
-
-✅**`BEAT_TRIM_TAIL` is EXONERATED** — our last note sits **0.47 s before** the cut point, and there is
-**no general "we end late" defect**: `last_onset − last_note` is 0.723 s for us vs 0.789 s for humans
-over 13 songs. **Do not re-open this as a timing bug.** Full write-up in PROGRESS.md.
-
-✅**`BEAT_END_RESOLVE=0.75` BUILT AND VALIDATED at 3 seeds × 24 songs** (2026-08-04): orphaned ending
-**0.1528 → 0.0139** (human 0.036 — it lands *below* the human rate) and it **costs nothing** — rhythm,
-idiom, playfeel, precision and nps are unchanged to three decimals; alignment, flow and handrole move
-≤0.014, all in the improving direction. Paired note-count check over 34 matched (seed, song) pairs:
-**28 deltas of 0, 6 of −1, never positive.** It drops the orphan rather than inventing a partner.
-**Only step left: Kyle plays it.** ⚠️Do not promote unilaterally.
-
-⚠️**Sweep-table reading trap**: the `delta / resolvable?` column compares the **second** arm to the
-control, not the last. Difference the columns directly or `endres` looks like it costs +0.382 playfeel
-when it costs 0.000.
-
----
-
+`BEAT_END_RESOLVE=0.75` takes orphaned endings **0.1528 → 0.0139** (human 0.036) at 3 seeds × 24 songs
+and **costs nothing** to three decimals; it drops the orphan rather than inventing a partner.
+✅`BEAT_TRIM_TAIL` is EXONERATED and there is **no general "we end late" defect** — do not reopen it.
+**Only step left: he plays it.** ⚠️Do not promote unilaterally.
+⚠️**Sweep-table trap**: the `delta / resolvable?` column compares the **second** arm to the control,
+not the last. Difference the columns directly.
 
 ### 🛡️ Confirmed positives — protect these
 - **Hand-lead alternation**: *"a giant difference maker... noticeably great impact on the flow."*
@@ -295,23 +244,17 @@ picture, incl. a Stage-1 probability lane) · `review_map.py` (ranked timestamps
 (one command) · `view_ab_diff.py` · `view_song_strip.py` · `audit_phase_metrics.py`. All 24 songs
 render clean.
 
-### ★ HIS DEFECT, MEASURED — and half his guess was wrong
-> *"Every couple main beat notes were mapped instead of most of the main beats. Maybe this is hidden
-> because the map still maps a lot of non main beat notes."*
+### ★ HIS DEFECT, MEASURED (2026-08-04)
+> *"Every couple main beat notes were mapped instead of most of the main beats."*
 
-| | ours | human |
-|---|---|---|
-| **`main_continuity`** — P(play beat n+1 │ played n) | **0.523** | **0.697** |
-| main beats covered | 0.546 | 0.704 |
-| share of notes on the main beat | 0.637 | 0.617 |
-
-`main_continuity` **is** his sentence. ⚠️But we do **not** play more filler than a human (0.637 vs
-0.617) — the line is partial and the filler is normal, which is presumably why it reads as hidden.
+`main_continuity` (P(play beat n+1 │ played n)) **ours 0.523 vs human 0.697** *is* his sentence; main
+beats covered 0.546 vs 0.704. ⚠️But we do **not** play more filler than a human (notes-on-main 0.637
+vs 0.617) — the second half of his guess is wrong.
 
 ### Answers he gave 2026-08-04 (do not re-ask)
 - The soft outro **should** be mapped, **sparsely** (Fallen Kingdom).
-- **"Empty" is relative to THE SONG, not our old maps** — *"they both feel empty compared to song."*
-  ⇒ the human corpus is not the reference for that defect; the song's own main beat is.
+- **"Empty" is relative to THE SONG, not our old maps** ⇒ the human corpus is not the reference for
+  that defect; the song's own main beat is.
 
 ### 🔑 Design constraints that shaped it (keep)
 1. **PNG is the primary artifact** — an agent can only see an image by rendering and re-reading it.
@@ -362,13 +305,11 @@ debugging targets in the project: the error is **noise-free** (sd 0–6 ms) and 
 control song (1f333) to diff against.
 **DoD**: 1fa48 and 1f9a0 coverage rise from ~0.00 into the cohort range without moving other songs.
 
-**S2 ✅ FIXED IN-TOOL — the main-beat grid was ~18 ms early.** Symptom: on 11 of 13 songs OUR median
-offset from the grid *exactly* equalled the HUMAN's (−29.6/−29.6, −52.1/−52.1 …). Two independent
-cohorts cannot share a defect, so the grid was wrong. Cause: `onset_detect(backtrack=True)` moves each
-onset to the preceding local minimum. Compensated by the human-corpus median (**−18.1 ms, n=13**),
-calibrated on humans deliberately — calibrating on our own output would be the `h_dist` circularity.
-⚠️The coverage gap is **unchanged** by the fix (ours ~0.49 vs human ~0.70), which is the reassuring
-outcome: the headline defect is not a phase artifact.
+**S2 ✅ FIXED IN-TOOL — the main-beat grid was ~18 ms early** (`onset_detect(backtrack=True)` moves
+each onset to the preceding local minimum; compensated by the human-corpus median −18.1 ms).
+★The symptom that exposed it: on 11 of 13 songs OUR median offset *exactly* equalled the HUMAN's —
+**two independent cohorts cannot share a defect, so the ruler was wrong.** ⚠️The coverage gap is
+unchanged by the fix, which is the reassuring outcome: the headline defect is not a phase artifact.
 
 **S6 ★★ S1 AND S3 ARE THE SAME DEFECT AT DIFFERENT SCALES — Stage-1's probability drifts off the beat.**
 Bucketing 352 windows × 24 songs by main-beat coverage, against the cached probability dumps:
