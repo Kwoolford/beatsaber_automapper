@@ -459,24 +459,33 @@ LOSE `rhy_rhythm` (−0.020 / −0.017).
 **DoD**: an instrument-aware arm reaches `follow_vocals` ≥ 0.05 (a third of the human 0.149) **without**
 losing `rhy_rhythm` resolvably.
 
-### 🟠 M-B — LEVER CANDIDATE: mark the downbeat
+### 🟡 M-B — LEVER CANDIDATE: mark the downbeat ⚠️**DEMOTED 2026-08-05**
 We spend the double — the loudest thing a map can say — on **0.667** of all events (human 0.196), so
 it marks nothing, and our downbeat emphasis is 0.036 against a human 0.182. A lever that biases
 double placement toward the bar's first slot is the most concrete "intentional placement" change the
 suite can currently justify.
-**DoD**: `hands_x_downbeat` rises toward the human at **≥5 seeds** (the axis is seed-noisy) or on the
-wide cohort, with `double_share` NOT rising and the six-axis suite unmoved. ⚠️Check `rhythm` (A2) and
+🔴**DEMOTED by the human bar (n=149)**: `hands_x_downbeat` exceedance is **9.3 %** — the rate a
+cohort drawn from the *same* population produces. The human spread is enormous (p10 −0.36 to p90
++0.87, MAD 0.38): mappers disagree wildly about marking the downbeat, so being below your song's
+human is unremarkable. It is a **shift inside the normal human range, not a tail defect**, and the
+resolvable paired delta alone overstated it. ⇒Build M-E first; revisit this only if his ear asks for it.
+**DoD (if revived)**: `hands_x_downbeat` rises toward the human at **≥5 seeds** (the axis is
+seed-noisy, sd 0.066) or on the wide cohort, with `double_share` NOT rising and the six-axis suite unmoved. ⚠️Check `rhythm` (A2) and
 `pulse_stability` alongside — moving emphasis onto the metrical grid is exactly the shape of change a
 metronome would also make.
 
-### 🟠 M-C — REPLICATE AT n≈150 (running)
-`scripts/build_wide_cohort.py` is generating our maps for corpus songs that already have a strict
-Expert map + a seeded stem cache, to take the paired cohort from **13 → ~150**. The eval songset stays
-the fixed historical ruler; this is a second cohort for statistical power only.
-**DoD**: rerun `masterpiece_report.py` on the wide cohort. Findings that hold at n≈150 are CONFIRMED;
-those that vanish were n=13 talking. ⚠️Nothing from tonight should be promoted before this.
+### ✅ M-C — REPLICATED AT n=149 (done; outcome in PROGRESS.md)
+`build_wide_cohort.py` built an independent 149-song paired cohort. **Every steer-safe axis resolves
+and nothing evaporated.** Use `masterpiece_report.py --wide` for any future claim; the eval songset
+stays the fixed historical ruler. Human bar: `docs/eval_references/masterpiece_human.json`.
 
-### 🔴🔴 M-E — ★THE BIGGEST IDEA TONIGHT PRODUCED: STRUCTURE-CONDITIONED DECODE
+### 🔴🔴🔴 M-E — ★THE NEXT BUILD: STRUCTURE-CONDITIONED DECODE (now the top structural item)
+★**Promoted 2026-08-05 by the human bar**: `harm_place` exceedance is **86.6 %** against a TIGHT human
+distribution (MAD 0.012) — the largest exceedance any axis in this project has produced. Reusing a
+pattern's *movement* on a musical repeat is something nearly every human map does and nearly none of
+ours do. Three independent lines now point here: the exceedance, the paired delta at n=149
+(−0.025, 26×), and the fact that it is the one structural idea **C1 does not block**.
+
 `review_structure.py` shows what the humans actually do on a repeat, and it is not subtle. Fallen
 Kingdom, bar at 2:25 vs the bar at 1:43 (music similarity 0.83):
 
@@ -497,6 +506,19 @@ losing alignment precision or `rhythm` (A2), and `view_structure.py` shows the o
 appearing in our panel. ⚠️Also check `follow_*` does not fall: a copied bar is right for the repeat
 only if the repeat really is the same, and the copy must not survive into a section that changed.
 ⚠️Kyle's standing rule applies — isolated, tactical, default OFF, and his ear decides.
+
+### 🔵 M-G — DOES v8's VOCAL GAIN HOLD AT n=149? *(running 2026-08-05 ~01:00)*
+`build_wide_cohort.py --variant v8` is generating the instrument-model arm over the **same 149 songs**
+(same audio, same seed — paired, differing in exactly one thing). v8 is the only arm that moved a
+masterpiece axis on the songset (`follow_vocals` +0.008, +0.015 with the bonus, both >2 sd across
+seeds) while LOSING `rhy_rhythm` (−0.020).
+**Read it with**: `python scripts/masterpiece_report.py --arm v8 --wide --vs prod` (point `--wide` at
+`outputs/wide_cohort_v8/`).
+**DoD**: `follow_vocals` gain holds at n=149 ⇒ it is the acceptance metric for Track B and the
+instrument projection is worth building on. If it vanishes, the songset result was n=13 inflating an
+effect size — the same failure `hands_x_coincid` demonstrated tonight.
+⚠️v8 emits ~17 % fewer notes; the battery measured that thinning COSTS `follow_*`, so the confound
+points away from the gain and cannot manufacture it. The `rhy_rhythm` loss gets no such protection.
 
 ### ⚠️ M-F — THE AXES DO NOT PREDICT KYLE'S VERDICTS (yet). Do not treat them as the judge.
 Ranking the songset by the mean gap over the steer-safe axes puts **Fallen Kingdom second-best

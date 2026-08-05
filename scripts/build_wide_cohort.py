@@ -40,6 +40,14 @@ from calibrate_playfeel import load_expert_only  # noqa: E402
 
 OUT = REPO / "outputs" / "wide_cohort"
 AUDIO = OUT / "audio"
+# ★A SECOND ARM ON THE SAME 149 SONGS. v8 (the instrument model) is the only arm
+# that moved a masterpiece axis on the songset -- follow_vocals +0.008, and +0.015
+# with the main-beat bonus, both >2sd across seeds -- so it is the acceptance
+# metric for Track B. Confirming it at n=149 is worth an hour of otherwise idle GPU.
+# ⚠️Same audio, same songs, same seed as the prod cohort, so the comparison is
+# PAIRED by song and differs in exactly one thing.
+V8_CKPT = ("logs/beat_classifier/version_8/checkpoints/"
+           "beat-epoch=12-val_f1_avg_tol=0.598.ckpt")
 BEAT_CKPT = ("logs/beat_classifier/version_4/checkpoints/"
              "beat-epoch=11-val_f1_avg_tol=0.603.ckpt")
 LAYOUT_CKPT = ("logs/layout_phrase/version_10/checkpoints/"
@@ -86,15 +94,23 @@ def main() -> None:
     ap.add_argument("--n", type=int, default=150)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--resume", action="store_true", default=True)
+    ap.add_argument("--variant", default="prod", choices=("prod", "v8"),
+                    help="prod = the promoted defaults; v8 = the instrument model")
     a = ap.parse_args()
 
+    out_dir = OUT if a.variant == "prod" else REPO / "outputs" / f"wide_cohort_{a.variant}"
+    out_dir.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
     cands = candidates()[: a.n]
+    if a.variant == "v8":
+        # only songs the prod arm actually produced, so the comparison stays paired
+        have = {p.stem for p in OUT.glob("*.zip")}
+        cands = [c for c in cands if c in have]
     print(f"{len(cands)} candidate songs (strict Expert + stem cache + audio)")
     t0 = time.time()
     made = skipped = failed = 0
     for i, sid in enumerate(cands, 1):
-        zp = OUT / f"{sid}.zip"
+        zp = out_dir / f"{sid}.zip"
         if a.resume and zp.exists() and zp.stat().st_size > 1000:
             skipped += 1
             continue
@@ -102,10 +118,13 @@ def main() -> None:
         if au is None:
             failed += 1
             continue
+        ckpt = BEAT_CKPT if a.variant == "prod" else V8_CKPT
         cmd = [str(REPO / ".venv/bin/python"), str(REPO / "scripts/generate.py"),
-               str(au), "--v7", "--beat-ckpt", BEAT_CKPT, "--layout-ckpt", LAYOUT_CKPT,
+               str(au), "--v7", "--beat-ckpt", ckpt, "--layout-ckpt", LAYOUT_CKPT,
                "--difficulty", "Expert", "--section-gate", "loud_only",
                "--song-name", sid, "--seed", str(a.seed), "--output", str(zp)]
+        if a.variant == "v8":
+            cmd.append("--use-instr")
         r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
         if r.returncode != 0 or not zp.exists():
             failed += 1
@@ -118,7 +137,7 @@ def main() -> None:
             print(f"  [{i}/{len(cands)}] {made} made, {skipped} cached, {failed} failed, "
                   f"{el/60:.1f} min, {el/max(made,1):.1f}s/song")
     print(f"\nDONE: {made} generated, {skipped} already present, {failed} failed")
-    print(f"maps in {OUT}")
+    print(f"maps in {out_dir}")
 
 
 if __name__ == "__main__":
