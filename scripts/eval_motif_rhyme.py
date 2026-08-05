@@ -99,23 +99,9 @@ def song_scores(notes: list[tuple], B: ss.Bars, A: dict) -> dict | None:
     return out
 
 
-def paired(rows: list[dict], key: str) -> dict:
-    """Paired ours-vs-human on identical audio and an identical bar grid.
-
-    ⚠️This project's most repeated mistake is comparing across populations. Both
-    cohorts here are scored on the SAME 24 songs with the SAME grid, so the paired
-    delta is the only statistic quoted.
-    """
-    d = [r["ours"][key] - r["human"][key]
-         for r in rows
-         if r.get("ours") and r.get("human")
-         and r["ours"].get(key) is not None and r["human"].get(key) is not None]
-    if len(d) < 6:
-        return {}
-    m, sd = float(np.mean(d)), float(np.std(d, ddof=1))
-    se = sd / np.sqrt(len(d))
-    return {"n": len(d), "delta": round(m, 4), "sd": round(sd, 4),
-            "se": round(se, 4), "resolvable": bool(abs(m) > 2 * se)}
+def paired(rows, key) -> dict:
+    """Delegates to the shared estimator (mean + median delta, se, resolvability)."""
+    return ss.paired_delta(rows, key)
 
 
 def main() -> None:

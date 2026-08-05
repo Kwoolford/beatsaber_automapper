@@ -409,5 +409,33 @@ def stratified_contrast(A: np.ndarray, M: np.ndarray, *,
             "n_strata": len(parts), "n_pairs": int(len(a))}
 
 
+def paired_delta(rows: list[dict], key: str, a: str = "ours", b: str = "human",
+                 min_n: int = 6) -> dict:
+    """Paired difference on identical songs — the ONLY cohort statistic quoted here.
+
+    ⚠️This project's most repeated mistake is comparing across populations (our 24
+    songs against a 200-map corpus median, added-note k against an event base rate,
+    W3's 6.5-vs-5.5). Only ~13 of the 24 eval songs ship a human Expert map, so an
+    unpaired median of ours against an unpaired median of theirs is two different
+    song sets.
+
+    Reports the MEAN delta with its standard error *and* the MEDIAN delta: on
+    `hands_x_downbeat` they came out −0.344 and −0.111, which is a one-song outlier
+    telling you not to quote the mean alone.
+    """
+    d = [r[a][key] - r[b][key] for r in rows
+         if r.get(a) and r.get(b)
+         and r[a].get(key) is not None and r[b].get(key) is not None]
+    if len(d) < min_n:
+        return {}
+    m = float(np.mean(d))
+    sd = float(np.std(d, ddof=1))
+    se = sd / np.sqrt(len(d))
+    return {"n": len(d), "delta": round(m, 4), "delta_median": round(float(np.median(d)), 4),
+            "sd": round(sd, 4), "se": round(se, 4),
+            "resolvable": bool(abs(m) > 2 * se),
+            "sign_consistent": bool(abs(sum(np.sign(d))) >= len(d) - 2)}
+
+
 def song_hash(*parts) -> str:
     return hashlib.sha1("|".join(str(p) for p in parts).encode()).hexdigest()[:8]

@@ -169,15 +169,8 @@ def score_map(times: np.ndarray, B: ss.Bars, stems: dict,
 
 
 def paired(rows, key) -> dict:
-    d = [r["ours"][key] - r["human"][key] for r in rows
-         if r.get("human") and r["ours"].get(key) is not None
-         and r["human"].get(key) is not None]
-    if len(d) < 6:
-        return {}
-    m, sd = float(np.mean(d)), float(np.std(d, ddof=1))
-    se = sd / np.sqrt(len(d))
-    return {"n": len(d), "delta": round(m, 4), "se": round(se, 4),
-            "resolvable": bool(abs(m) > 2 * se)}
+    """Delegates to the shared estimator (mean + median delta, se, resolvability)."""
+    return ss.paired_delta(rows, key)
 
 
 def main() -> None:
@@ -227,7 +220,8 @@ def main() -> None:
           f"(all columns over the PAIRED subset)\n{'='*92}")
     keys = ["follow_drums", "follow_bass", "follow_other", "follow_vocals",
             "follow_mean", "follow_best", "lead_persistence", "lead_persistence_gain"]
-    print(f"{'metric':<24} {'n':>3} {'ours':>9} {'human':>9} {'paired Δ':>10} {'resolvable':>11}")
+    print(f"{'metric':<24} {'n':>3} {'ours':>9} {'human':>9} {'paired Δ':>10} "
+          f"{'Δ median':>10} {'resolvable':>11}")
     summary = {}
     for k in keys:
         both = [r for r in rows if r.get("human")
@@ -241,6 +235,7 @@ def main() -> None:
                       "human": round(st.median(h), 4), "paired": p}
         print(f"{k:<24} {len(both):>3d} {st.median(o):>+9.4f} {st.median(h):>+9.4f} "
               f"{p.get('delta', float('nan')):>+10.4f} "
+              f"{p.get('delta_median', float('nan')):>+10.4f} "
               f"{('YES' if p.get('resolvable') else 'no'):>11}")
 
     ol = collections.Counter(r["ours"].get("lead_stem") for r in rows if r["ours"].get("lead_stem"))

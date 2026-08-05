@@ -54,6 +54,7 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "scripts"))
 
+import eval_accent as m3  # noqa: E402
 import eval_motif_rhyme as m1  # noqa: E402
 import eval_rhythm_fidelity as m2  # noqa: E402
 import song_structure as ss  # noqa: E402
@@ -63,6 +64,9 @@ from calibrate_playfeel import load_expert_only  # noqa: E402
 ARM = "tf_trim_ev03_rc05"
 M1_KEYS = ("rhy_rhythm", "harm_rhythm", "timb_rhythm", "harm_place")
 M2_KEYS = ("follow_mean", "follow_best", "follow_drums", "follow_vocals")
+M3_KEYS = ("hands_x_strength", "hands_x_coincid", "hands_x_downbeat",
+           "travel_x_strength", "turn_x_strength")
+ALL_KEYS = M1_KEYS + M2_KEYS + M3_KEYS
 
 # ★AXIS-AWARE VERDICTS. `shuffled_attrs` permutes (x, y, dir) and leaves every note
 # TIME untouched, so a metric computed on times alone scores it EXACTLY equal to
@@ -75,16 +79,44 @@ DOMAIN = {  # metric -> the domain it reads
     "harm_place": "place",
     "follow_mean": "time", "follow_best": "time",
     "follow_drums": "time", "follow_vocals": "time",
+    # `hands` counts the notes at one event; `shuffled_attrs` permutes (x, y, dir)
+    # and leaves the times alone, so a double stays a double -> time domain.
+    "hands_x_strength": "time", "hands_x_coincid": "time",
+    "hands_x_downbeat": "metre",
+    "travel_x_strength": "place", "turn_x_strength": "place",
 }
 CONTROL_DOMAIN = {  # control -> the domains it perturbs
-    "metronome": {"time", "place"},
-    "random_times": {"time"},
-    "jitter_60ms": {"time"},
+    "metronome": {"time", "place", "metre"},
+    "random_times": {"time", "metre"},
+    "jitter_60ms": {"time", "metre"},
     "shuffled_attrs": {"place"},
+    # ⚠️A whole-BAR rotation leaves every note on the same slot WITHIN its bar, so
+    # it cannot perturb a metrical-position metric. Found by `hands_x_downbeat`
+    # scoring exactly 1.000x human under it — a tie that precise is a construction,
+    # not a result.
     "bar_rotated": {"time", "place"},
-    "thinned_30": {"time", "place"},
-    "human_wrong_song": {"time", "place"},
+    "thinned_30": {"time", "place", "metre"},
+    "human_wrong_song": {"time", "place", "metre"},
 }
+
+# ★TWO KINDS OF CONTROL, AND CONFLATING THEM GAVE THE WRONG VERDICT FIRST TIME.
+#   DEGENERATE  — a map nobody would call good (a metronome, random times, a
+#                 rotated map, another song's map). These must score FAR below the
+#                 human, because a metric they can reach is a metric a lever can
+#                 reach the cheap way. Pass bar: < 50 % of the human value.
+#   DEGRADATION — a human map made slightly worse (60 ms of jitter, 30 % of the
+#                 notes dropped). These are NOT pass/fail: a degraded human map is
+#                 still a decent map and SHOULD score between ours and human. They
+#                 measure how sharp the ruler is. The only failing outcome is a
+#                 degradation scoring ABOVE the human, which means the metric
+#                 rewards the damage.
+# The first version tested both classes with one rule and marked `follow_mean`
+# diagnostic-only because a 30%-thinned HUMAN map scored 0.86x of the human. That
+# is the metric working, not failing: our own maps sit at 0.30x.
+DEGENERATE = ("metronome", "random_times", "bar_rotated", "human_wrong_song",
+              "shuffled_attrs")
+DEGRADATION = ("jitter_60ms", "thinned_30")
+DEGENERATE_MAX_FRACTION = 0.50
 
 
 # ------------------------------------------------------------------- controls
@@ -184,7 +216,10 @@ def main() -> None:
             s1 = m1.song_scores(notes, B, A) or {}
             times = np.sort(np.array([n[0] for n in notes]))
             s2 = m2.score_map(times, B, stems) or {}
-            row[name] = {k: s1.get(k) for k in M1_KEYS} | {k: s2.get(k) for k in M2_KEYS}
+            s3 = m3.score_map(notes, song, B) or {}
+            row[name] = ({k: s1.get(k) for k in M1_KEYS}
+                         | {k: s2.get(k) for k in M2_KEYS}
+                         | {k: s3.get(k) for k in M3_KEYS})
         per_song.append(row)
         print(f"  scored {song}")
 
@@ -195,52 +230,68 @@ def main() -> None:
     names = ["human", "ours", "metronome", "random_times", "jitter_60ms",
              "shuffled_attrs", "bar_rotated", "thinned_30", "human_wrong_song"]
     print(f"\n{'='*100}\nCONTROL BATTERY — median over {len(per_song)} songs\n{'='*100}")
-    header = f"{'control':<18}" + "".join(f"{k:>15}" for k in M1_KEYS + M2_KEYS)
+    header = f"{'control':<18}" + "".join(f"{k:>15}" for k in ALL_KEYS)
     print(header)
     table = {}
     for name in names:
         vals = {}
-        for k in M1_KEYS + M2_KEYS:
+        for k in ALL_KEYS:
             v = [r[name][k] for r in per_song
                  if name in r and r[name].get(k) is not None]
             vals[k] = round(st.median(v), 4) if len(v) >= 3 else None
         table[name] = vals
         print(f"{name:<18}" + "".join(
             (f"{vals[k]:>+15.4f}" if vals[k] is not None else f"{'-':>15}")
-            for k in M1_KEYS + M2_KEYS))
+            for k in ALL_KEYS))
 
-    print(f"\n{'='*100}\nVERDICT — a metric may steer a lever only if HUMAN beats every")
-    print("control that PERTURBS THE DOMAIN THAT METRIC READS, by >0.01.")
-    print("Controls blind by construction are listed but excluded from the test.")
+    print(f"\n{'='*100}\nVERDICT")
+    print(f"  a DEGENERATE control must stay under {DEGENERATE_MAX_FRACTION:.0%} of the human value")
+    print("  a DEGRADATION probe (jittered / thinned human) must not EXCEED the human")
+    print("  controls that cannot perturb the domain a metric reads are excluded, named")
     print(f"{'='*100}")
     verdicts = {}
-    degenerate = [n for n in names if n not in ("human", "ours")]
-    for k in M1_KEYS + M2_KEYS:
+    for k in ALL_KEYS:
         hv = table["human"].get(k)
         if hv is None:
             continue
         dom = DOMAIN.get(k, "time")
-        relevant = [n for n in degenerate if dom in CONTROL_DOMAIN.get(n, {"time"})]
-        blind = [n for n in degenerate if n not in relevant]
-        failed = [n for n in relevant
-                  if table[n].get(k) is not None and table[n][k] >= hv - 0.01]
-        worst = max((table[n][k] for n in relevant if table[n].get(k) is not None),
-                    default=None)
-        ok = not failed
-        # how much of the human signal survives a 60 ms timing error / a 30 % thin:
-        sens = {n: (round(table[n][k] / hv, 3) if hv and table[n].get(k) is not None else None)
-                for n in ("jitter_60ms", "thinned_30", "bar_rotated", "random_times")}
-        verdicts[k] = {"human": hv, "domain": dom, "worst_relevant_control": worst,
-                       "failed_controls": failed, "blind_by_construction": blind,
-                       "retained_fraction": sens, "may_steer": ok}
+        def rel(group):
+            return [n for n in group
+                    if dom in CONTROL_DOMAIN.get(n, {"time"})
+                    and table.get(n, {}).get(k) is not None]
+        deg, dgr = rel(DEGENERATE), rel(DEGRADATION)
+        blind = [n for n in DEGENERATE + DEGRADATION
+                 if n not in deg + dgr and table.get(n, {}).get(k) is not None]
+
+        frac = {n: (table[n][k] / hv if hv else None) for n in deg + dgr}
+        # A negative human value means the axis has no signal to protect; treat any
+        # control at or above it as a failure rather than dividing by a negative.
+        if hv <= 0:
+            failed_deg = deg
+        else:
+            failed_deg = [n for n in deg if frac[n] > DEGENERATE_MAX_FRACTION]
+        failed_dgr = [n for n in dgr if hv > 0 and frac[n] > 1.0]
+        ok = not failed_deg and not failed_dgr
+
+        worst_deg = max((table[n][k] for n in deg), default=None)
+        verdicts[k] = {"human": hv, "domain": dom, "worst_degenerate": worst_deg,
+                       "failed_degenerate": failed_deg,
+                       "failed_degradation": failed_dgr,
+                       "blind_by_construction": blind,
+                       "retained_fraction": {n: (round(v, 3) if v is not None else None)
+                                             for n, v in frac.items()},
+                       "may_steer": ok}
         mark = "MAY STEER" if ok else "DIAGNOSTIC ONLY"
-        print(f"  {k:<16} [{dom:5s}] human {hv:+.4f}  worst relevant "
-              f"{(worst if worst is not None else float('nan')):+.4f}  "
-              f"{mark}" + (f"   (beaten by: {', '.join(failed)})" if failed else ""))
-        print(f"{'':<19}retained: jitter60ms {sens['jitter_60ms']}, "
-              f"thin30 {sens['thinned_30']}, barrot {sens['bar_rotated']}, "
-              f"randtimes {sens['random_times']}"
-              + (f" | blind by construction: {', '.join(blind)}" if blind else ""))
+        why = ""
+        if failed_deg:
+            why = f"   (degenerate reaches it: {', '.join(failed_deg)})"
+        elif failed_dgr:
+            why = f"   (rewards degradation: {', '.join(failed_dgr)})"
+        print(f"  {k:<17} [{dom:5s}] human {hv:+.4f}  worst degenerate "
+              f"{(worst_deg if worst_deg is not None else float('nan')):+.4f}  {mark}{why}")
+        print(f"{'':<20}retained: " + ", ".join(
+            f"{n} {frac[n]:.2f}" for n in deg + dgr if frac[n] is not None)
+            + (f" | blind: {', '.join(blind)}" if blind else ""))
 
     if a.json:
         pathlib.Path(a.json).write_text(json.dumps(
