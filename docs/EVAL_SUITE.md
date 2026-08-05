@@ -83,7 +83,7 @@ Conflating them marked six good axes diagnostic-only on the first run, because a
 
 Every headline finding below replicated at n=42 on the wide cohort; `harm_rhythm` and `timb_rhythm`
 became resolvable there and were not on 13 songs; **`hands_x_coincid` did not replicate** (it was
-already diagnostic-only). `follow_drums` and `hands_x_stre**ngth** flip verdict between the two cohorts
+already diagnostic-only). `follow_drums` and `hands_x_strength` flip verdict between the two cohorts
 and are therefore **PROVISIONAL** — a verdict that flips with the sample is not a verdict.
 
 ### Where the cohort stands (paired, 13 songs with a human Expert map)
@@ -130,6 +130,11 @@ often, and we do not mark the downbeat. None of it is visible to any earlier axi
 | `view_song_strip.py` | **whole-song shape.** nps vs human, intensity, k≥3 response, offbeat rate. |
 | `eval_coincidence.py`, `eval_beat_phase.py`, `eval_phrase_abandon.py`, `eval_pulse_consistency.py`, `eval_intensity_alloc.py` | the individual cohort metrics |
 | `audit_phase_metrics.py` | **may this metric steer a lever?** (usually: no) |
+| `view_structure.py` | ★**the whole song as structure** — the music's self-similarity beside ours and the human's, plus a per-bar lead-stem strip. |
+| `review_structure.py` | **where did we miss the structure?** MOTIF_MISS / FIGURE_MISS timestamps, each stated against the human map. Also printed by `suite_report`. |
+| `masterpiece_report.py` | all the M-axes at once; `--vs` for a paired arm comparison, `--by-song`, `--wide`. |
+| `audit_masterpiece.py` | the battery for the M-axes. |
+| `build_wide_cohort.py` | generate our maps for corpus songs with a human Expert map, to replicate a finding at a bigger n. |
 
 ## Reading `view_main_beat.py`
 
