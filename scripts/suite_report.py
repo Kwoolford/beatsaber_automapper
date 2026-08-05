@@ -106,6 +106,27 @@ def report(song: str, map_path: str | None, arm: str, top: int, png: bool) -> di
     for f in sorted(F, key=lambda f: -f["sev"])[:top]:
         print(f"    {mmss(f['t']):>9s}  {f['kind']:<16s} {f['msg'][:96]}")
 
+    # ── structure findings: the masterpiece axes, turned back into moments ──
+    # A cohort statistic cannot be listened to. These are the same M1/M2 numbers
+    # stated against the HUMAN map on this song, so each one is a place where a
+    # person solved the passage and we did not.
+    try:
+        import review_structure as rs
+        SF = rs.findings(song, arm, map_path, top=4)
+    except Exception:
+        SF = []
+    if SF:
+        print("\n  structure — where the song repeats and we do not:")
+        for f in SF[:4]:
+            if f["kind"] == "MOTIF_MISS":
+                print(f"    {rs.mmss(f['t']):>9s}  MOTIF_MISS      repeats "
+                      f"{rs.mmss(f['t_ref'])} (music {f['music_sim']:.2f}); "
+                      f"human reuses {f['human']:+.2f}, we reuse {f['ours']:+.2f}")
+            else:
+                print(f"    {rs.mmss(f['t']):>9s}  FIGURE_MISS     the {f['stem']} "
+                      f"states a figure the human plays and we do not "
+                      f"(gap {f['gap']:.2f})")
+
     if png:
         out = REPO / "outputs" / "suite_2026-08-04" / f"report_{song}.png"
         out.parent.mkdir(parents=True, exist_ok=True)
