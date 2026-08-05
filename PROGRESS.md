@@ -404,6 +404,33 @@ axis in the entire suite (max r 0.18 against anything, classic or new) while als
 largest defect (86.6 % exceedance).** Most independent and largest is the best possible combination
 for deciding what to build next.
 
+### ★ THE SEED-NOISE FLOOR AT n=149 — and it is what makes tonight's negatives trustworthy
+
+The same config at a different seed, generated over the same 149 songs and paired by song:
+
+| axis | seed-to-seed paired Δ | resolvable |
+|---|---|---|
+| `rhy_rhythm` | −0.0036 | no |
+| `harm_rhythm` | −0.0016 | no |
+| `follow_mean` | +0.0006 | no |
+| `follow_vocals` | +0.0005 | no |
+| `harm_place` | +0.0002 | no |
+| `hands_x_downbeat` | −0.0051 | no |
+
+★**Nothing on the steer list moves resolvably between seeds; the floor is ≈ ±0.004.** Put the three
+numbers side by side:
+
+    seed noise (same config, different draw)   ~0.004
+    the largest effect ANY arm produced        ~0.0004   (v8's follow_vocals at n=149)
+    the human gap                              0.08 - 0.13
+
+⇒**The ruler is 20–30× finer than the gap it is measuring, and every lever we have is INSIDE the
+noise.** That is what makes tonight's negatives trustworthy rather than merely unresolved: we are not
+failing to detect lever effects, we are detecting that there are none to find.
+
+⚠️One resolvable seed difference, on `arrange_ami` (−0.0065) — a further mark against an axis already
+held PROVISIONAL.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame

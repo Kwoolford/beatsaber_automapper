@@ -105,6 +105,18 @@ Read together: we reproduce a bar's figure about a third as faithfully as a huma
 follow the **vocal** line 7× less, we change which instrument we are following far more
 often, and we do not mark the downbeat. None of it is visible to any earlier axis.
 
+### How sharp is the ruler? (the seed-noise floor, n=149)
+
+Same config, different seed, paired over the same 149 songs: **no steer-safe axis moves resolvably**,
+floor ≈ **±0.004**. Against that:
+
+    seed noise                          ~0.004
+    largest effect any arm produced     ~0.0004   (v8's follow_vocals)
+    the human gap                       0.08 - 0.13
+
+The instrument is 20–30× finer than the gap it measures, and every lever we have is inside the noise
+— so "no lever moves these axes" is a detection, not a failure to detect.
+
 ### Is the suite well-formed? (`audit_axis_redundancy.py`)
 
 Over the same 149 maps, **no masterpiece axis correlates above |r| = 0.30 with anything in the classic
