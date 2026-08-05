@@ -1,0 +1,171 @@
+{
+  "n_songs": 149,
+  "cohort": "wide",
+  "axes": {
+    "rhy_rhythm": {
+      "n": 149,
+      "p10": 0.0566,
+      "median": 0.1561,
+      "p90": 0.3542,
+      "mad": 0.0714,
+      "ours_median": 0.0536,
+      "outside_human_tail": 0.5235,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "harm_rhythm": {
+      "n": 149,
+      "p10": -0.0036,
+      "median": 0.0787,
+      "p90": 0.2035,
+      "mad": 0.0473,
+      "ours_median": 0.0203,
+      "outside_human_tail": 0.3289,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "timb_rhythm": {
+      "n": 149,
+      "p10": 0.0034,
+      "median": 0.0896,
+      "p90": 0.2374,
+      "mad": 0.056,
+      "ours_median": 0.0453,
+      "outside_human_tail": 0.3557,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "harm_place": {
+      "n": 149,
+      "p10": 0.0034,
+      "median": 0.0208,
+      "p90": 0.052,
+      "mad": 0.012,
+      "ours_median": 0.0008,
+      "outside_human_tail": 0.8658,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "follow_mean": {
+      "n": 149,
+      "p10": 0.0229,
+      "median": 0.1085,
+      "p90": 0.1933,
+      "mad": 0.0422,
+      "ours_median": 0.0242,
+      "outside_human_tail": 0.4698,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "follow_best": {
+      "n": 149,
+      "p10": 0.0649,
+      "median": 0.191,
+      "p90": 0.34,
+      "mad": 0.0742,
+      "ours_median": 0.0538,
+      "outside_human_tail": 0.6107,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "follow_vocals": {
+      "n": 149,
+      "p10": 0.0115,
+      "median": 0.1411,
+      "p90": 0.2996,
+      "mad": 0.068,
+      "ours_median": 0.0145,
+      "outside_human_tail": 0.4631,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "follow_drums": {
+      "n": 149,
+      "p10": 0.002,
+      "median": 0.0933,
+      "p90": 0.2828,
+      "mad": 0.0675,
+      "ours_median": 0.0237,
+      "outside_human_tail": 0.2752,
+      "tail": "below p10",
+      "may_steer": false
+    },
+    "lead_persistence": {
+      "n": 132,
+      "p10": 0.2261,
+      "median": 0.3756,
+      "p90": 0.5217,
+      "mad": 0.0893,
+      "ours_median": 0.3214,
+      "outside_human_tail": 0.152,
+      "tail": "below p10",
+      "may_steer": null
+    },
+    "hands_x_downbeat": {
+      "n": 143,
+      "p10": -0.3628,
+      "median": 0.1356,
+      "p90": 0.8684,
+      "mad": 0.3783,
+      "ours_median": 0.099,
+      "outside_human_tail": 0.0935,
+      "tail": "below p10",
+      "may_steer": true
+    },
+    "hands_x_strength": {
+      "n": 149,
+      "p10": -0.0833,
+      "median": 0.1839,
+      "p90": 0.542,
+      "mad": 0.1486,
+      "ours_median": 0.0418,
+      "outside_human_tail": 0.2254,
+      "tail": "below p10",
+      "may_steer": false
+    },
+    "hands_x_coincid": {
+      "n": 149,
+      "p10": -0.0639,
+      "median": 0.202,
+      "p90": 0.4222,
+      "mad": 0.1135,
+      "ours_median": 0.1165,
+      "outside_human_tail": 0.0909,
+      "tail": "below p10",
+      "may_steer": false
+    },
+    "double_share": {
+      "n": 149,
+      "p10": 0.0705,
+      "median": 0.1706,
+      "p90": 0.3076,
+      "mad": 0.0644,
+      "ours_median": 0.6459,
+      "outside_human_tail": 1.0,
+      "tail": "above p90",
+      "may_steer": null
+    },
+    "arrange": {
+      "n": 113,
+      "p10": -0.1031,
+      "median": 0.0754,
+      "p90": 0.2454,
+      "mad": 0.0883,
+      "ours_median": 0.0058,
+      "outside_human_tail": 0.1947,
+      "tail": "below p10",
+      "may_steer": false
+    },
+    "arrange_ami": {
+      "n": 149,
+      "p10": 0.0336,
+      "median": 0.1033,
+      "p90": 0.2225,
+      "mad": 0.0467,
+      "ours_median": 0.0726,
+      "outside_human_tail": 0.2483,
+      "tail": "below p10",
+      "may_steer": false
+    }
+  }
+}

@@ -284,6 +284,44 @@ so nothing depended on it either way, but the correct lesson is **n=13 inflates 
 be quoted as a finding** — both fail the battery, and a resolvable difference measured with an
 instrument a rotated map can fool is a resolvable measurement of nothing.
 
+### ★★ THE HUMAN BAR — and it REORDERS the night's priorities
+
+`calibrate_masterpiece.py` gives the M-axes what every other axis here has: a distribution from the
+human corpus (149 Expert maps) and an **exceedance** readout — the share of our maps outside the
+human tail the defect lives in. 10 % is what a cohort drawn from the same population would show.
+
+| axis | human p10 | human median | human p90 | ours | **outside the human tail** |
+|---|---|---|---|---|---|
+| **`harm_place`** | +0.0034 | +0.0208 | +0.0520 | +0.0008 | 🔴**86.6 %** |
+| `follow_best` | +0.0649 | +0.1910 | +0.3400 | +0.0538 | **61.1 %** |
+| `rhy_rhythm` | +0.0566 | +0.1561 | +0.3542 | +0.0536 | **52.3 %** |
+| `follow_mean` | +0.0229 | +0.1085 | +0.1933 | +0.0242 | **47.0 %** |
+| `follow_vocals` | +0.0115 | +0.1411 | +0.2996 | +0.0145 | **46.3 %** |
+| `timb_rhythm` | +0.0034 | +0.0896 | +0.2374 | +0.0453 | 35.6 % |
+| `harm_rhythm` | −0.0036 | +0.0787 | +0.2035 | +0.0203 | 32.9 % |
+| `lead_persistence` | +0.2261 | +0.3756 | +0.5217 | +0.3214 | 15.2 % |
+| **`hands_x_downbeat`** | −0.3628 | +0.1356 | +0.8684 | +0.0990 | **9.3 %** ⇐ |
+| `double_share` (higher is worse) | — | +0.1706 | +0.3076 | +0.6459 | **100 %** (above p90) |
+
+🔴★**THIS DEMOTES THE DOWNBEAT LEVER (M-B).** `hands_x_downbeat` has a resolvable paired delta
+(−0.19) *and* an exceedance of **9.3 %** — exactly the 10 % a same-population cohort produces. The
+human spread on that axis is enormous (p10 −0.36 to p90 +0.87, MAD 0.38): humans disagree wildly
+about marking the downbeat, so being below *your song's* human is unremarkable. **It is a shift
+inside the normal human range, not a tail defect** — a much weaker claim than the paired delta alone
+suggested, and a much weaker lever.
+
+★★**AND IT PROMOTES THE MOTIF/MOVEMENT WORK.** `harm_place` at **86.6 %** is the largest exceedance
+any axis in this project has ever produced, on a **tight** human distribution (MAD 0.012). Reusing
+the movement of a pattern when the music repeats is something nearly every human map does and nearly
+none of ours do. ⇒**M-E (structure-conditioned decode) is the right next build, and the evidence for
+it now comes from three directions**: the exceedance, the paired delta at n=149, and the fact that it
+is the one structural idea C1 does not block.
+
+⚠️A tail statistic must be taken from the tail the defect is in: reading `double_share` from the low
+tail printed a meaningless 0.0 % before this was fixed.
+⚠️This is a **norm** bar. Kyle's target is the best mappers, so on an aspirational axis the corpus
+median is a floor, not a target — ask him norm-or-aspiration before treating any of these as a goal.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame
