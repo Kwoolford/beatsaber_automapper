@@ -420,6 +420,13 @@ onsets. 240–250 s: **13** notes against the human's **6**, over an outro carry
 ★Kyle 2026-08-04: the outro **should** be mapped, **sparsely** — so this is a *distribution* bug, not
 a trim question. **Task**: check whether `section_gate="loud_only"` is suppressing the final chorus.
 
+📦**FOR KYLE, 2026-08-05**: `outputs/kyle_review_2026-08-05_structure/` — four structure PNGs + a
+README. **Nothing to play**; it is the night's finding as a picture, ~10 seconds each. ★Hunger is the
+one to open: **our** self-similarity panel is a uniform bright blob while the **human's** is sharp
+discrete squares ⇒ we do not repeat too little, **we repeat too uniformly** — a metric scoring "how
+repetitive is the map" would rank us ABOVE the human there. ⚠️`outputs/` is gitignored (C6): the PNGs
+are not in version control.
+
 ## 🔴 P0b — THE MASTERPIECE AXES (M1–M4, built 2026-08-04 night) — ✅ BUILT, 7 axes cleared to steer
 
 > *"We created a model to create a playable map but now need a model to start producing masterpieces
