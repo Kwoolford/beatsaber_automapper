@@ -476,6 +476,35 @@ the fixed historical ruler; this is a second cohort for statistical power only.
 **DoD**: rerun `masterpiece_report.py` on the wide cohort. Findings that hold at n≈150 are CONFIRMED;
 those that vanish were n=13 talking. ⚠️Nothing from tonight should be promoted before this.
 
+### 🔴🔴 M-E — ★THE BIGGEST IDEA TONIGHT PRODUCED: STRUCTURE-CONDITIONED DECODE
+`review_structure.py` shows what the humans actually do on a repeat, and it is not subtle. Fallen
+Kingdom, bar at 2:25 vs the bar at 1:43 (music similarity 0.83):
+
+    human   X.X...X...X.X...   X.X...X...X.X...    identical
+    ours    X.X.X.X.....X...   X.......X.X.....    unrelated
+
+⚠️**But "we never repeat" is FALSE and was checked before being written down**: 50 % of our bars
+(57/114) are exact copies of *some* earlier bar, against the human's 74 % (89/120). We repeat plenty
+— **our repeats do not land where the music repeats.**
+
+⇒**The proposal**: when the audio says this passage is a repeat of an earlier one, *reuse the map we
+already generated there* (transposed for the current section's energy), rather than re-deciding from
+the probability field. ★**This is the one structural idea that is NOT blocked by C1**, because it does
+not need better probabilities — it needs to copy a decision already made. It is also exactly how a
+human mapper works (copy the section, then vary it).
+**DoD**: `rhy_rhythm` and `harm_rhythm` rise toward the human (0.148 / 0.127) at ≥3 seeds **without**
+losing alignment precision or `rhythm` (A2), and `view_structure.py` shows the off-diagonal stripes
+appearing in our panel. ⚠️Also check `follow_*` does not fall: a copied bar is right for the repeat
+only if the repeat really is the same, and the copy must not survive into a section that changed.
+⚠️Kyle's standing rule applies — isolated, tactical, default OFF, and his ear decides.
+
+### ⚠️ M-F — THE AXES DO NOT PREDICT KYLE'S VERDICTS (yet). Do not treat them as the judge.
+Ranking the songset by the mean gap over the steer-safe axes puts **Fallen Kingdom second-best
+(+0.019)** — the map he called *"really empty"* — and **Hunger fifth-worst (+0.169)** — the map he
+graded **A+**. So a structural gap is real and measurable and is **not** what he is reacting to.
+⇒Use these axes to find and fix a defect class, never as evidence that a map is good. The success
+criterion is unchanged: *he plays it and wants to keep playing*.
+
 ### 🟡 M-D — TWO INSTRUMENTS ARE TOO BLUNT TO USE
 - **M4 `arrange`** fails its own control (a bar-rotated map scores 0.67× the human) ⇒ **not yet
   measurable**. Needs a section-conditioned descriptor rather than a boundary jump.

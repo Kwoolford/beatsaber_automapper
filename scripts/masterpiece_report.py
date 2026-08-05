@@ -126,6 +126,8 @@ def main() -> None:
     ap.add_argument("--vs", default="", help="second arm; prints the PAIRED arm delta")
     ap.add_argument("--seeds", default="s0")
     ap.add_argument("--rebuild", action="store_true")
+    ap.add_argument("--by-song", action="store_true",
+                    help="rank the songs by how far below the human they sit")
     ap.add_argument("--json", default="")
     a = ap.parse_args()
 
@@ -157,6 +159,24 @@ def main() -> None:
               f"{p.get('delta', float('nan')):>+10.4f} "
               f"{p.get('delta_median', float('nan')):>+9.4f} "
               f"{('YES' if p.get('resolvable') else 'no'):>7}  {mark}")
+
+    # ---- per-song ranking: which songs should Kyle listen to first?
+    # ⚠️A cohort median cannot see a subset-of-songs defect (this project's
+    # oldest lesson), so the per-song gaps are ranked and the songs NAMED.
+    if a.by_song:
+        steer = [k for _, k in REPORT_KEYS if verdicts.get(k)]
+        print(f"\nPER-SONG GAP (mean over the steer-safe axes of human − ours, "
+              f"worst first)\n  axes: {', '.join(steer)}")
+        scored = []
+        for r in rows:
+            if not r.get("human"):
+                continue
+            d = [r["human"][k] - r["ours"][k] for k in steer
+                 if r["ours"].get(k) is not None and r["human"].get(k) is not None]
+            if len(d) >= 3:
+                scored.append((float(np.mean(d)), r["song"], len(d)))
+        for gap, song, nk in sorted(scored, reverse=True):
+            print(f"  {song:22s} {gap:+.4f}  ({nk} axes)")
 
     # ---- seed spread: is a difference between arms bigger than the seed noise?
     if len(seeds) > 1:
