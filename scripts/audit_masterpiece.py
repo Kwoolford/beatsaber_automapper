@@ -56,6 +56,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 import eval_accent as m3  # noqa: E402
 import eval_arrangement as m4  # noqa: E402
+import eval_hand_intent as m5  # noqa: E402
 import eval_motif_rhyme as m1  # noqa: E402
 import eval_rhythm_fidelity as m2  # noqa: E402
 import song_structure as ss  # noqa: E402
@@ -68,7 +69,8 @@ M2_KEYS = ("follow_mean", "follow_best", "follow_drums", "follow_vocals")
 M3_KEYS = ("hands_x_strength", "hands_x_coincid", "hands_x_downbeat",
            "travel_x_strength", "turn_x_strength")
 M4_KEYS = ("arrange",)
-ALL_KEYS = M1_KEYS + M2_KEYS + M3_KEYS + M4_KEYS
+M5_KEYS = ("hand_stem", "hand_stem_p90")
+ALL_KEYS = M1_KEYS + M2_KEYS + M3_KEYS + M4_KEYS + M5_KEYS
 
 # ★AXIS-AWARE VERDICTS. `shuffled_attrs` permutes (x, y, dir) and leaves every note
 # TIME untouched, so a metric computed on times alone scores it EXACTLY equal to
@@ -89,6 +91,8 @@ DOMAIN = {  # metric -> the domain it reads
     # `arrange` is dominated by the per-bar note COUNT channel, which shuffling
     # (x, y, dir) leaves untouched -> time domain.
     "arrange": "time",
+    # hand/colour is an attribute: `shuffled_attrs` permutes it, so it IS a test here
+    "hand_stem": "place", "hand_stem_p90": "place",
 }
 CONTROL_DOMAIN = {  # control -> the domains it perturbs
     "metronome": {"time", "place", "metre"},
@@ -225,10 +229,12 @@ def main() -> None:
             s2 = m2.score_map(times, B, stems) or {}
             s3 = m3.score_map(notes, song, B) or {}
             s4 = (m4.score_map(notes, B, bnds) or {}) if len(bnds) >= 4 else {}
+            s5 = m5.score_map(notes, stems) or {}
             row[name] = ({k: s1.get(k) for k in M1_KEYS}
                          | {k: s2.get(k) for k in M2_KEYS}
                          | {k: s3.get(k) for k in M3_KEYS}
-                         | {k: s4.get(k) for k in M4_KEYS})
+                         | {k: s4.get(k) for k in M4_KEYS}
+                         | {k: s5.get(k) for k in M5_KEYS})
         per_song.append(row)
         print(f"  scored {song}")
 
