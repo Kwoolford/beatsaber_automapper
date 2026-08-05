@@ -456,15 +456,21 @@ never to rank two arms. `follow_mean`'s sd is **0.0006**, so that one ranks arms
 
 ---
 
-### 🔴 M-A — NO DECODE LEVER MOVES ANY OF THESE ⇒ the sixth confirmation of C1
+### 🔴🔴 M-A — **NOTHING WE HAVE MOVES ANY OF THESE** (updated 2026-08-05, at n=149)
 mbb015 / mbb025 / endres / trimco3 all sit within **±0.008** of baseline on every M axis, against an
-ours-vs-human gap of 0.089 on `follow_mean`. The only arms that move anything are the **instrument
-model**: v8 gains `follow_vocals` +0.0082 and v8+bonus **+0.0147** (both >2 sd across seeds), and both
-LOSE `rhy_rhythm` (−0.020 / −0.017).
-**Task**: treat `follow_vocals` as the acceptance metric for the Track B / instrument-projection work
-— it is the first axis that responds to it at all.
-**DoD**: an instrument-aware arm reaches `follow_vocals` ≥ 0.05 (a third of the human 0.149) **without**
-losing `rhy_rhythm` resolvably.
+ours-vs-human gap of 0.082 on `follow_mean`.
+🔴**And the instrument model no longer counts as an exception.** v8's `follow_vocals` gain
+(+0.0082 on 13 songs) is **+0.0004 at n=148** on the same songs/seed — **RETRACTED**; its
+`rhy_rhythm` loss shrank the same way. Second demonstration in one night that n=13 inflates effect
+sizes.
+⇒★**This extends C1**: not only will better *picking* not close the structural gap, a better
+*probability field* does not either — neither changes the fact that every slot is decided on its own.
+**Do not queue another decode-lever or checkpoint sweep against these axes without a mechanism
+argument for why it would behave differently.**
+✅v8 does two real things at n=149: `double_share` **−0.041** (resolvable, right direction for C5) and
+`follow_drums` +0.010 (diagnostic-only axis). Neither is a masterpiece axis.
+**`follow_vocals` is still the right acceptance metric for Track B** — it is the axis that would move
+if the model learned to follow the vocal line — but **we have no arm that moves it.**
 
 ### 🟡 M-B — LEVER CANDIDATE: mark the downbeat ⚠️**DEMOTED 2026-08-05**
 We spend the double — the loudest thing a map can say — on **0.667** of all events (human 0.196), so
@@ -514,18 +520,9 @@ appearing in our panel. ⚠️Also check `follow_*` does not fall: a copied bar 
 only if the repeat really is the same, and the copy must not survive into a section that changed.
 ⚠️Kyle's standing rule applies — isolated, tactical, default OFF, and his ear decides.
 
-### 🔵 M-G — DOES v8's VOCAL GAIN HOLD AT n=149? *(running 2026-08-05 ~01:00)*
-`build_wide_cohort.py --variant v8` is generating the instrument-model arm over the **same 149 songs**
-(same audio, same seed — paired, differing in exactly one thing). v8 is the only arm that moved a
-masterpiece axis on the songset (`follow_vocals` +0.008, +0.015 with the bonus, both >2 sd across
-seeds) while LOSING `rhy_rhythm` (−0.020).
-**Read it with**: `python scripts/masterpiece_report.py --arm v8 --wide --vs prod` (point `--wide` at
-`outputs/wide_cohort_v8/`).
-**DoD**: `follow_vocals` gain holds at n=149 ⇒ it is the acceptance metric for Track B and the
-instrument projection is worth building on. If it vanishes, the songset result was n=13 inflating an
-effect size — the same failure `hands_x_coincid` demonstrated tonight.
-⚠️v8 emits ~17 % fewer notes; the battery measured that thinning COSTS `follow_*`, so the confound
-points away from the gain and cannot manufacture it. The `rhy_rhythm` loss gets no such protection.
+### ✅ M-G — ANSWERED: NO. v8's vocal gain does not hold at n=149 *(outcome in PROGRESS.md)*
+Paired over 148 songs, same audio and seed: `follow_vocals` **+0.0004** (songset said +0.0082),
+not resolvable. Folded into M-A.
 
 ### ⚠️ M-F — THE AXES DO NOT PREDICT KYLE'S VERDICTS (yet). Do not treat them as the judge.
 Ranking the songset by the mean gap over the steer-safe axes puts **Fallen Kingdom second-best
