@@ -60,6 +60,20 @@ another song's map. Measured, not assumed — `audit_masterpiece.py`.
 Conflating them marked six good axes diagnostic-only on the first run, because a
 30 %-thinned human map scored 0.86× on `follow_mean` — while our own maps score 0.30×.
 
+### Two cohorts, and they are not interchangeable
+
+- **The eval songset** (24 songs, 13 with a strict Expert human map) is the **fixed ruler** every
+  historical arm was scored against. Do not change it.
+- **The wide cohort** (`scripts/build_wide_cohort.py`, corpus songs **disjoint** from the songset, each
+  with a strict Expert map and a seeded stem cache) exists for one purpose: **does a finding survive a
+  bigger n?** Score it with `masterpiece_report.py --wide` / `audit_masterpiece.py --wide`.
+  ⚠️Never pool the two into one median.
+
+Every headline finding below replicated at n=42 on the wide cohort; `harm_rhythm` and `timb_rhythm`
+became resolvable there and were not on 13 songs; **`hands_x_coincid` did not replicate** (it was
+already diagnostic-only). `follow_drums` and `hands_x_stre**ngth** flip verdict between the two cohorts
+and are therefore **PROVISIONAL** — a verdict that flips with the sample is not a verdict.
+
 ### Where the cohort stands (paired, 13 songs with a human Expert map)
 
 | metric | ours | human | paired Δ | resolvable |
