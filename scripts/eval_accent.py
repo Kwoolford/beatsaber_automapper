@@ -254,7 +254,7 @@ def main() -> None:
         t = np.asarray(alignment.note_times(bm, bpm), dtype=float)
         if len(t) < 100:
             continue
-        B = ss.bars(song, bpm, float(t.max()))
+        B = ss.bars(song, bpm, ss.song_end(song, float(t.max())))
         ours = score_map(ours_notes, song, B)
         if ours is None:
             continue

@@ -194,7 +194,7 @@ def main() -> None:
         bm, bpm = L[0], float(L[1])
         ours = m1.notes_xydc(bm, bpm)
         human = human_pool[song]
-        end = max(n[0] for n in human + ours)
+        end = ss.song_end(song, max(n[0] for n in human + ours))
         B = ss.bars(song, bpm, end)
         if B is None or B.n < 24:
             continue
@@ -230,14 +230,24 @@ def main() -> None:
     names = ["human", "ours", "metronome", "random_times", "jitter_60ms",
              "shuffled_attrs", "bar_rotated", "thinned_30", "human_wrong_song"]
     print(f"\n{'='*100}\nCONTROL BATTERY — median over {len(per_song)} songs\n{'='*100}")
+    # ⚠️COMMON SUBSET PER METRIC. The first version took each control's median over
+    # whichever songs that control happened to score, and the battery then reported
+    # human `hands_x_downbeat` = 0.2994 while eval_accent.py reported 0.1817 for the
+    # same cohort — two medians over different song sets. That is the population
+    # error this project keeps repeating, committed inside the tool built to catch
+    # errors. Every row below is the median over the songs where EVERY control
+    # produced a value.
+    common = {k: [r for r in per_song
+                  if all(n in r and r[n].get(k) is not None for n in names)]
+              for k in ALL_KEYS}
+    print("n per metric: " + ", ".join(f"{k} {len(common[k])}" for k in ALL_KEYS) + "\n")
     header = f"{'control':<18}" + "".join(f"{k:>15}" for k in ALL_KEYS)
     print(header)
     table = {}
     for name in names:
         vals = {}
         for k in ALL_KEYS:
-            v = [r[name][k] for r in per_song
-                 if name in r and r[name].get(k) is not None]
+            v = [r[name][k] for r in common[k]]
             vals[k] = round(st.median(v), 4) if len(v) >= 3 else None
         table[name] = vals
         print(f"{name:<18}" + "".join(

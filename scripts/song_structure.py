@@ -152,6 +152,21 @@ TARGET_BAR_S = 2.0
 BAR_MULTIPLES = (2, 4, 8, 16)
 
 
+def song_end(song_id: str, fallback: float = 0.0) -> float:
+    """Song duration from the AUDIO.
+
+    ⚠️Callers used to pass the last note time of whichever map they were scoring,
+    which makes the bar grid depend on the map — so our map and the human's were
+    graded on grids of different lengths, and `hands_x_downbeat` read 0.18 in one
+    script and 0.30 in another for the same cohort. The grid must be a property of
+    the song alone.
+    """
+    A = audio_features(song_id)
+    if A is not None and len(A["times"]):
+        return float(A["times"][-1])
+    return float(fallback)
+
+
 def bars(song_id: str, bpm: float, end: float,
          beats_per_bar: int | None = None) -> Bars | None:
     """Bar grid anchored on the MAIN BEAT, not on bpm.
