@@ -7,6 +7,164 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★★★★★ THE MASTERPIECE AXES — THE SUITE LEARNS TO ASK ABOUT INTENT (2026-08-04, overnight)
+
+> *"Reviewed the songs and still have some problems from earlier but mostly playable flows. Mostly
+> just syncing to rhythm more and making significantly more intelligent and intentional placements
+> of notes. We created a model to create a playable map but now need a model to start producing
+> masterpieces which we are far off from. Continue to beef that eval suite all night in every
+> possible way you can think of."* — Kyle
+
+**The diagnosis of the suite itself.** Every axis the project had scores a note against the audio
+**at its own instant** — on an onset (A8), on the main beat, inside a busy window. A map can pass all
+of them and still be lifeless, because intent is not a property of an instant. It is a property of a
+**relation**: what the map does when the music does the same thing twice. Four new axes ask that.
+
+### The design rule that makes them different: measure a CONTRAST, not a level
+
+Every metric this project built that scored a level was metronome-gameable (`halfbeat_rate` 0.036
+vs a human 0.084; `share_over_1s` 0.200 vs 0.250). The M-axes score
+
+    what the map does where the music says X  −  what it does where the music says not-X
+
+and a metronome is identical everywhere, so it **cannot** correlate with a song that is not. It
+scores 0 by construction — as do random note times, a bar-rotated map, and another song's map.
+Measured, not assumed (`scripts/audit_masterpiece.py`):
+
+| control | `rhy_rhythm` | `follow_mean` | (human) |
+|---|---|---|---|
+| metronome | −0.011 | −0.001 | 0.148 / 0.107 |
+| random times | +0.001 | +0.006 | |
+| bar-rotated human | +0.013 | +0.006 | |
+| another song's human map | +0.003 | −0.002 | |
+
+### What the cohort says — paired, 13 songs that ship a human Expert map
+
+| metric | ours | human | paired Δ | resolvable |
+|---|---|---|---|---|
+| **M2** `follow_vocals` | +0.020 | +0.149 | −0.129 | **YES** |
+| **M2** `follow_best` | +0.074 | +0.218 | −0.142 | **YES** |
+| **M2** `follow_mean` | +0.033 | +0.107 | −0.089 | **YES** |
+| **M1** `rhy_rhythm` | +0.060 | +0.148 | −0.116 | **YES** |
+| **M3** `hands_x_downbeat` | +0.036 | +0.182 | −0.387 | **YES** |
+| **M2** `lead_persistence` | 0.292 | 0.387 | −0.111 | **YES** |
+| **M1** `harm_rhythm` | +0.040 | +0.127 | −0.035 | no |
+
+★**We reproduce a bar's rhythmic figure about a third as faithfully as a human, follow the VOCAL
+line 7× less, change which instrument we are following far more often, and do not mark the
+downbeat.** None of that is visible to any earlier axis, and all of it is Kyle's sentence.
+
+★**M2 is W1 measured rhythmically for the first time** (*"our model struggles to find the core
+instrument a mapper obviously adheres to"*). It does **not** contradict A4's "we are MORE committed
+to one stem than humans": A4 attributes single notes, M2 compares figures — being committed to the
+wrong instrument and reproducing its rhythm loosely are consistent. On 7 of 10 songs our lead stem
+differs from the human's; ours are drums/other, theirs vocals/other.
+
+★**M3's `hands_x_downbeat` is C5 seen from the intent side.** With a 0.667 double share against a
+human 0.196, we spend the loudest thing a map can say on two thirds of all events, so it marks
+nothing. Humans spend it on the downbeat.
+
+### 🔴 FIVE THINGS WENT WRONG FIRST, AND THEY ARE THE USEFUL HALF
+
+1. **Cosine similarity made us look BETTER than humans on Hunger.** `DENSITY_SELECT` makes our note
+   count track loudness, so two bars that sound alike hold a similar NUMBER of notes and overlap
+   more by chance. Switched to **Cohen's kappa**, which subtracts exactly that chance term.
+2. ★**A correlation between two signals that each have slow structure is not evidence of
+   correspondence.** M3's whole-song form scored a **bar-rotated** map at **1.54×** the human and
+   **another song's map** at **0.77×** — neither has any relation to the audio it was scored against.
+   Both emphasis and loudness vary slowly, so any human map over any song correlates. Fixed by
+   differencing inside blocks of 48 consecutive events. This is the **third** autocorrelation
+   confound the project has hit (after M1's proximity strata and the lag-matching in the SSM).
+3. **The battery's verdict logic was wrong twice.** (a) `shuffled_attrs` ties a time-domain metric
+   *exactly* — blind by construction, not a failure; a tie to four decimals is a construction.
+   (b) A whole-**bar** rotation cannot perturb a metrical-position metric, and duly scored exactly
+   1.000× on `hands_x_downbeat`. (c) **Degenerate controls and degradation probes are not the same
+   test**: a metronome must stay far below the human, but a 30 %-thinned *human map* is still a
+   decent map and should land between ours and human — it fails only by scoring *above* the human.
+   Conflating them had marked six good axes diagnostic-only.
+4. **The battery committed this project's signature error inside itself**: each control's median was
+   taken over whichever songs that control happened to score, so the battery reported human
+   `hands_x_downbeat` = 0.2994 while `eval_accent.py` reported 0.1817 for the same cohort. Now a
+   common subset per metric, with n printed.
+5. **The bar grid was derived from the map being graded** rather than from the song
+   (`ss.song_end` fixes it), and **M4's first estimator was too blunt to see anything** — bar i
+   against bar i−1 read ~0 for both cohorts; 4-bar window means moved both positive.
+
+### Verdicts
+
+**MAY STEER** (human beats every degenerate control by >2×, and no degradation exceeds it):
+`rhy_rhythm`, `harm_rhythm`, `timb_rhythm`, `follow_mean`, `follow_best`, `follow_vocals`,
+`hands_x_downbeat`.
+**DIAGNOSTIC ONLY**: `harm_place` (a 30 %-thinned human map scores 1.34× — the sub-metric is blunt,
+so both cohorts reading ~0.01 is *not yet measurable*, not "humans don't reuse placement"),
+`follow_drums` (a ±60 ms jitter scores 1.03× — it cannot see a timing error on the drum stem),
+`hands_x_strength`, `hands_x_coincid` (bar-rotated reaches 0.63×/0.80×), `travel_*`, `turn_*`
+(humans do **not** accent with travel: their `travel_x_strength` is −0.084, i.e. *less* travel at
+loud moments).
+**NOT YET MEASURABLE**: **M4 `arrange`** — a bar-rotated human map scores 0.67× the real one, so the
+axis cannot tell arrangement from ordinary variation, and the ours-vs-human difference is inside
+noise anyway (ours +0.039 vs human +0.061, n=12).
+
+### Sensitivity, now measured rather than assumed
+
+A ±60 ms jitter costs `rhy_rhythm` a third of its value (retains 0.66) and `follow_mean` 15 %; a bar
+is 16 slots wide, so 60 ms moves about half the notes one slot. Dropping 30 % of a human map's notes
+retains 0.63–0.86 — **these axes are not density metrics in disguise**, which was the first thing
+they had to prove.
+
+### ★★ WHAT THE AXES SAY ABOUT THE LEVERS WE ALREADY HAVE — and it is bad news for decode
+
+Seven arms x 3 seeds, scored on the M-axes, compared PAIRED by song against the baseline. First the
+seed noise, which is the thing that makes the comparison readable at all:
+
+| axis | mean | sd across 3 seeds |
+|---|---|---|
+| `follow_mean` | +0.0298 | **±0.0006** |
+| `follow_vocals` | +0.0159 | ±0.0034 |
+| `rhy_rhythm` | +0.0483 | ±0.0053 |
+| `hands_x_downbeat` | +0.0828 | ±0.0657 ⚠️ |
+
+★**`follow_mean` has a seed sd of 0.0006** — two orders of magnitude tighter than alignment's 0.09.
+The M2 axes are the most seed-stable instruments this project has, so they can rank levers that
+nothing else could. ⚠️`hands_x_downbeat` is the opposite (sd 0.066, nearly its own value): usable as
+a cohort statement, **not** for ranking arms.
+
+Paired deltas vs the baseline (mean of 3 seeds, * = >2 sd across seeds):
+
+| arm | rhy_rhythm | follow_mean | follow_vocals | double_share |
+|---|---|---|---|---|
+| mbb015 | −0.0032 | +0.0011 | −0.0010 | +0.0078* |
+| mbb025 | −0.0074 | +0.0006 | −0.0021 | +0.0076 |
+| endres | −0.0001 | −0.0001 | −0.0002 | +0.0002 |
+| trimco3 | −0.0001 | +0.0001 | −0.0002 | +0.0002* |
+| **v8** | **−0.0204*** | −0.0034 | **+0.0082*** | −0.0408* |
+| **v8_mbb025** | **−0.0170*** | −0.0010 | **+0.0147*** | −0.0170* |
+
+🔴**NO DECODE LEVER MOVES A MASTERPIECE AXIS.** `BEAT_MAIN_BEAT_BONUS`, `BEAT_END_RESOLVE` and
+`BEAT_TRIM_END_COINCIDENCE` are all inside ±0.008 on every axis, against an ours-vs-human gap of
+0.089 on `follow_mean` alone. **This is C1's "better probabilities, not better picking" from a SIXTH
+direction** (after density, γ, the probability floor, the IOI prior, W1a phase and the hand deal).
+
+★**The ONE thing that moves a masterpiece axis is the instrument model.** v8 gains `follow_vocals`
+**+0.0082** and v8+bonus **+0.0147**, both resolvable across seeds — and both LOSE motif reuse
+(`rhy_rhythm` −0.020 / −0.017). Knowing which instrument is playing helps the map follow the vocal
+line and does not help it repeat itself.
+★**The density confound points the wrong way for once, so the vocal gain survives it**: v8 emits
+~17 % fewer notes, and the battery measured that a 30 % thin costs `follow_*` 14–24 % of its value.
+A thinner map should therefore score LOWER, and v8 scores higher — the gain is if anything
+understated. (The `rhy_rhythm` loss is not protected this way and remains partly confounded.)
+
+### New files
+
+`scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame
+features, the stratified-contrast estimator, `paired_delta`), `eval_motif_rhyme.py`,
+`eval_rhythm_fidelity.py`, `eval_accent.py`, `eval_arrangement.py`, `audit_masterpiece.py`,
+`view_structure.py` (★the picture: the music's self-similarity beside ours and the human's, plus a
+per-bar lead-stem strip), `masterpiece_report.py` (one command; `--vs` for a paired arm comparison).
+
+
+---
+
 ## ★★★★★ W1 MEASURED — KYLE'S COINCIDENCE HYPOTHESIS IS RIGHT, BUT THE GAP IS NOT WHERE HE (OR WE) THOUGHT (2026-08-03)
 
 Three new CPU-only diagnostics, no retrain, all on the seeded 274-song stem cache:

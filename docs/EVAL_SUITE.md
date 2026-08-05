@@ -13,6 +13,85 @@ gives you my vision."*
 grid is not comparable to one computed on a high-confidence grid, and on `1fa48` / `1f9a0` coverage
 reads ~0.00 for a real but specific reason (see S1 in TODO.md) rather than "we play nothing".
 
+## The second half — the "masterpiece" axes (M1–M4, built 2026-08-04 night)
+
+Kyle: *"We created a model to create a playable map but now need a model to start
+producing masterpieces which we are far off from… syncing to rhythm more and making
+significantly more intelligent and intentional placements of notes."*
+
+Everything above scores a note against the audio **at its own instant** — is it on an
+onset, on the main beat, in a busy window. A map can pass all of it and still be
+lifeless, because intent is not a property of an instant. It is a property of a
+**relation**: what the map does when the music does the same thing twice.
+
+    python scripts/masterpiece_report.py --arm tf_trim_ev03_rc05      # all axes, cohort
+    python scripts/masterpiece_report.py --arm mbb025 --vs tf_trim_ev03_rc05
+    python scripts/view_structure.py --song 1f8d6                     # ★the picture
+    python scripts/audit_masterpiece.py --n 13                        # may these steer?
+
+| axis | question | verdict |
+|---|---|---|
+| **M1** `eval_motif_rhyme.py` | when the music comes back, does the pattern come back? | `rhy_rhythm` / `harm_rhythm` / `timb_rhythm` **may steer** |
+| **M2** `eval_rhythm_fidelity.py` | is the map playing *this bar's* figure, and whose? | `follow_mean` / `follow_best` / `follow_vocals` **may steer** |
+| **M3** `eval_accent.py` | is emphasis spent where the music emphasises? | `hands_x_downbeat` **may steer**; the rest diagnostic |
+| **M4** `eval_arrangement.py` | does the map turn when the song turns? | ⚠️**fails its own control — not yet measurable** |
+
+### ★ Why these are the first steer-safe axes here
+
+Every metric this project built that scored a **level** was metronome-gameable
+(`halfbeat_rate` 0.036 vs a human 0.084; `share_over_1s` 0.200 vs 0.250). These score
+a **contrast**:
+
+    what the map does where the music says X  −  what it does where the music says not-X
+
+A metronome is identical everywhere, so it cannot correlate with a song that is not:
+it scores **0 by construction**, and so do random note times, a bar-rotated map, and
+another song's map. Measured, not assumed — `audit_masterpiece.py`.
+
+### The two kinds of control, which are not the same test
+
+- **Degenerate** (metronome, random times, bar-rotated, wrong song): must stay under
+  **50 %** of the human value. A metric they can reach is a metric a lever can reach
+  the cheap way.
+- **Degradation** (a human map jittered ±60 ms, or thinned by 30 %): **not** pass/fail
+  — a slightly damaged human map *should* land between ours and human. It fails only
+  by scoring **above** the human, which means the metric rewards the damage.
+
+Conflating them marked six good axes diagnostic-only on the first run, because a
+30 %-thinned human map scored 0.86× on `follow_mean` — while our own maps score 0.30×.
+
+### Where the cohort stands (paired, 13 songs with a human Expert map)
+
+| metric | ours | human | paired Δ | resolvable |
+|---|---|---|---|---|
+| `rhy_rhythm` | +0.060 | +0.148 | −0.116 | **yes** |
+| `follow_mean` | +0.033 | +0.107 | −0.089 | **yes** |
+| `follow_vocals` | +0.020 | +0.149 | −0.129 | **yes** |
+| `follow_best` | +0.074 | +0.218 | −0.142 | **yes** |
+| `hands_x_downbeat` | +0.036 | +0.182 | −0.387 | **yes** |
+| `lead_persistence` | 0.292 | 0.387 | −0.111 | **yes** |
+
+Read together: we reproduce a bar's figure about a third as faithfully as a human, we
+follow the **vocal** line 7× less, we change which instrument we are following far more
+often, and we do not mark the downbeat. None of it is visible to any earlier axis.
+
+### Rules these axes added (learned the same night)
+
+8. ★**A correlation between two signals that each have slow structure is not evidence
+   of correspondence.** M3's first version scored a bar-rotated map at 1.54× the human
+   and *another song's map* at 0.77×, because emphasis and loudness both vary slowly.
+   Difference **locally** — inside blocks, inside lag strata — or measure nothing.
+9. **Similarity must be chance-corrected.** With cosine, our maps out-scored the humans
+   on Hunger: `DENSITY_SELECT` makes note count track loudness, so similar-sounding bars
+   hold similar note counts and overlap by chance. Cohen's **kappa** removes exactly
+   that term.
+10. **A control is only a test if it perturbs the domain the metric reads.**
+    `shuffled_attrs` ties a time-domain metric exactly; a whole-bar rotation cannot move
+    a metrical-position metric. Tie-to-three-decimals means "by construction", not "fail".
+11. **The grid must be a property of the song, not of the map being graded**
+    (`ss.song_end`), and every cohort row must come from the same subset of songs — the
+    battery itself shipped a 0.2994-vs-0.1817 disagreement caused by breaking that.
+
 ## The pieces
 
 | script | answers |
