@@ -195,6 +195,33 @@ a verdict that flips between samples is not a verdict: `follow_drums` and `hands
 recorded as **PROVISIONAL** and must not steer anything until they pass on both. The failures are
 stable across cohorts, which is the more reassuring half.
 
+### ★ THE BLUNT INSTRUMENT WAS THE ANSWER — `harm_place` rebuilt, and the null was the metric
+
+The doc convention says a null from an instrument you suspect is blunt is *not yet measurable*
+rather than refuted. `harm_place` was exactly that case, and rebuilding it turned three nulls into
+three resolvable findings.
+
+**The defect in v1**: it averaged a per-slot agreement over the slots two bars **share**. Deleting
+notes removes the slots where the bars disagree, so the average goes **up** — a human map with 30 %
+of its notes dropped scored **1.34×** the intact one. Any "mean agreement over what they share" has
+that built in.
+
+**v2** scores a **weighted Jaccard over swing TRANSITIONS** — (slots apart, Δcolumn, Δrow, cut
+direction). What one bar plays and the other does not now counts in the denominator, so thinning
+costs; and the unit is movement, which is what makes a pattern recognisable as the same pattern.
+
+| | ours | human | paired Δ | resolvable |
+|---|---|---|---|---|
+| `harm_place` | +0.0017 | +0.0156 | −0.0197 | **YES** (was: no) |
+| `timb_place` | +0.0012 | +0.0183 | −0.0198 | **YES** (was: no) |
+| `rhy_place` | +0.0017 | +0.0081 | −0.0111 | **YES** (was: no) |
+
+★**The placement gap is the LARGEST ratio of any axis — about 9×** (0.0017 vs 0.0156), bigger than
+the rhythm-reuse gap (2.5×). When the music comes back, a human brings back *the movement*; we bring
+back neither the movement nor, mostly, the rhythm.
+✅Battery: **MAY STEER on BOTH cohorts** — thinned_30 retains 0.21 (songset) / 0.36 (wide) against
+1.34 before, and every degenerate control sits at ≤0.35× of the human.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame
