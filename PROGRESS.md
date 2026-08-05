@@ -248,6 +248,42 @@ then only if the failure names the fix.** `harm_place`'s did (it paid for deleti
 measure where omissions count) and the rebuild succeeded. M4's first failure named a fix that worked
 and exposed a second problem underneath.
 
+### ✅✅ THE FULL REPLICATION — n=149, and every steer-safe axis resolves
+
+The wide cohort finished: **149 corpus songs, disjoint from the eval songset**, each with a strict
+Expert human map, our side generated at the promoted defaults, seed 0. That is **11× the 13 paired
+songs** every claim rested on when the night started.
+
+| axis | ours | human | paired Δ | n=13 | n=42 | **n=149** |
+|---|---|---|---|---|---|---|
+| `rhy_rhythm` | +0.054 | +0.156 | −0.135 | YES | YES | **YES** |
+| `harm_rhythm` | +0.020 | +0.079 | −0.059 | no | YES | **YES** |
+| `timb_rhythm` | +0.045 | +0.090 | −0.070 | no | YES | **YES** |
+| `harm_place` | +0.0008 | +0.0208 | −0.025 | YES¹ | — | **YES (26×)** |
+| `follow_mean` | +0.024 | +0.109 | −0.082 | YES | YES | **YES** |
+| `follow_best` | +0.054 | +0.191 | −0.136 | YES | YES | **YES** |
+| `follow_vocals` | +0.015 | +0.141 | −0.129 | YES | YES | **YES (9.7×)** |
+| `hands_x_downbeat` | +0.100 | +0.218 | −0.192 | YES | YES | **YES** |
+| `lead_persistence` | 0.321 | 0.380 | −0.051 | YES | YES | **YES** |
+| `double_share` | 0.646 | 0.171 | +0.451 | YES | YES | **YES** |
+
+¹after the Jaccard rebuild.
+
+★**Nothing on the steer list evaporated at 11× the sample, and the two weakest M1 views got stronger.**
+The statement is now: *whenever* the music repeats — harmonically, timbrally or rhythmically — the
+human map brings its pattern back and ours does not; and the **movement** gap (`harm_place`, 26×) is
+far larger than the rhythm gap (2.9×).
+
+⚠️**CORRECTION to the n=42 note**: `hands_x_coincid` **does** resolve at n=149 (Δ −0.071). What n=13
+got wrong was the effect SIZE, not the sign — it read −0.196, nearly 3× the true value. "Did not
+replicate at n=42" was itself an underpowered read. It stays DIAGNOSTIC ONLY on the battery's verdict,
+so nothing depended on it either way, but the correct lesson is **n=13 inflates effect sizes**, not
+"the finding was false".
+
+⚠️`arrange` (M4 v1) also becomes resolvable at n=149 (−0.068) and `arrange_ami` (−0.036). **Neither may
+be quoted as a finding** — both fail the battery, and a resolvable difference measured with an
+instrument a rotated map can fool is a resolvable measurement of nothing.
+
 ### New files
 
 `scripts/song_structure.py` (bar grid from the main beat at a musical bar length, cached frame
