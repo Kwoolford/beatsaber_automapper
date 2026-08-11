@@ -53,16 +53,23 @@ sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "scripts"))
 
 
-def rebuild(src_zip: pathlib.Path, dst_zip: pathlib.Path, lag: int) -> str:
-    """Copy the zip, replacing ExpertStandard.dat with its fixed-lag repeat."""
+def rebuild(src_zip: pathlib.Path, dst_zip: pathlib.Path, lag: int,
+            song_id: str | None = None) -> str:
+    """Copy the zip, replacing ExpertStandard.dat with its fixed-lag repeat.
+
+    ⚠️`song_id` defaults to the filename stem, which is right for a cohort directory and
+    wrong for a review map called e.g. `AliceBlue_BEFORE.zip` — the bar grid is keyed by
+    song id, so pass it explicitly there or this returns "no bar grid".
+    """
     import song_structure as ss
     from beatsaber_automapper.evaluation import scorecard
 
+    sid = song_id or src_zip.stem
     L = scorecard._load_any(src_zip)
     if not L:
         return "unreadable"
     bpm = float(L[1])
-    B = ss.bars(src_zip.stem, bpm, ss.song_end(src_zip.stem))
+    B = ss.bars(sid, bpm, ss.song_end(sid))
     if B is None or B.n < 24:
         return "no bar grid"
 

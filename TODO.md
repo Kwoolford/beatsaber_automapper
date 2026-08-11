@@ -510,7 +510,23 @@ direct answer on one song.
 were IDENTICAL and read a null (0.0000 vs 0.0006), which `place` mode cannot reach by construction
 since it never changes which slots play. The project's signature failure, caught in-flight this time.
 
-## 🔴🔴🔴 P0 — BEFORE ANY M-E PROMOTION: ADD A PERIODIC-REPEAT DEGENERATE TO THE BATTERY
+## 🔴🔴🔴 P0 — BEFORE ANY M-E PROMOTION: CAP THE DOSE BY BAR-PATTERN DIVERSITY
+**The defect, measured per song** (distinct bar patterns ÷ scored bars): at ~71 % copy share
+アリスブルー **0.427** and Digital Life Hacker **0.496** against a human **0.951**; at ~14 % share
+Hunger 0.949 / Fallen Kingdom 0.984, both human-normal. ⇒**The checkerboard is an OVERDOSE, confined
+to high-dose songs.** ⚠️**The cohort mean hides it entirely** (diag_full 0.880 vs human 0.883) — the
+project's own *"a cohort median cannot see a subset-of-songs defect"* trap, walked into and caught.
+**TASK**: make the lever refuse to push a song's bar-pattern diversity below its human bar (or below
+a fixed fraction of it) — a per-song cap on copy share, not a global constant.
+**DoD**: no song lands under ~0.85 of its human diversity, while `rhy_rhythm` / `harm_rhythm` keep a
+resolvable share of their gain at n=149. **This is the shippable form of M-E**; low dose is already
+human-normal on diversity and shows no checkerboard.
+⚠️Also still worth scoring: `scripts/make_periodic_degenerate.py --lag 8` (running). 🔴But note the
+fixed-lag degenerate's structure panel does **NOT** resemble our arm's — so it tests a real gap in the
+battery, **not** the thing seen on アリスブルー. My "our panel is a fixed-lag checkerboard" reading was
+an over-interpretation of a picture and is **retracted**.
+
+## 🟡 P1 — the old periodic-degenerate battery gap (unchanged, lower priority)
 `view_structure.py` on アリスブルー (~71 % of bars copied) shows **our AFTER panel is a rigid periodic
 CHECKERBOARD** while the music's and the human's are irregular ⇒ at high dose the lever produces
 structural **regularity, not form**. The M-axes did not flag it: they are contrasts and are

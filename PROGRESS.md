@@ -243,6 +243,53 @@ in this write-up needs re-reading. That is a cheap, decisive test and it is the 
 ⚠️**Dose is the control**: Hunger and Fallen Kingdom (~14 % copied) show no checkerboard. The defect
 is at ~71 %, so `min_sim`/`min_run` are the knobs, and the low-dose setting may be the shippable one.
 
+### ★★★ THE CHECKERBOARD, DIAGNOSED PROPERLY — IT IS A **DOSE** DEFECT, AND THE COHORT MEAN HIDES IT
+
+Two corrections to my own first reading, both from measurements made straight after it:
+
+🔴**(1) THE FIXED-LAG DEGENERATE DOES NOT LOOK LIKE OUR ARM.** I built a known bar-*i*-from-bar-*i−8*
+copier for アリスブルー and rendered it: its panel is **irregular**, closer in texture to the human's
+than to ours. So *"our AFTER panel is a fixed-lag checkerboard"* was an over-interpretation of a
+picture — the checkerboard has a different cause. (The `periodic_k8` control is still worth scoring;
+it tests a degenerate the battery genuinely lacks. It is just not the one I was looking at.)
+
+★**(2) THE REAL CAUSE IS BAR-PATTERN DIVERSITY, AND IT IS MEASURABLE.** Distinct bar patterns ÷
+scored bars:
+
+| | cohort mean (45 paired songs) |
+|---|---|
+| control | **0.999** — essentially *every* bar unique |
+| `diag_full` | 0.880 |
+| **human** | **0.883** |
+
+At cohort level the lever moves us from "we never repeat a bar exactly" — visibly non-human — to
+**the human level, −0.002 away.** That looks like a clean win. **It is not the whole story:**
+
+| song | copy dose | BEFORE | AFTER | human |
+|---|---|---|---|---|
+| アリスブルー | 71 % | 1.000 | **0.427** | 0.951 |
+| Digital Life Hacker | 71 % | 1.000 | **0.496** | — |
+| Hunger | 14 % | 1.000 | 0.949 | 0.899 |
+| Fallen Kingdom | 14 % | 1.000 | 0.984 | 0.992 |
+
+⇒**At high dose the map carries LESS THAN HALF the human's pattern diversity; at low dose it sits in
+the human range.** The checkerboard is real, it is an **overdose**, and it is confined to the
+high-dose songs.
+
+★★**AND THE COHORT MEAN HID IT COMPLETELY** (0.880 vs 0.883 — a perfect match). This is
+***exactly*** the lesson this project already wrote down — *"a cohort-median metric cannot see a
+subset-of-songs defect; rank by exceedance over the human tail and NAME the songs"* — and I was one
+sentence away from concluding "diag_full matches human repetitiveness" from that mean. **The
+per-song table is the honest instrument; the mean is the trap.**
+
+⇒**THE FIX IS A PER-SONG DOSE CAP, NOT A NEW PLANNER.** Bar-pattern diversity is cheap, it has a
+human bar per song, and it responds monotonically to dose ⇒ cap the copy share (or refuse copies once
+diversity drops below the song's human) and the degenerate cannot occur. **That, not another arm, is
+what should be built before anything is promoted.**
+⚠️Do not compare this to the older *"50 % of our bars exactly copy an earlier bar (human 74 %)"* note
+without care — that measured **rhythm-only** bars; this includes placement, so exact duplicates are
+far rarer and the two numbers are not the same quantity.
+
 ### 🔑 THE VERDICT, AND WHY IT IS NOT "STOP"
 
 The pre-registered rule said: *gain but idiom still broken ⇒ the structural gap is buyable and we do
