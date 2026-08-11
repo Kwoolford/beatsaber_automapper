@@ -61,6 +61,49 @@ it** — it should get one before *"internal to Stage-1, not the audio"* is reli
 share something that bpm, nps and onset density do not capture. That is a findable target — a named,
 stable, reproducible subset — rather than a diffuse cohort deficit.
 
+## 🔬 CHARACTERISING THE 35 — a bounded partial answer, and a bigger measurement problem beside it
+
+What distinguishes the reproducibly-failing songs? Checked bpm, our nps, human nps, density ratio,
+onset density, our lag, our scatter, and our declared BPM against the human's:
+
+| | bad (>0.10 below) | better than human | all |
+|---|---|---|---|
+| our `offset_mad_ms` | 11.60 | 9.45 | 10.40 |
+| human precision | 0.9522 | 0.9327 | 0.9492 |
+⚠️`corr(Δ, our offset_mad_ms) = −0.478` is the strongest number here and is **largely definitional** —
+both quantities measure how well our notes sit on onsets. It restates the defect, it does not explain
+it. `corr(Δ, human precision) = −0.343` is a ceiling effect. Neither is a cause.
+
+★**The one real lead: our declared BPM disagrees with the human's on 44/149 songs (30 %)**, and those
+songs fail at **41 %** against a **19 %** base rate — **~2.1× the odds.** But it explains **less than
+half** the bad set (18 of 38), so most of the defect is still unaccounted for. **Bounded, not
+solved.**
+
+### 🔴 THE BIGGER FINDING IS THE SHAPE OF THOSE MISMATCHES
+
+| ratio (ours ÷ human) | songs |
+|---|---|
+| **0.5× — half tempo** | **28** |
+| 3/2 | 9 |
+| 3/4 | 4 |
+| 2× | 2 |
+
+⇒**We declare HALF the human's BPM on 28 of 149 songs (19 %).**
+⚠️For alignment this is mostly harmless — only 7 of the 30 octave-error songs are in the bad set,
+because a note can sit on an onset whatever the grid is called. **The damage is to MEASUREMENT.**
+This project already knows the mechanism and paid for it once: *"the probe was on one of the two
+half-tempo songs; A2 measures intervals in the BEAT domain, so on a half-tempo song the beat-domain
+intervals are stretched and manufacture apparent rhythmic variety"* — that is how the
+`BEAT_HAND_INTERLEAVE` lever once looked good and wasn't.
+⇒★**Every beat-domain axis (A2 `rhythm`, the IOI family, `ebpm_burst`) is computed on a grid that is
+half the human's on ~19 % of the wide cohort**, so those songs' beat-domain numbers are stretched by
+2× relative to the rest of the cohort **and relative to their own human map**. This is not a lever
+question, it is a **commensurability** question, and it sits under every beat-domain comparison in
+the suite.
+**NEXT**: quantify it — recompute the beat-domain axes with the human's BPM substituted on the 44
+mismatched songs and see how much the cohort numbers move. If they move materially, beat-domain
+comparisons need a tempo-normalisation step. `scripts/bpm_octave_probe.py` already exists.
+
 ## ★★★★ THE CANDIDATE STACK — THE TWO LEVERS COMPLEMENT EACH OTHER (2026-08-11)
 
 Neither candidate had been tested with the other, and that is the config Kyle would actually receive
