@@ -7,6 +7,34 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★★★ THE CANDIDATE STACK — THE TWO LEVERS COMPLEMENT EACH OTHER (2026-08-11)
+
+Neither candidate had been tested with the other, and that is the config Kyle would actually receive
+if he likes both. The pre-registered worry was interaction: crossover moves notes horizontally *after*
+the layout model picks them, while structure-reuse copies whole bars including their columns.
+
+| axis | control | xsep solo | capped solo | **stack** | bar |
+|---|---|---|---|---|---|
+| flow | 0.37 | **0.23** | 0.55 🔴FAIL | **0.40 PASS** | 0.50 |
+| rhythm | 0.47 | 0.47 | 0.46 | 0.46 | 0.70 |
+| idiom | 0.40 | 0.52 | **1.21 🔴FAIL** | **0.88 PASS** | 1.00 |
+| handrole | 1.12 | 1.12 | 0.98 | 0.98 | 2.00 |
+| playfeel | 0.59 | 0.62 | 0.76 | 0.79 | 1.00 |
+| alignment | 0.62 | 0.62 | 0.62 | 0.62 | 0.39 (control fails too) |
+
+★★**THEY DO NOT FIGHT — the crossover lever REPAIRS the structure lever's damage.** Structure-reuse
+alone failed **both** flow (0.55) and idiom (1.21); stacked with crossover it passes both (0.40 /
+0.88). **This is the first configuration in the session where structure reuse is active and every
+axis the control passes is still passed.**
+
+⚠️**The repair is not free, and the mechanism is visible in the numbers**: xsep's solo flow gain
+(0.37 → 0.23) is *spent* absorbing the structure lever's flow cost — the stack lands at 0.40, roughly
+back at the control. So you get the structural gain and the crossovers, and you give back the flow
+improvement. That is a real trade, not a free lunch, and it is the sort of thing only a stacked run
+shows.
+⇒**If he likes both maps, the stack is shippable on the numbers.** If he likes only one, ship that
+one — `[CROSSOVER]` alone is the stronger single change (flow 0.23, nothing regressing).
+
 ## ✅ `COLOR_SEP_MODE=extreme` — VALIDATION COMPLETED ON THE MASTERPIECE AXES TOO
 
 I had been recommending it on the six-axis suite and reachability alone, and it moves note COLUMNS,
