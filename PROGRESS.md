@@ -63,6 +63,58 @@ measures — `BEAT_ONSET_EVIDENCE` did exactly that) and `follow_*`.
 149-song prod cohort, paired by song, same seed, differing in one thing. Tests: 521 passed
 (509 + 12 new).
 
+### 🔴🔴 ROUND 1 HARVESTED — THE PER-BAR COPY BREAKS FLOW AND IDIOM, WITH A DOSE-RESPONSE
+
+Both `place` arms, paired against the 149-song prod control:
+
+| arm | copy share | flow (bar 0.50) | idiom (bar 1.00) | playfeel | harm_place Δ |
+|---|---|---|---|---|---|
+| control | 0.000 | **0.37 PASS** | **0.40 PASS** | 0.59 | — |
+| `me_z25` | 0.190 | 0.61 FAIL | 0.69 PASS | 0.68 | — |
+| `me_z20` | 0.297 | **0.75 FAIL** | **1.07 FAIL** | 0.74 | +0.0008 |
+
+★**Monotone in both axes against the copy share**, so the damage is attributable to the copy itself
+rather than to anything incidental — a dose-response, not a single arm's bad luck.
+
+✅**THE TIME-NEUTRALITY CLAIM HELD EXACTLY**, which is what makes that attribution airtight: 13 of
+the 15 masterpiece axes moved by literally **+0.0000** (`rhy_rhythm`, `harm_rhythm`, `timb_rhythm`,
+all five `follow_*`, all three `hands_x_*`, `double_share`, `lead_persistence`), and `rhythm` and
+`handrole` on the six-axis suite were identical too. Nothing needed to be argued about attribution.
+
+🔴**AND THE PRICE WAS ABSURD FOR THE GOODS.** `harm_place` rose **+0.0008 against a 0.0200 gap** —
+about 4 % of the distance to the human — in exchange for pushing two passing axes across their bars.
+⚠️`hard_rate` *improved* 0.0494 → 0.0430, but `reach_median` shrank **2.8284 → 2.2361**, which is the
+**"fixed it by making everything small"** shape already flagged when `BEAT_REACH` strength 0.7 did it
+(and humans reach FURTHER than us, so shrinking travel is the wrong direction).
+
+★★**THE FINDING THAT OUTLIVES THE ARM, AND IT IS ABOUT THE SUITE**: this rewrote the position and cut
+direction of **25 % of the map's notes**, and **twelve of fifteen masterpiece axes did not move at
+all.** Only `harm_place`, `arrange` and `arrange_ami` can see placement. **The masterpiece suite is
+very nearly blind to where notes are and which way they are cut** — which is one concrete piece of
+what Kyle means by *"the metrics still don't capture the full picture."*
+
+### 🔬 WHY IT BROKE — MEASURED, AND THE OBVIOUS FIX WAS ALSO WRONG
+
+Only **15.6 %** of copied bars continued the previous bar's copy (median 13.9 %; under half in 60/60
+songs). The lever was **shuffling ~29 bars per song in from two dozen different places**, and a bar's
+placement is **not context-free** — the positions were chosen for the run-up the SOURCE bar had, and
+dropped into a different neighbourhood they have no continuity with the notes on either side. Flow
+(note-to-note motion) and idiom (direction convention) are exactly the two axes that read continuity.
+
+⚠️**Simply REQUIRING contiguity was the wrong fix and nearly became a wrong conclusion.** `min_run`
+collapsed the copy share 0.297 → 0.085 (run 2) → 0.017 (run 4), keeping any copy on 16/60 songs,
+which reads as *"songs do not contain contiguous repeats"* — plainly false of this music. The real
+cause is **tie-breaking**: when a chorus returns four times, adjacent bars pick different
+equally-good sources **because each bar is decided alone**. ★**That is C1 one level up** — the same
+disease as "every slot is decided on its own", now at bar scale.
+
+⇒`plan_reuse_diagonal` decodes whole **diagonal stripes** of the self-similarity matrix, so
+contiguity is a property of the representation rather than a filter bolted on after: copy share
+**0.297 → 0.428** with contiguity **0.156 → 0.648**, on 56/60 songs. It finds MORE repeats *and* they
+hang together. Round 2 (`scripts/overnight_2026-08-11.sh`) tests it with a kill criterion attached:
+if flow/idiom break the same way, copying placement across contexts is itself the defect, place mode
+is **DONE**, and it does not get tuned a third time.
+
 ### ★ What Kyle's message means against evidence already in the repo
 
 **He is right, and we measured it before he said it.** M-F: ranking the songset by the mean gap over
