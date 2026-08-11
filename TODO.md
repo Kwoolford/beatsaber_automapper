@@ -261,6 +261,29 @@ a defect detector, which is what they were validated as.
 ⚠️Do NOT respond to his message by building a seventh metric from first principles. That is the move
 that produced the anti-correlation.
 
+### 🔴 THREE MEASURED SENSES IN WHICH THE SUITE MISSES THE PICTURE (2026-08-10/11)
+1. **It is anti-correlated in aggregate** (M-F) and **at the coin flip per axis** — 13/26 axes agree
+   with his one known verdict (`scripts/preference_screen.py`). ⚠️n=1 pair, and the axes are not
+   independent.
+2. **The masterpiece suite is nearly blind to PLACEMENT.** M-E rewrote the position and cut direction
+   of **25 % of all notes** and **12 of 15 axes moved by exactly +0.0000**. Only `harm_place`,
+   `arrange`, `arrange_ami` can see it — and two of those are diagnostic-only.
+3. ★**The six-axis suite cannot score a single map AT ALL.** flow/rhythm/idiom/handrole/playfeel are
+   COHORT statistics comparing distributions; on one map every axis returns nan (verified). ⇒**The
+   project's primary instrument is structurally incapable of the only question Kyle asks — "is THIS
+   map good".** It gates a cohort; it cannot rank two maps. Not fixable by reweighting.
+
+### 🟡 A HYPOTHESIS FOR "REALLY EMPTY" THAT SURVIVES ITS OWN CAVEAT — ask, don't build
+Per-map metrics DO survive on one map. On the two he judged: nps **4.88 vs 3.21**, travel **5.94 vs
+3.25**, peak_nps **9.5 vs 5.5** — he liked the denser, busier one. ⚠️Travel is mostly density wearing
+a hat (1.22 vs 1.01 per note), so this is near the density story W2 already refuted as a target.
+★**But the reconciliation is testable and it matters**: relative to each song's OWN human, Fallen
+Kingdom is the *denser* of the two (0.781 vs 0.650) and it is the one he called empty ⇒ **he may be
+judging ABSOLUTE activity, not activity relative to that song's human.** Nearly every instrument here
+normalises by the human map, which would be normalising away the thing he reacts to.
+⚠️**ASK HIM** — four "empty" instruments have already failed; do not build a fifth. The question:
+*"is Fallen Kingdom empty compared to what our model used to do, or compared to what the song wants?"*
+
 **The second candidate for "significantly different"** is the V8 representation direction
 (`docs/architecture_v8_plan.md`, `beatsaber_v8_representation_theory` memory): symbolic per-stem
 transcription as the timing backbone rather than MERT-on-a-BPM-grid. ⚠️Note it was **shelved on

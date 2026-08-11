@@ -184,6 +184,50 @@ HOW TO READ THIS
         its relation to quality wrong.
 ⚠️Whatever it says, this is one pair. The instrument that settles it does not exist
   yet; it is a few listening sessions with him. That is the ask.""")
+    # ---- the six-axis suite cannot be asked this question at all ----
+    print("""
+=== ⚠️ THE SIX-AXIS SUITE CANNOT ANSWER THIS, BY CONSTRUCTION ===
+flow / rhythm / idiom / handrole / playfeel / alignment are COHORT statistics: each
+compares a distribution of maps against the human reference distribution. Scoring a
+single map returns nan on every axis (verified, not assumed). So the project's primary
+suite is structurally incapable of answering "is THIS map good" — which is the only
+question Kyle ever asks. It gates a cohort; it cannot rank two maps.
+⇒ That is a second, independent sense in which "the metrics don't capture the full
+   picture", and it is not fixable by reweighting either.""")
+
+    try:
+        from beatsaber_automapper.evaluation import scorecard as _sc
+        recs = {}
+        for key in ("better", "worse"):
+            for pair in PAIRS[:1]:
+                sid, rel = pair[key]
+                L = _sc._load_any(REPO / rel)
+                if L:
+                    recs[key] = _sc.score_cohort([L], key)["records"][0]
+        if len(recs) == 2:
+            print("\n=== PER-MAP metrics DO survive — and they say something ===")
+            print(f"{'metric':22s}{'he liked':>12s}{'he criticised':>15s}")
+            for k in ("nps", "peak_nps", "travel", "pulse_stability", "ebpm_burst",
+                      "diagonal_share", "role_asymmetry"):
+                A_, B_ = recs["better"].get(k), recs["worse"].get(k)
+                if isinstance(A_, (int, float)) and isinstance(B_, (int, float)):
+                    print(f"{k:22s}{A_:12.4f}{B_:15.4f}")
+            print("""
+⚠️HYPOTHESIS ONLY, n=1 PAIR, TWO DIFFERENT SONGS. The map he liked is denser (nps
+4.88 vs 3.21) and moves far more (travel 5.94 vs 3.25). ★But travel is mostly density
+wearing a hat — per note it is 1.22 vs 1.01, a much smaller gap — so this is close to
+the density story W2 already refuted as a TARGET (the song he loved sits FURTHEST
+below its own human's density).
+★THE RECONCILIATION WORTH TESTING: relative to each song's human, Fallen Kingdom is
+the DENSER of the two (0.781 vs 0.650) yet it is the one he called empty ⇒ he may be
+judging ABSOLUTE activity, not activity relative to what that song's human mapper did.
+If true, normalising by the human map — which nearly every instrument here does — is
+normalising away the thing he reacts to. **Ask him; do not build a fifth 'empty'
+metric.** Four already failed (density ratio, k>=3 response, phrase holes, pulse
+consistency).""")
+    except Exception as exc:                                    # noqa: BLE001
+        print(f"\n(per-map metric comparison unavailable: {exc})")
+
     if a.json:
         pathlib.Path(a.json).write_text(json.dumps(out, indent=1))
         print(f"\nwrote {a.json}")
