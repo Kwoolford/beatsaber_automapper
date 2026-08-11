@@ -7,6 +7,52 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★★★★★★ `COLOR_SEP_MODE=extreme` — A VALIDATED LEVER THAT WAS NEVER SHIPPED (2026-08-11)
+
+Found by chasing a blind spot, not by looking for a lever. `audit_sensitivity.py` showed the suite
+cannot see a left-right mirror; `crossover` detects one perfectly but is wired into no axis; and that
+exposed a **categorical** difference:
+
+| | crossover share | maps with none |
+|---|---|---|
+| human (n=150 strict Expert) | median **0.183** (p10 0.111, p90 0.271) | **0 / 150** |
+| ours (n=149) | **0.0000** | **149 / 149** |
+
+Cause is in our own docstring: `enforce_color_separation` at `COLOR_SEP_MODE=full` (the default)
+moves every wrong-side note. **And PROGRESS.md's 2026-07-27 sweep already recorded
+`COLOR_SEP_MODE=extreme` → idiom 1.84 → 0.30 PASS.** It never reached `generate.py`'s defaults or
+`docs/BASELINE_2026-08-03.md` — it fell through when the eight defaults were promoted.
+
+### Re-validated at n=149 against today's baseline — and it is the cleanest result of the session
+
+| axis | control | **xsep** | bar |
+|---|---|---|---|
+| flow | 0.37 | **0.23** ✅ *improved* | 0.50 |
+| rhythm | 0.47 | 0.47 | 0.70 |
+| idiom | 0.40 | 0.52 | 1.00 (PASS) |
+| handrole | 1.12 | 1.12 | 2.00 |
+| playfeel | 0.59 | 0.62 | 1.00 (PASS) |
+| alignment | 0.62 | 0.62 | 0.39 (both FAIL — the baseline's own defect) |
+
+| reachability | control | **xsep** | **human (n=120)** |
+|---|---|---|---|
+| `reach_p90` | 3.1623 | **3.6056** | **3.6056** |
+| `hard_rate` | 0.0494 | **0.0622** | **0.0619** |
+| `hard_given_diagonal` | 0.0280 | 0.0519 | 0.0853 |
+| crossover | 0.0000 | 0.1119 | 0.1826 |
+
+★★**`hard_rate` rising looks like a regression and is the opposite.** The control sat *below* the
+human — we were reaching LESS than humans — which this project already knew (*"humans reach FURTHER
+than us, p90 3.61 vs 3.16; they make bigger movements and give them TIME"*). xsep lands on the human
+value on both reach metrics. ⚠️Reach distances are quantised to √integer (3.6056 = √13, 2.8284 = √8),
+so an exact 4-dp match is bucket agreement, **not** a suspicious tie — do not read it as one.
+
+⇒**A lever that closes a categorical human gap, IMPROVES flow, moves two reachability metrics onto
+human values, and crosses no bar.** Crossover reaches ~61 % of the human median with **zero maps
+overshooting human p90**, i.e. it errs conservative.
+⚠️Still not a promotion: **his ear decides**, and the whole suite it passes is the one measured to
+agree with his verdicts at a coin flip. It goes into the review set as an independent candidate.
+
 ## ★★★★★ A8 RESTORED ON THE WIDE COHORT — AND M-E IS CLEARED ON TIMING (2026-08-11 morning)
 
 Kyle: *"keep prodding the visibility suite to identify more blind spots."*
