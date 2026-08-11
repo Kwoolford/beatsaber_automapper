@@ -487,7 +487,17 @@ direct answer on one song.
 were IDENTICAL and read a null (0.0000 vs 0.0006), which `place` mode cannot reach by construction
 since it never changes which slots play. The project's signature failure, caught in-flight this time.
 
-**Harvest next session** — read `logs/overnight/me_2026-08-10.log`, then:
+🔴🔴**ROUND 1 (`me_z20`, per-bar copy) IS A CLEAN NEGATIVE — outcome in PROGRESS.md.**
+flow **0.37 → 0.75** and idiom **0.40 → 1.07**, both across their bars, for a `harm_place` gain of
+**+0.0008 against a 0.0200 gap**. Every rhythm-side axis identical to 4 dp (time-neutrality held
+exactly). Cause measured, not guessed: only **15.6 %** of copied bars continued the previous bar's
+copy ⇒ a shuffle, and placement is not context-free. **Tie-breaking, not absent sections** — C1 one
+level up. ⇒`plan_reuse_diagonal` decodes whole stripes: copy share 0.297→0.428, contiguity
+0.156→**0.648**. **Round 2 is queued and self-sequencing** (`scripts/overnight_2026-08-11.sh`,
+arms `diag_r4` / `diag_r6`), and it carries the kill criterion: if flow/idiom break the same way,
+copying placement across contexts is the defect, place mode is DONE, **do not tune it a third time.**
+
+**Harvest next session** — read `logs/overnight/me_2026-08-10.log` and `me2_2026-08-11.log`, then:
 2. 🔴**`harm_place` is a MANIPULATION CHECK here, not a win.** The lever copies placement on musical
    repeats and the axis scores placement reuse on musical repeats. It answers "did the lever fire".
 3. **The place arms cannot have moved alignment / rhythm(A2) / nps / precision** — no note moves in
