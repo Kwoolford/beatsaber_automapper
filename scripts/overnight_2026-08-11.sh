@@ -52,14 +52,22 @@ CTRL=outputs/wide_cohort
 #              DOSE-MATCHED to me_z20 (share 0.297, contiguity 0.156). Same amount of
 #              copying, 4x the contiguity ⇒ contiguity is the ONLY variable, and the
 #              comparison against me_z20's flow 0.75 / idiom 1.07 is clean.
-#   diag_wide  min_sim 0.60 -> share 0.428, contiguity 0.648
-#              The ceiling question: WITH contiguity, can we copy more without damage?
-#              Confounded on purpose, and only interpretable if diag_dose passes first.
+#   diag_full  same settings, but copies the bar's RHYTHM too. ★RUN FIRST -- it is now
+#              the most valuable arm in the project. `me_full25` (full mode, per-bar)
+#              produced the FIRST resolvable movement of a masterpiece axis this
+#              project has ever had: rhy_rhythm +0.0175 and harm_rhythm +0.0280 against
+#              a +-0.004 seed floor, and harm_place +0.0091 = 11x what copying
+#              placement alone bought. It paid with idiom 0.40 -> 2.34. Round 1 showed
+#              the copies are scattered across contexts; if that scattering is what
+#              makes them idiomatically alien, contiguity should cut the bill while
+#              keeping the structural gain. That is the whole experiment.
+# (The earlier `diag_wide` share-0.428 arm is dropped -- a confounded ceiling probe is
+#  worth less than the question above, and GPU time is the scarce thing.)
 declare -A ARMS=(
   [diag_dose]="diag_place:0.70:4:1.5:2.0:4"
-  [diag_wide]="diag_place:0.60:4:1.5:2.0:4"
+  [diag_full]="diag_full:0.70:4:1.5:2.0:4"
 )
-ORDER=(diag_dose diag_wide)
+ORDER=(diag_full diag_dose)
 
 for arm in "${ORDER[@]}"; do
   echo ""; echo "--- GENERATE $arm  (${ARMS[$arm]}) --- $(date +%H:%M)"
@@ -91,8 +99,15 @@ echo "me_z25  (share 0.190): flow 0.61 FAIL, idiom 0.69 PASS"
 echo "me_z20  (share 0.297): flow 0.75 FAIL, idiom 1.07 FAIL, harm_place +0.0008"
 echo "full25  (share 0.190): flow 0.81 FAIL, idiom 2.34 FAIL, playfeel 1.03 FAIL"
 echo ""
-echo "diag_dose is DOSE-MATCHED to me_z20 -- compare it against flow 0.75 / idiom 1.07."
-echo "If the shuffle was the problem, diag_dose lands far closer to the control."
+echo "full25  M-axes      : rhy_rhythm +0.0175, harm_rhythm +0.0280, harm_place +0.0091"
+echo "                      (first resolvable masterpiece-axis movement in the project)"
+echo ""
+echo "diag_dose is DOSE-MATCHED to me_z20 -- compare against flow 0.75 / idiom 1.07."
+echo "diag_full is THE arm: does contiguity keep full mode's structural gain while"
+echo "cutting its idiom bill (2.34) back toward the 1.00 bar? Structural gain WITHOUT"
+echo "the idiom blowup = the first real M-E result and worth Kyle's ear. Gain but idiom"
+echo "still broken = the structural gap is buyable and we do not yet know how to afford"
+echo "it -- say exactly that, and stop tuning placement copies."
 echo "If a diag arm keeps flow < 0.50 and idiom < 1.00 while harm_place still rises,"
 echo "the shuffle was the problem and this is worth Kyle's ear. If flow/idiom break"
 echo "the same way, copying placement across contexts is the problem and place mode"

@@ -510,7 +510,20 @@ direct answer on one song.
 were IDENTICAL and read a null (0.0000 vs 0.0006), which `place` mode cannot reach by construction
 since it never changes which slots play. The project's signature failure, caught in-flight this time.
 
-🔴🔴**ROUND 1 (`me_z20`, per-bar copy) IS A CLEAN NEGATIVE — outcome in PROGRESS.md.**
+★★★**M-A IS RETRACTED: SOMETHING FINALLY MOVES A MASTERPIECE AXIS.** `me_full25` (copy the bar's
+RHYTHM on a musical repeat) — `rhy_rhythm` **+0.0175**, `harm_rhythm` **+0.0280** against a ±0.004
+seed floor (4–7×), `harm_place` **+0.0091** = **11×** what copying placement alone bought. M-A's
+*"nothing we have moves any of these"* (mbb/endres/trimco3/v8 at n=149) **no longer holds.**
+⚠️It pays the pre-registered price — `follow_*` −0.003…−0.005 and `lead_persistence` −0.0146, all
+resolvable: a copied bar stops following THIS bar's music — and an unacceptable one: **idiom
+0.40 → 2.34**, playfeel spread collapsed. ⇒**The question is no longer "can copying close the
+structural gap" (yes) but "can we afford it".** ⇒Round 2's **`diag_full`** is the arm that matters:
+does contiguity keep the structural gain while cutting the idiom bill?
+⚠️I called full mode "dead" off the six-axis table 20 min before its M-axis report landed. **Wrong
+call, corrected in PROGRESS.md** — do not read a structural lever's verdict off the playability
+table alone.
+
+🔴🔴**ROUND 1's PLACE ARMS (`me_z20`/`me_z25`) ARE A CLEAN NEGATIVE — outcome in PROGRESS.md.**
 flow **0.37 → 0.75** and idiom **0.40 → 1.07**, both across their bars, for a `harm_place` gain of
 **+0.0008 against a 0.0200 gap**. Every rhythm-side axis identical to 4 dp (time-neutrality held
 exactly). Cause measured, not guessed: only **15.6 %** of copied bars continued the previous bar's

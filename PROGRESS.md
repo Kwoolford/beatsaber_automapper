@@ -106,8 +106,34 @@ also fails with a **collapsed spread** (0.32 < 0.35), the signature of a map who
 flattened. ✅The map itself is well-formed — note count ratio 1.013 vs control, no song shifted more
 than 20 %, 0 parity violations — so this is not a broken-output artifact, it is what copied rhythm
 sounds like. ⚠️One genuine improvement: `handrole` **1.12 → 0.58**, the only axis any M-E arm helped.
-⇒**`full` mode is dead.** It was the only arm that could have satisfied M-E's original DoD
-(`rhy_rhythm` rising), and it buys that possibility at a price nothing could justify.
+🔴**I CALLED THIS DEAD 20 MINUTES EARLY, AND THE MASTERPIECE NUMBERS RETRACT THAT.** I wrote "full
+mode is dead" off the six-axis table alone, before its M-axis report finished. It was the wrong call
+and the correction is the most important result of the night:
+
+| axis | control | `me_full25` | paired Δ | vs the ±0.004 seed floor | human |
+|---|---|---|---|---|---|
+| `rhy_rhythm` | +0.0536 | +0.0642 | **+0.0175** | 4.4× | 0.148 |
+| `harm_rhythm` | +0.0203 | +0.0419 | **+0.0280** | 7× | 0.127 |
+| `timb_rhythm` | +0.0453 | +0.0469 | +0.0119 | 3× | — |
+| `harm_place` | +0.0008 | +0.0056 | **+0.0091** | **11× the place arm's +0.0008** | 0.0208 |
+| `hands_x_downbeat` | +0.0990 | +0.1648 | +0.0366 | ⚠️inside its own seed sd (0.066) | 0.218 |
+
+★★★**THIS IS THE FIRST THING IN THIS PROJECT'S HISTORY TO MOVE A MASTERPIECE AXIS RESOLVABLY.**
+M-A's headline — *"nothing we have moves any of these"*, established across mbb015 / mbb025 / endres /
+trimco3 / v8 at n=149 — **no longer holds.** Copying a bar's rhythm on a musical repeat moves
+`harm_rhythm` by 7× the seed-noise floor, and it moves `harm_place` 11× further than copying
+placement alone did.
+⚠️**The cost is exactly the one pre-registered**: `follow_mean` −0.0029, `follow_best` −0.0043,
+`follow_vocals` −0.0049, `lead_persistence` −0.0146, all resolvable — *"a copied bar is right only if
+the repeat really is the same"*. The copy stops the map following THIS bar's music.
+
+⇒**THE HONEST VERDICT IS NOT "DEAD", IT IS "THE STRUCTURAL GAP IS BUYABLE AND WE ARE OVERPAYING".**
+The mechanism works — the map's structure genuinely starts following the song's structure. What is
+unacceptable is the bill: idiom 0.40 → 2.34 and a collapsed playfeel spread. So the question turns
+from *"can copying close the structural gap"* (answered: yes) to **"can it be made to cost less"** —
+which is precisely what contiguity is hypothesised to fix, since round 1 proved the copies are being
+scattered across contexts.
+⇒Round 2 therefore carries a **`diag_full`** arm as well as the dose-matched place arm.
 
 ### 🔬 WHY IT BROKE — MEASURED, AND THE OBVIOUS FIX WAS ALSO WRONG
 

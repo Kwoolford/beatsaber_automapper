@@ -273,3 +273,42 @@ def test_diagonal_planner_never_claims_a_bar_twice():
     plan = sr.plan_reuse_diagonal(S, edges, min_sim=0.6, min_lag=4, min_run=4)
     assert len(plan.source) == len(set(plan.source)), "a bar was assigned twice"
     assert all(s < t for t, s in plan.source.items()), "a bar may only copy the PAST"
+
+
+def test_diag_prefix_selects_diagonal_planner_and_keeps_the_mode(monkeypatch):
+    """`diag_full` must mean diagonal planning AND rhythm copying, not one or the other.
+
+    Checked because it is the spec the most valuable arm runs under, and a silent
+    fallback to per-bar planning would make that arm a repeat of the one it is meant to
+    improve on — which no number in the report would reveal.
+    """
+    seen = {}
+    real_diag = sr.plan_reuse_diagonal
+    real_apply = sr.apply_reuse
+
+    def spy_diag(*a, **k):
+        seen["planner"] = "diagonal"
+        return real_diag(*a, **k)
+
+    def spy_apply(bm, plan, bpm, mode="place"):
+        seen["mode"] = mode
+        return real_apply(bm, plan, bpm, mode=mode)
+
+    monkeypatch.setattr(sr, "plan_reuse_diagonal", spy_diag)
+    monkeypatch.setattr(sr, "apply_reuse", spy_apply)
+    monkeypatch.setenv("BEAT_STRUCTURE_REUSE", "diag_full:0.70:4:1.5:2.0:4")
+
+    n = 32
+    edges = np.arange(n + 1) * BAR_S
+    M = np.full((n, n), 0.05)
+    for k in range(8):
+        M[16 + k, k] = M[k, 16 + k] = 0.95
+    S = {"harm": M, "rhy": M, "timb": M, "energy": np.ones(n)}
+    monkeypatch.setattr(sr, "bar_edges", lambda *a, **k: edges)
+    monkeypatch.setattr(sr, "audio_bar_ssm", lambda *a, **k: S)
+
+    bm = DifficultyBeatmap(version="3.0", color_notes=_notes([(0, (1, 0, 1))]))
+    sr.maybe_apply(bm, np.zeros(1000, dtype="float32"), 44100, {}, BPM, 60.0)
+
+    assert seen.get("planner") == "diagonal", "diag_ prefix did not select the stripe planner"
+    assert seen.get("mode") == "full", "the mode after the diag_ prefix was lost"
