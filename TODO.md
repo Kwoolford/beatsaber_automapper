@@ -510,6 +510,17 @@ direct answer on one song.
 were IDENTICAL and read a null (0.0000 vs 0.0006), which `place` mode cannot reach by construction
 since it never changes which slots play. The project's signature failure, caught in-flight this time.
 
+## 📦 AWAITING KYLE'S EAR — `outputs/kyle_review_2026-08-11/` (installed, ready to play)
+**8 maps deployed** as `AUTO <song> [BEFORE]` / `[AFTER]` (restart Beat Saber or SongCore-refresh).
+README: [`docs/review_2026-08-11.md`](docs/review_2026-08-11.md) — leads with what to distrust.
+★**Tell him: play Digital Life Hacker and アリスブルー.** They are ~71 % copied (65 % of note times
+changed); Hunger and Fallen Kingdom are only ~14 % copied and will sound nearly identical.
+★**The question to ask is not "is it better"** but **"does the repetition read as INTENTIONAL or as
+LAZY?"** We copy a chorus and do not vary it; a mapper copies and then varies. If it reads lazy, the
+next problem is variation-on-repeat — different, and easier than what was just solved.
+⚠️Still unanswered from 2026-08-04: *is Fallen Kingdom empty vs what our model used to do, or vs what
+the song wants?*
+
 ★★★**M-A IS RETRACTED: SOMETHING FINALLY MOVES A MASTERPIECE AXIS.** `me_full25` (copy the bar's
 RHYTHM on a musical repeat) — `rhy_rhythm` **+0.0175**, `harm_rhythm` **+0.0280** against a ±0.004
 seed floor (4–7×), `harm_place` **+0.0091** = **11×** what copying placement alone bought. M-A's
