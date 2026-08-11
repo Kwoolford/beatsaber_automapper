@@ -95,14 +95,33 @@ This project already knows the mechanism and paid for it once: *"the probe was o
 half-tempo songs; A2 measures intervals in the BEAT domain, so on a half-tempo song the beat-domain
 intervals are stretched and manufacture apparent rhythmic variety"* — that is how the
 `BEAT_HAND_INTERLEAVE` lever once looked good and wasn't.
-⇒★**Every beat-domain axis (A2 `rhythm`, the IOI family, `ebpm_burst`) is computed on a grid that is
-half the human's on ~19 % of the wide cohort**, so those songs' beat-domain numbers are stretched by
-2× relative to the rest of the cohort **and relative to their own human map**. This is not a lever
-question, it is a **commensurability** question, and it sits under every beat-domain comparison in
-the suite.
-**NEXT**: quantify it — recompute the beat-domain axes with the human's BPM substituted on the 44
-mismatched songs and see how much the cohort numbers move. If they move materially, beat-domain
-comparisons need a tempo-normalisation step. `scripts/bpm_octave_probe.py` already exists.
+### ✅ QUANTIFIED — and it narrows my own claim to ONE metric
+
+I wrote that *every* beat-domain axis must be distorted. **Measured, that is mostly wrong.** The same
+44 maps scored on our declared BPM vs the human's — identical notes, identical audio, only the grid
+label differs:
+
+| metric | our grid | human grid | ratio |
+|---|---|---|---|
+| `ioi_entropy` | 0.5817 | 0.5817 | **1.000** |
+| `ioi_cond_entropy` | 0.6187 | 0.6187 | **1.000** |
+| `ioi_switch_rate` | 16.7337 | 16.7337 | **1.000** |
+| `pulse_stability` | 0.4757 | 0.4757 | **1.000** |
+| **`ebpm_burst`** | 203.0 | **350.0** | **1.724** |
+
+**Four of five are grid-invariant** — they are computed from note times, so renaming the grid cannot
+touch them. **Only `ebpm_burst` moves**, and it moves a lot, because `flow.py` converts swings-per-BEAT
+to swings-per-MINUTE *using the declared bpm* precisely to be tempo-blind — which makes it exactly as
+wrong as the bpm is.
+
+🔴**And `ebpm_burst` is in `flow`'s SEQUENCE_KEYS**, so it feeds the flow composite. ⇒**The flow axis
+is contaminated on the ~30 % of wide-cohort songs whose bpm disagrees with the human's.**
+★**BUT THE SCOPE IS NARROW, AND THIS MATTERS FOR EVERY FLOW NUMBER QUOTED THIS SESSION**: both sides of
+an **arm-vs-arm** comparison use the *same* detected bpm, so `flow` 0.37 → 0.23 (xsep) and the rest of
+today's arm deltas are **unaffected**. What is contaminated is the **ours-vs-human** gap on those
+songs — i.e. the absolute level of the flow bar, not the comparisons between our own configs.
+**NEXT**: either derive `ebpm_burst` from note times directly, or fall back to the human's bpm when
+the two disagree. Cheap, and it is the only place the half-tempo problem actually bites.
 
 ## ★★★★ THE CANDIDATE STACK — THE TWO LEVERS COMPLEMENT EACH OTHER (2026-08-11)
 
