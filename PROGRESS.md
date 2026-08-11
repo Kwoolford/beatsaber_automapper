@@ -7,6 +7,28 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ✅ `COLOR_SEP_MODE=extreme` — VALIDATION COMPLETED ON THE MASTERPIECE AXES TOO
+
+I had been recommending it on the six-axis suite and reachability alone, and it moves note COLUMNS,
+so the placement axes needed checking before it went further. Paired at n=149: **13 of 15 M-axes
+moved by exactly +0.0000**, and `harm_place` (−0.0001), `arrange` (−0.0023), `arrange_ami` (+0.0004)
+are all inside noise. **Nothing regresses.** Structure and timing are untouched because the lever only
+changes which column a note sits in.
+
+★**And it is an independent second demonstration of the placement blindness**: a lever that moves
+notes horizontally across the grid on every song leaves 13 of 15 masterpiece axes reading **exactly
+zero** — the same signature M-E produced by a completely different mechanism.
+
+**Full validation status of the candidate:**
+| check | result |
+|---|---|
+| crossover | 0.0000 → 0.112 (human 0.183), **0/149 exceed human p90** |
+| six-axis | flow **0.37 → 0.23**; idiom 0.40 → 0.52 (PASS); playfeel 0.59 → 0.62 (PASS); rest unchanged |
+| reachability | `reach_p90` 3.16 → **3.61** = human; `hard_rate` 0.049 → **0.062** = human 0.062 |
+| masterpiece axes | unchanged (13/15 exactly 0.0000) |
+| note count | unchanged — only which side a note sits on |
+⇒**Fully validated. Awaiting his ear as `[CROSSOVER]`.**
+
 ## 🔴 `LAYOUT_TRAVEL_PENALTY=1` DOES NOT REPRODUCE — and the pre-registration called it
 
 The second and last validated-but-unshipped lever, re-tested at n=149:
