@@ -710,6 +710,31 @@ reference changes** or the snapshot silently drifts. `data/` is gitignored too, 
 
 
 
+## 🔴🔴🔴 P0 — **WE NEVER CROSS HANDS OVER. HUMANS ALWAYS DO.** (found 2026-08-11)
+| | crossover share (red in cols 2-3 / blue in cols 0-1) |
+|---|---|
+| **human** (n=150 strict Expert) | median **0.183**, p10 0.111, p90 0.271 — **0 of 150 maps have none** |
+| **ours** (n=149 wide cohort) | **0.0000 on every single map** |
+
+Not a gap — a **missing capability**. Crossovers are a deliberate expressive device every human mapper
+uses on ~18 % of notes, and our generator emits exactly zero.
+**CAUSE, documented in our own code**: `enforce_color_separation` with `COLOR_SEP_MODE=full` (the
+default) moves *every* wrong-side note — its docstring says outright *"this is why our maps measure
+crossover == 0.000"*.
+🔴🔴**AND THE FIX WAS ALREADY VALIDATED AND NEVER SHIPPED.** PROGRESS.md's 2026-07-27 lever sweep
+records **`COLOR_SEP_MODE=extreme` → idiom 1.84 → 0.30 PASS**, ticked as a win. It is not in
+`generate.py`'s defaults and not in `docs/BASELINE_2026-08-03.md` — **it fell through the cracks when
+the eight defaults were flipped on 2026-08-03.** ⚠️That result predates the tempo fix and the wide
+cohort, so it is a LEAD, not evidence. **Re-validating at n=149 now**
+(`scripts/overnight_2026-08-11d.sh`).
+⚠️**Never bar crossover at zero** — 0 of 150 human maps have zero crossovers, so "no crossovers" is
+the *non-human* state, and it is the state we ship today.
+★**HOW IT WAS FOUND** — the sensitivity battery: the suite is blind to mirroring a map left-right, and
+chasing that showed `crossover` detects it perfectly (0.000→1.000) but is wired into **no axis**.
+`flow.py` excludes it from the composite deliberately (it is order-independent and would dilute the
+shuffled control) with the comment *"still reported, as guards"* — **nothing ever guarded it.**
+**TASK**: implement that guard, calibrated on the human band, once the arm reports.
+
 ## 🔬 THE SENSITIVITY BATTERY (new 2026-08-11) — `scripts/audit_sensitivity.py`
 **A different question from every audit we had.** `audit_eval_suite` / `audit_masterpiece` are
 DEGENERACY batteries: build a bad map, check the suite ranks it low — i.e. can a metric be *fooled*.
