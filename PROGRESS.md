@@ -135,7 +135,64 @@ which is precisely what contiguity is hypothesised to fix, since round 1 proved 
 scattered across contexts.
 ⇒Round 2 therefore carries a **`diag_full`** arm as well as the dose-matched place arm.
 
-### 🔬 WHY IT BROKE — MEASURED, AND THE OBVIOUS FIX WAS ALSO WRONG
+### ★★★★★★★ ROUND 2 — CONTIGUITY DOUBLES THE GAIN *AND* REMOVES THE SIDE-EFFECT
+
+`diag_full` = the diagonal (stripe) planner + rhythm copying, dose-comparable to round 1. Paired
+against the same 149-song control:
+
+| axis | control | `me_full25` (per-bar) | **`diag_full`** | human | share of the gap closed |
+|---|---|---|---|---|---|
+| `rhy_rhythm` | 0.0536 | +0.0175 | **+0.0423** | 0.148 | **~45 %** |
+| `harm_rhythm` | 0.0203 | +0.0280 | **+0.0542** | 0.127 | **~51 %** |
+| `timb_rhythm` | 0.0453 | +0.0119 | **+0.0423** | — | — |
+| `harm_place` | 0.0008 | +0.0091 | **+0.0225** | 0.0208 | **~100 %** |
+
+★★**AND THE PRICE ROUND 1 PAID IS GONE.** Per-bar full mode lost `follow_mean` −0.0029,
+`follow_best` −0.0043, `follow_vocals` −0.0049 and `lead_persistence` −0.0146, **all resolvable**.
+Under contiguity every one of those is **NOT resolvable** (−0.0024 / −0.0008 / −0.0010 / −0.0034).
+⇒**Contiguity roughly DOUBLED the structural gain while eliminating the side-effect entirely**, which
+is the strongest confirmation available that round 1's diagnosis — *the copies were scattered across
+contexts* — was the right one.
+⚠️Read the **paired Δ**, not `arm − ref`: the arm/ref columns are medians over each arm's own
+scorable songs and the Δ is the paired mean, so they disagree slightly. Same subset trap the battery
+itself once fell into.
+
+✅**THE MANIPULATION CHECK IS NOW EMPHATIC** (`check_reuse_survives --diag`, 120 paired songs):
+placement agreement on audio-repeat bar pairs **0.0243 → 0.3094** (12.7×, vs place mode's 3.1×), and
+**whole bar patterns IDENTICAL 0.0002 → 0.1544**, improved on 84/120 songs. **15 % of repeat bar
+pairs are now literally the same bar** — the human behaviour M-E was built to reproduce (Fallen
+Kingdom 2:25 identical to 1:43).
+
+🟠**THE BILL, AND IT IS STILL TOO HIGH ON TWO AXES:**
+
+| axis | control | `me_full25` | `diag_full` | bar |
+|---|---|---|---|---|
+| flow | **0.37 PASS** | 0.81 | 0.70 FAIL | 0.50 |
+| idiom | **0.40 PASS** | 2.34 | 1.75 FAIL | 1.00 |
+| playfeel | 0.59 | 1.03 FAIL (spread collapsed) | **0.88 PASS** (spread 0.52) | 1.00 |
+| rhythm | 0.47 | 0.53 | **0.46 PASS** | 0.70 |
+| handrole | 1.12 | 0.58 | **0.82 PASS** | 2.00 |
+
+Contiguity **recovered playfeel and rhythm outright** and took a quarter off idiom's excess, but flow
+and idiom still fail.
+
+### 🔑 THE VERDICT, AND WHY IT IS NOT "STOP"
+
+The pre-registered rule said: *gain but idiom still broken ⇒ the structural gap is buyable and we do
+not know how to afford it; say exactly that and stop tuning placement copies.* **The first half
+stands and the tuning stops.** But the conclusion "so the map is worse" **does not follow, and
+tonight's own work is what undermines it**:
+- `flow` and `idiom` are **cohort statistics that cannot score a single map** (verified — every axis
+  returns nan on one map), so they cannot say *this* map is worse to play.
+- They sit in the suite that agrees with Kyle's one known verdict at **13/26 — the coin flip**.
+⇒**The axes reporting the damage are the axes we measured tonight to be uncorrelated with his
+judgement.** Treating their FAIL as decisive would be exactly the error M-F warns about.
+⇒**NEXT ACTION IS HIS EAR, NOT ANOTHER ARM.** Build the review set on his standing four songs
+(BEFORE = promoted defaults, AFTER = `diag_full`) with a README leading with what to distrust: the
+maps will be more repetitive by construction, that is the intended change, and two playability axes
+say it costs something.
+
+### 🔬 WHY ROUND 1 BROKE — MEASURED, AND THE OBVIOUS FIX WAS ALSO WRONG
 
 Only **15.6 %** of copied bars continued the previous bar's copy (median 13.9 %; under half in 60/60
 songs). The lever was **shuffling ~29 bars per song in from two dozen different places**, and a bar's
