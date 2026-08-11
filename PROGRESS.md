@@ -290,6 +290,24 @@ what should be built before anything is promoted.**
 without care — that measured **rhythm-only** bars; this includes placement, so exact duplicates are
 far rarer and the two numbers are not the same quantity.
 
+### ✅ THE DOSE CAP, VALIDATED EMPIRICALLY (not just by the model that motivated it)
+
+`max_share=0.20`, measured on 83 paired songs — **actual** bar-pattern diversity, not predicted:
+
+| | mean | min | ratio to that song's human | songs under 0.85× human |
+|---|---|---|---|---|
+| uncapped `diag_full` | 0.888 | 0.500 | 1.029 (min **0.671**) | **15/83** |
+| **capped** | **0.960** | **0.816** | 1.118 (min 0.816) | **1/83** |
+| human | 0.877 | 0.515 | — | — |
+
+⇒**DoD violations fall from 18 % of songs to one marginal case** (2439b at 0.816 against a 0.85 bar).
+⚠️**Note the uncapped MEAN ratio is 1.029 — a near-perfect match to human — while its MIN is 0.671.**
+The mean hides the defect a second time, on a second instrument, exactly as it did on the raw
+diversity. **Always read the per-song minimum here.**
+★**The cap is CONSERVATIVE, deliberately**: capped diversity sits *above* the human's (ratio 1.118),
+i.e. our maps repeat slightly LESS than a human's. If Kyle's ear wants more repetition there is
+headroom — human parity is around share 0.25–0.30 — and that is a knob, not a rebuild.
+
 ### 🔑 THE VERDICT, AND WHY IT IS NOT "STOP"
 
 The pre-registered rule said: *gain but idiom still broken ⇒ the structural gap is buyable and we do
