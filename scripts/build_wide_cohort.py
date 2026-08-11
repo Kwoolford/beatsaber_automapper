@@ -96,11 +96,30 @@ def main() -> None:
     ap.add_argument("--resume", action="store_true", default=True)
     ap.add_argument("--variant", default="prod", choices=("prod", "v8"),
                     help="prod = the promoted defaults; v8 = the instrument model")
+    ap.add_argument("--tag", default=None,
+                    help="output-dir suffix for a lever arm, e.g. 'me_z20' -> "
+                         "outputs/wide_cohort_me_z20. Required with --env so two "
+                         "arms cannot resume into each other's files.")
+    ap.add_argument("--env", action="append", default=[], metavar="KEY=VAL",
+                    help="env var for the generator subprocess, repeatable. This is "
+                         "how a default-OFF lever becomes an arm without a new "
+                         "--variant per lever.")
     a = ap.parse_args()
+
+    extra_env = {}
+    for kv in a.env:
+        k, _, v = kv.partition("=")
+        if not _:
+            ap.error(f"--env expects KEY=VAL, got {kv!r}")
+        extra_env[k] = v
+    if extra_env and not a.tag:
+        ap.error("--env without --tag would write a lever arm into the control's "
+                 "directory; pass --tag")
 
     # ⚠️The seed must be in the directory name or a second seed silently "resumes"
     # into the first one's files and you get one cohort labelled as two.
-    tag = a.variant + ("" if a.seed == 0 else f"_s{a.seed}")
+    tag = a.variant + ("" if a.seed == 0 else f"_s{a.seed}") + \
+        (f"_{a.tag}" if a.tag else "")
     out_dir = OUT if tag == "prod" else REPO / "outputs" / f"wide_cohort_{tag}"
     out_dir.mkdir(parents=True, exist_ok=True)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -114,6 +133,8 @@ def main() -> None:
         have = {p.stem for p in OUT.glob("*.zip")}
         cands = [c for c in cands if c in have]
     print(f"{len(cands)} candidate songs (strict Expert + stem cache + audio)")
+    if extra_env:
+        print(f"arm env: {extra_env}  ->  {out_dir.name}")
     t0 = time.time()
     made = skipped = failed = 0
     for i, sid in enumerate(cands, 1):
@@ -132,7 +153,11 @@ def main() -> None:
                "--song-name", sid, "--seed", str(a.seed), "--output", str(zp)]
         if a.variant == "v8":
             cmd.append("--use-instr")
-        r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True)
+        run_env = None
+        if extra_env:
+            import os
+            run_env = {**os.environ, **extra_env}
+        r = subprocess.run(cmd, cwd=REPO, capture_output=True, text=True, env=run_env)
         if r.returncode != 0 or not zp.exists():
             failed += 1
             print(f"  [{i}/{len(cands)}] {sid} FAILED: "
