@@ -186,6 +186,55 @@ Red vs orange is the whole diagnosis: **skipping** and **playing beside** are di
 different fixes. A field of orange means a phase problem; a field of red means the beat lost its
 window to something louder.
 
+## What the suite CANNOT see — `scripts/audit_sensitivity.py` (2026-08-11)
+
+Every other audit here is a **degeneracy** battery: build a map nobody would call good (metronome,
+random attributes, bar-rotated, another song's map) and check the suite ranks it below a human. That
+tests whether a metric can be **fooled**.
+
+This one tests whether a metric can **see**. Perturb a real map in a way a player would notice
+immediately, re-score, and check that *something* moves:
+
+    perturbation moves an axis    the suite can see that dimension
+    perturbation moves NOTHING    🔴 a lever there is UNMEASURABLE, and silence looks like safety
+
+The distinction is not academic. M-E rewrote the position and cut direction of **25 % of every map's
+notes** and **twelve of fifteen masterpiece axes moved by exactly +0.0000**. Nothing was fooled; the
+suite simply had no opinion. `BEAT_ONSET_EVIDENCE` shipped the same way — it degraded reachability
+and no axis noticed until Kyle's ear forced the metric into existence.
+
+### What it found on the first clean run
+
+| perturbation | verdict |
+|---|---|
+| `mirror_x` — reflect the map left-right | 🔴 **BLIND**, max \|Δ\| 0.012 |
+| `shift_20ms` / `shift_60ms` | 🔴 **blind until A8 was fixed** — see below |
+| `swap_colors` | barely seen (`handrole` only) |
+| `mirror_y`, `flatten_*`, `all_dots`, `reverse_dirs`, `rows_random`, `cols_random` | seen, mostly by `idiom` |
+| `drop_double_partner` | seen loudly (`handrole` 13.1) |
+
+⚠️**`rhythm` (A2) moved 0.000 under EVERY positional perturbation.** Correct by construction — it
+reads inter-onset structure only — but it means *"rhythm unchanged"* is never evidence that a
+placement lever is safe.
+
+### The two things it caught
+
+**1. A8 was dead on the wide cohort.** 0 of 149 songs had cached onsets, so `alignment` — the only
+axis scoring notes against the **music** rather than the declared grid — was absent from every
+wide-cohort scorecard for two nights, printing `nan / not scored`. A **60 ms global shift moved
+nothing**. Fixed with `build_onset_cache.py --audio-dir outputs/wide_cohort/audio`; after the fix the
+same shift moves alignment by 1.88 (20 ms) and 8.41 (60 ms).
+
+**2. `crossover` is computed and never used.** Chasing the `mirror_x` blindness: the per-map metric
+`crossover` detects a mirror perfectly (0.000 → 1.000) but is wired into **no axis**. `flow.py`
+excludes it from the composite *deliberately and correctly* — it is order-independent and would
+dilute the shuffled control — with the comment *"still reported, as guards"*. **Nothing ever guarded
+it.** That exposed a categorical defect no axis could see: human maps cross hands over on a median
+**18 %** of notes with **0 of 150 having none**, and our maps are **0.0000 on all 149**.
+
+★**The general lesson**: a metric deliberately excluded from a composite needs its compensating guard
+*built*, not just intended. Grep for excluded metrics and check each one is actually gated somewhere.
+
 ## Rules learned the hard way
 
 1. **PNG is the primary artifact.** An agent can only look at an image by rendering it to a file and
