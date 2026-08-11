@@ -710,6 +710,38 @@ reference changes** or the snapshot silently drifts. `data/` is gitignored too, 
 
 
 
+## 🔬 THE SENSITIVITY BATTERY (new 2026-08-11) — `scripts/audit_sensitivity.py`
+**A different question from every audit we had.** `audit_eval_suite` / `audit_masterpiece` are
+DEGENERACY batteries: build a bad map, check the suite ranks it low — i.e. can a metric be *fooled*.
+This asks whether a metric can **see**: perturb a real map in a way a player would notice, and check
+that *something* moves. **A lever in a dimension no axis measures is unmeasurable, not neutral** —
+and silence looks exactly like safety. (M-E rewrote 25 % of all note positions and 12 of 15
+masterpiece axes read +0.0000.)
+
+**Blind spots found on the first clean run (40 wide-cohort maps, six-axis suite):**
+| perturbation | verdict |
+|---|---|
+| `mirror_x` (reflect the whole map left-right) | 🔴**BLIND** — max \|Δ\| 0.012. Handedness geography is invisible. |
+| `shift_20ms` / `shift_60ms` (global time shift) | 🔴**BLIND on this cohort** — 0.000 everywhere, *because A8 was missing* (below) |
+| `swap_colors` | barely seen — only `handrole`, 0.136 |
+| `flatten_rows`/`flatten_cols`/`all_dots`/`reverse_dirs`/`rows_random`/`cols_random` | seen, mostly by `idiom` |
+| `drop_double_partner` | seen loudly (`handrole` 13.1) |
+⚠️`rhythm` (A2) moved **0.000 for every single perturbation** — it reads inter-onset structure only,
+so it is blind to *everything* positional by construction. That is correct behaviour, but it means
+"rhythm unchanged" is never evidence a placement lever is safe.
+
+## 🔴🔴 P0 — **A8 WAS DEAD ON THE WIDE COHORT** (found 2026-08-11, fix running)
+**0 of the 149 wide-cohort songs had cached onsets**, so `alignment` — the ONLY axis that scores notes
+against the MUSIC rather than against the declared grid — was silently absent from every wide-cohort
+scorecard. It printed `nan / FAIL — not scored` and was read as cosmetic. **It is not**: a **60 ms
+global shift moves nothing** on that cohort.
+🔴**THIS TOUCHES LAST NIGHT'S EVIDENCE**: M-E's `full` mode **moves notes in time**, and the axis
+built to judge exactly that was missing from its scorecard. The M-axis and diversity results stand
+(different instruments), but **every wide-cohort six-axis table from 2026-08-10/11 is timing-blind**
+and the M-E arms must be re-scored against A8 before promotion.
+**FIX**: `build_onset_cache.py --audio-dir outputs/wide_cohort/audio` (the audio was there all along,
+already named `<song_id>.ogg`). Running 2026-08-11 ~08:10.
+
 ## 🧭 REFERENCE
 
 ### Landmines (each cost real time at least once)

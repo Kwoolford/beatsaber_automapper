@@ -61,10 +61,22 @@ AUDIO_EXTS = (".ogg", ".mp3", ".wav", ".egg")
 EXPECTED_STEMS = {"drums", "bass", "other", "vocals"}
 
 
-def audio_paths() -> dict[str, pathlib.Path]:
-    """song_id -> audio file, for every song in the eval songset."""
+def audio_paths(root: pathlib.Path | None = None) -> dict[str, pathlib.Path]:
+    """song_id -> audio file, for every song in a directory (default: the songset).
+
+    ★`root` exists because **the wide cohort had no onsets at all** (2026-08-11): 0 of
+    its 149 songs were in the cache, so A8 — the only axis that scores notes against the
+    MUSIC — was silently absent from every wide-cohort scorecard, and a 60 ms global
+    shift moved nothing. The audio was sitting in `outputs/wide_cohort/audio/` the whole
+    time, named `<song_id>.ogg`, which is this function's exact shape.
+    ⚠️Point it at a directory, never at a new detection path: the human baseline moves
+    with the detector, and every number in TODO.md is against the Demucs stem union.
+    """
     out: dict[str, pathlib.Path] = {}
-    for p in sorted(SONGSET.iterdir()):
+    base = root or SONGSET
+    if not base.exists():
+        return out
+    for p in sorted(base.iterdir()):
         if p.suffix.lower() in AUDIO_EXTS:
             out[p.stem] = p
     return out
@@ -161,10 +173,13 @@ def main() -> None:
     ap.add_argument("--skip", type=int, default=32,
                     help="hold-out offset into the shuffled data/raw list")
     ap.add_argument("--force", action="store_true", help="recompute cached songs")
+    ap.add_argument("--audio-dir", default="",
+                    help="directory of <song_id>.<ext> audio to cache instead of the "
+                         "songset, e.g. outputs/wide_cohort/audio")
     a = ap.parse_args()
 
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    paths = audio_paths()
+    paths = audio_paths(pathlib.Path(a.audio_dir) if a.audio_dir else None)
     ids = a.songs or sorted(paths)
     if a.from_raw:
         extra = raw_audio_paths(a.from_raw, a.seed, a.skip)
