@@ -10,7 +10,42 @@ this file had reached 4,076 lines.
 
 ---
 
-## 📍 CURRENT STATE (2026-08-03)
+## 📍 CURRENT STATE (2026-08-11)
+
+**Two independent candidates are installed and waiting on Kyle's ear.** Neither is promoted; both
+default OFF. `outputs/kyle_review_2026-08-11/` + [`docs/review_2026-08-11.md`](docs/review_2026-08-11.md).
+
+| candidate | what it does | evidence |
+|---|---|---|
+| **`COLOR_SEP_MODE=extreme`** (`[CROSSOVER]`) | lets the map cross hands over, as every human map does | crossover 0.000 → 0.112 (human 0.183, **0/149 over human p90**); **flow 0.37 → 0.23**; `reach_p90` and `hard_rate` land **on** human values; M-axes unchanged; note count unchanged |
+| **`BEAT_STRUCTURE_REUSE=diag_full:0.70:4:1.5:2.0:4:0.20`** (`[AFTER CAPPED]`) | reuses the map already written for a repeated passage | ~45–51 % of the `rhy_rhythm`/`harm_rhythm` gap **replicated at 2 seeds**; degenerate-controlled; dose-capped so variety stays human |
+
+★**The question for him is not "is it better"** but, for the structure lever, *does the repetition read
+as INTENTIONAL or LAZY?* — and for crossover, simply whether the maps play better.
+
+**★ Three standing methodology rules:**
+1. **Never calibrate the human corpus through `scorecard._load_any`** — it prefers ExpertPlus. Use
+   `calibrate_playfeel.load_expert_only`.
+2. **Ask "norm or aspiration?" before calibrating any axis.** His target is the **best** mappers, so
+   "the human cohort passes it" is not a validity check for aspirational axes.
+3. ★**When a lever passes its DoD, either flip the default or write down why not.** This project
+   generated two validated levers in 2026-07 and shipped neither; re-deriving one of them was the
+   single most valuable hour of 2026-08-11.
+
+**★ And the three lessons that cost the most:**
+- *A lever can pass every axis and still carry a defect no axis measures* (`BEAT_ONSET_EVIDENCE` vs
+  reachability). The **sensitivity battery** (`audit_sensitivity.py`) now exists to find those.
+- *A cohort mean cannot see a subset-of-songs defect.* Walked into twice on 2026-08-11 alone, on two
+  different instruments. **Read the per-song minimum.**
+- *The cohort `gap` moves with a distribution's spread; **paired per-song deltas** are the sensitive
+  instrument.* Reading the gap alone nearly shipped a false "M-E improves alignment" claim.
+
+⚠️**The suite's own limits, measured** (see the P0 below): it agrees with his one recorded verdict at
+a coin flip, is nearly blind to placement, and its six axes **cannot score a single map at all**.
+
+---
+
+## 📍 PRIOR STATE (2026-08-03) — the promotion this is all measured against
 
 **The model was PROMOTED for the first time in the project's history.** Kyle graded *Hunger* (Aether
 Realm) **A+** and said ship it. `generate.py` defaults now carry the full config; a bare invocation
@@ -522,43 +557,17 @@ human parity (share ~0.25–0.30). *"reads LAZY"* ⇒ the next capability is **v
 (copy the section, then vary it), which is a different and easier problem than the one solved here.
 *"can't tell"* ⇒ leave it OFF; a lever nobody can hear is not worth its flow/idiom cost.
 
-## 🟡 P1 — the old periodic-degenerate battery gap: ✅ CLOSED, and the axes passed
-`scripts/make_periodic_degenerate.py --lag 8` scored `rhy_rhythm` +0.0125 / `harm_rhythm` **+0.0007**
-— indistinguishable from nothing, below even the control ⇒**the M-axes reward musical repetition and
-ignore mechanical repetition.** Keep this control in the battery; it is cheap and it is now the only
-degenerate that targets a *structural* lever.
+## ✅ P1 — the periodic-degenerate battery gap: CLOSED, and the axes passed
+`scripts/make_periodic_degenerate.py --lag 8` builds a map that copies bar *i* from bar *i−k* with the
+audio ignored. It scored `rhy_rhythm` **+0.0125** / `harm_rhythm` **+0.0007** — indistinguishable from
+nothing, **below even the control** ⇒**the M-axes reward MUSICAL repetition and ignore MECHANICAL
+repetition**, demonstrated rather than asserted. Keep the control in the battery: it is cheap and it
+is the only degenerate that targets a *structural* lever.
+⚠️🔴**RETRACTED along the way**: I read アリスブルー's over-repetition panel as a "fixed-lag
+checkerboard". A real fixed-lag degenerate's panel looks **nothing like it** (it is irregular, closer
+to the human's). The over-repetition was a **dose** defect measured by bar-pattern diversity, not a
+periodicity defect — see the dose cap in PROGRESS.md.
 
-## 🗑️ superseded — dose cap by bar-pattern diversity (done)
-**The defect, measured per song** (distinct bar patterns ÷ scored bars): at ~71 % copy share
-アリスブルー **0.427** and Digital Life Hacker **0.496** against a human **0.951**; at ~14 % share
-Hunger 0.949 / Fallen Kingdom 0.984, both human-normal. ⇒**The checkerboard is an OVERDOSE, confined
-to high-dose songs.** ⚠️**The cohort mean hides it entirely** (diag_full 0.880 vs human 0.883) — the
-project's own *"a cohort median cannot see a subset-of-songs defect"* trap, walked into and caught.
-**TASK**: make the lever refuse to push a song's bar-pattern diversity below its human bar (or below
-a fixed fraction of it) — a per-song cap on copy share, not a global constant.
-**DoD**: no song lands under ~0.85 of its human diversity, while `rhy_rhythm` / `harm_rhythm` keep a
-resolvable share of their gain at n=149. **This is the shippable form of M-E**; low dose is already
-human-normal on diversity and shows no checkerboard.
-⚠️Also still worth scoring: `scripts/make_periodic_degenerate.py --lag 8` (running). 🔴But note the
-fixed-lag degenerate's structure panel does **NOT** resemble our arm's — so it tests a real gap in the
-battery, **not** the thing seen on アリスブルー. My "our panel is a fixed-lag checkerboard" reading was
-an over-interpretation of a picture and is **retracted**.
-
-## 🟡 P1 — the old periodic-degenerate battery gap (unchanged, lower priority)
-`view_structure.py` on アリスブルー (~71 % of bars copied) shows **our AFTER panel is a rigid periodic
-CHECKERBOARD** while the music's and the human's are irregular ⇒ at high dose the lever produces
-structural **regularity, not form**. The M-axes did not flag it: they are contrasts and are
-degenerate-proof **against the degenerates the battery contains** (metronome, random times,
-bar-rotated, other-song) — and **a periodically self-repeating map is not one of them.** Musical
-repeats are often periodic themselves (8/16-bar phrases), so a fixed-lag copier can score well on
-*"does the map repeat where the music repeats"* without following the music.
-**TASK**: in `audit_masterpiece.py`, add a control that copies bar *i* from bar *i−k* at fixed *k*,
-audio ignored, and score it.
-**DoD**: if it scores near or above our arm on `rhy_rhythm` / `harm_rhythm` / `harm_place`, **those
-axes are not steer-safe for this class of lever** and the 2026-08-11 headline must be re-read as
-partly degenerate. Cheap, decisive, and it comes **before** anything is promoted.
-⚠️Dose is the control: at ~14 % (Hunger, Fallen Kingdom) there is no checkerboard, so `min_sim` /
-`min_run` are the knobs and the low-dose setting may be the shippable one.
 
 ## 📦 AWAITING KYLE'S EAR — `outputs/kyle_review_2026-08-11/` (installed, ready to play)
 **8 maps deployed** as `AUTO <song> [BEFORE]` / `[AFTER]` (restart Beat Saber or SongCore-refresh).
