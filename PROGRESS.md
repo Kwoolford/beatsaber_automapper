@@ -7,6 +7,41 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★★★★ THE EXCLUDED-METRIC SWEEP — unwatched metrics are where the categorical zeros hide
+
+Generalising the `crossover` find. Every axis computes some metrics it deliberately keeps OUT of its
+composite (they are order-independent and would dilute the shuffled control). Each exclusion is
+sound; the problem is that **the compensating guard was never built for any of them.** Six such
+metrics exist. Measured ours (n=60) against strict-Expert humans (n≈200):
+
+| excluded metric | ours | human | ratio | |
+|---|---|---|---|---|
+| `crossover` | **0.0000** | 0.1835 | **0.000** | 🔴 categorical — being fixed |
+| `offgrid_frac` | **0.0000** | 0.0078 | **0.000** | 🔴 categorical |
+| `handedness` | 0.0031 | 0.0204 | **0.154** | 🟠 we are 6.6× MORE balanced than a human |
+| `dominant_share` | 0.4665 | 0.4876 | 0.957 | ✓ |
+| `ioi_entropy` | 0.5753 | 0.5419 | 1.062 | ✓ |
+| `idiom_entropy` | 0.9159 | 0.9176 | 0.998 | ✓ |
+
+★★**THREE OF SIX SHOW US AT OR NEAR ZERO WHERE HUMANS ARE NOT — and the other three are fine**, so
+this is not an artifact of being excluded, it is a pattern about *which* dimensions drift when
+nothing watches them.
+
+- **`crossover`** — the big one, already actioned (`COLOR_SEP_MODE=extreme`).
+- **`offgrid_frac`** — humans place ~0.8 % of notes off the quantisation grid; we place **exactly
+  zero**. ⚠️This one is **architectural, not a bug**: v7 decides on a fixed subdivision grid, so
+  off-grid notes are unreachable by construction. Small in magnitude and *not* worth a lever — but it
+  belongs on the list of things our maps categorically cannot do, beside multi-note swings (W6).
+- **`handedness`** — our two hands are **6.6× more balanced** than a human's. Not obviously a defect
+  (the stated rule is "both hands work; neither idles" and we over-satisfy it), but it is another
+  **machine-regularity signature**, the same family as never crossing over and never leaving the
+  grid. ⚠️Do not build a lever to *unbalance* the hands off this number alone; it is a description,
+  not a complaint, until Kyle says a map feels too even.
+
+⇒★**THE RULE THIS ESTABLISHES**: when a metric is excluded from a composite for a good reason, the
+compensating guard has to be **built**, not intended. Everywhere that did not happen here, the
+generator drifted to a categorical extreme and no axis could report it.
+
 ## ★★★★★★★ `COLOR_SEP_MODE=extreme` — A VALIDATED LEVER THAT WAS NEVER SHIPPED (2026-08-11)
 
 Found by chasing a blind spot, not by looking for a lever. `audit_sensitivity.py` showed the suite
