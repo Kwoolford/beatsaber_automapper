@@ -183,3 +183,93 @@ def test_unparseable_spec_is_a_warning_not_a_crash(monkeypatch):
     monkeypatch.setenv("BEAT_STRUCTURE_REUSE", "place:not-a-number")
     bm = DifficultyBeatmap(version="3.0", color_notes=_notes([(0, (1, 0, 1))]))
     assert sr.maybe_apply(bm, None, 44100, {}, BPM, 60.0) is None
+
+
+def test_min_run_keeps_only_contiguous_sections():
+    """The fix the first arm's failure named: copy a SECTION, not scattered bars.
+
+    me_z20 broke flow (0.37 -> 0.75) and idiom (0.40 -> 1.07) because only 15.6 % of
+    its copies continued the previous bar's copy — it shuffled bars in from all over
+    the song rather than reusing a passage.
+    """
+    n = 24
+    edges = np.arange(n + 1) * BAR_S
+    M = np.full((n, n), 0.05)
+    # bars 12..15 are a contiguous return of 0..3 — a real section repeat
+    for k in range(4):
+        M[12 + k, k] = M[k, 12 + k] = 0.95
+    # bar 20 matches bar 6 alone — an isolated coincidence, not a section
+    M[20, 6] = M[6, 20] = 0.95
+    for i in range(n):
+        M[i, i] = 1.0
+    S = {"harm": M, "rhy": M, "timb": M, "energy": np.ones(n)}
+
+    loose = sr.plan_reuse(S, edges, min_sim=0.6, min_lag=4, min_z=2.0, min_run=1)
+    assert 20 in loose.source, "fixture: the isolated match must be found at min_run=1"
+
+    strict = sr.plan_reuse(S, edges, min_sim=0.6, min_lag=4, min_z=2.0, min_run=3)
+    assert 20 not in strict.source, "an isolated bar copy must be dropped"
+    assert strict.source, "the contiguous section must survive"
+    for t in strict.source:
+        prev, nxt = t - 1, t + 1
+        assert (prev in strict.source and strict.source[prev] == strict.source[t] - 1) \
+            or (nxt in strict.source and strict.source[nxt] == strict.source[t] + 1), \
+            f"bar {t} survived without a neighbour advancing with it"
+
+
+def test_min_run_default_preserves_old_behaviour():
+    S, edges = _scene()
+    a = sr.plan_reuse(S, edges, min_sim=0.6, min_lag=4, min_z=0.0)
+    b = sr.plan_reuse(S, edges, min_sim=0.6, min_lag=4, min_z=0.0, min_run=1)
+    assert a.source == b.source
+
+
+def test_diagonal_planner_recovers_a_contiguous_section():
+    """A repeated section is a diagonal stripe — decode the stripe, not each bar.
+
+    The per-bar planner shipped as me_z20 and broke flow/idiom because it chose each
+    bar's source independently and only 15.6 % of copies continued the previous one.
+    """
+    n = 32
+    edges = np.arange(n + 1) * BAR_S
+    M = np.full((n, n), 0.05)
+    for k in range(8):                       # bars 16..23 return bars 0..7
+        M[16 + k, k] = M[k, 16 + k] = 0.95
+    for i in range(n):
+        M[i, i] = 1.0
+    S = {"harm": M, "rhy": M, "timb": M, "energy": np.ones(n)}
+
+    plan = sr.plan_reuse_diagonal(S, edges, min_sim=0.6, min_lag=4, min_run=4)
+    assert plan.source, "the stripe must be found"
+    for t, s in plan.source.items():
+        assert t - s == 16, "every bar of one section must share a single lag"
+    contiguous = sum(1 for t in plan.source
+                     if t - 1 in plan.source and plan.source[t - 1] == plan.source[t] - 1)
+    assert contiguous >= len(plan.source) - 1, "the copy must advance bar for bar"
+
+
+def test_diagonal_planner_ignores_an_isolated_coincidence():
+    n = 32
+    edges = np.arange(n + 1) * BAR_S
+    M = np.full((n, n), 0.05)
+    M[20, 6] = M[6, 20] = 0.99                # one bar, no section around it
+    for i in range(n):
+        M[i, i] = 1.0
+    S = {"harm": M, "rhy": M, "timb": M, "energy": np.ones(n)}
+    plan = sr.plan_reuse_diagonal(S, edges, min_sim=0.6, min_lag=4, min_run=4)
+    assert plan.n_copied == 0
+
+
+def test_diagonal_planner_never_claims_a_bar_twice():
+    n = 40
+    edges = np.arange(n + 1) * BAR_S
+    M = np.full((n, n), 0.05)
+    for k in range(8):
+        M[16 + k, k] = M[k, 16 + k] = 0.95
+        M[32 + k if 32 + k < n else n - 1, k] = 0.90
+    for i in range(n):
+        M[i, i] = 1.0
+    S = {"harm": M, "rhy": M, "timb": M, "energy": np.ones(n)}
+    plan = sr.plan_reuse_diagonal(S, edges, min_sim=0.6, min_lag=4, min_run=4)
+    assert len(plan.source) == len(set(plan.source)), "a bar was assigned twice"
+    assert all(s < t for t, s in plan.source.items()), "a bar may only copy the PAST"

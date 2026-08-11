@@ -80,6 +80,7 @@ DEFAULT_MIN_SIM = 0.60
 DEFAULT_MIN_LAG = 4
 DEFAULT_ENERGY_TOL = 1.5
 DEFAULT_MIN_Z = 2.5
+DEFAULT_MIN_RUN = 1
 
 
 @dataclass(slots=True)
@@ -208,7 +209,8 @@ def plan_reuse(S: dict, edges: np.ndarray, *,
                min_sim: float = DEFAULT_MIN_SIM,
                min_lag: int = DEFAULT_MIN_LAG,
                energy_tol: float = DEFAULT_ENERGY_TOL,
-               min_z: float = DEFAULT_MIN_Z) -> ReusePlan:
+               min_z: float = DEFAULT_MIN_Z,
+               min_run: int = DEFAULT_MIN_RUN) -> ReusePlan:
     """Decide, for each bar, whether it is a repeat of an earlier bar — and of which.
 
     ⚠️THE CONFOUND THIS FUNCTION EXISTS TO CONTROL: bars near each other in time are
@@ -287,6 +289,141 @@ def plan_reuse(S: dict, edges: np.ndarray, *,
             continue
         source[i] = root
         sim[i] = best_s
+
+    if min_run > 1:
+        source, sim = _keep_runs(source, sim, min_run)
+
+    return ReusePlan(edges=edges, source=source, sim=sim, n_bars=n)
+
+
+def _keep_runs(source: dict[int, int], sim: dict[int, float],
+               min_run: int) -> tuple[dict[int, int], dict[int, float]]:
+    """Keep only copies that are part of a contiguous SECTION of length >= min_run.
+
+    🔴★**WHY THIS EXISTS — the first arm's own result.** `me_z20` copied placement on
+    every bar the audio called a distinctive repeat, and it **broke flow and idiom**
+    against the 149-song control: flow 0.37 -> 0.75 and idiom 0.40 -> 1.07, both
+    crossing their bars, while every rhythm-side axis stayed identical to 4 dp. The
+    cause was then measured directly rather than guessed: **only 15.6 % of copied bars
+    continued the previous bar's copy** (median 13.9 %; in 60/60 songs under half),
+    because each bar picks its own best source independently. So the lever was not
+    reusing a section — it was **shuffling ~29 bars per song in from two dozen
+    different places**, and a bar's placement is not context-free: the positions were
+    chosen for the run-up the SOURCE bar had, and dropped into a different
+    neighbourhood they have no continuity with the notes on either side.
+
+    A human copies a contiguous span and then varies it. Requiring the target and the
+    source to advance together keeps the internal flow of the copied passage intact and
+    leaves only the two seams new — and seams are what `fix_parity` and
+    `enforce_reachability` are already good at repairing.
+    """
+    keep_src: dict[int, int] = {}
+    keep_sim: dict[int, float] = {}
+    run: list[int] = []
+
+    def flush(run: list[int]) -> None:
+        if len(run) >= min_run:
+            for t in run:
+                keep_src[t] = source[t]
+                keep_sim[t] = sim[t]
+
+    for t in sorted(source):
+        if run and t == run[-1] + 1 and source[t] == source[run[-1]] + 1:
+            run.append(t)
+        else:
+            flush(run)
+            run = [t]
+    flush(run)
+    return keep_src, keep_sim
+
+
+def plan_reuse_diagonal(S: dict, edges: np.ndarray, *,
+                        min_sim: float = DEFAULT_MIN_SIM,
+                        min_lag: int = DEFAULT_MIN_LAG,
+                        energy_tol: float = DEFAULT_ENERGY_TOL,
+                        min_run: int = 4,
+                        smooth: int = 4) -> ReusePlan:
+    """Find repeats as DIAGONAL STRIPES, which is what a repeated section actually is.
+
+    🔴★**WHY THE PER-BAR VERSION HAD TO BE REPLACED, AND WHAT ITS FAILURE PROVED.**
+    `plan_reuse` gives every bar its own independent argmax over earlier bars. The
+    first arm (`me_z20`) shipped that and **broke flow 0.37 -> 0.75 and idiom
+    0.40 -> 1.07** against the 149-song control while every rhythm-side axis stayed
+    identical to 4 dp. Measuring the plan itself explained it: **only 15.6 % of copied
+    bars continued the previous bar's copy.** The lever was shuffling ~29 bars per song
+    in from two dozen places, and placement is not context-free — positions chosen for
+    the source bar's run-up have no continuity with their new neighbours.
+
+    ⚠️**AND THE OBVIOUS FIX WAS THE WRONG ONE.** Simply *requiring* contiguity
+    (`min_run` on the per-bar plan) collapsed the copy share 0.297 -> 0.085 at run 2 and
+    0.017 at run 4, keeping any copy at all on 16/60 songs. Read carelessly that says
+    "songs do not contain contiguous repeats", which is plainly false of pop music. The
+    real cause is **tie-breaking**: when a chorus returns four times, bar *i* has
+    several near-equal sources and picks one, bar *i+1* independently picks another.
+    The shuffle was an artifact of deciding each bar alone — the same disease as C1,
+    one level up.
+
+    ★So decide the whole stripe at once. A repeated section is a **diagonal** in the
+    self-similarity matrix: bars *i..i+k* matching *j..j+k* at a constant lag. Smoothing
+    along each lag's diagonal and taking runs above threshold finds sections directly,
+    and every bar in a run shares one lag by construction — contiguity is a property of
+    the representation rather than a filter applied afterwards.
+
+    ⚠️Overlaps are resolved by mean similarity, strongest stripe first, so a bar is
+    never claimed by two sections.
+    """
+    n = len(edges) - 1
+    H, R, E = S["harm"], S["rhy"], S["energy"]
+    combined = np.minimum(H, R)
+
+    segs: list[tuple[float, int, int, int]] = []       # (score, start, end, lag)
+    for lag in range(min_lag, n):
+        idx = np.arange(lag, n)
+        if len(idx) < min_run:
+            continue
+        d = np.array([combined[i, i - lag] for i in idx], dtype=float)
+        d = np.where(np.isfinite(d), d, -1.0)
+        if smooth > 1 and len(d) >= smooth:
+            k = np.ones(smooth) / smooth
+            ds = np.convolve(d, k, mode="same")
+        else:
+            ds = d
+        good = ds >= min_sim
+        start = None
+        for pos in range(len(good) + 1):
+            if pos < len(good) and good[pos]:
+                start = pos if start is None else start
+                continue
+            if start is not None:
+                if pos - start >= min_run:
+                    segs.append((float(d[start:pos].mean()),
+                                 int(idx[start]), int(idx[pos - 1]), lag))
+                start = None
+
+    source: dict[int, int] = {}
+    sim: dict[int, float] = {}
+    for score, a, b, lag in sorted(segs, key=lambda x: -x[0]):
+        for t in range(a, b + 1):
+            if t in source:
+                continue
+            src = t - lag
+            if src < 0:
+                continue
+            ei, ej = float(E[t]), float(E[src])
+            if ei <= 0 or ej <= 0 or abs(np.log(ei / ej)) > np.log(energy_tol):
+                continue
+            source[t] = src
+            sim[t] = score
+
+    # Resolve chains so a returning section points at its origin, not at the previous
+    # return — what makes the structure panel read as discrete squares, not a smear.
+    for t in sorted(source):
+        root, seen = source[t], {t}
+        while root in source and root not in seen:
+            seen.add(root)
+            root = source[root]
+        if root != t:
+            source[t] = root
 
     return ReusePlan(edges=edges, source=source, sim=sim, n_bars=n)
 
@@ -397,8 +534,10 @@ def apply_reuse(beatmap, plan: ReusePlan, bpm: float, mode: str = "place") -> di
 def maybe_apply(beatmap, waveform, sr: int, stems: dict, bpm: float, end: float):
     """Read `BEAT_STRUCTURE_REUSE` and apply the lever. Default OFF.
 
-    Spec: ``<mode>[:<min_sim>[:<min_lag>[:<energy_tol>[:<min_z>]]]]`` — e.g. ``place``,
-    ``place:0.7``, ``full:0.65:8``, ``place:0.6:4:1.5:3.0``. Empty/unset = untouched map, so production
+    Spec: ``<mode>[:<min_sim>[:<min_lag>[:<energy_tol>[:<min_z>[:<min_run>]]]]]`` —
+    e.g. ``place``, ``place:0.7``, ``full:0.65:8``, ``place:0.6:4:1.5:2.0:4``.
+    ⚠️`min_run` defaults to 1 = the original per-bar behaviour, which **broke flow and
+    idiom** (see `_keep_runs`). Any new arm should set it. Empty/unset = untouched map, so production
     behaviour is unchanged unless the variable is set (Kyle's standing rule: isolated,
     tactical, default OFF, his ear decides).
 
@@ -415,6 +554,7 @@ def maybe_apply(beatmap, waveform, sr: int, stems: dict, bpm: float, end: float)
         min_lag = int(parts[2]) if len(parts) > 2 and parts[2] else DEFAULT_MIN_LAG
         etol = float(parts[3]) if len(parts) > 3 and parts[3] else DEFAULT_ENERGY_TOL
         min_z = float(parts[4]) if len(parts) > 4 and parts[4] else DEFAULT_MIN_Z
+        min_run = int(parts[5]) if len(parts) > 5 and parts[5] else DEFAULT_MIN_RUN
     except ValueError:
         logger.warning("BEAT_STRUCTURE_REUSE=%r unparseable — skipped", spec)
         return None
@@ -453,8 +593,14 @@ def maybe_apply(beatmap, waveform, sr: int, stems: dict, bpm: float, end: float)
             logger.warning("BEAT_STRUCTURE_REUSE: no audio SSM — skipped")
             return None
 
-        plan = plan_reuse(S, edges, min_sim=min_sim, min_lag=min_lag, energy_tol=etol,
-                          min_z=min_z)
+        if mode.startswith("diag_"):
+            mode = mode[len("diag_"):]
+            plan = plan_reuse_diagonal(S, edges, min_sim=min_sim, min_lag=min_lag,
+                                       energy_tol=etol,
+                                       min_run=max(min_run, 2))
+        else:
+            plan = plan_reuse(S, edges, min_sim=min_sim, min_lag=min_lag,
+                              energy_tol=etol, min_z=min_z, min_run=min_run)
         stats = apply_reuse(beatmap, plan, bpm, mode=mode)
         logger.info(
             "BEAT_STRUCTURE_REUSE=%s: %d/%d bars are musical repeats (%.0f%%), "
