@@ -533,6 +533,12 @@ level up. ⇒`plan_reuse_diagonal` decodes whole stripes: copy share 0.297→0.4
 arms `diag_r4` / `diag_r6`), and it carries the kill criterion: if flow/idiom break the same way,
 copying placement across contexts is the defect, place mode is DONE, **do not tune it a third time.**
 
+⚠️**HARVEST NOTE**: the round-2 script calls `check_reuse_survives.py` WITHOUT `--diag` (the flag was
+added after it launched, and the script was not edited mid-run — bash reads a script incrementally
+and editing a running one corrupts it). **Re-run those two by hand with
+`--diag --min-sim 0.70 --min-run 4`**; the logged numbers score a diagonal arm against per-bar pairs
+and will understate it for a reason that has nothing to do with the lever.
+
 **Harvest next session** — read `logs/overnight/me_2026-08-10.log` and `me2_2026-08-11.log`, then:
 2. 🔴**`harm_place` is a MANIPULATION CHECK here, not a win.** The lever copies placement on musical
    repeats and the axis scores placement reuse on musical repeats. It answers "did the lever fire".

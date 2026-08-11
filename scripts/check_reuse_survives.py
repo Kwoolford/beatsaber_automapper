@@ -114,11 +114,20 @@ def main() -> None:
     ap.add_argument("--min-sim", type=float, default=0.6)
     ap.add_argument("--min-lag", type=int, default=4)
     ap.add_argument("--min-z", type=float, default=2.0)
+    ap.add_argument("--diag", action="store_true",
+                    help="rebuild the repeat pairs with the DIAGONAL planner. ⚠️Required "
+                         "for any diag_* arm: scoring a diagonal arm against per-bar "
+                         "pairs asks whether it reproduced a plan it never used, which "
+                         "would understate it for a reason that has nothing to do with "
+                         "the lever.")
+    ap.add_argument("--min-run", type=int, default=4, help="--diag only")
     a = ap.parse_args()
 
     import song_structure as ss
     from beatsaber_automapper.evaluation import scorecard
-    from beatsaber_automapper.generation.structure_reuse import plan_reuse
+    from beatsaber_automapper.generation.structure_reuse import (
+        plan_reuse, plan_reuse_diagonal,
+    )
 
     arm_ids = {pathlib.Path(p).stem for p in glob.glob(f"{a.arm}/*.zip")}
     ctl_ids = {pathlib.Path(p).stem for p in glob.glob(f"{a.control}/*.zip")}
@@ -139,13 +148,18 @@ def main() -> None:
             if A is None:
                 continue
             S = {"harm": A["harm"], "rhy": A["rhy"], "energy": A["energy"]}
-            pl = plan_reuse(S, B.edges, min_sim=a.min_sim, min_lag=a.min_lag,
-                            min_z=a.min_z)
+            if a.diag:
+                pl = plan_reuse_diagonal(S, B.edges, min_sim=a.min_sim,
+                                         min_lag=a.min_lag, min_run=a.min_run)
+            else:
+                pl = plan_reuse(S, B.edges, min_sim=a.min_sim, min_lag=a.min_lag,
+                                min_z=a.min_z)
             if pl.n_copied:
                 pairs[sid] = sorted(pl.source.items())
         except Exception:                                       # noqa: BLE001
             continue
-    print(f"{len(pairs)} songs have at least one distinctive musical repeat")
+    print(f"{len(pairs)} songs have at least one distinctive musical repeat "
+          f"({'diagonal' if a.diag else 'per-bar'} planner)")
 
     A_ = score_dir(a.arm, songs, pairs)
     C_ = score_dir(a.control, songs, pairs)
