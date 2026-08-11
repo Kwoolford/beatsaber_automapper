@@ -510,6 +510,22 @@ direct answer on one song.
 were IDENTICAL and read a null (0.0000 vs 0.0006), which `place` mode cannot reach by construction
 since it never changes which slots play. The project's signature failure, caught in-flight this time.
 
+## 🔴🔴🔴 P0 — BEFORE ANY M-E PROMOTION: ADD A PERIODIC-REPEAT DEGENERATE TO THE BATTERY
+`view_structure.py` on アリスブルー (~71 % of bars copied) shows **our AFTER panel is a rigid periodic
+CHECKERBOARD** while the music's and the human's are irregular ⇒ at high dose the lever produces
+structural **regularity, not form**. The M-axes did not flag it: they are contrasts and are
+degenerate-proof **against the degenerates the battery contains** (metronome, random times,
+bar-rotated, other-song) — and **a periodically self-repeating map is not one of them.** Musical
+repeats are often periodic themselves (8/16-bar phrases), so a fixed-lag copier can score well on
+*"does the map repeat where the music repeats"* without following the music.
+**TASK**: in `audit_masterpiece.py`, add a control that copies bar *i* from bar *i−k* at fixed *k*,
+audio ignored, and score it.
+**DoD**: if it scores near or above our arm on `rhy_rhythm` / `harm_rhythm` / `harm_place`, **those
+axes are not steer-safe for this class of lever** and the 2026-08-11 headline must be re-read as
+partly degenerate. Cheap, decisive, and it comes **before** anything is promoted.
+⚠️Dose is the control: at ~14 % (Hunger, Fallen Kingdom) there is no checkerboard, so `min_sim` /
+`min_run` are the knobs and the low-dose setting may be the shippable one.
+
 ## 📦 AWAITING KYLE'S EAR — `outputs/kyle_review_2026-08-11/` (installed, ready to play)
 **8 maps deployed** as `AUTO <song> [BEFORE]` / `[AFTER]` (restart Beat Saber or SongCore-refresh).
 README: [`docs/review_2026-08-11.md`](docs/review_2026-08-11.md) — leads with what to distrust.

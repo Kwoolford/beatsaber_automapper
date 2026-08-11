@@ -209,6 +209,40 @@ number of *seams*.
 for.** That is why the project's best structural result is the *full*-mode arm, and it is not a
 tuning fact — it is a statement about what a musical pattern is.
 
+### 🔴🔴🔴 THE PICTURE TEMPERS THE HEADLINE — AT HIGH DOSE THE LEVER BUILDS A CHECKERBOARD
+
+`view_structure.py` on the two highest-dose songs (~71 % of bars copied), rendered and **looked at**,
+which is the only way this was ever going to surface:
+
+- **Digital Life Hacker** — BEFORE our panel is fine-grained noise with no block structure; AFTER it
+  has large solid blocks roughly aligned with the music's. ✅**That is the M-E DoD's "the off-diagonal
+  stripes appear in our panel", achieved and visible.**
+- 🔴**アリスブルー — AFTER our panel is a RIGID PERIODIC CHECKERBOARD.** The music's panel is
+  irregular and organic; the **human's** panel is rich and irregular with a strong diagonal; **ours is
+  a regular grid of identical squares at a fixed lag.** The map is not following the song's form. It
+  is repeating *mechanically*.
+
+★★**THIS IS THE PROJECT'S OLDEST FAILURE MODE, ARRIVING IN A NEW DOMAIN.** Every level metric here
+turned out to be metronome-gameable; the M-axes were built as CONTRASTS specifically to be
+degenerate-proof, and they are — **against the degenerates the battery contains** (metronome, random
+times, bar-rotated, another song's map). **A structurally PERIODIC map is not one of them.** Musical
+repeats are themselves often periodic (8- and 16-bar phrases), so a map that repeats at a fixed lag
+can score well on *"does the map repeat where the music repeats"* without following the music at all.
+
+⇒🔴**THE HEADLINE IS THEREFORE PARTLY UNDERWRITTEN.** `rhy_rhythm` +0.0423 / `harm_rhythm` +0.0542 are
+real movements of real axes, but **at high dose some unknown share of them may be this degenerate
+rather than musical structure.** The number cannot tell the two apart; only the picture did.
+⚠️Note the axes did NOT flag it, `check_reuse_survives` did not flag it, and the six-axis suite's
+flow/idiom FAIL is consistent with it but does not identify it.
+
+⇒★**NEXT BUILD, AND IT COMES BEFORE ANY PROMOTION: add "a periodically self-repeating map" to
+`audit_masterpiece.py`'s control battery** — build a map that copies bar *i* from bar *i−k* at a fixed
+*k* regardless of the audio, and score it. **If it scores near or above our arm on `rhy_rhythm` /
+`harm_rhythm` / `harm_place`, those axes are NOT steer-safe for this class of lever** and every number
+in this write-up needs re-reading. That is a cheap, decisive test and it is the honest next step.
+⚠️**Dose is the control**: Hunger and Fallen Kingdom (~14 % copied) show no checkerboard. The defect
+is at ~71 %, so `min_sim`/`min_run` are the knobs, and the low-dose setting may be the shippable one.
+
 ### 🔑 THE VERDICT, AND WHY IT IS NOT "STOP"
 
 The pre-registered rule said: *gain but idiom still broken ⇒ the structural gap is buyable and we do
