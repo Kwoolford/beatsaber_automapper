@@ -93,6 +93,22 @@ all.** Only `harm_place`, `arrange` and `arrange_ami` can see placement. **The m
 very nearly blind to where notes are and which way they are cut** — which is one concrete piece of
 what Kyle means by *"the metrics still don't capture the full picture."*
 
+### 🔴🔴🔴 AND `full` MODE — COPYING THE RHYTHM TOO — IS MUCH WORSE
+
+| arm | flow (0.50) | rhythm (0.70) | idiom (1.00) | handrole (2.00) | playfeel (1.00) |
+|---|---|---|---|---|---|
+| control | **0.37 PASS** | 0.47 | **0.40 PASS** | 1.12 | **0.59 PASS** |
+| `me_full25` | 0.81 FAIL | 0.53 | **2.34 FAIL** | **0.58** | 1.03 FAIL (spread collapsed 0.32) |
+
+**`idiom` 0.40 → 2.34** — copying a bar's rhythm as well as its placement produces note patterns that
+are idiomatically alien, nearly 6× the control's gap and more than double its own bar. `playfeel`
+also fails with a **collapsed spread** (0.32 < 0.35), the signature of a map whose variety has been
+flattened. ✅The map itself is well-formed — note count ratio 1.013 vs control, no song shifted more
+than 20 %, 0 parity violations — so this is not a broken-output artifact, it is what copied rhythm
+sounds like. ⚠️One genuine improvement: `handrole` **1.12 → 0.58**, the only axis any M-E arm helped.
+⇒**`full` mode is dead.** It was the only arm that could have satisfied M-E's original DoD
+(`rhy_rhythm` rising), and it buys that possibility at a price nothing could justify.
+
 ### 🔬 WHY IT BROKE — MEASURED, AND THE OBVIOUS FIX WAS ALSO WRONG
 
 Only **15.6 %** of copied bars continued the previous bar's copy (median 13.9 %; under half in 60/60

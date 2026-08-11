@@ -43,11 +43,23 @@ while pgrep -f "overnight_2026-08-10.sh" > /dev/null; do sleep 60; done
 echo "round 1 clear at $(date)"
 
 CTRL=outputs/wide_cohort
+# ⚠️DESIGN FIX made before this burned any GPU. The first draft ran the diagonal
+# planner at its natural settings, which copies MORE than round 1 did (share 0.428 vs
+# 0.297). That changes TWO things at once -- contiguity and dose -- and the standing
+# rule here is one lever at a time. A confounded arm cannot answer "was the shuffle the
+# problem", which is the entire question round 2 exists to settle.
+#   diag_dose  min_sim 0.70 -> share 0.292, contiguity 0.635
+#              DOSE-MATCHED to me_z20 (share 0.297, contiguity 0.156). Same amount of
+#              copying, 4x the contiguity ⇒ contiguity is the ONLY variable, and the
+#              comparison against me_z20's flow 0.75 / idiom 1.07 is clean.
+#   diag_wide  min_sim 0.60 -> share 0.428, contiguity 0.648
+#              The ceiling question: WITH contiguity, can we copy more without damage?
+#              Confounded on purpose, and only interpretable if diag_dose passes first.
 declare -A ARMS=(
-  [diag_r4]="diag_place:0.6:4:1.5:2.0:4"
-  [diag_r6]="diag_place:0.6:4:1.5:2.0:6"
+  [diag_dose]="diag_place:0.70:4:1.5:2.0:4"
+  [diag_wide]="diag_place:0.60:4:1.5:2.0:4"
 )
-ORDER=(diag_r4 diag_r6)
+ORDER=(diag_dose diag_wide)
 
 for arm in "${ORDER[@]}"; do
   echo ""; echo "--- GENERATE $arm  (${ARMS[$arm]}) --- $(date +%H:%M)"
@@ -74,8 +86,13 @@ for arm in "${ORDER[@]}"; do
 done
 
 echo ""; echo "=== VERDICT INPUTS — $(date) ==="
-echo "round 1 (per-bar): flow 0.75 FAIL, idiom 1.07 FAIL, harm_place +0.0008"
-echo "control          : flow 0.37 PASS, idiom 0.40 PASS, hard_rate 0.0494"
+echo "control              : flow 0.37 PASS, idiom 0.40 PASS, hard_rate 0.0494"
+echo "me_z25  (share 0.190): flow 0.61 FAIL, idiom 0.69 PASS"
+echo "me_z20  (share 0.297): flow 0.75 FAIL, idiom 1.07 FAIL, harm_place +0.0008"
+echo "full25  (share 0.190): flow 0.81 FAIL, idiom 2.34 FAIL, playfeel 1.03 FAIL"
+echo ""
+echo "diag_dose is DOSE-MATCHED to me_z20 -- compare it against flow 0.75 / idiom 1.07."
+echo "If the shuffle was the problem, diag_dose lands far closer to the control."
 echo "If a diag arm keeps flow < 0.50 and idiom < 1.00 while harm_place still rises,"
 echo "the shuffle was the problem and this is worth Kyle's ear. If flow/idiom break"
 echo "the same way, copying placement across contexts is the problem and place mode"
