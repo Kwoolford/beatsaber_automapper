@@ -312,3 +312,58 @@ def test_diag_prefix_selects_diagonal_planner_and_keeps_the_mode(monkeypatch):
 
     assert seen.get("planner") == "diagonal", "diag_ prefix did not select the stripe planner"
     assert seen.get("mode") == "full", "the mode after the diag_ prefix was lost"
+
+
+def test_cap_share_limits_the_dose_and_keeps_the_strongest_stripes():
+    """The shippable form: hold copy share near 0.20 so diversity stays human-like.
+
+    At 71 % share the map carried 0.43 distinct bar patterns per bar against a human
+    0.95; at 14 % it was human-normal. diversity ~= 1 - share + roots/total, so the cap
+    is what keeps the lever out of the degenerate.
+    """
+    n = 100
+    edges = np.arange(n + 1) * BAR_S
+    source = {t: t - 8 for t in range(8, 88)}          # 80 of 100 bars copied
+    sim = {t: (0.9 if t < 48 else 0.7) for t in source}
+    plan = sr.ReusePlan(edges=edges, source=source, sim=sim, n_bars=n)
+    assert plan.share == 0.80
+
+    capped = sr.cap_share(plan, 0.20)
+    assert capped.n_copied <= 20, f"cap exceeded: {capped.n_copied}"
+    # ⚠️A song built on ONE long repeated section makes a single stripe bigger than the
+    # whole budget. Skipping it would silently disable the lever on exactly those songs.
+    assert capped.n_copied > 0, "the cap must not empty the plan"
+    # the budget must be spent on the strongest stripe, not an arbitrary prefix
+    assert all(sim[t] == 0.9 for t in capped.source), "kept a weaker stripe first"
+
+
+def test_cap_share_is_a_no_op_below_the_budget():
+    n = 100
+    edges = np.arange(n + 1) * BAR_S
+    source = {t: t - 8 for t in range(8, 18)}          # 10 % share
+    plan = sr.ReusePlan(edges=edges, source=source,
+                        sim={t: 0.8 for t in source}, n_bars=n)
+    assert sr.cap_share(plan, 0.20).source == plan.source
+
+
+def test_cap_share_drops_whole_stripes_never_half_of_one():
+    """Half a copied section is exactly the context-seam damage round 1 measured."""
+    n = 100
+    edges = np.arange(n + 1) * BAR_S
+    source = {}
+    sim = {}
+    for start, s_sim in ((10, 0.95), (40, 0.9), (70, 0.85)):
+        for k in range(12):
+            source[start + k] = start + k - 8
+            sim[start + k] = s_sim
+    plan = sr.ReusePlan(edges=edges, source=source, sim=sim, n_bars=n)
+    capped = sr.cap_share(plan, 0.20)
+    kept = sorted(capped.source)
+    # every kept bar must sit in a run of 12, i.e. no stripe was truncated
+    runs = []
+    for t in kept:
+        if runs and t == runs[-1][-1] + 1:
+            runs[-1].append(t)
+        else:
+            runs.append([t])
+    assert all(len(r) == 12 for r in runs), f"a stripe was truncated: {[len(r) for r in runs]}"

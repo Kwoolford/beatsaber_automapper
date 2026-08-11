@@ -81,6 +81,8 @@ DEFAULT_MIN_LAG = 4
 DEFAULT_ENERGY_TOL = 1.5
 DEFAULT_MIN_Z = 2.5
 DEFAULT_MIN_RUN = 1
+# ★THE DOSE CAP — the shippable form of M-E. See `cap_share`.
+DEFAULT_MAX_SHARE = 0.20
 
 
 @dataclass(slots=True)
@@ -428,6 +430,73 @@ def plan_reuse_diagonal(S: dict, edges: np.ndarray, *,
     return ReusePlan(edges=edges, source=source, sim=sim, n_bars=n)
 
 
+def cap_share(plan: ReusePlan, max_share: float) -> ReusePlan:
+    """Keep only the strongest stripes, until `max_share` of bars are copies.
+
+    🔴★**WHY THIS IS THE SHIPPABLE FORM OF M-E, AND IT IS A DOSE PROBLEM NOT A PLANNER
+    PROBLEM.** `diag_full` closes ~45-51 % of the structural gap (replicated at two
+    seeds), and the control battery says the axes are not being gamed: a fixed-lag
+    periodic map scores `rhy_rhythm` 0.0125 / `harm_rhythm` 0.0007 against our arm's
+    0.0924 / 0.0712 — **near zero, below even the control.** The axes can tell musical
+    repetition from mechanical repetition.
+
+    But at high dose the map goes degenerate in a way no axis reported. Distinct bar
+    patterns ÷ scored bars, per song:
+
+        copy share 71 %  ->  0.427 / 0.496   (human 0.951)
+        copy share 14 %  ->  0.949 / 0.984   (human 0.899 / 0.992)
+
+    ⚠️**And the cohort MEAN hides it perfectly** — `diag_full` 0.880 vs human 0.883 — the
+    project's own *"a cohort median cannot see a subset-of-songs defect"* trap. The
+    per-song table is the instrument.
+
+    ★The relationship is close to analytic, because a copied bar contributes no new
+    pattern and root resolution collapses every return of a section onto one original:
+
+        diversity ~= 1 - share + roots/total
+
+    which reproduces both measured points (0.71 -> 0.43, 0.14 -> 0.95). Holding
+    diversity near a human ~0.95 therefore means holding **share at or under ~0.20**,
+    and that is the default. Stripes are kept strongest-first, so the cap spends the
+    budget on the most confident repeats rather than truncating arbitrarily.
+    """
+    if max_share <= 0 or plan.n_bars <= 0 or plan.n_copied == 0:
+        return plan
+    budget = int(round(max_share * plan.n_bars))
+    if plan.n_copied <= budget:
+        return plan
+
+    # Group into contiguous stripes so the cap drops whole sections, never half of one:
+    # half a copied section is exactly the context-seam damage round 1 was built on.
+    stripes: list[list[int]] = []
+    for t in sorted(plan.source):
+        if stripes and t == stripes[-1][-1] + 1 and                 plan.source[t] == plan.source[stripes[-1][-1]] + 1:
+            stripes[-1].append(t)
+        else:
+            stripes.append([t])
+    stripes.sort(key=lambda st: -float(np.mean([plan.sim[t] for t in st])))
+
+    keep_src: dict[int, int] = {}
+    keep_sim: dict[int, float] = {}
+    for st in stripes:
+        if len(keep_src) + len(st) > budget:
+            # ⚠️A SINGLE STRIPE CAN EXCEED THE WHOLE BUDGET — a song built on one long
+            # repeated section. Skipping it unconditionally made the cap silently
+            # disable the lever on exactly those songs (caught by a unit test written
+            # against the claim, not the code). Truncate the strongest stripe instead:
+            # one extra seam is a far smaller cost than doing nothing at all.
+            if not keep_src and budget > 0:
+                for t in st[:budget]:
+                    keep_src[t] = plan.source[t]
+                    keep_sim[t] = plan.sim[t]
+            continue
+        for t in st:
+            keep_src[t] = plan.source[t]
+            keep_sim[t] = plan.sim[t]
+    return ReusePlan(edges=plan.edges, source=keep_src, sim=keep_sim,
+                     n_bars=plan.n_bars)
+
+
 # -------------------------------------------------------------------------- apply
 
 def _bar_of(t: float, edges: np.ndarray) -> int | None:
@@ -534,8 +603,11 @@ def apply_reuse(beatmap, plan: ReusePlan, bpm: float, mode: str = "place") -> di
 def maybe_apply(beatmap, waveform, sr: int, stems: dict, bpm: float, end: float):
     """Read `BEAT_STRUCTURE_REUSE` and apply the lever. Default OFF.
 
-    Spec: ``<mode>[:<min_sim>[:<min_lag>[:<energy_tol>[:<min_z>[:<min_run>]]]]]`` —
-    e.g. ``place``, ``place:0.7``, ``full:0.65:8``, ``place:0.6:4:1.5:2.0:4``.
+    Spec: ``<mode>[:<min_sim>[:<min_lag>[:<energy_tol>[:<min_z>[:<min_run>[:<max_share>]]]]]]``
+    — e.g. ``place``, ``full:0.65:8``, ``diag_full:0.70:4:1.5:2.0:4:0.20``.
+    ★``max_share`` defaults to 0.20 and is the **dose cap** that keeps the map out of the
+    low-diversity degenerate; pass ``0`` to disable it (that is what the 2026-08-11 arms
+    ran with, and アリスブルー came out at 0.43 diversity against a human 0.95).
     ⚠️`min_run` defaults to 1 = the original per-bar behaviour, which **broke flow and
     idiom** (see `_keep_runs`). Any new arm should set it. Empty/unset = untouched map, so production
     behaviour is unchanged unless the variable is set (Kyle's standing rule: isolated,
@@ -555,6 +627,7 @@ def maybe_apply(beatmap, waveform, sr: int, stems: dict, bpm: float, end: float)
         etol = float(parts[3]) if len(parts) > 3 and parts[3] else DEFAULT_ENERGY_TOL
         min_z = float(parts[4]) if len(parts) > 4 and parts[4] else DEFAULT_MIN_Z
         min_run = int(parts[5]) if len(parts) > 5 and parts[5] else DEFAULT_MIN_RUN
+        max_share = float(parts[6]) if len(parts) > 6 and parts[6] else DEFAULT_MAX_SHARE
     except ValueError:
         logger.warning("BEAT_STRUCTURE_REUSE=%r unparseable — skipped", spec)
         return None
@@ -601,7 +674,10 @@ def maybe_apply(beatmap, waveform, sr: int, stems: dict, bpm: float, end: float)
         else:
             plan = plan_reuse(S, edges, min_sim=min_sim, min_lag=min_lag,
                               energy_tol=etol, min_z=min_z, min_run=min_run)
+        raw = plan.n_copied
+        plan = cap_share(plan, max_share)
         stats = apply_reuse(beatmap, plan, bpm, mode=mode)
+        stats["capped_from"] = raw
         logger.info(
             "BEAT_STRUCTURE_REUSE=%s: %d/%d bars are musical repeats (%.0f%%), "
             "%d copied, %d notes re-placed, +%d/-%d notes",
