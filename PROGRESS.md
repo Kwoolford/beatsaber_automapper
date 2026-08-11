@@ -35,13 +35,31 @@ subsets have near-identical median bpm (131 vs 125), nps (3.57 vs 3.65) and onse
 12.2 onsets/s). **Recorded as a null, not massaged into a story from the strongest weak number.**
 Worst 8: `2c352 2e593 32c88 26327 2a148 2b5db 31a13 29a01`.
 
-★★**THIS IS THE SECOND DEFECT WITH THIS SIGNATURE.** The Stage-1 phase inversion had the same one —
-*"NO PREDICTOR: stem mix, drums-on-beat, onset density, song position, beat-slot offset, all null ⇒
-internal to Stage-1, not the audio."* Two independent defects that vary strongly by song and
-correlate with **no property of the song** point the same way: **the variance is internal to the
-model, not driven by what the music is doing.** That is a hypothesis worth testing directly (e.g. does
-the same song at a different seed land in the good or the bad half?) rather than another audio-feature
-hunt.
+### 🔴 I PROPOSED "THE VARIANCE IS INTERNAL TO THE MODEL" AND THE SEED TEST REFUTED IT IN ONE STEP
+
+Reasoning from the Stage-1 phase inversion's *"NO PREDICTOR … internal to Stage-1, not the audio"*, I
+proposed the same for this defect and wrote down the test: **does a song land in the good or the bad
+half at a different seed?** The seed-1 cohort already existed, so it cost one paired lookup:
+
+| | |
+|---|---|
+| corr(Δ at seed 0, Δ at seed 1) | **+0.981** |
+| median \|seed-to-seed change\| | **0.0072** |
+| median \|gap to human\| | 0.0544 — **7× larger** |
+| "bad" songs (>0.10 below human) overlapping across seeds | **35 of 38** (chance ≈ 9.7) |
+
+⇒**SONG-DRIVEN, near-deterministically. My hypothesis is REFUTED.** The same songs fail at both
+seeds; the seed barely moves this axis at all.
+
+★★**THE METHODOLOGICAL POINT, which is the durable part**: *"no predictor among the features I
+checked"* is **not** the same as *"not driven by the audio"*, and I conflated them. The seed test
+separates the two cleanly and costs almost nothing when a second seed already exists. ⚠️**The
+phase-inversion conclusion was reached by the same reasoning and has never had this test applied to
+it** — it should get one before *"internal to Stage-1, not the audio"* is relied on again.
+
+⇒**And the problem is now much better posed**: **35 songs fail reproducibly at any seed**, and they
+share something that bpm, nps and onset density do not capture. That is a findable target — a named,
+stable, reproducible subset — rather than a diffuse cohort deficit.
 
 ## ★★★★ THE CANDIDATE STACK — THE TWO LEVERS COMPLEMENT EACH OTHER (2026-08-11)
 
