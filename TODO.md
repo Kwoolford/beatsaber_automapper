@@ -475,9 +475,19 @@ stays the fixed historical ruler. Human bar: `docs/eval_references/masterpiece_h
 `scripts/overnight_2026-08-10.sh` — `me_z20` / `me_z25` (place: position+direction only) and
 `me_full25` (also the bar rhythm), paired against the 149-song prod cohort.
 
+**✅ STEP 1 IS ALREADY ANSWERED — the mechanism engages and survives postprocess.**
+`scripts/check_reuse_survives.py --arm outputs/wide_cohort_prod_me_z20`, paired over 103 songs:
+placement agreement on audio-repeat bar pairs **0.0206 → 0.0633 (3.1x, resolvable, 80/103 songs
+improved)**. So if `harm_place` does NOT move tonight, the lever is not the reason — look at the axis.
+⚠️But the level is still **0.063, not ~1.0**: most of each copy is rewritten downstream (`fix_parity`
+alone rewrites ~48% of directions). **The headroom question — how much does postprocess eat — is the
+first follow-up if the arms look promising**; `BS_PREPOST_OUT` dumps the pre-postprocess map for a
+direct answer on one song.
+🔴**AND THE FIRST VERSION OF THAT CHECK WAS THE WRONG INSTRUMENT** — it asked whether the two bars
+were IDENTICAL and read a null (0.0000 vs 0.0006), which `place` mode cannot reach by construction
+since it never changes which slots play. The project's signature failure, caught in-flight this time.
+
 **Harvest next session** — read `logs/overnight/me_2026-08-10.log`, then:
-1. **Did it fire?** The generator logs `N/M bars are musical repeats` per song. If `harm_place` did
-   not move, check THAT before touching the metric.
 2. 🔴**`harm_place` is a MANIPULATION CHECK here, not a win.** The lever copies placement on musical
    repeats and the axis scores placement reuse on musical repeats. It answers "did the lever fire".
 3. **The place arms cannot have moved alignment / rhythm(A2) / nps / precision** — no note moves in
