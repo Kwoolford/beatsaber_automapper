@@ -3023,6 +3023,20 @@ def generate_v7_level(
     _prepost_out = _os.environ.get("BS_PREPOST_OUT")
     _prepost_bm = _copy.deepcopy(beatmap) if _prepost_out else None
 
+    # ---- M-E: STRUCTURE-CONDITIONED DECODE (2026-08-10). Default OFF. ----
+    # BEAT_STRUCTURE_REUSE = "<mode>[:<min_sim>[:<min_lag>[:<energy_tol>]]]".
+    # When the AUDIO says this bar is a return of an earlier one, reuse the map
+    # already generated there instead of leaving two unrelated patterns on the same
+    # music. This is the one structural idea C1 does not block: it needs no better
+    # probabilities, it copies a decision already made -- see structure_reuse.py for
+    # the mechanism argument and for why `harm_place` is a manipulation check here
+    # rather than evidence of quality.
+    # Placed BEFORE postprocess on purpose, so parity, reachability and the
+    # unplayable-pattern filters repair whatever the copy breaks at a bar seam.
+    from beatsaber_automapper.generation import structure_reuse as _sreuse
+    _sreuse.maybe_apply(beatmap, waveform, src_sr, stems, bpm,
+                        float(song_duration_secs or 0.0))
+
     beatmap = postprocess_beatmap(beatmap, difficulty=difficulty, bpm=bpm,
                                   song_duration_secs=song_duration_secs)
 
