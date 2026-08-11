@@ -7,6 +7,29 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 🔴 `LAYOUT_TRAVEL_PENALTY=1` DOES NOT REPRODUCE — and the pre-registration called it
+
+The second and last validated-but-unshipped lever, re-tested at n=149:
+
+| axis | control | **tp1** | (xsep, for scale) |
+|---|---|---|---|
+| flow | **0.37** (spread 0.66) | **0.49** (spread 0.48) 🔴 | 0.23 |
+| playfeel | 0.59 | **0.47** ✅ | 0.62 |
+| rhythm / idiom / handrole / alignment | 0.47 / 0.40 / 1.12 / 0.62 | 0.47 / 0.41 / 1.13 / 0.62 | — |
+
+It was ticked in 2026-07 for taking **flow 0.81 → 0.30**. Today it takes flow **0.37 → 0.49** — the
+wrong direction — and shrinks the spread 0.66 → 0.48.
+★**This was predicted in the script before the run**: *"the defect it fixed no longer exists; today's
+control sits at flow 0.37, and a lever that repaired a hole somebody else has since filled can easily
+be neutral now, or harmful by over-correction."* `BEAT_REACH` was promoted into exactly this
+territory on 2026-08-03. ⇒**REJECT.** Record as superseded so it is not re-derived a third time.
+✅It does improve `playfeel` 0.59 → 0.47, which is real but is not what it is for, and not worth a
+flow regression.
+
+⇒**THE UNSHIPPED-LEVER LIST IS NOW FULLY RESOLVED**: 2 candidates, 1 reproduces and is strong
+(`COLOR_SEP_MODE=extreme`), 1 is superseded (`LAYOUT_TRAVEL_PENALTY`). ★**Both outcomes were worth the
+GPU** — the point of the sweep was to close the loop, and a clean negative closes it as well as a win.
+
 ## ★★★★★ THE EXCLUDED-METRIC SWEEP — unwatched metrics are where the categorical zeros hide
 
 Generalising the `crossover` find. Every axis computes some metrics it deliberately keeps OUT of its

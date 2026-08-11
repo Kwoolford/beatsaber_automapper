@@ -743,10 +743,11 @@ exactly two**, both from the 2026-07-27 flow/idiom sweep:
 | lever | recorded result | status |
 |---|---|---|
 | `COLOR_SEP_MODE=extreme` | idiom 1.84 → 0.30 PASS | ✅**re-validated at n=149 today** — flow 0.37→0.23, crossover restored, reach lands on human. In the review set as `[CROSSOVER]`. |
-| `LAYOUT_TRAVEL_PENALTY=1` | flow 0.81 → 0.30 PASS | 🔵**running** (`scripts/overnight_2026-08-11e.sh`); still defaults to 0.0 |
+| `LAYOUT_TRAVEL_PENALTY=1` | flow 0.81 → 0.30 PASS | 🔴**REJECTED — does not reproduce.** Today it takes flow **0.37 → 0.49** (wrong way) and shrinks spread 0.66 → 0.48. Superseded by `BEAT_REACH`, promoted into the same territory 2026-08-03. **Leave the default at 0.0; do not re-derive.** (It does improve playfeel 0.59 → 0.47 — real, but not what it is for.) |
 
-★**The list is now closed** — do not re-run this sweep, run it again only after a new lever sweep
-adds ✅ rows. ⚠️Expect less from `tp1`: the hole it filled (flow 0.81) no longer exists — control is
+★**THE LIST IS NOW FULLY RESOLVED — 1 reproduces, 1 superseded.** Do not re-run this sweep; run it
+again only after a new lever sweep adds ✅ rows. ★Both outcomes were worth the GPU: the point was to
+close the loop, and a clean negative closes it as well as a win does. ⚠️Expect less from `tp1`: the hole it filled (flow 0.81) no longer exists — control is
 0.37 and xsep is 0.23 — and `BEAT_REACH` has since been promoted into the same territory. **Watch
 `spread`, not just `gap`**: `LAYOUT_TRAVEL_PENALTY=4` once scored a lovely gap with **spread 0.00,
 every map identical.**
