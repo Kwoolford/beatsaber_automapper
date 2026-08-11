@@ -735,6 +735,27 @@ chasing that showed `crossover` detects it perfectly (0.000→1.000) but is wire
 shuffled control) with the comment *"still reported, as guards"* — **nothing ever guarded it.**
 **TASK**: implement that guard, calibrated on the human band, once the arm reports.
 
+## 🔎 THE "VALIDATED BUT NEVER SHIPPED" SWEEP (2026-08-11) — exactly two, and that is the whole list
+Chasing a blind spot produced the session's best result *by finding an old lever, not a new one*, so
+I swept `PROGRESS.md` for every lever ticked ✅ in a results table and never promoted. **There are
+exactly two**, both from the 2026-07-27 flow/idiom sweep:
+
+| lever | recorded result | status |
+|---|---|---|
+| `COLOR_SEP_MODE=extreme` | idiom 1.84 → 0.30 PASS | ✅**re-validated at n=149 today** — flow 0.37→0.23, crossover restored, reach lands on human. In the review set as `[CROSSOVER]`. |
+| `LAYOUT_TRAVEL_PENALTY=1` | flow 0.81 → 0.30 PASS | 🔵**running** (`scripts/overnight_2026-08-11e.sh`); still defaults to 0.0 |
+
+★**The list is now closed** — do not re-run this sweep, run it again only after a new lever sweep
+adds ✅ rows. ⚠️Expect less from `tp1`: the hole it filled (flow 0.81) no longer exists — control is
+0.37 and xsep is 0.23 — and `BEAT_REACH` has since been promoted into the same territory. **Watch
+`spread`, not just `gap`**: `LAYOUT_TRAVEL_PENALTY=4` once scored a lovely gap with **spread 0.00,
+every map identical.**
+
+★★**THE PROCESS LESSON, which outlives both levers**: this project generates more validated results
+than it promotes. A ✅ in a sweep table is not a shipped change, and nothing in the workflow closed
+that loop. **When a lever passes its DoD, either flip the default or write down why not** — otherwise
+it costs a re-derivation months later.
+
 ## 🔬 THE SENSITIVITY BATTERY (new 2026-08-11) — `scripts/audit_sensitivity.py`
 **A different question from every audit we had.** `audit_eval_suite` / `audit_masterpiece` are
 DEGENERACY batteries: build a bad map, check the suite ranks it low — i.e. can a metric be *fooled*.
