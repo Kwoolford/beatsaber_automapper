@@ -7,6 +7,42 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 🔬 THE BASELINE'S ALIGNMENT FAILURE IS A SUBSET DEFECT — AND NOTHING PREDICTS WHICH SONGS
+
+Restoring A8 exposed that our promoted maps fail alignment at n=149. Scored **paired, with the SAME
+onsets on both sides** (the shared footing the cache exists for — `load_expert_only` returns a
+2-tuple, so the human side is silently onset-less unless you pass them yourself; that mistake made
+the first run of this analysis return 0 scorable songs):
+
+| | onset precision |
+|---|---|
+| ours | median **0.8914** (p10 0.7557) |
+| human | median **0.9492** (p10 0.8830) |
+| paired Δ | **−0.0635**, resolvable |
+
+★**It is NOT a uniform deficit — it is bimodal**, exactly the shape today's twice-learned lesson
+predicts:
+- **39/149 (26 %) songs we BEAT the human**
+- **38/149 (26 %) we are more than 0.10 BELOW**
+- 34/149 within 0.02
+
+The cohort median (−0.047) understates the tail and hides that a quarter of our maps are *better
+than a human* on this axis.
+
+🔴**AND NOTHING I CHECKED PREDICTS WHICH QUARTER.** corr(Δprecision, bpm) **−0.105**, our nps
+**+0.059**, human nps **+0.294**, our/human density ratio **−0.164**; the failing and succeeding
+subsets have near-identical median bpm (131 vs 125), nps (3.57 vs 3.65) and onset density (11.0 vs
+12.2 onsets/s). **Recorded as a null, not massaged into a story from the strongest weak number.**
+Worst 8: `2c352 2e593 32c88 26327 2a148 2b5db 31a13 29a01`.
+
+★★**THIS IS THE SECOND DEFECT WITH THIS SIGNATURE.** The Stage-1 phase inversion had the same one —
+*"NO PREDICTOR: stem mix, drums-on-beat, onset density, song position, beat-slot offset, all null ⇒
+internal to Stage-1, not the audio."* Two independent defects that vary strongly by song and
+correlate with **no property of the song** point the same way: **the variance is internal to the
+model, not driven by what the music is doing.** That is a hypothesis worth testing directly (e.g. does
+the same song at a different seed land in the good or the bad half?) rather than another audio-feature
+hunt.
+
 ## ★★★★ THE CANDIDATE STACK — THE TWO LEVERS COMPLEMENT EACH OTHER (2026-08-11)
 
 Neither candidate had been tested with the other, and that is the config Kyle would actually receive
