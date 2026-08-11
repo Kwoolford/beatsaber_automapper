@@ -510,7 +510,25 @@ direct answer on one song.
 were IDENTICAL and read a null (0.0000 vs 0.0006), which `place` mode cannot reach by construction
 since it never changes which slots play. The project's signature failure, caught in-flight this time.
 
-## 🔴🔴🔴 P0 — BEFORE ANY M-E PROMOTION: CAP THE DOSE BY BAR-PATTERN DIVERSITY
+## ✅ M-E IS DONE AND WAITING ON KYLE — the dose cap is built and validated *(details in PROGRESS.md)*
+Candidate: **`BEAT_STRUCTURE_REUSE=diag_full:0.70:4:1.5:2.0:4:0.20`**, default OFF.
+Replicated at 2 seeds, degenerate-controlled, dose-capped, deployed as `[AFTER CAPPED]`.
+★**Dose is ONE DIAL** — gain, playability damage and loss of variety all scale together, smoothly.
+**Where to sit on it is his taste call, not the suite's.** Capped: ~19–37 % of the structural gap,
+flow 0.05 over its bar, diversity human-normal. Uncapped: ~2× the gain, ~2× the damage, and a
+visible checkerboard on repetitive songs.
+**What to do with his answer**: *"repetition reads INTENTIONAL"* ⇒ consider raising the cap toward
+human parity (share ~0.25–0.30). *"reads LAZY"* ⇒ the next capability is **variation-on-repeat**
+(copy the section, then vary it), which is a different and easier problem than the one solved here.
+*"can't tell"* ⇒ leave it OFF; a lever nobody can hear is not worth its flow/idiom cost.
+
+## 🟡 P1 — the old periodic-degenerate battery gap: ✅ CLOSED, and the axes passed
+`scripts/make_periodic_degenerate.py --lag 8` scored `rhy_rhythm` +0.0125 / `harm_rhythm` **+0.0007**
+— indistinguishable from nothing, below even the control ⇒**the M-axes reward musical repetition and
+ignore mechanical repetition.** Keep this control in the battery; it is cheap and it is now the only
+degenerate that targets a *structural* lever.
+
+## 🗑️ superseded — dose cap by bar-pattern diversity (done)
 **The defect, measured per song** (distinct bar patterns ÷ scored bars): at ~71 % copy share
 アリスブルー **0.427** and Digital Life Hacker **0.496** against a human **0.951**; at ~14 % share
 Hunger 0.949 / Fallen Kingdom 0.984, both human-normal. ⇒**The checkerboard is an OVERDOSE, confined

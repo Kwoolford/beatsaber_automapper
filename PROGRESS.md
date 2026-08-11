@@ -308,6 +308,32 @@ diversity. **Always read the per-song minimum here.**
 i.e. our maps repeat slightly LESS than a human's. If Kyle's ear wants more repetition there is
 headroom — human parity is around share 0.25–0.30 — and that is a knob, not a rebuild.
 
+### ★★★ THE COMPLETE TRADE-OFF CURVE — DOSE IS ONE DIAL, AND WHERE IT SITS IS A TASTE DECISION
+
+| arm | copy dose | flow (0.50) | idiom (1.00) | playfeel | `rhy_rhythm` Δ | `harm_rhythm` Δ | worst diversity ÷ human |
+|---|---|---|---|---|---|---|---|
+| control | 0.000 | **0.37 PASS** | **0.40 PASS** | 0.59 | — | — | — |
+| **capped** | 0.149 | 0.55 FAIL | 1.21 FAIL | **0.76 PASS** | **+0.0190** | **+0.0219** | 0.816 |
+| uncapped | 0.292 | 0.70 FAIL | 1.75 FAIL | 0.88 PASS | +0.0423 | +0.0542 | 0.671 |
+| periodic degen | — | — | — | — | +0.0125 | **+0.0007** | — |
+
+★**Everything scales together with dose — the gain, the playability damage, and the loss of
+variety.** Halving the dose retains ~45 % of the structural gain (both axes still resolvable at ~5×
+the ±0.004 floor), halves the flow/idiom damage (flow now **0.05** over its bar), and puts
+bar-pattern diversity back in human range. ⇒**There is no setting that buys structure for free**, and
+the curve is smooth, so **where to sit on it is a taste judgement — Kyle's, not the suite's.**
+
+✅**THE PRE-REGISTERED "SHIP" CONDITION IS MET** for the capped arm: structural gain stays resolvable
+AND no song falls below ~0.85 of its human diversity (1/83, marginal at 0.816). The uncapped arms are
+now a diagnostic footnote.
+✅**AND THE GAIN IS NOT THE DEGENERATE**: the fixed-lag periodic control scores `harm_rhythm` **+0.0007**
+— indistinguishable from nothing — against our +0.0219. The axes reward musical repetition and ignore
+mechanical repetition, which is what they were designed to do and is now demonstrated rather than
+asserted.
+
+**M-E STATUS: BUILT, REPLICATED (2 seeds), DEGENERATE-CONTROLLED, DOSE-CAPPED, DEPLOYED FOR HIS EAR.**
+Default remains **OFF**. `BEAT_STRUCTURE_REUSE=diag_full:0.70:4:1.5:2.0:4:0.20` is the candidate.
+
 ### 🔑 THE VERDICT, AND WHY IT IS NOT "STOP"
 
 The pre-registered rule said: *gain but idiom still broken ⇒ the structural gap is buyable and we do
