@@ -139,8 +139,37 @@ def p_drop_double_partner(notes, rng):
         notes.pop(i)
 
 
+VMIRROR_DIR = {0: 1, 1: 0, 2: 2, 3: 3, 4: 6, 5: 7, 6: 4, 7: 5, 8: 8}
+
+
+def p_mirror_y(notes, rng):
+    """Reflect top-to-bottom. Up-swings become down-swings everywhere.
+
+    ★A sharper probe than `mirror_x`: vertical direction carries most of the parity
+    convention, so a suite that cannot see this cannot see parity structure.
+    """
+    for n in notes:
+        n.y = 2 - n.y
+        n.direction = VMIRROR_DIR.get(n.direction, n.direction)
+
+
+def p_quantize_to_beat(notes, rng):
+    """Snap every note to the nearest whole beat — all subdivision nuance erased.
+
+    A map where everything lands on the beat is a different map musically, and an
+    obviously worse one; any suite claiming to measure rhythm must see it.
+    ⚠️It CHANGES NOTE TIMES, so it doubles as a live check that A8 is present — with
+    the onset cache missing this was invisible, which is how the wide cohort's dead
+    alignment axis was found.
+    """
+    for n in notes:
+        n.beat = round(n.beat)
+
+
 PERTURBATIONS = {
     "mirror_x": p_mirror_x,
+    "mirror_y": p_mirror_y,
+    "quantize_to_beat": p_quantize_to_beat,
     "swap_colors": p_swap_colors,
     "flatten_rows": p_flatten_rows,
     "flatten_cols": p_flatten_cols,

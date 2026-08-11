@@ -7,6 +7,45 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★★★★ A8 RESTORED ON THE WIDE COHORT — AND M-E IS CLEARED ON TIMING (2026-08-11 morning)
+
+Kyle: *"keep prodding the visibility suite to identify more blind spots."*
+
+### 🔴 THE BLIND SPOT: the wide cohort had NO onsets, so A8 was silently absent
+**0 of 149 songs** were in `outputs/onset_cache/`, so `alignment` — the only axis that scores notes
+against the **music** rather than the declared grid — printed `nan / FAIL — not scored` on every
+wide-cohort scorecard for two nights and was read as cosmetic. It is not: on that cohort a **60 ms
+global shift moved nothing at all** (`audit_sensitivity.py`). The audio was in
+`outputs/wide_cohort/audio/` the whole time, already named `<song_id>.ogg`.
+**Fixed**: `build_onset_cache.py --audio-dir <dir>` (reuses `compute_onsets` verbatim — the detector
+must not change, the human baseline moves with it). Cache 104 → 254 entries.
+
+### ✅ WITH A8 ALIVE: M-E DOES NOT HARM TIMING — and the way that was nearly mis-read matters
+
+Cohort gaps first: control **0.62**, `diag_capped` 0.62, `diag_full` **0.49** — which reads as
+*"the rhythm-copying arm improves alignment"*. 🔴**It does not.** Alignment's cohort spread is ~1.00
+against a 0.35 bar, so that statistic is far too noisy to rank arms. Paired per song, n=149:
+
+| metric | control | capped | full | Δ full | 2se | resolvable |
+|---|---|---|---|---|---|---|
+| `onset_precision` | 0.8733 | 0.8759 | 0.8776 | +0.0044 | 0.0060 | **no** |
+| `offset_mad_ms` | 11.146 | 11.173 | 11.197 | +0.050 | 0.154 | **no** |
+| `onset_lag_ms` | 8.189 | 8.155 | 8.044 | −0.145 | 0.245 | **no** |
+| `onset_recall` | 0.1748 | 0.1748 | 0.1739 | −0.0009 | 0.0022 | **no** |
+
+⇒**The honest result is the SAFETY one, and it is clean: copying a bar's rhythm onto a musical repeat
+does not move timing in either direction.** That was the open risk — `full` mode moves notes in time
+and the axis built to judge it was missing — and it is now answered at n=149.
+★**METHOD NOTE WORTH KEEPING**: the cohort `gap` is a distance between distributions and moves with
+their spread; **paired per-song deltas are the sensitive instrument.** Reading the gap alone would
+have shipped a false "M-E improves alignment" claim this morning.
+
+### 🔴 NEW FACT ABOUT THE BASELINE, PREVIOUSLY UNMEASURABLE
+**Our promoted production maps FAIL alignment on the wide cohort** — gap **0.62** against a 0.39 bar,
+`onset_precision` **0.873** where the human corpus sits at ~0.93. This was invisible until this
+morning because the axis could not run there. It is not caused by M-E (the control is the one
+failing) and it is a bigger miss than anything M-E changes.
+
 ## ★★★★ M-E BUILT — STRUCTURE-CONDITIONED DECODE, AND KYLE SAYS THE METRICS ARE NOT THE PICTURE (2026-08-10)
 
 > *"Keep working with the note that the maps need a lot more refinement. The metrics still don't
