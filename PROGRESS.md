@@ -7,6 +7,77 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★★★ M-E BUILT — STRUCTURE-CONDITIONED DECODE, AND KYLE SAYS THE METRICS ARE NOT THE PICTURE (2026-08-10)
+
+> *"Keep working with the note that the maps need a lot more refinement. The metrics still don't
+> capture the full picture. It may be time for a significantly different approach. That's my
+> ominous send off."* — Kyle, mid-session
+
+### What was built
+
+`generation/structure_reuse.py` + one call in `generate_v7_level` before `postprocess_beatmap`.
+`BEAT_STRUCTURE_REUSE=<mode>[:min_sim[:min_lag[:energy_tol[:min_z]]]]`, default OFF.
+
+When the AUDIO says a bar is a return of an earlier one, reuse the map already generated there.
+This is the one structural idea C1 does not block: it needs no better probability field, it copies a
+decision that was already made. Two modes — `place` (position + cut direction only) and `full` (also
+the bar's rhythm).
+
+★**The `place` arm is unusually clean, and the cleanliness is structural rather than measured.** It
+moves no note in time and adds or removes none, so alignment, rhythm (A2), density, nps and onset
+precision **cannot** move. Verified end-to-end, not just in unit tests: on 1fccd the arm and the
+control both hold 566 notes with byte-identical times and 25.4 % of notes re-placed; across five
+cohort songs time-neutrality held 5/5 with 6–52 % re-placed, the spread tracking how much each song
+actually repeats. Anything that does move in the results is therefore position or direction.
+
+### 🔴 The first design was wrong, and the smoke test is what caught it
+
+A bare `similarity >= threshold` — the obvious reading of "when the music repeats" — flagged
+**76–88 % of bars as repeats on all four standing songs**, collapsing 139 bars onto 13 root
+patterns. That is not "the map follows the form". That is the **uniform bright blob** the structure
+panel already catches us producing (ours a smear where the human's is sharp discrete squares). Most
+music sits in one key with a steady groove, so bar-to-bar cosine is high nearly everywhere and a
+**level** cannot separate "the chorus is back" from "this is still the same song".
+
+The fix is the project's own design rule, the one that made the M-axes the first steer-safe metrics
+here: **score a contrast, not a level.** A match must now prove it is *distinctive* — the best
+candidate must stand clear of that bar's own similarity distribution (median/MAD) by `min_z` robust
+sds. That lands at 6–58 % per song and, unlike the threshold, it **varies with how much the song
+really repeats**: Fallen Kingdom 47.6 % across 24 roots (it is the song the M-E evidence came from),
+Digital Life Hacker 5.8 % (every bar resembles every other, so few repeats are *distinctive*).
+
+⚠️**A MAD floor is load-bearing, not cosmetic.** A bar matching exactly one earlier bar and nothing
+else has MAD = 0 — the most distinctive match available — and dividing by it rejected precisely the
+case the lever exists for. Found by a unit test written against the *claim*, not against the code.
+
+### Pre-registered before the first map was generated
+
+🔴**`harm_place` is a MANIPULATION CHECK for this lever, not evidence of quality.** It scores
+placement reuse on musical repeats; this lever copies placement on musical repeats. A rise says only
+"the lever fired". Citing it as quality would be fitting the metric — the error this project has
+already made under other names. The claim "the map got better" needs Kyle's ear, plus no regression
+on the six-axis suite, `hard_rate` (a lever can pass every axis and still carry a defect no axis
+measures — `BEAT_ONSET_EVIDENCE` did exactly that) and `follow_*`.
+
+`scripts/overnight_2026-08-10.sh`: three arms (`me_z20`, `me_z25`, `me_full25`) against the existing
+149-song prod cohort, paired by song, same seed, differing in one thing. Tests: 521 passed
+(509 + 12 new).
+
+### ★ What Kyle's message means against evidence already in the repo
+
+**He is right, and we measured it before he said it.** M-F: ranking the songset by the mean gap over
+the steer-safe axes puts **Fallen Kingdom second-best** — the map he called *"really empty"* — and
+**Hunger fifth-worst** — the map he graded **A+** and told us to promote. The suite's ordering is
+close to the reverse of his on the only two maps where we have his verdict.
+
+⚠️**AND THAT CUTS BACKWARD THROUGH THE PROJECT'S NEGATIVE RESULTS.** "Nothing we have moves a
+masterpiece axis" (M-A), "v8's vocal gain does not survive n=149" (M-G), "no decode lever helps"
+(C1's six directions) — every one of those is a verdict *measured on a ruler that demonstrably does
+not track his judgement*. They are sound statements about the axes. They are **not** established
+statements about map quality, and this file has not been careful about the difference.
+
+---
+
 ## ★★★★★★ THE MASTERPIECE AXES — THE SUITE LEARNS TO ASK ABOUT INTENT (2026-08-04, overnight)
 
 > *"Reviewed the songs and still have some problems from earlier but mostly playable flows. Mostly

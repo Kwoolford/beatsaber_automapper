@@ -231,6 +231,43 @@ explicitly valued by ear. Check both before promoting anything.
 ---
 
 
+## 🔴🔴🔴 P0 — "THE METRICS STILL DON'T CAPTURE THE FULL PICTURE" (Kyle, 2026-08-10)
+
+> *"Keep working with the note that the maps need a lot more refinement. The metrics still don't
+> capture the full picture. It may be time for a significantly different approach."*
+
+★**HE IS RIGHT, AND IT IS ALREADY MEASURED IN THIS REPO — see M-F.** Ranking the songset by the mean
+gap over the steer-safe axes puts **Fallen Kingdom second-best** (he called it *"really empty"*) and
+**Hunger fifth-worst** (he graded it **A+** and told us to promote it). On the only two maps where
+we have his verdict, the suite's ordering is close to the **reverse** of his.
+
+⚠️⚠️**THE CONSEQUENCE THIS PROJECT HAS NOT YET DRAWN, and it is the important one.** Our headline
+negative results — M-A "nothing moves a masterpiece axis", M-G "v8's gain dies at n=149", C1's six
+directions — are all verdicts **measured on a ruler that demonstrably does not track his judgement**.
+They are sound statements *about the axes*. They are **not** established statements about map
+quality. Every "this lever does nothing" in PROGRESS.md carries that asterisk from today.
+
+★**THE CHEAPEST GENUINELY-DIFFERENT APPROACH IS NOT A BETTER METRIC — IT IS A DIFFERENT SOURCE OF
+TRUTH.** We have spent three sessions building instruments to *predict* quality from first
+principles, and M-F says the best of them anti-correlates with the only judge that counts. We have
+his verdicts on ~3 maps, unstructured, scattered through PROGRESS.md.
+**Proposal (needs his buy-in, cheap to run): a structured A/B preference loop.** Pairs of maps on the
+same song, he picks the better one and says one sentence why. 20–30 pairs is a few listening
+sessions and it would, for the first time, let a lever be scored against **his ear directly** rather
+than against a proxy that we have measured to be anti-correlated with it.
+**DoD**: an axis (or a weighted combination) that reproduces his ordering on held-out pairs above
+chance. Until something clears that bar, no axis in the suite may be called a quality metric — only
+a defect detector, which is what they were validated as.
+⚠️Do NOT respond to his message by building a seventh metric from first principles. That is the move
+that produced the anti-correlation.
+
+**The second candidate for "significantly different"** is the V8 representation direction
+(`docs/architecture_v8_plan.md`, `beatsaber_v8_representation_theory` memory): symbolic per-stem
+transcription as the timing backbone rather than MERT-on-a-BPM-grid. ⚠️Note it was **shelved on
+evidence from these same axes** (v8's `follow_vocals` gain died at n=149) — which is exactly the kind
+of verdict the paragraph above says we should not treat as settled. Worth re-opening **after** the
+preference loop exists to judge it, not before.
+
 ## 🔴🔴 P0 — THE EVAL SUITE (Kyle, 2026-08-04) — ✅ BUILT, now the working instrument
 
 > *"Create a way for you to see the song and map in a way that gives you my vision… I want to empower
@@ -433,33 +470,22 @@ metronome would also make.
 and nothing evaporated.** Use `masterpiece_report.py --wide` for any future claim; the eval songset
 stays the fixed historical ruler. Human bar: `docs/eval_references/masterpiece_human.json`.
 
-### 🔴🔴🔴 M-E — ★THE NEXT BUILD: STRUCTURE-CONDITIONED DECODE (now the top structural item)
-★**Promoted 2026-08-05 by the human bar**: `harm_place` exceedance is **86.6 %** against a TIGHT human
-distribution (MAD 0.012) — the largest exceedance any axis in this project has produced. Reusing a
-pattern's *movement* on a musical repeat is something nearly every human map does and nearly none of
-ours do. Three independent lines now point here: the exceedance, the paired delta at n=149
-(−0.025, 26×), and the fact that it is the one structural idea **C1 does not block**.
+### 🔵 M-E — BUILT 2026-08-10, THREE ARMS RUNNING *(build write-up in PROGRESS.md)*
+`BEAT_STRUCTURE_REUSE=<mode>[:min_sim[:min_lag[:energy_tol[:min_z]]]]`, default OFF.
+`scripts/overnight_2026-08-10.sh` — `me_z20` / `me_z25` (place: position+direction only) and
+`me_full25` (also the bar rhythm), paired against the 149-song prod cohort.
 
-`review_structure.py` shows what the humans actually do on a repeat, and it is not subtle. Fallen
-Kingdom, bar at 2:25 vs the bar at 1:43 (music similarity 0.83):
-
-    human   X.X...X...X.X...   X.X...X...X.X...    identical
-    ours    X.X.X.X.....X...   X.......X.X.....    unrelated
-
-⚠️**But "we never repeat" is FALSE and was checked before being written down**: 50 % of our bars
-(57/114) are exact copies of *some* earlier bar, against the human's 74 % (89/120). We repeat plenty
-— **our repeats do not land where the music repeats.**
-
-⇒**The proposal**: when the audio says this passage is a repeat of an earlier one, *reuse the map we
-already generated there* (transposed for the current section's energy), rather than re-deciding from
-the probability field. ★**This is the one structural idea that is NOT blocked by C1**, because it does
-not need better probabilities — it needs to copy a decision already made. It is also exactly how a
-human mapper works (copy the section, then vary it).
-**DoD**: `rhy_rhythm` and `harm_rhythm` rise toward the human (0.148 / 0.127) at ≥3 seeds **without**
-losing alignment precision or `rhythm` (A2), and `view_structure.py` shows the off-diagonal stripes
-appearing in our panel. ⚠️Also check `follow_*` does not fall: a copied bar is right for the repeat
-only if the repeat really is the same, and the copy must not survive into a section that changed.
-⚠️Kyle's standing rule applies — isolated, tactical, default OFF, and his ear decides.
+**Harvest next session** — read `logs/overnight/me_2026-08-10.log`, then:
+1. **Did it fire?** The generator logs `N/M bars are musical repeats` per song. If `harm_place` did
+   not move, check THAT before touching the metric.
+2. 🔴**`harm_place` is a MANIPULATION CHECK here, not a win.** The lever copies placement on musical
+   repeats and the axis scores placement reuse on musical repeats. It answers "did the lever fire".
+3. **The place arms cannot have moved alignment / rhythm(A2) / nps / precision** — no note moves in
+   time (verified end-to-end, 5/5 songs). If one of those DID move, time-neutrality is broken and
+   every other number in the run is void. **Check that first, not last.**
+4. Guards that decide PASS vs PIVOT: six-axis suite, `hard_rate` (reachability), `follow_*`.
+5. PASS ⇒ build the review set on his standing four (1f767 / 1f913 / 1f333 / 1f8d6) with the
+   structure PNG beside it. **His ear decides**, per M-F.
 
 ### ✅ M-G — ANSWERED: NO. v8's vocal gain does not hold at n=149 *(outcome in PROGRESS.md)*
 Paired over 148 songs, same audio and seed: `follow_vocals` **+0.0004** (songset said +0.0082),
