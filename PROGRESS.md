@@ -176,6 +176,39 @@ Kingdom 2:25 identical to 1:43).
 Contiguity **recovered playfeel and rhythm outright** and took a quarter off idiom's excess, but flow
 and idiom still fail.
 
+### 🔴 THE DOSE-MATCHED ARM RETRACTS MY ROUND-1 CAUSAL CLAIM — AND EXPLAINS EVERYTHING BETTER
+
+`diag_dose` exists to isolate ONE variable: place-mode copying at a dose matched to `me_z20`
+(share 0.292 vs 0.297) with **4× the contiguity** (0.635 vs 0.156).
+
+| arm | share | contiguity | flow | idiom | playfeel |
+|---|---|---|---|---|---|
+| control | 0 | — | **0.37** | **0.40** | 0.59 |
+| `me_z20` (place, scattered) | 0.297 | 0.156 | 0.75 FAIL | 1.07 FAIL | 0.74 |
+| `diag_dose` (place, contiguous) | 0.292 | **0.635** | **0.73 FAIL** | **0.96 PASS** | 0.74 |
+
+🔴**Four times the contiguity bought 0.02 of flow — nothing — and playfeel did not move at all.**
+I wrote after round 1 that *the shuffle broke flow*. **That causal claim is RETRACTED.** Contiguity
+gives a modest idiom improvement (1.07 → 0.96, back under its bar) and essentially nothing else. The
+flow damage is **intrinsic to copying placement**, scattered or not.
+
+★★**AND THE TWO RESULTS TOGETHER GIVE THE REAL MECHANISM — a better story than the one they
+replace.** Contiguity clearly DOES help in *full* mode: `diag_full` copies **more** than `me_full25`
+(0.292 vs 0.190) and yet idiom fell 2.34 → 1.75 and playfeel recovered from FAIL to PASS. Damage
+scales with dose (round 1's dose-response), so more dose *and* less damage is a real effect. Why the
+difference?
+
+⇒**`place` mode drops a bar's POSITIONS onto a DIFFERENT bar's RHYTHM.** The target bar's note times
+are its own; only the positions come from the source. So the motion inside the bar is built from one
+passage's shapes attached to another passage's timing, and **that mismatch is *within* the bar** —
+contiguity operates between bars and cannot touch it. `full` mode transplants the bar whole, so
+positions stay married to the rhythm they were designed for, and contiguity then helps by cutting the
+number of *seams*.
+
+⇒★**THE RULE THIS ESTABLISHES: you cannot copy placement without copying the rhythm it was designed
+for.** That is why the project's best structural result is the *full*-mode arm, and it is not a
+tuning fact — it is a statement about what a musical pattern is.
+
 ### 🔑 THE VERDICT, AND WHY IT IS NOT "STOP"
 
 The pre-registered rule said: *gain but idiom still broken ⇒ the structural gap is buyable and we do
