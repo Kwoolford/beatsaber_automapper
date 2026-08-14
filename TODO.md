@@ -81,8 +81,10 @@ by elimination rather than assumption: not tempo, not phase (no shift helps), no
 (**4.5 onsets per note we emit**; 0/10 below 1.5 — the one-note-per-onset ceiling is nowhere near
 binding), and **not song difficulty — the human scores 0.943 on exactly these songs, better than the
 0.934 they score on the ones we handle fine.** Same note count, same onset budget, we just match less
-of it. ⇒**C1 / Track B.** ⚠️`26327` may be a third kind — scatter **25.4 ms**, 2.5× the others, which
-looks like timing rather than selection; open that one first if this subset is revisited.
+of it. ⇒**C1 / Track B.** ✅**`26327` is NOT a third kind — flag withdrawn.** Its 25.4 ms scatter looked like
+a mid-song tempo change (first fifth +21 ms vs body −15), but fitting a separate shift per half gains
+**+0.0117** and leaves it at 0.748 vs its human's 0.912, while `2ba21`/`2a148` want *exactly* the same
+shift in both halves. The MAD is **within-segment** scatter. **The two-way split is complete.**
 ⇒**The original 39-song defect is fully accounted for: ~18 fixed by phase, ~10 tempo-ratio, ~10
 selection.**
 

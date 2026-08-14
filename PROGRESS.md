@@ -35,9 +35,26 @@ fine.** Same note count as our successful songs, same onset budget. ⇒**It is p
 pick: a selection defect, and now demonstrated rather than assumed.** That is C1 / Track B territory.
 
 ⇒**The 39-song alignment defect is now fully accounted for**: ~18 fixed by grid phase, ~10 are
-tempo-ratio errors that need a real tempo model, ~10 are selection. ⚠️`26327` is a possible third
-kind — scatter **25.4 ms**, 2.5× the others — which looks like a timing rather than a selection
-problem and would be the one to open first if this subset is revisited.
+tempo-ratio errors that need a real tempo model, ~10 are selection.
+
+### 🔴 AND `26327` IS NOT A THIRD KIND — I withdrew my own flag
+I flagged it as a possible timing (rather than selection) defect on its **25.4 ms** scatter, 2.5× the
+others. Its per-fifth median offsets are +21.2 / −13.4 / −16.3 / −15.3 / −5.2 ms — **not a monotone
+drift** (which is what accumulating tempo error looks like) but a first-fifth that disagrees with the
+body by ~35 ms, which looked like a mid-song tempo or phase change. Tested by fitting a separate
+optimal shift to each half:
+
+| song | halves disagree by | piecewise gain over one global shift |
+|---|---|---|
+| `26327` | 17.5 ms | **+0.0117** |
+| `2ba21` | 0.0 ms | 0.0000 |
+| `2a148` | 0.0 ms | 0.0000 |
+
+⇒**No mid-song tempo change.** `26327` gains ~0.012 from a piecewise shift and remains at 0.748
+against its human's 0.912; the other two want *exactly* the same shift in both halves. The high MAD is
+**within-segment** scatter, not a structural offset. **`26327` is the same selection defect with
+noisier timing, and the "third kind" flag is withdrawn.** The two-way split (tempo-ratio / selection)
+is complete.
 
 ---
 
