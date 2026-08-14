@@ -7,6 +7,59 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★★ 2026-08-14 — THE OCTAVE DETECTOR WAS A ONE-LINE BASELINE, AFTER THREE STATISTICS AND A CLASSIFIER
+Before spending hours labelling the 5,373-map corpus to train a metrical classifier, I asked the
+cheap question — **is the signal learnable at all?** — with a tempogram VECTOR (ACF at 11 lags, all
+expressed as multiples of the *detected* period so the features are tempo-invariant), 5-fold
+stratified CV, n=133.
+
+| model | AUC | best separation |
+|---|---|---|
+| tempogram vector (tempo-invariant) | 0.922 | 0.724 (TPR 86 %, FPR 13 %) |
+| + detected bpm | 0.970 | 0.848 |
+| 🔴**detected bpm ALONE** | **0.973** | **0.848 (TPR 100 %, FPR 15 %)** |
+
+★★**The confound check I wrote into the script inverted its own conclusion.** I included "bpm alone"
+expecting it to expose a cheat — half-tempo songs have a low detected bpm by construction — and it
+turned out to be **the best detector in the study**, beating the tempogram vector and all three
+hand-designed statistics (0.114, 0.350, and an outright regression in 2026-07-27).
+
+**The groups barely overlap:** `half` detected bpm max **117.5**, `same` min **96.0**.
+
+| threshold (bpm <) | TPR | FPR | caught | false positives |
+|---|---|---|---|---|
+| **95** | 54 % | **0 %** | 15/28 | **0** |
+| **100** | 71 % | 2 % | 20/28 | 2 |
+| 120 | 100 % | 15 % | 28/28 | 16 |
+
+⇒**T = 95 is free** — 15 of the 28 ceilings lifted and **not one song harmed**. T = 100 buys 5 more
+for 2 false positives.
+
+🔴🔴**THE NUMBERS ABOVE ARE SWEPT ON THE WRONG QUANTITY — CORRECTION IN FLIGHT.** They use the bpm
+written into our *generated maps*, which is **post-`BEAT_TEMPO_FIT`**. A production detector can only
+see the **raw `detect_bpm` output**, before the fit, and the two disagree enough to flip songs:
+`21836` is correct-tempo but raw-detects at **79.5 bpm**, a false positive the post-fit sweep never
+showed. ★**This is the same "validated on a different input than production" error that refuted
+`BEAT_GRID_PHASE=1` earlier the same night** — this time caught *before* it cost a run, by testing the
+lever's own output against the songs it was calibrated on rather than trusting the calibration table.
+⇒**Re-sweeping on raw `detect_bpm` across the 149-song cohort; the threshold and both operating points
+must be re-derived before anything is shipped.** The qualitative finding (a bpm threshold beats the
+tempogram and all three statistics) is not in doubt — the *numbers* are.
+
+★**WHY IT WORKS, AND ITS LIMIT.** `librosa.beat.beat_track` defaults to `start_bpm=120`, a prior that
+pulls estimates toward 120; when it errs it errs **low** (halving), so octave errors land in a band
+below the normal range. This is therefore a heuristic about **our detector's failure mode**, not a
+metrical analysis — it will misfire on genuinely slow music (2 of 105 `same` songs sit under 100 bpm).
+⚠️Do not describe it as octave *detection*.
+
+★★★**THE METHOD LESSON, and it is expensive in hindsight**: `bpm_octave_probe.py` (2026-07-27) went
+straight to a metrical-analysis heuristic and made things worse; I then added two more statistics and
+a classifier. **Nobody had tried thresholding the detector's own output.** ⇒**Try the trivial baseline
+before the clever statistic — and always put the trivial baseline in the comparison table**, which is
+the only reason it was found here.
+
+---
+
 ## 🔴🔴 2026-08-14 — **"SEED NOISE" IN THIS PROJECT STARTS AT THE AUDIO, NOT AT THE DECODE**
 Went to run the seed test on the Stage-1 phase-inversion claim and first checked whether the test was
 even meaningful — `module.eval()` is called, so Stage-1 *should* be deterministic. It is not.
