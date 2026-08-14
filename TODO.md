@@ -460,11 +460,16 @@ inside that subgroup too.**
 ★**Note count and burst ceiling are not separable by a global knob** — *"gain and damage are the same
 dial"*, now on a third lever. ⚠️Mechanism worth knowing: the budget **is** `len(left_thr)` (slots
 surviving threshold+NMS) and `beat_nms_radius=1` is in **slots**, so both scale with the grid.
-🟡**Still viable, at 2× generation cost**: run at subdiv 8 and keep it only if onset precision against
-**our own stem onsets** does not degrade — precision is exactly what breaks on the harmed songs
-(`30097` 0.972 → 0.857) and it needs no human map. ⚠️A probability-level test would NOT discriminate:
-`30097` has plenty of mass on the new slots and uses it; the problem is not that the model declines
-them but that taking them exceeds what the song supports.
+🔴**AND THE KEEP/REVERT REFINEMENT IS CLOSED — no discriminator exists.** Tested every human-free
+signal available before building the 2×-pass machinery: our `ebpm_burst` at subdiv 4 **overlaps**
+(revert [142,185] vs keep [154,185]), and audio onsets/s **overlaps** at p90, p99 and median. The
+precision-drop rule "separates" only by a **0.005** margin on **2** positives (`20fc6` −0.042 vs
+`209d2` −0.037) — a fitted constant, not a rule. ⇒**The 2-song cost is intrinsic to the lever as it
+stands.** ⚠️A probability-level test would not discriminate either: `30097` has mass on the new slots
+and uses it; the problem is not that the model declines them but that taking them exceeds what the
+song supports.
+★**Order of operations worth repeating**: testing the discriminator on data already in hand cost
+minutes and saved building machinery that could not have worked.
 **Next**: needs Kyle's ear before any default flips — but note the 13 improved songs are corpus songs,
 so this has the same "not on his standing four" problem as the phase lever.
 

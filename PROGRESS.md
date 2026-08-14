@@ -63,13 +63,34 @@ of close pairs and the doubled burst rate survives.
 standing lesson again — *"no setting buys structure for free; gain and damage are the same dial"* —
 now demonstrated on a third lever.
 
-🟡**What remains viable, at 2× generation cost**: run the song at subdiv 8 and keep it only if onset
-precision against **our own stem onsets** does not degrade. That works precisely because precision is
-the thing that degrades on the harmed songs (`30097` 0.972 → 0.857), and it needs no human map. It is
-the self-supervised move that rescued `BEAT_GRID_PHASE` after predicting the phase failed.
-⚠️A cheaper probability-level test (is there mass on the newly-added slots?) **would not
-discriminate** — `30097` plainly does have mass there and uses it; the problem is not that the model
-declines the new slots but that taking them exceeds what the song supports.
+### 🔴 THE KEEP/REVERT REFINEMENT IS CLOSED TOO — no discriminator exists, tested before building it
+The proposal was: run at subdiv 8 and revert if onset precision against **our own** stem onsets
+degrades. Before building the 2×-pass machinery, tested whether **any** human-free signal separates
+the 2 harmed songs from the 13 helped ones, using data already in hand:
+
+| candidate rule | REVERT range | keep range | |
+|---|---|---|---|
+| precision drop | [−0.115, −0.042] | [−0.037, +0.092] | separable by **0.005** |
+| our `ebpm_burst` at subdiv 4 | [142, 185] | [154, 185] | 🔴overlaps |
+| audio onsets/s, p90 of 1 s windows | [9.0, 17.0] | [12.0, 20.0] | 🔴overlaps |
+| audio onsets/s, p99 | [11.0, 20.0] | [15.0, 23.0] | 🔴overlaps |
+| audio onsets/s, median | [6.0, 13.0] | [9.0, 17.0] | 🔴overlaps |
+
+★**The precision rule "separates" only in the sense that a threshold exists on this sample** — a
+0.005-wide margin with **2 positives**. `20fc6` (revert) sits at −0.042 and `209d2` (keep) at −0.037.
+That is a fitted constant, not a rule, and it would not survive a new song. ⇒**Reported as NO
+discriminator, not as a narrow success.**
+⇒**The 2-song cost is intrinsic to the lever as it stands**, and the 2× generation pass would not have
+bought a reliable decision. Testing the discriminator on existing data cost minutes and saved building
+the machinery — the same order-of-operations that would have killed `BEAT_GRID_PHASE=1` cheaply.
+
+⚠️**My first audio statistic was DEGENERATE and the tie caught it**: "60 ÷ 5th-percentile onset gap"
+returned **2586.2 for all 15 songs**, because the onset detector has a minimum spacing quantum, so
+that percentile is a constant of the detector rather than of the music. *A tie to four decimals across
+15 songs is a construction, not a result* — the project's own rule, earning its keep a third time.
+⚠️A probability-level test (is there mass on the newly-added slots?) **would also not discriminate** —
+`30097` plainly has mass there and uses it; the problem is not that the model declines the new slots
+but that taking them exceeds what the song supports.
 
 ---
 
