@@ -355,6 +355,33 @@ shuffled control) with the comment *"still reported, as guards"* — **nothing e
 **ship `COLOR_SEP_MODE=extreme` and set `CROSSOVER_GUARD=1` in the same change** — the capability and
 the gate that protects it belong together, and shipping either alone re-creates the failure mode.
 
+## 🔴🔴 P0 — **AT HALF TEMPO WE PHYSICALLY CANNOT PLAY FAST.** 28 of 149 songs, capped at exactly 0.500×
+*(measurement in PROGRESS.md, 2026-08-13)*
+
+| bpm group | n | ours | human | ratio med / p10 |
+|---|---|---|---|---|
+| `same` | 100 | 260.0 | 273.0 | 1.000 / 0.800 |
+| **`half`** | **28** | **185.0** | **369.0** | **0.500 / 0.500** |
+
+★**p10 = 0.500 ⇒ ≥90 % sit at EXACTLY half** — a hard ceiling, not a statistical gap.
+**Mechanism, measured**: our minimum swing gap is **exactly one grid slot**; `subdiv=4` at half the
+true tempo makes that slot 2× the human's in real time (`20fc6` 211.3 ms vs 105.6). ⇒**No decode
+lever, no selection change and no better probability field can reach it** — this is upstream of all of
+them, which makes it unlike almost everything else on this list.
+
+**Two candidate fixes, and they are not equivalent:**
+1. **Fix tempo-octave detection** (the real fix; `bpm_octave_probe.py`'s two heuristics both made it
+   WORSE in 2026-07-27 — onset-energy balance does not discriminate metrical level, so this needs a
+   tempogram-ratio method or a small tempo model, not another heuristic).
+2. **Raise `BEAT_SUBDIV` when the tempo is suspected half** — cheaper, and it buys the resolution back
+   without needing the octave call to be right. ⚠️`BEAT_GRID_SUBDIV` is listed as retired ("no-op on
+   the v7 production path") — check whether that is still true before assuming this is available.
+
+**DoD**: the `half` group's `ebpm_burst` ratio moves off 0.500 toward the `same` group's 1.000, with
+no regression on the `same` group. ★**A hard, non-statistical acceptance test** — rare on this list.
+⚠️Do NOT read this as "make maps faster": `ebpm_burst` is a CEILING measurement, and W3 says we are
+already too intense where we *can* be fast. The defect is the ceiling, not the current level.
+
 ## 🔬 THE SENSITIVITY BATTERY (new 2026-08-11) — `scripts/audit_sensitivity.py`
 **A different question from every audit we had.** `audit_eval_suite` / `audit_masterpiece` are
 DEGENERACY batteries: build a bad map, check the suite ranks it low — i.e. can a metric be *fooled*.
@@ -387,10 +414,11 @@ so it is blind to *everything* positional by construction. That is correct behav
   through `score_cohort` silently yields `alignment = nan` unless you pass
   `scorecard.onsets_for(path)` yourself. Both sides of any ours-vs-human timing comparison must use
   the **same** onsets.
-- ⚠️**`ebpm_burst` is bpm-dependent** — `flow.py` converts per-beat→per-minute using the *declared*
-  bpm, so it is exactly as wrong as the bpm. Our bpm disagrees with the human's on **30 %** of the
-  wide cohort (28 of 44 exactly half-tempo) ⇒ **flow's ours-vs-human LEVEL is contaminated there;
-  arm-vs-arm deltas are not** (same bpm both sides). Fix: derive it from note times.
+- 🔴**RETRACTED 2026-08-13: `ebpm_burst` is NOT bpm-contaminated and needs no fix.** Recomputed from
+  note TIMES with a wall-clock burst window it is **identical to 0.1 swings/min** on `same`- and
+  `half`-tempo songs alike. The 2026-08-11 test re-scored the same beat numbers under a different bpm
+  label, which is not a relabelled grid but **a different song**. ⇒The old "derive it from note times"
+  fix would have changed nothing. **The real defect is below.**
 - ⚠️**Never edit a running bash script** — bash reads it incrementally and a one-byte shift corrupts
   its read offset. Kill, edit, relaunch.
 

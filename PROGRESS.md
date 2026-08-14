@@ -7,6 +7,70 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 🔴🔴 2026-08-13 — `ebpm_burst` IS **NOT** CONTAMINATED. THE HALF-TEMPO SONGS ARE HARD-CAPPED AT HALF THE HUMAN'S SPEED.
+
+**A recorded finding is RETRACTED, and the thing underneath it is worse than the finding was.**
+2026-08-11 recorded: *"`ebpm_burst` moves (203→350) because `flow.py` converts per-beat→per-minute
+using the declared bpm ⇒ flow's ours-vs-human LEVEL is contaminated on ~30% of songs. Fix: derive
+`ebpm_burst` from note times."* **The diagnosis is wrong and the queued fix would have done nothing.**
+
+★**THE TEST THAT PRODUCED IT WAS INVALID.** It re-scored *the same beat numbers* under a different bpm
+label. A beatmap's stored `beat` values do not change when you pass a different bpm — so that does not
+produce "the same map with a different grid label", it produces **a different song** (every note time
+scales). Every pure beat-domain metric tied at exactly 1.000 *because it is beat-domain and therefore
+blind to the change*; `ebpm_burst` "moved" because it is **the one metric that correctly reflects
+wall-clock time.** ⚠️**The movement was the metric working, and it was read as the metric failing.**
+
+✅**MEASURED: `flow`'s `ebpm_burst` is exactly the true wall-clock burst rate.** Recomputed from note
+TIMES with a *wall-clock* burst window (2.0 s) instead of `flow`'s 4.0-**beat** one: **identical to
+0.1 swings/min on every song tested, `same`-tempo and `half`-tempo alike.** Two different filters, one
+answer ⇒ not a tautology, and the beat-domain filter does not bind at the p95 (it only trims slow gaps
+far from the fast end). **`ebpm_burst` needs no fix; deriving it from note times would change nothing.**
+
+### ⇒ But the ours-vs-human gap on those songs is REAL, and it is a structural ceiling
+Each map scored on **its own** declared bpm, so this is the honest comparison:
+
+| bpm group | n | ours | human | **ratio: median / p10 / p90** |
+|---|---|---|---|---|
+| `same` | 100 | 260.0 | 273.0 | 1.000 / 0.800 / 1.000 |
+| **`half`** | **28** | **185.0** | **369.0** | **0.500 / 0.500 / 0.554** |
+| other | 16 | 326.5 | 272.0 | 1.000 / 0.999 / 2.000 |
+
+★**p10 = 0.500 means ≥90 % of the half-tempo songs sit at *exactly* half.** That is the signature of a
+hard ceiling, not a statistical difference.
+
+### ★ THE MECHANISM, MEASURED RATHER THAN ASSERTED
+**Our minimum swing gap is exactly ONE GRID SLOT** (`gap/slot` = 1.00 on essentially every song), and
+at half tempo our slot is twice the human's in real time:
+
+| song | label | our slot | our min gap | gap/slot | human min gap | human slot |
+|---|---|---|---|---|---|---|
+| `20fc6` | half | 211.3 ms | 211.3 ms | **1.00** | 211.3 ms | **105.6 ms** |
+| `20402` | half | 127.7 ms | 127.7 ms | **1.00** | 127.7 ms | **63.8 ms** |
+| `1fccd` | same | 93.8 ms | 93.8 ms | 1.00 | 187.5 ms | 93.8 ms |
+
+⇒🔴**On 28 of 149 songs (19 %) our maps physically cannot produce a fast passage.** `subdiv=4` at half
+the true tempo puts the finest representable gap at 2× the human's, so the burst rate is capped at
+exactly half — no decode lever, no selection change and no amount of probability can reach it.
+
+★**This upgrades the BPM octave error from a measurement nuisance to a capability defect.**
+`bpm_octave_probe.py` hypothesised exactly this in 2026-07-27 (*"at half tempo the finest slot is twice
+as coarse in real time and the fast notes cannot be represented at all"*) and it has now been
+**measured**: 0.500× on 28/28. ⚠️It also revises *"for alignment this is mostly harmless"* — that
+remains true **for alignment**, and is beside the point: the damage is to what the map can DO.
+⇒**Fixing tempo-octave detection is worth a build**, and unlike most items here it has a hard,
+non-statistical acceptance test: the half-tempo group's `ebpm_burst` ratio moves off 0.500.
+
+⚠️**METHOD — I got this backwards twice before landing it.** First I hypothesised the beat-domain
+`PARITY_RESET_GAP` filter was the cause; the six half-tempo songs returned a ratio of **exactly
+2.000**, and *a tie to 3+ decimals is a construction, not a result* — the exactness refuted the filter
+story (a percentile shift would be messy) and pointed at pure linear scaling. Then I concluded the
+metric was fine and the contamination claim dead — which the cohort test reversed, because our maps
+really are half-speed there. ★**Both wrong turns were caught by the same habit: when a number comes
+out exact, ask what construction makes it exact.**
+
+---
+
 ## ★ 2026-08-13 — HALF THE ALIGNMENT FAILURE IS A GRID-PHASE DEFECT WE ALREADY MEASURED AND THREW AWAY
 
 **The predictor nobody checked.** The subset defect below is song-driven near-deterministically
