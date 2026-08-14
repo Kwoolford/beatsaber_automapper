@@ -202,8 +202,63 @@ and compare — minutes of work that would have killed this before a GPU night.
 
 ⇒**The defect stands; the lever is withdrawn.** `BEAT_GRID_PHASE=1` (fitted phase) is a measured
 NEGATIVE — **do not revive it**. What survives: 20 of 39 failing songs *are* rescued by the right
-shift, and the right shift is **findable from information the generator already has** (see the next
-item).
+shift, and the right shift is **findable from information the generator already has** (see below).
+
+### ✅✅ `BEAT_GRID_PHASE=search` AT n=149 — **THE ALIGNMENT AXIS PASSES FOR THE FIRST TIME**
+Search for the shift instead of predicting it, against the generator's own stem onsets — which is
+what the diagnostic's "oracle" always used, so it was never oracular. Default still OFF.
+
+| | control | **search** | human |
+|---|---|---|---|
+| median onset precision | 0.8879 | **0.9158** | 0.9335 |
+| vs human (paired median) | −0.0327 | **−0.0137** | — |
+| ★**songs >0.10 below human** | **39** | **21** | — |
+| songs moved >0.02 | — | **74 better, 0 worse** | — |
+| median scatter (mad) | 10.4 ms | **9.7 ms** | — |
+| **alignment axis** | 0.62 🔴FAIL | **0.35 ✅PASS** | — |
+
+★**21 beats the oracle's ~26** — because the oracle was a per-song argmax over the *control's* notes,
+while the search re-optimises the map it actually produced. **Zero regressions in 144 songs**: every
+"biggest regression" is exactly +0.000, i.e. a song the do-no-harm gate declined to touch (74 of 144
+were shifted at all, median |shift| 38.8 ms). flow / rhythm / idiom / playfeel are **identical to 2
+dp**, as a rigid translation requires.
+
+### 🔬 THE DETECTOR CHECK — my own gate fired, and the gate was the broken instrument
+The eval reported *"of the 74 songs we shifted, 44 (59.5 %) have a human map that ALSO gains >0.02
+from a shift"*, against a pre-registered rule that a large share means **stop**. ⚠️**That check is
+worthless as written**: it thresholds at 0.02 while the human's *selection floor* — what an argmax
+over ~97 shift candidates buys by chance — was measured earlier at **+0.0206**. The threshold sits
+exactly at the noise level, so it flags at roughly the chance rate. The observed human gain on these
+songs is +0.0248 median, i.e. barely above its own floor.
+
+★**THE VALID TEST is whether the human wants the SAME shift** — a shared detector offset would push
+both maps the same way. Permutation null, 2000 shuffles of the human shifts across songs:
+
+| statistic | observed | null | p |
+|---|---|---|---|
+| share agreeing within 15 ms | 40.5 % | 37.8 % | **0.324** |
+| median \|our shift − human shift\| | 18.7 ms | 22.5 ms | **0.032** |
+| corr(our shift, human shift) | +0.151 | −0.000 | 0.103 |
+
+⇒**The 59.5 % alarm was chance.** One of three statistics is marginally significant, which is about
+what three tests produce on their own ⇒ **a weak shared component at most, not the failure the gate
+was written to catch.** Supporting evidence: the human sits at **0.9273** at zero shift on these
+songs — they do not need the correction — and we *approach* the human's level without exceeding it,
+which pure detector-fitting would not respect.
+⚠️**THE CIRCULARITY IS REAL AND UNRESOLVED BY THE SUITE**: alignment is scored against the same onsets
+the search optimises. The non-circular signals (zero regressions, scatter improves, we approach but do
+not pass the human) are reassuring, **not conclusive — only Kyle's ear settles it.**
+
+### 🔴 A MEASUREMENT BUG THE ARM EXPOSED — `handrole` IS NOT TRANSLATION-INVARIANT
+`handrole` spread moved 0.35 → 0.31 (FAIL), which by the pre-registration is a **bug signal**, since a
+rigid translation cannot change hand assignment. Traced it: **no notes were dropped on any song**
+(note-count delta 0/0/0 across all 149), and per-metric, a pure time shift moves `role_swap_rate` by
+up to **0.160** and `role_asymmetry` by 0.011 while `role_run_len` is exactly 0.000.
+**Cause**: `handrole.py` bins notes with `int(n.beat // WINDOW_BEATS)` — **windows anchored at beat
+0**. Shifting the map moves notes across window boundaries and rewrites which hand "leads" a window.
+⇒★**`handrole` cannot cleanly evaluate ANY lever that moves notes in time**, and this is the same
+class of bug as the generator's grid anchored at t=0: **a windowing choice that assumes the map starts
+on the grid.** The reported handrole regression is an instrument artifact, not damage to the maps.
 
 ## ✅ 2026-08-13 — THE CROSSOVER GUARD (TODO P0) — the metric that was computed and never looked at
 `flow.py` excludes `crossover` from the `flow_dist` composite with the comment *"still reported, as

@@ -12,30 +12,39 @@ this file had reached 4,076 lines.
 
 ## 📍 CURRENT STATE (2026-08-13)
 
-### 🔵 RUNNING — `BEAT_GRID_PHASE=search` at n=149 (`scripts/overnight_2026-08-13b.sh`)
-**The defect** (measured n=144, no GPU): the grid is anchored at **t=0** and **20 of the 39
-alignment-failing songs gain from a shift their HUMAN map does not want** ⇒ our grid, not the onset
-detector. Individual rescues are large (`2c352` 0.456 → 0.900).
+### ✅✅ `BEAT_GRID_PHASE=search` PASSED AT n=149 — **awaiting Kyle's ear, default OFF**
+| | control | **search** | human |
+|---|---|---|---|
+| ★songs >0.10 below human | **39** | **21** | — |
+| median precision | 0.8879 | 0.9158 | 0.9335 |
+| songs moved >0.02 | — | **74 better, 0 worse** | — |
+| alignment axis | 0.62 🔴FAIL | **0.35 ✅PASS** | — |
 
-🔴**Mode `1` — apply the FITTED phase — is REFUTED at n=149 and must not be revived**: subset 39 → 37,
-alignment gap **0.62 → 1.32**, because corr(applied, wanted) fell from the +0.367 validated offline to
-**+0.065** in production. The offline test fitted from CACHED onsets; `generate.py` fits from Demucs
-stems. ★**A pre-build test run on a different input than production is not a pre-build test.**
+**The alignment axis has never passed before.** ★**Why it is not promoted**: the search optimises
+against the same onsets the axis scores, so the gain is partly circular; the non-circular signals
+(zero regressions, scatter 10.4 → 9.7, we approach but never exceed the human) are reassuring, not
+conclusive. **Per the standing rule, the "why not" is: this needs his ear before a default flips.**
+**NEXT**: deploy `[PHASE]` into a review set on the 4 standing songs, alongside `[BEFORE]`.
 
-✅**Mode `search`** finds the shift instead of predicting it, against the generator's own stem onsets
-(which is what the diagnostic's "oracle" always used — it was never oracular). **Gate passed on 10
-targeted songs**: 4 movers hit the oracle *exactly*, the 3 songs mode `1` regressed are fixed/neutral,
-3 already-fine songs untouched, zero regressions.
+⚠️**Two things this arm taught that outlive it:**
+1. 🔴**`handrole` is NOT translation-invariant** — it bins on `int(n.beat // WINDOW_BEATS)`, anchored
+   at beat 0, so a pure time shift moves `role_swap_rate` by up to **0.160**. It **cannot cleanly
+   evaluate any lever that moves notes in time**, and its "regression" here is an instrument artifact
+   (note-count delta was 0 on all 149 songs). Same class of bug as the generator's t=0 grid anchor.
+2. ★**A gate whose threshold sits at its own noise floor is not a gate.** The detector check flagged
+   59.5 % and a permutation null put that at chance (37.8 %, p=0.324). **Null every gate before
+   trusting the alarm** — the failure it reports may be the instrument.
 
-★**READ THE SUBSET, NOT THE MEDIAN** — the statistic is **songs >0.10 below human: 39 → ?** (oracle
-~26). ⚠️Precision **understates** it: on `1fccd` a −25 ms shift left precision identical to 4 dp while
-scatter went 9.10 → 7.10 ms — so read scatter and lag beside it.
-⚠️⚠️**THE DETECTOR CHECK IS A GATE, NOT A FOOTNOTE.** `search` optimises against OUR OWN onset
-detector, so it can fit that detector's offset — the `h_dist` failure, and exactly C2's `1f767` case.
-For every song shifted, the eval asks whether the HUMAN map also gains. The diagnostic said ~1 of 39;
-**if that share is large at n=149, we are tuning the detector and must stop.**
-⚠️**Still only ~half of one defect**: 15 of the 39 recover from no shift at all, and the phase-fixable
-20 keep a −0.076 median residual.
+### 📜 SUPERSEDED — `BEAT_GRID_PHASE=1` (fitted phase) is REFUTED, do not revive
+Subset 39 → 37 and the alignment gap **doubled** 0.62 → 1.32, because corr(applied, wanted) fell from
++0.367 offline to **+0.065** in production: the offline test fitted from CACHED onsets while
+`generate.py` fits from Demucs stems. ★**A pre-build test run on a different input than production is
+not a pre-build test.** *(Full account in PROGRESS.md.)*
+
+⚠️**The residual is now the honest open question**: 21 songs still sit >0.10 below human, and the
+original diagnostic says ~15 of them recover from **no shift at all** ⇒ that remainder is a
+**SELECTION** defect (which slots we pick), not a grid defect. That is where the next alignment work
+goes, and it is C1 territory.
 
 ### ✅ THE CROSSOVER GUARD IS BUILT (the P0 TASK below is done)
 `flow.crossover_guard` + `scripts/calibrate_crossover.py`. Human band, n=200 strict Expert:
