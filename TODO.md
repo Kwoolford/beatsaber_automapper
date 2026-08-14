@@ -157,7 +157,7 @@ cohort stays blocked **by his choice**, not oversight.
 | **W1** | can't find the core tempo-carrying instrument (*"the core aha tempo/instrument that a mapper obviously adheres to"*) | 🔴**OPEN.** Coincidence hypothesis CONFIRMED (humans map a 4-stem collision 84.5%); the real defect is **we play the OFFBEAT** (`halfbeat_rate` 0.245 vs human 0.095). ⚠️Grid phase cannot fix it — a selection defect. Track B indicated. |
 | **W2** | Fallen Kingdom *"feels really empty"* | 🔴**CAUSE UNIDENTIFIED.** Five instruments have now failed to explain it. ⚠️**ASK HIM**: empty vs what our model used to do, or vs what the song wants? New 2026-08-11 hypothesis: he may judge **absolute** activity while our instruments normalise by the human map. |
 | **W3** | *"some parts get really intense to play"* | **PARTLY CONFIRMED** — it is C5 wearing a hat: fewer distinct moments, more notes/s. ⚠️Any difficulty axis must count **NOTES**, not events. |
-| **W4** | phrases abandoned mid-vocal | ✅✅**CONFIRMED AT n=123 AND IT GREW**: >1 s hole ours **0.500** vs human **0.182** (2.75×); >2 s ours 0.071 vs human **0.000**; **paired 109/123 worse, 6 better**. ★**Mechanism is in our own docstring** — `weight = wmean**gamma` (γ=2.5) *"quiet ones thin out"*, ×`BEAT_ONSET_EVIDENCE`. 🔵Arm running. |
+| **W4** | phrases abandoned mid-vocal | ✅✅**CONFIRMED AT n=123 AND IT GREW**: >1 s hole ours **0.500** vs human **0.182** (2.75×); >2 s ours 0.071 vs human **0.000**; **paired 109/123 worse**. 🔴**DENSITY WEIGHTING REFUTED as the cause** (γ 2.5→1.0 closes only ~17 %, 9/10 still worse, note count unchanged) ⇒★**TRACK B — the same root as W1 and `follow_vocals`.** |
 | **W5** | dot blocks used decoratively | ⏸️**he deferred this himself.** |
 | **W6** | multi-note swings missing | 🟡**missing capability** — right answer for grand low-density drops. |
 | **W7** | last note *"did not line up together"* | ✅**FIXED** — `BEAT_END_RESOLVE=0.75`, orphaned ending 0.153→0.014 at no cost. **Default OFF, awaiting his ear.** |
@@ -218,6 +218,18 @@ judging ABSOLUTE activity, not activity relative to that song's human.** Nearly 
 normalises by the human map, which would be normalising away the thing he reacts to.
 ⚠️**ASK HIM** — four "empty" instruments have already failed; do not build a fifth. The question:
 *"is Fallen Kingdom empty compared to what our model used to do, or compared to what the song wants?"*
+
+### ★★ 2026-08-14 — THREE DEFECTS CONVERGE ON ONE ROOT CAUSE (Track B)
+**W1** (*"can't find the core tempo/instrument a mapper adheres to"*), **W4** (*phrases abandoned
+mid-vocal*, 2.75× the human at n=123) and **`follow_vocals`** (ours 0.020 vs human 0.149, **7×**) are
+three views of the same thing: **Stage-1's representation does not carry the melodic instruments.**
+`version_4` has only `drum_proj` + `mix_proj` — *"it literally cannot hear the guitar"* — and the W4
+arm supplied the missing piece: **redistributing the note budget toward the abandoned phrase does not
+fill it** (γ 2.5 → 1.0 closes ~17 %, note count unchanged), so the model is not proposing notes there
+in the first place. **You cannot select what the model does not propose.**
+⇒This is the strongest evidence yet for the Track B / v8 direction, and it arrived from three
+independent measurements rather than from architecture reasoning. ⚠️It does **not** revive v8 as
+built — that arm's `follow_vocals` gain died at n=149 — it says the *target* is right.
 
 **The second candidate for "significantly different"** is the V8 representation direction
 (`docs/architecture_v8_plan.md`, `beatsaber_v8_representation_theory` memory): symbolic per-stem

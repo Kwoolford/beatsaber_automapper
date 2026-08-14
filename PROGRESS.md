@@ -35,11 +35,40 @@ notes into dense windows, which is how it degraded reachability on 2026-08-03 wi
 obvious culprit (it gates on loudness), but it can only ever *lower* the threshold — *"no section,
 however mislabeled, can silence a real onset."* It cannot abandon a phrase, by construction.
 
-🔵**ARM RUNNING** (`scripts/overnight_2026-08-14c.sh`): 12 vocal-heavy songs × {gamma 1.5, gamma 1.0,
-onset-evidence 0} vs baseline, reading `share_over_1s` beside precision and note count.
-**Pre-registered**: LEVER FOUND (falls toward human, cost bounded) · CONFOUNDED (falls but precision
-and notes fall in step ⇒ report the trade curve, the "gain and damage are one dial" result again) ·
-REFUTED (does not move ⇒ the cause is upstream in Stage-1, making W4 a Track B item like W1).
+### 🔴 THE ARM SAYS **REFUTED** — and that reclassifies W4
+12 vocal-heavy songs (10 scorable), γ 2.5 → 1.5 → 1.0 and onset-evidence → 0:
+
+| arm | `share_over_1s` | `med_hole` | precision | notes | worse than human |
+|---|---|---|---|---|---|
+| baseline (γ=2.5) | 0.5228 | 1.086 | 0.9302 | 750 | 9/10 |
+| γ=1.5 | 0.4356 | 0.972 | 0.9214 | 748 | 9/10 |
+| **γ=1.0** | **0.4356** | 0.972 | 0.9166 | 748 | **9/10** |
+| onset-evidence 0 | 0.4584 | 0.937 | 0.9203 | 748 | 9/10 |
+| **HUMAN** | **0.1079** | | | | |
+
+★**Removing almost the entire density weighting closes ~17 % of the gap and leaves 9 of 10 songs
+worse than their human in EVERY arm.** Paired, γ=1.0 gives a median Δ of −0.087 (6 better, 2 worse);
+γ=1.5 and evid0 give a median Δ of **exactly 0.0000**. Note count is unchanged (750 → 748), so this is
+not a density trade — the notes simply go somewhere other than the abandoned phrase.
+⇒**The density weighting is NOT the cause of W4**, despite its docstring describing exactly the
+behaviour W4 measures. **A plausible mechanism, stated in our own code, that turns out not to be the
+one operating.**
+
+★★**W4 IS A TRACK B ITEM, AND IT IS THE SAME DEFECT AS `follow_vocals`.** If redistributing the budget
+toward quiet windows does not fill the phrase, then Stage-1 is not putting probability on the sung
+line to begin with — you cannot select what the model does not propose. That is W1's diagnosis
+(`version_4` has only `drum_proj` + `mix_proj`, no instrument projection — *"it literally cannot hear
+the guitar"*) applied to vocals, and it matches the masterpiece axis directly: **`follow_vocals` ours
+0.020 vs human 0.149, a 7× gap — "we barely play the vocal line's figure".**
+⇒**W4, W1 and `follow_vocals` are three views of one root cause: the Stage-1 representation does not
+carry the melodic instruments.** Three independent measurements, one mechanism.
+⚠️n=10 songs — a screen. But the direction is consistent across three arms and the 9/10 majority holds
+in all of them, so the *refutation* is safe even if the exact numbers are not.
+
+⚠️**My eval script crashed on the first pass** (`_load_any` returned None for a song and I subscripted
+it). The maps were all fine; only the analysis was broken, and re-running it with guards cost nothing
+because the arm's output is on disk. **Generation and evaluation being separable is what made that
+cheap** — worth preserving in future arm scripts.
 
 ---
 
