@@ -12,24 +12,28 @@ this file had reached 4,076 lines.
 
 ## 📍 CURRENT STATE (2026-08-13)
 
-### 🔵 RUNNING — `BEAT_GRID_PHASE` at n=149 (`scripts/overnight_2026-08-13.sh`)
-`generate.py` estimates the beat grid's **phase**, logs it, and throws it away; the grid is anchored
-at **t=0**. Measured on maps we already had (n=144, no GPU): **20 of the 39 alignment-failing songs
-gain from a shift their HUMAN map does not want** ⇒ our grid, not the onset detector. The phase we
-already estimate **predicts** that shift (median |err| 15.2 ms vs 39.1 chance; **corr +0.757** on the
-12 songs it rescues most). Smoke test on `2c352`: precision **0.456 → 0.897**, scatter 23.1 → 6.9 ms
-(human 7.0), note count unchanged. ✅Built as `BEAT_GRID_PHASE`, **default OFF**, applied *after*
-postprocess as a rigid translation — construction and evidence in PROGRESS.md.
+### 🔵 RUNNING — `BEAT_GRID_PHASE=search` at n=149 (`scripts/overnight_2026-08-13b.sh`)
+**The defect** (measured n=144, no GPU): the grid is anchored at **t=0** and **20 of the 39
+alignment-failing songs gain from a shift their HUMAN map does not want** ⇒ our grid, not the onset
+detector. Individual rescues are large (`2c352` 0.456 → 0.900).
 
-★**READ THE SUBSET, NOT THE MEDIAN.** The cohort median is expected to move ~+0.003 even if this works
-perfectly. The statistic is **songs >0.10 below human: 39 → ?** (the oracle predicts ~26).
-⚠️**And precision UNDERSTATES it** — on `1fccd` a −25 ms shift left precision identical to 4 dp while
-scatter went 9.10 → 7.10 ms and lag +7.80 → −2.80 ms. Verified genuine (the control shifted by the
-same −25 ms scores identically), so **read scatter and lag beside precision.**
-**Pre-registered**: SHIP = subset approaches ~26 and the positional axes tie to 3 dp (a rigid
-translation cannot move them — here a **tie is the pass** and movement is a bug signal) · PARTIAL =
-shrinks but well short ⇒ the *estimator* is the limit, not the idea · PIVOT = no shrink ⇒ explain why
-the translation did not transfer from diagnostic to generation before building anything else.
+🔴**Mode `1` — apply the FITTED phase — is REFUTED at n=149 and must not be revived**: subset 39 → 37,
+alignment gap **0.62 → 1.32**, because corr(applied, wanted) fell from the +0.367 validated offline to
+**+0.065** in production. The offline test fitted from CACHED onsets; `generate.py` fits from Demucs
+stems. ★**A pre-build test run on a different input than production is not a pre-build test.**
+
+✅**Mode `search`** finds the shift instead of predicting it, against the generator's own stem onsets
+(which is what the diagnostic's "oracle" always used — it was never oracular). **Gate passed on 10
+targeted songs**: 4 movers hit the oracle *exactly*, the 3 songs mode `1` regressed are fixed/neutral,
+3 already-fine songs untouched, zero regressions.
+
+★**READ THE SUBSET, NOT THE MEDIAN** — the statistic is **songs >0.10 below human: 39 → ?** (oracle
+~26). ⚠️Precision **understates** it: on `1fccd` a −25 ms shift left precision identical to 4 dp while
+scatter went 9.10 → 7.10 ms — so read scatter and lag beside it.
+⚠️⚠️**THE DETECTOR CHECK IS A GATE, NOT A FOOTNOTE.** `search` optimises against OUR OWN onset
+detector, so it can fit that detector's offset — the `h_dist` failure, and exactly C2's `1f767` case.
+For every song shifted, the eval asks whether the HUMAN map also gains. The diagnostic said ~1 of 39;
+**if that share is large at n=149, we are tuning the detector and must stop.**
 ⚠️**Still only ~half of one defect**: 15 of the 39 recover from no shift at all, and the phase-fixable
 20 keep a −0.076 median residual.
 
@@ -179,18 +183,21 @@ empower you."* One command: **`scripts/suite_report.py --song X`** (or `--all`).
 `view_structure.py` = whole-song structure · `audit_sensitivity.py` = what the suite cannot see.
 🔑**PNG is the primary artifact — an agent can only look at an image by rendering it.**
 
-★**HIS DEFECT, MEASURED**: main beats covered ours 0.546 vs human 0.704; `main_continuity` 0.523 vs
-0.697. ⚠️The 2nd half of his guess is **WRONG** — notes-on-main share is identical (0.637 vs 0.617);
-we do NOT play more filler.
-★★**THE CORE DEFECT, HUMAN-CONTROLLED: STAGE-1's PROBABILITY INVERTS PHASE.** Our best windows
-0.301/**0.725**/0.287 vs worst 0.590/**0.320**/0.577 — exactly inverted. In those same windows the
-HUMAN covers the main beat 0.653 and the offbeat 0.104 ⇒ **grid right, model wrong.**
-⚠️**NO PREDICTOR** among stem mix, drums-on-beat, onset density, song position, beat-slot offset.
-🔴**BUT that "internal to Stage-1, not the audio" inference has NEVER had the seed test applied**
-(see the alignment work, 2026-08-11, where the same reasoning was refuted in one step). **Apply it
-before relying on the claim.**
-✅**`BEAT_MAIN_BEAT_BONUS`** (default OFF): alignment 0.260→0.087, nothing regressing resolvably;
-**mbb015 is the conservative pick**. ⚠️Does NOT rescue starved windows.
+★**HIS DEFECT, MEASURED**: main beats covered ours 0.546 vs human 0.704 (`main_continuity` 0.523 vs
+0.697). ⚠️The 2nd half of his guess is **WRONG** — notes-on-main share is identical; we do NOT play
+more filler. ✅**`BEAT_MAIN_BEAT_BONUS`** (default OFF, `mbb015` the conservative pick) takes alignment
+0.260→0.087 with nothing regressing; it does NOT rescue starved windows. *(Full numbers in PROGRESS.)*
+
+### 🔴 LIVE ITEM — the phase-inversion claim has never had the seed test
+Stage-1's probability **inverts metrical phase** (our best windows 0.301/**0.725**/0.287 vs worst
+0.590/**0.320**/0.577; the human covers the main beat 0.653 and the offbeat 0.104 in those same
+windows ⇒ grid right, model wrong). No predictor was found among stem mix, drums-on-beat, onset
+density, song position or beat-slot offset — and *"no predictor among the features I checked"* was
+concluded to mean **"internal to Stage-1, not the audio"**.
+★**That is the exact reasoning the alignment work REFUTED in one step on 2026-08-11**, and again on
+2026-08-13 (phase is a property of the audio and was simply never among the features checked).
+**TASK**: run the seed test — do the same windows invert at a different seed? A second seed cohort
+already exists, so it costs one paired lookup. **Do it before relying on the claim.**
 
 ## ✅ THE MASTERPIECE AXES — BUILT, 7 cleared to steer *(construction in PROGRESS.md)*
 `python scripts/masterpiece_report.py --arm X [--vs Y] [--wide]`. Human bar:
@@ -225,17 +232,10 @@ human parity (share ~0.25–0.30). *"reads LAZY"* ⇒ the next capability is **v
 (copy the section, then vary it), which is a different and easier problem than the one solved here.
 *"can't tell"* ⇒ leave it OFF; a lever nobody can hear is not worth its flow/idiom cost.
 
-## ✅ CLOSED THIS SESSION *(outcomes in PROGRESS.md)*
-- **Periodic-degenerate battery gap** — `scripts/make_periodic_degenerate.py --lag 8` scores
-  `rhy_rhythm` +0.0125 / `harm_rhythm` **+0.0007**, below even the control ⇒ **the M-axes reward
-  MUSICAL and ignore MECHANICAL repetition.** Keep the control; it is the only degenerate aimed at a
-  *structural* lever. ⚠️A real fixed-lag degenerate's panel looks **nothing like** アリスブルー's
-  over-repetition — that was a **dose** defect, and my "fixed-lag checkerboard" reading is retracted.
-- **A8 dead on the wide cohort** — 0/149 songs had onsets; `alignment` was silently absent for two
-  nights and a 60 ms shift moved nothing. Fixed via `build_onset_cache.py --audio-dir` (104→254).
-- **The ✅-but-unshipped lever sweep** — exactly two existed. `COLOR_SEP_MODE=extreme` reproduces and
-  is a candidate; `LAYOUT_TRAVEL_PENALTY=1` is **REJECTED** (flow 0.37→0.49, superseded by
-  `BEAT_REACH`). **The list is closed.**
+**Two standing facts from that work** *(full outcomes in PROGRESS.md)*: the **✅-but-unshipped lever
+sweep is CLOSED** — exactly two existed, `COLOR_SEP_MODE=extreme` (candidate) and
+`LAYOUT_TRAVEL_PENALTY=1` (🔴REJECTED, flow 0.37→0.49, superseded by `BEAT_REACH`) — and **keep
+`make_periodic_degenerate.py`**, the only degenerate in the battery aimed at a *structural* lever.
 
 ## 📦 AWAITING KYLE'S EAR — 20 maps installed, 5 variants × his 4 standing songs
 📖**Full brief (leads with what to distrust): [`docs/review_2026-08-11.md`](docs/review_2026-08-11.md)**
@@ -369,13 +369,26 @@ true tempo makes that slot 2× the human's in real time (`20fc6` 211.3 ms vs 105
 lever, no selection change and no better probability field can reach it** — this is upstream of all of
 them, which makes it unlike almost everything else on this list.
 
-**Two candidate fixes, and they are not equivalent:**
-1. **Fix tempo-octave detection** (the real fix; `bpm_octave_probe.py`'s two heuristics both made it
+**Two candidate fixes, and ★the second is much cheaper than it looks:**
+1. **Fix tempo-octave detection** (the "real" fix; `bpm_octave_probe.py`'s two heuristics both made it
    WORSE in 2026-07-27 — onset-energy balance does not discriminate metrical level, so this needs a
    tempogram-ratio method or a small tempo model, not another heuristic).
-2. **Raise `BEAT_SUBDIV` when the tempo is suspected half** — cheaper, and it buys the resolution back
-   without needing the octave call to be right. ⚠️`BEAT_GRID_SUBDIV` is listed as retired ("no-op on
-   the v7 production path") — check whether that is still true before assuming this is available.
+2. ★★**Double `BEAT_SUBDIV` on songs detected at half tempo — and it should need NO RETRAIN.**
+   Checked 2026-08-13: ⚠️`BEAT_GRID_SUBDIV` is a **red herring** — it is a *quantisation* knob
+   (`generate.py:457`) and genuinely does nothing to grid resolution. The real constant is
+   `BEAT_SUBDIV = 4` in `data/beat_grid.py` (must match `mert_encoder.BEAT_SUBDIV`).
+   ★**THE ARGUMENT**: the model's input is a TEMPORAL grid, and at half tempo `subdiv=8` restores the
+   training-time slot **exactly** — on a 174 bpm song, true-tempo/subdiv-4 = **86.2 ms** and
+   half-tempo/subdiv-8 = **86.2 ms**. `n_slots` is unchanged too (total_beats halves, subdiv doubles),
+   and Stage-1 is a transformer over the slot axis so the length is free. The Δt token vocabulary is
+   in 1/subdiv units, so its wall-clock meaning is restored as well.
+   ⚠️**What it does NOT fix, stated plainly**: beat-keyed windows. `beats_per_phrase=16` is 11.0 s at
+   half tempo vs 5.5 s at true tempo, and doubling subdiv leaves that untouched. **That is already
+   true today and is not made worse** — this is a targeted fix for the measured ceiling, not for the
+   octave error in general.
+   **Next step**: make `BEAT_SUBDIV` overridable, gate it on a half-tempo suspicion, generate the 28
+   `half` songs both ways and read the DoD below. ⚠️Do NOT edit `beat_grid.py` or `generate.py` while
+   a cohort build is running — `build_wide_cohort.py` spawns a fresh `generate.py` per map.
 
 **DoD**: the `half` group's `ebpm_burst` ratio moves off 0.500 toward the `same` group's 1.000, with
 no regression on the `same` group. ★**A hard, non-statistical acceptance test** — rare on this list.

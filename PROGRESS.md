@@ -7,6 +7,20 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ✅ THE PERIODIC-DEGENERATE CONTROL (2026-08-11) — the M-axes reward MUSICAL, not MECHANICAL, repetition
+*(migrated from TODO 2026-08-13 during curation — it was recorded nowhere else.)*
+`scripts/make_periodic_degenerate.py --lag 8` builds a map that repeats on a **fixed lag**, i.e. the
+cheapest possible way to score well on a "repetition" axis. It scores `rhy_rhythm` **+0.0125** and
+`harm_rhythm` **+0.0007** — the latter *below even the control* — against structure-reuse's +0.0190 /
++0.0219. ⇒**The masterpiece axes reward repetition that follows the MUSIC and ignore repetition that
+merely follows a clock.** Demonstrated, not asserted, which is what made the M-E gain believable.
+**Keep this control**: it is the only degenerate in the battery aimed at a *structural* lever.
+⚠️**A retraction that came with it**: a real fixed-lag degenerate's self-similarity panel looks
+**nothing like** アリスブルー's over-repetition, so my *"fixed-lag checkerboard"* reading of that song
+is withdrawn — アリスブルー was a **dose** defect, not a mechanical-repetition one.
+
+---
+
 ## 🔴🔴 2026-08-13 — `ebpm_burst` IS **NOT** CONTAMINATED. THE HALF-TEMPO SONGS ARE HARD-CAPPED AT HALF THE HUMAN'S SPEED.
 
 **A recorded finding is RETRACTED, and the thing underneath it is worse than the finding was.**
