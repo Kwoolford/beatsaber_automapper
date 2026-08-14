@@ -10,7 +10,7 @@ this file had reached 4,076 lines.
 
 ---
 
-## 📍 CURRENT STATE (2026-08-13)
+## 📍 CURRENT STATE (2026-08-14)
 
 ### ✅✅ `BEAT_GRID_PHASE=search` PASSED AT n=149 — **awaiting Kyle's ear, default OFF**
 | | control | **search** | human |
@@ -418,7 +418,7 @@ shuffled control) with the comment *"still reported, as guards"* — **nothing e
 **ship `COLOR_SEP_MODE=extreme` and set `CROSSOVER_GUARD=1` in the same change** — the capability and
 the gate that protects it belong together, and shipping either alone re-creates the failure mode.
 
-## 🔴🔴 P0 — **AT HALF TEMPO WE PHYSICALLY CANNOT PLAY FAST.** 28 of 149 songs, capped at exactly 0.500×
+## ✅ RESOLVED — **AT HALF TEMPO WE PHYSICALLY COULD NOT PLAY FAST.** Fixed by `BEAT_SUBDIV_AUTO` (default OFF)
 *(measurement in PROGRESS.md, 2026-08-13)*
 
 | bpm group | n | ours | human | ratio med / p10 |
