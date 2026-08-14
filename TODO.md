@@ -12,6 +12,10 @@ this file had reached 4,076 lines.
 
 ## 📍 CURRENT STATE (2026-08-14)
 
+📖★**START HERE: [`docs/overnight_2026-08-14.md`](docs/overnight_2026-08-14.md)** — the overnight
+brief, leading with the **three questions that need Kyle's ear** and the 32 installed maps, then what
+was built, what was refuted, and what is closed. Everything below is the detail behind it.
+
 ### ✅✅ `BEAT_GRID_PHASE=search` PASSED AT n=149 — **awaiting Kyle's ear, default OFF**
 | | control | **search** | human |
 |---|---|---|---|
