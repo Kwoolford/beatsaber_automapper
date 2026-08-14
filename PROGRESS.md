@@ -152,6 +152,45 @@ Removed rather than kept — **a guard that cannot fire reads as protection that
 no shift at all, and even the phase-fixable 20 keep a −0.076 median residual. This is about half of
 one defect, not the alignment story.
 
+### 🔴🔴 THE ARM AT n=149 — **PIVOT. The lever does not work, and the caveat I wrote down was the result.**
+`scripts/overnight_2026-08-13.sh`, 149 maps, paired against the control:
+
+| | control | gphase |
+|---|---|---|
+| songs >0.10 below human | 39 | **37** (oracle predicted ~26) |
+| paired median Δ | — | +0.0067 |
+| **alignment axis gap** | 0.62 | 🔴**1.32** |
+| flow / rhythm / idiom / playfeel | 0.37 / 0.47 / 0.40 / 0.59 | **identical** |
+
+✅**The translation itself is provably clean**: note-count change 0 on every song, per-song jitter
+within a shift ≤0.050 ms, and every positional axis ties exactly — a rigid translation cannot move
+them, and it didn't. **The implementation is correct. The shift is wrong.**
+
+★**DIAGNOSIS — the estimator did not reproduce in production:**
+
+| | offline (what I validated) | in production |
+|---|---|---|
+| corr(applied, wanted) — all | +0.367 | **+0.065** |
+| corr on the 12 biggest movers | **+0.757** | **−0.318** |
+| median \|applied − wanted\| there | 17.6 ms | **102.7 ms** |
+
+**19 of 82 songs were shifted the WRONG WAY**, and the 105 songs that were already fine were shifted
+by a median 22.1 ms for nothing — which is where the alignment gap doubling comes from. A lever that
+moves every song can only be as good as its worst estimate.
+
+🔴🔴**THE METHOD FAILURE, AND IT IS THE MOST USEFUL THING HERE.** `diag_phase_predicts.py` carries
+this warning **in its own docstring**: *"⚠️This re-fits tempo from CACHED onsets rather than from
+Demucs stems, so it is not byte-identical to what `generate.py` computes at generation time… a
+positive result still has to survive the real path."* **I wrote the caveat, validated corr +0.757
+against the wrong onset source, and built on it anyway.** ⇒★**A pre-build test run on a different
+input than production is not a pre-build test.** The cheap fix was to fit ONE song the production way
+and compare — minutes of work that would have killed this before a GPU night.
+
+⇒**The defect stands; the lever is withdrawn.** `BEAT_GRID_PHASE=1` (fitted phase) is a measured
+NEGATIVE — **do not revive it**. What survives: 20 of 39 failing songs *are* rescued by the right
+shift, and the right shift is **findable from information the generator already has** (see the next
+item).
+
 ## ✅ 2026-08-13 — THE CROSSOVER GUARD (TODO P0) — the metric that was computed and never looked at
 `flow.py` excludes `crossover` from the `flow_dist` composite with the comment *"still reported, as
 guards"*, and **nothing ever guarded it** — which is how we shipped `crossover == 0.0000` on 149/149

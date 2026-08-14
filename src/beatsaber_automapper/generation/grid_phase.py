@@ -91,15 +91,132 @@ def shift_beatmap(beatmap, *, bpm: float, phase_s: float) -> int:
     return dropped
 
 
-def maybe_apply(beatmap, *, bpm: float, phase_s: float, subdiv: int) -> bool:
-    """Apply the fitted grid phase if `BEAT_GRID_PHASE=1`. Returns whether it ran."""
-    if os.environ.get("BEAT_GRID_PHASE", "0") != "1":
+# --------------------------------------------------------------------------- #
+# MODE `search` — find the shift instead of predicting it
+# --------------------------------------------------------------------------- #
+# 🔴WHY MODE `1` (the fitted phase) IS DEAD. At n=149 it moved the failing subset
+# only 39 -> 37 against an oracle's ~26 and DOUBLED the alignment gap (0.62 ->
+# 1.32). The implementation was provably clean (note counts unchanged, every
+# positional axis identical); the SHIFT was wrong: corr(applied, wanted) fell from
+# the +0.367 validated offline to +0.065 in production, and to -0.318 on the songs
+# that needed it most. The offline test fitted tempo from CACHED onsets while
+# generate.py fits from freshly separated Demucs stems — a pre-build test run on a
+# different input than production is not a pre-build test.
+#
+# ★WHAT SURVIVES: the diagnostic's "oracle" shift was never oracular. It maximised
+# match rate against the cached STEM ONSETS — not against the human map — and the
+# generator already computes stem onsets for the tempo fit. So the shift that
+# recovered +0.0428 on the failing songs is FINDABLE at generation time. Search for
+# it rather than predict it.
+#
+# ⚠️TWO GUARDS, both taught by the failure:
+#   * `MIN_GAIN` — apply nothing unless the search finds a real improvement. Mode
+#     `1` shifted the 105 already-fine songs by a median 22.1 ms for no reason, and
+#     that is where the damage came from. **Do no harm to a song that is fine.**
+#   * this optimises against OUR OWN onset detector, so it can in principle fit that
+#     detector's systematic offset (the C2 / `h_dist` failure). The human control
+#     said only 1 of 39 failing songs is a detector-offset case, so the risk is
+#     bounded — but it must be re-checked against the human maps after any run, and
+#     never assumed away.
+SEARCH_RANGE_MS = 120.0
+SEARCH_STEP_MS = 2.5
+MIN_GAIN = 0.02
+
+
+def _score(times, onsets, tol_s: float) -> tuple[float, float]:
+    """(match rate, mean |offset| of matched notes) — the search objective.
+
+    ⚠️**Match rate alone is a STEP function**: it only moves when a note crosses the
+    tolerance boundary, so on a map whose notes are all within 50 ms it is flat and
+    the search would see nothing to do. That is not the same as being aligned —
+    on `1fccd` a −25 ms shift left precision identical to 4 dp while scatter went
+    9.10 → 7.10 ms and lag +7.80 → −2.80. So rate is the primary objective (it is
+    what the suite scores) and mean |offset| breaks ties, which recovers exactly
+    that sub-tolerance centring for free.
+
+    Uses the evaluation module's matcher so the generator optimises the quantity
+    the suite measures — including its one-note-per-onset rule, without which note
+    spam could manufacture a better "shift".
+    """
+    from beatsaber_automapper.evaluation.alignment import match_offsets
+
+    if len(times) == 0 or len(onsets) == 0:
+        return float("nan"), float("inf")
+    matched, offsets = match_offsets(list(times), onsets, tol=tol_s)
+    if not offsets:
+        return 0.0, float("inf")
+    return matched / len(times), sum(abs(o) for o in offsets) / len(offsets)
+
+
+def search_shift(beatmap, *, bpm: float, onsets, tol_s: float = 0.050):
+    """(best_shift_s, gain) maximising onset match rate. (0.0, 0.0) if none helps."""
+    import numpy as np
+
+    from beatsaber_automapper.evaluation.alignment import note_times
+
+    if onsets is None or len(onsets) == 0 or bpm <= 0:
+        return 0.0, 0.0
+    times = np.asarray(note_times(beatmap, bpm), dtype=np.float64)
+    if len(times) == 0:
+        return 0.0, 0.0
+    ref = np.sort(np.asarray(onsets, dtype=np.float64))
+
+    base_rate, base_off = _score(times, ref, tol_s)
+    if base_rate != base_rate:
+        return 0.0, 0.0
+    best_shift, best_rate, best_off = 0.0, base_rate, base_off
+    n = int(SEARCH_RANGE_MS / SEARCH_STEP_MS)
+    for k in range(-n, n + 1):
+        d = k * SEARCH_STEP_MS / 1000.0
+        if d == 0.0:
+            continue
+        r, off = _score(times + d, ref, tol_s)
+        # Primary: match rate. Tie-break: tighter scatter. Final tie-break: the
+        # smaller shift — if two shifts are equally good, the one that disturbs the
+        # map less is the honest choice.
+        if (r, -off, -abs(d)) > (best_rate, -best_off, -abs(best_shift)):
+            best_shift, best_rate, best_off = d, r, off
+    return best_shift, best_rate - base_rate
+
+
+def maybe_apply(beatmap, *, bpm: float, phase_s: float, subdiv: int,
+                onsets=None) -> bool:
+    """Apply a grid-phase correction. Returns whether the map was shifted.
+
+    `BEAT_GRID_PHASE=search` searches for the shift (recommended).
+    `BEAT_GRID_PHASE=1` applies the FITTED phase — a measured negative at n=149,
+    kept only so the refuted arm stays reproducible. Do not use it.
+    """
+    mode = os.environ.get("BEAT_GRID_PHASE", "0").lower()
+    if mode not in ("1", "search"):
         return False
-    if not phase_s or bpm <= 0 or int(subdiv) < 1:
-        logger.info("BEAT_GRID_PHASE: no usable phase (phase=%r, bpm=%r, subdiv=%r)"
-                    " — no shift", phase_s, bpm, subdiv)
+    if bpm <= 0 or int(subdiv) < 1:
+        logger.info("BEAT_GRID_PHASE: unusable bpm=%r / subdiv=%r — no shift",
+                    bpm, subdiv)
         return False
 
+    if mode == "search":
+        if onsets is None or len(onsets) == 0:
+            logger.warning("BEAT_GRID_PHASE=search: no onsets available — no shift. "
+                           "A silent skip here would look like a clean run on a song "
+                           "that never got the treatment.")
+            return False
+        shift, gain = search_shift(beatmap, bpm=bpm, onsets=onsets)
+        if shift == 0.0 or gain < MIN_GAIN:
+            logger.info("BEAT_GRID_PHASE=search: best shift %.1f ms gains only "
+                        "%+.4f (< %.2f) — LEAVING THE MAP ALONE",
+                        shift * 1000.0, gain, MIN_GAIN)
+            return False
+        dropped = shift_beatmap(beatmap, bpm=bpm, phase_s=shift)
+        logger.info("BEAT_GRID_PHASE=search: shifted %.1f ms, onset match %+.4f%s",
+                    shift * 1000.0, gain,
+                    f", dropped {dropped} note(s) before t=0" if dropped else "")
+        return True
+
+    # mode "1" — the refuted fitted-phase path.
+    if not phase_s:
+        logger.info("BEAT_GRID_PHASE: no usable phase (phase=%r) — no shift", phase_s)
+        return False
     wrapped = wrap_to_slot(float(phase_s), float(bpm), int(subdiv))
     d_beats = wrapped * bpm / 60.0
     if wrapped == 0.0:

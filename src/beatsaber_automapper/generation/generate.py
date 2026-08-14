@@ -1952,6 +1952,11 @@ def generate_v7_level(
     # Until 2026-08-13 this number was computed, logged and thrown away, and the
     # grid stayed anchored at t=0 — which is half the baseline's alignment failure.
     _grid_phase_s = 0.0
+    # The stem-onset union the tempo fit is scored against. BEAT_GRID_PHASE=search
+    # reuses it to FIND the grid offset rather than predict it — these are the same
+    # kind of onsets the eval suite caches, so the shift it finds is the shift the
+    # suite measures. (Predicting it from `_fit.phase_s` was refuted at n=149.)
+    _stem_onsets = None
     if os.environ.get("BEAT_TEMPO_FIT", "1") == "1" and bpm is not None:
         try:
             import librosa as _lr
@@ -1967,6 +1972,7 @@ def generate_v7_level(
                     _lr.onset.onset_detect(y=_arr.astype("float32"), sr=DEMUCS_SR,
                                            units="time", backtrack=True).tolist())
             _on = np.array(sorted(set(np.round(_stem_on, 4))))
+            _stem_onsets = _on
             _mono = waveform.squeeze().cpu().numpy()
             if _mono.ndim > 1:
                 _mono = _mono.mean(axis=0)
@@ -3051,7 +3057,8 @@ def generate_v7_level(
     # (the diagnostic swept a global shift over completed maps); re-gridding the
     # MERT pooling would change what Stage-1 sees and has no measurement behind it.
     from beatsaber_automapper.generation import grid_phase as _gphase
-    _gphase.maybe_apply(beatmap, bpm=bpm, phase_s=_grid_phase_s, subdiv=BEAT_SUBDIV)
+    _gphase.maybe_apply(beatmap, bpm=bpm, phase_s=_grid_phase_s, subdiv=BEAT_SUBDIV,
+                        onsets=_stem_onsets)
 
     if _prepost_out:
         package_level(
