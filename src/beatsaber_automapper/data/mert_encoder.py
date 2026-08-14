@@ -12,6 +12,7 @@ Expected to run with the model frozen (no gradients).
 from __future__ import annotations
 
 import logging
+import os
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -26,7 +27,22 @@ logger = logging.getLogger(__name__)
 MERT_MODEL_ID = "m-a-p/MERT-v1-95M"
 MERT_SAMPLE_RATE = 24000
 MERT_HZ = 75          # output frame rate (frames per second)
-BEAT_SUBDIV = 4       # 1/4-note slots per beat (default)
+# 1/4-note slots per beat. Overridable by env so the WHOLE pipeline moves together —
+# `beat_grid.BEAT_SUBDIV` reads the same variable and the two must never disagree
+# (generate.py imports it from BOTH modules, in three different places).
+#
+# ★WHY IT IS A KNOB AT ALL (2026-08-13): on the 28 wide-cohort songs detected at HALF
+# the true tempo, our maps are capped at EXACTLY 0.500x the human's burst rate
+# (p10 = 0.500 — >=90% sit exactly at half), because our minimum swing gap is one grid
+# slot and at half tempo that slot is twice as long in real time. Doubling the
+# subdivision there restores the TRAINING-TIME slot exactly: 174 bpm at subdiv 4 is
+# 86.2 ms, and 87 bpm at subdiv 8 is also 86.2 ms. Stage-1 is a transformer over the
+# slot axis, so the length is free and no retrain is implied.
+# ⚠️It does NOT fix beat-keyed windows — a 16-beat phrase is still 2x too long at half
+# tempo. Already true today; not made worse.
+# ⚠️Raising this on a CORRECTLY detected song hands the model a finer grid than it was
+# ever trained on. Only use it where the tempo is believed to be an octave error.
+BEAT_SUBDIV = int(os.environ.get("BEAT_SUBDIV", "4"))
 
 
 @lru_cache(maxsize=1)

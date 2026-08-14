@@ -2003,7 +2003,18 @@ def generate_v7_level(
 
     song_emb_vec  = mix_beat.mean(0)   # [768] — full-song embedding
 
-    fingerprints, boundaries = compute_fingerprints(mix_beat, beats_per_phrase=16, subdiv=BEAT_SUBDIV)
+    # ★SLOTS PER PHRASE MUST STAY 64. The layout model's `slot_emb` is sized
+    # MAX_PHRASE_SLOTS+1 = 97 and was trained on 16 beats x subdiv 4 = 64 slots; at
+    # subdiv 8 a literal 16 gives 128 and indexes off the end of that embedding — a
+    # CUDA device-side assert, which is exactly how this was found. Holding the
+    # product constant keeps the phrase the length the model was trained on.
+    # ★And on a HALF-TEMPO song it fixes the phrase's wall-clock duration too:
+    # 8 beats at bpm/2 lasts exactly as long as 16 beats at bpm, so subdiv 8 +
+    # 8 beats/phrase makes slot duration, slots per phrase AND phrase seconds all
+    # identical to training. At the default subdiv 4 this is 16, i.e. unchanged.
+    _beats_per_phrase = max(1, 64 // BEAT_SUBDIV)
+    fingerprints, boundaries = compute_fingerprints(
+        mix_beat, beats_per_phrase=_beats_per_phrase, subdiv=BEAT_SUBDIV)
 
     # ---- 4. Load models ----
     logger.info("Loading Stage 1 BeatClassifier …")

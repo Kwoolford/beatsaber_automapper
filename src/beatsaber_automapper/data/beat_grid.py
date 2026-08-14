@@ -35,7 +35,11 @@ from beatsaber_automapper.data.swing_tokenizer import (
 
 logger = logging.getLogger(__name__)
 
-BEAT_SUBDIV = 4  # 1/4-note resolution (must match mert_encoder.BEAT_SUBDIV)
+# 1/4-note resolution. Imported from `mert_encoder` rather than redeclared so the two
+# CANNOT drift apart — generate.py reads BEAT_SUBDIV from both modules, in three
+# separate places, and a disagreement would silently break the slot→beat conversion
+# while still producing a map. See mert_encoder for why this is env-overridable.
+from beatsaber_automapper.data.mert_encoder import BEAT_SUBDIV  # noqa: E402
 
 # Kind IDs that count as a "real note" for the beat presence label.
 # ARC_TAIL and CHAIN_TAIL are tails of events — the head already set the label.

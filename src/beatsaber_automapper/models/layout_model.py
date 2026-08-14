@@ -488,7 +488,14 @@ class LayoutPhraseModel(nn.Module):
                 cur = _last_pos.get(hand)
                 if prev is not None and cur is not None:
                     dx, dy = cur[0] - prev[0], cur[1] - prev[1]
-                    dt_beats = max(cur[2] - prev[3], 0) / 4.0   # BEAT_SUBDIV = 4
+                    # ⚠️Was hardcoded `/ 4.0` with the comment "BEAT_SUBDIV = 4". A
+                    # hardcoded copy of a constant does not fail when the constant
+                    # changes — it silently misclassifies (every idiom dt_class would
+                    # be wrong at any other subdivision, with no error). Read the real
+                    # one. Guarded by `0 < dt_beats <= 2.0` below, so the old bug was
+                    # a wrong bonus rather than a crash — the quiet kind.
+                    from beatsaber_automapper.data.mert_encoder import BEAT_SUBDIV
+                    dt_beats = max(cur[2] - prev[3], 0) / float(BEAT_SUBDIV)
                     if 0.0 < dt_beats <= 2.0:
                         cls = _ib_dt_class(dt_beats)
                         bon = torch.zeros_like(logits)
