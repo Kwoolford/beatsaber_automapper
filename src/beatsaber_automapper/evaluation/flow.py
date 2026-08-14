@@ -82,6 +82,56 @@ REFERENCE_PATH = (
 )
 _FALLBACK_REFERENCE: dict[str, tuple[float, float]] = {}
 
+# --------------------------------------------------------------------------- #
+# THE CROSSOVER GUARD
+# --------------------------------------------------------------------------- #
+# `crossover` is excluded from SEQUENCE_KEYS above with the comment "still
+# reported, as guards". Nothing ever guarded it, and that omission hid a whole
+# missing capability: human maps cross hands over on a median 18.7% of notes and
+# ours measured 0.0000 on all 149 wide-cohort maps, because
+# `enforce_color_separation` (COLOR_SEP_MODE=full) moves every wrong-side note.
+# No axis noticed, because the only metric that could see it fed into nothing.
+#
+# ★The guard is TWO-SIDED and the LOWER bound is the one that matters: zero
+# crossovers is the *non-human* state (1 of 200 human maps has none), so a guard
+# that only caught excess would have passed the exact defect we shipped. The upper
+# bound still earns its place — random hand assignment sits near 0.5.
+CROSSOVER_REFERENCE_PATH = (
+    pathlib.Path(__file__).resolve().parents[3]
+    / "docs" / "eval_references" / "crossover_human_reference.json"
+)
+
+
+def load_crossover_reference() -> dict | None:
+    """Human crossover band, or None if it was never calibrated.
+
+    Written by `scripts/calibrate_crossover.py`, which calibrates through
+    `load_expert_only` — NOT `scorecard._load_any`, which prefers ExpertPlus.
+    """
+    try:
+        return json.loads(CROSSOVER_REFERENCE_PATH.read_text())
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def crossover_guard(cohort_median: float, ref: dict | None = None) -> tuple[bool, str]:
+    """(passed, reason) for a cohort's median crossover against the human band."""
+    ref = ref if ref is not None else load_crossover_reference()
+    if ref is None:
+        return True, "no crossover reference — guard inactive"
+    if cohort_median != cohort_median:      # NaN
+        return True, "crossover not scorable"
+    lo, hi = float(ref["p10"]), float(ref["p90"])
+    if cohort_median < lo:
+        extra = ""
+        if cohort_median == 0.0:
+            extra = (f"  <- ZERO crossovers is the non-human state; only "
+                     f"{ref.get('n_zero', 0)}/{ref.get('n', 0)} human maps have none")
+        return False, f"crossover {cohort_median:.4f} BELOW human p10 {lo:.4f}{extra}"
+    if cohort_median > hi:
+        return False, f"crossover {cohort_median:.4f} ABOVE human p90 {hi:.4f}"
+    return True, f"crossover {cohort_median:.4f} inside human band [{lo:.4f}, {hi:.4f}]"
+
 
 @dataclass(slots=True)
 class FlowReport:

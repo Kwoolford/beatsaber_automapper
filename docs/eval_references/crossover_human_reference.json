@@ -1,0 +1,11 @@
+{
+ "median": 0.18727437422026383,
+ "mad": 0.04957589062967767,
+ "p10": 0.10454545454545454,
+ "p90": 0.2750865051903114,
+ "min": 0.0,
+ "max": 0.4430379746835443,
+ "n": 200,
+ "n_zero": 1,
+ "loader": "calibrate_playfeel.load_expert_only (strict ExpertStandard)"
+}

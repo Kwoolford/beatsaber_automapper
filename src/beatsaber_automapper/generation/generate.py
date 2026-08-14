@@ -1948,6 +1948,10 @@ def generate_v7_level(
     # scores candidate grids against per-stem onsets, and the stems only exist
     # once Demucs has run — the same stem-union onsets A8 scores against, so the
     # generator is now optimising the quantity the suite measures.
+    # The fitted grid phase, kept for BEAT_GRID_PHASE (see generation/grid_phase.py).
+    # Until 2026-08-13 this number was computed, logged and thrown away, and the
+    # grid stayed anchored at t=0 — which is half the baseline's alignment failure.
+    _grid_phase_s = 0.0
     if os.environ.get("BEAT_TEMPO_FIT", "1") == "1" and bpm is not None:
         try:
             import librosa as _lr
@@ -1972,6 +1976,7 @@ def generate_v7_level(
                             bpm, _fit.bpm, _fit.r, _fit.phase_s * 1000.0)
                 bpm = _fit.bpm
                 total_beats = song_duration_secs * bpm / 60.0
+                _grid_phase_s = float(_fit.phase_s)
             else:
                 # A weak fit means the grid is unrelated to the music. Keeping the
                 # detector's answer is not obviously better, but silently swapping
@@ -3039,6 +3044,14 @@ def generate_v7_level(
 
     beatmap = postprocess_beatmap(beatmap, difficulty=difficulty, bpm=bpm,
                                   song_duration_secs=song_duration_secs)
+
+    # ---- BEAT_GRID_PHASE (2026-08-13). Default OFF. ----
+    # Put the grid where the music's downbeat is. Applied HERE, after postprocess,
+    # because the evidence is for a rigid translation of the FINISHED note times
+    # (the diagnostic swept a global shift over completed maps); re-gridding the
+    # MERT pooling would change what Stage-1 sees and has no measurement behind it.
+    from beatsaber_automapper.generation import grid_phase as _gphase
+    _gphase.maybe_apply(beatmap, bpm=bpm, phase_s=_grid_phase_s, subdiv=BEAT_SUBDIV)
 
     if _prepost_out:
         package_level(

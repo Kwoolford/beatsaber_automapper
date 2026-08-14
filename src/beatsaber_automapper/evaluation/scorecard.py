@@ -30,7 +30,9 @@ CLI::
 """
 from __future__ import annotations
 
+import os
 import pathlib
+import statistics
 import sys
 from dataclasses import dataclass, field
 
@@ -156,14 +158,35 @@ def score_cohort(maps: list[tuple], label: str = "cohort") -> dict:
         ))
     viols = [r["viol"] for r in records if r.get("viol") is not None]
     total_viol = int(sum(viols)) if viols else None
+
+    # THE CROSSOVER GUARD (TODO P0, 2026-08-11). `crossover` is deliberately kept
+    # out of `flow_dist` — it is order-independent and would dilute the shuffled
+    # control — so it needs its own gate or it guards nothing, which is exactly
+    # what happened for months while we shipped crossover == 0.0000.
+    #
+    # ⚠️DEFAULT OFF, and here is the "why not" the standing rule asks for: turning
+    # this on flips the PROMOTED 2026-08-03 baseline to FAIL, which is a change to
+    # what `passed` MEANS and would invalidate every historical comparison and CI
+    # expectation at once. That is Kyle's call, not a side effect of adding a
+    # metric. It is reported unconditionally either way, so it cannot go unnoticed
+    # a second time. **Flip it to ON when COLOR_SEP_MODE=extreme ships.**
+    xo = [r["crossover"] for r in records
+          if r.get("crossover") is not None and r["crossover"] == r["crossover"]]
+    xo_median = statistics.median(xo) if xo else float("nan")
+    xo_passed, xo_reason = flow.crossover_guard(xo_median)
+    xo_gates = os.environ.get("CROSSOVER_GUARD", "0") == "1"
+
     return {
         "label": label,
         "n_maps": len(records),
         "axes": results,
         "total_viol": total_viol,
+        "crossover": {"median": xo_median, "passed": xo_passed,
+                      "reason": xo_reason, "gating": xo_gates},
         # Playability is a hard gate, not an axis: a map with wrist-breaks is
         # unplayable regardless of how human its statistics look.
-        "passed": all(a.passed for a in results) and (total_viol == 0),
+        "passed": (all(a.passed for a in results) and (total_viol == 0)
+                   and (xo_passed or not xo_gates)),
         "records": records,
     }
 
@@ -179,6 +202,13 @@ def report(res: dict) -> str:
     v = res["total_viol"]
     lines.append(f"{'parity':10s}{'':8s}{'':8s}{'':9s}{'':7s}  "
                  f"{'PASS' if v == 0 else 'FAIL'} — {v} swing violations")
+    xo = res.get("crossover")
+    if xo:
+        # Printed whether or not it gates: the whole failure mode this guard
+        # exists to correct was a metric that was computed and never looked at.
+        note = "" if xo["gating"] else "  (advisory — set CROSSOVER_GUARD=1 to gate)"
+        lines.append(f"{'crossover':10s}{'':8s}{'':8s}{'':9s}{'':7s}  "
+                     f"{'PASS' if xo['passed'] else 'FAIL'} — {xo['reason']}{note}")
     lines.append("")
     lines.append(f"OVERALL: {'PASS' if res['passed'] else 'FAIL'}")
     if not res["passed"]:

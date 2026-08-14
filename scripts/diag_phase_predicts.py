@@ -86,8 +86,14 @@ def main() -> int:
             continue
 
         slot_ms = 60.0 / fit.bpm / BEAT_SUBDIV * 1000.0
-        # The grid sits at `phase_s`; anchoring at 0 displaces the map by -phase.
-        fitted_ms = _wrap(-fit.phase_s * 1000.0, slot_ms)
+        # ⚠️SIGN, and I got it backwards on the first run. `estimate_tempo` fits
+        # `time = period * index + phase`, so beat k belongs at `phase + k*period`
+        # while our t=0 grid puts it at `k*period`: the map is EARLY by `phase` and
+        # wants to move LATER by `+phase`. The first pass used `-phase` and read a
+        # consistent corr of -0.37 across every subgroup — which is what a sign
+        # error looks like, not what noise looks like. A negative correlation that
+        # holds at the same size on four different subsets is a bug report.
+        fitted_ms = _wrap(fit.phase_s * 1000.0, slot_ms)
         want_ms = _wrap(oracle[song]["ours_shift_ms"], slot_ms)
         rows.append({
             "song": song, "bpm_fit": fit.bpm, "r": fit.r, "trusted": bool(fit.trusted),
