@@ -77,6 +77,27 @@ disagree), so the value would have to be threaded through as a parameter instead
 ⇒**Do not ship `pick_subdiv.py` as a pre-pass.** Its measured trade is not good enough, and the
 version that would be good enough is a different, well-specified change.
 
+### ✅ AND THE CHEAP ESCAPE ROUTE IS CLOSED — the refactor is genuinely necessary
+`estimate_tempo(y, sr)` computes its own onsets when none are supplied, so the fit does **not** need
+Demucs. If a stem-free fit on the raw mix reproduced the stem-based one, `pick_subdiv` could use it
+and the threading work would be unnecessary. Measured over the cohort (n=133):
+
+**It reproduces the post-fit bpm within 2 % on 128/133 songs (96.2 %), all fits "trusted".**
+And yet, as a *detector input*:
+
+| input | false + at T=95 | false + at T=100 | best separation | zero-FP point |
+|---|---|---|---|---|
+| raw `detect_bpm` | 5 | 9 | 0.757 | 1 of 28 |
+| stem-free `estimate_tempo` | 2 | 3 | 0.802 | 1 of 28 |
+| **post-fit (stem-based)** | **0** | **2** | **0.848** | **15 of 28** |
+
+★**The ordering is monotone in how much information the estimate had, and only the stem-based fit has
+a free operating point.** The 3.8 % of songs where the stem-free fit disagrees are **exactly** the
+harmful ones: the `same` group's floor is 79.5 under the stem-free fit versus 96.0 under the
+stem-based one, so the disagreements are `same` songs that would be wrongly doubled.
+⇒**A 96 % agreement rate on the tempo VALUE is not the same as equivalence for a DECISION** — the
+disagreements were concentrated where the decision is made. **The refactor stands as the build.**
+
 ★**WHY IT WORKS, AND ITS LIMIT.** `librosa.beat.beat_track` defaults to `start_bpm=120`, a prior that
 pulls estimates toward 120; when it errs it errs **low** (halving), so octave errors land in a band
 below the normal range. This is therefore a heuristic about **our detector's failure mode**, not a
