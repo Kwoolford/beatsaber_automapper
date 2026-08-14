@@ -437,7 +437,28 @@ the best detector in the study.** ⇒**Try the trivial baseline before the cleve
 put it in the comparison table** — it is the only reason this surfaced, after a heuristic, two
 statistics and a classifier had been spent on it.
 
-### 🔵 THE BUILD THIS NAMES — choose the subdivision AFTER `BEAT_TEMPO_FIT`
+### ✅✅ BUILT AND VALIDATED — `BEAT_SUBDIV_AUTO=1` (default OFF), n=149
+| | HALF (n=28) | SAME (n=100) |
+|---|---|---|
+| fired on | **15** | **0** |
+| ebpm ratio | 0.500 → **0.958** | 1.000 → 1.000 |
+| precision | 0.9172 → 0.9154 | **0.8922 → 0.8922** |
+
+★**Zero false positives across the cohort** — the 129 non-fired maps are bit-identical to baseline.
+Notes 0.419 → **0.803** of human on the fired songs. **Clears its DoD.**
+⚠️**Cost = 2 songs, mechanistically explained**: `30097` and `20fc6` go ratio 1.00 → **2.00** (precision
+−0.115 / −0.042) because they were the only two half-tempo songs **already at the human's burst
+rate** — detected an octave low, but with no ceiling to lift. ⇒**The defect set and the detector set
+are not identical**, and 2 of 28 sit in the gap.
+⚠️**Gap in my own pre-registration**: it gated `same`-group regressions and said nothing about
+regressions *inside* the group being helped. ★**When a lever targets a subgroup, pre-register the cost
+inside that subgroup too.**
+🟡**Refinement, not built**: decide by whether doubling actually *helps* against our own stem onsets
+(the move that rescued `BEAT_GRID_PHASE` after prediction failed). Costs a second generation pass.
+**Next**: needs Kyle's ear before any default flips — but note the 13 improved songs are corpus songs,
+so this has the same "not on his standing four" problem as the phase lever.
+
+### 📜 the build this came from — choose the subdivision AFTER `BEAT_TEMPO_FIT`
 🔴**Do NOT ship `scripts/pick_subdiv.py` as a pre-pass.** Measured on the **raw** `detect_bpm` a
 pre-pass can see, the trade is 20 songs gaining the ceiling vs **9 working songs losing 0.127
 precision**, and the largest zero-false-positive threshold catches **1 of 28**.

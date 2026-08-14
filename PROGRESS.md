@@ -7,6 +7,46 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ✅✅ 2026-08-14 — `BEAT_SUBDIV_AUTO` AT n=149: **CLEARS ITS DoD, with a named and mechanistic cost**
+The deployable lever — no oracle, the generator decides from its own fitted tempo.
+
+| | **HALF** (n=28) | **SAME** (n=100) |
+|---|---|---|
+| songs it fired on | **15** | **0** |
+| ebpm ratio vs human | 0.500 → **0.958** | 1.000 → 1.000 |
+| onset precision | 0.9172 → 0.9154 | 0.8922 → **0.8922** |
+| songs regressing >0.02 | 5 | **0** |
+
+★**It fired on 15 songs and every one was a `half` song — zero false positives across the whole
+cohort**, exactly the 15 the post-fit threshold sweep predicted at bpm<95. The other 129 maps are
+**bit-identical** to baseline. Note count on the fired songs moved 0.419 → **0.803** of human.
+
+### The cost is 2 songs, and it is the same 2 both times
+| song | ratio | precision | |
+|---|---|---|---|
+| `30097` | 1.00 → **2.00** | 0.972 → **0.857** | already at the human's burst rate |
+| `20fc6` | 1.00 → **2.00** | 0.827 → 0.785 | already at the human's burst rate |
+| other 13 | 0.50 → **1.00** | median −0.003 | as designed |
+
+★★**The two worst regressions are exactly the two half-tempo songs that had NO ceiling to lift** —
+the same pair that made my first smoke test misleading. A song can be detected an octave low and
+still already reach the human's burst rate; doubling its grid then buys nothing and spends the extra
+slots off real onsets. **The defect and the detector are not the same set**, and 2 of 28 sit in the
+difference. 5 of the 15 fired songs actually *improved* precision (best +0.092).
+
+⚠️**A GAP IN MY OWN PRE-REGISTRATION**: I gated on *"zero `same`-group regressions"* and said nothing
+about regressions inside the group being helped. By the letter it SHIPs — half ratio off 0.500 ✓,
+zero `same` regressions ✓ — but the criterion was silent on the case that actually occurred.
+**When a lever targets a subgroup, pre-register the cost INSIDE that subgroup too.**
+
+**Verdict: clears its DoD.** 13 songs materially improved, 2 degraded, 129 untouched, cohort-median
+precision change −0.003. **Default stays OFF** pending Kyle's ear, like every other lever here.
+🟡**The obvious refinement, not built**: decide by whether doubling *helps*, measured against our own
+stem onsets — the self-supervised move that rescued `BEAT_GRID_PHASE` after predicting the phase
+failed. It costs a second generation pass per song, which is why it is a proposal rather than a change.
+
+---
+
 ## ★ 2026-08-14 — WHAT "MAIN BEAT" ACTUALLY MEANS IN THE SUITE, AND THE DEFECT SURVIVES THE CHECK
 Chasing what predicts the 35 reproducibly-failing main-beat songs, checked whether the **metrical
 level** is implicated — the natural suspicion after tonight's tempo work.
