@@ -453,8 +453,18 @@ are not identical**, and 2 of 28 sit in the gap.
 ⚠️**Gap in my own pre-registration**: it gated `same`-group regressions and said nothing about
 regressions *inside* the group being helped. ★**When a lever targets a subgroup, pre-register the cost
 inside that subgroup too.**
-🟡**Refinement, not built**: decide by whether doubling actually *helps* against our own stem onsets
-(the move that rescued `BEAT_GRID_PHASE` after prediction failed). Costs a second generation pass.
+🔴**REFUTED — budget compensation does NOT fix it** (tested 2026-08-14 before believing it).
+`BEAT_NOTE_BUDGET=0.5` at subdiv 8: `209d2` loses the ceiling lift entirely (ratio back to 0.50) while
+`30097` keeps the overshoot (still 2.00) ⇒**exactly backwards.** `ebpm_burst` is a p95 over the
+*fastest* gaps, so thinning stretches a sparse song's bursts back out but leaves a dense song's intact.
+★**Note count and burst ceiling are not separable by a global knob** — *"gain and damage are the same
+dial"*, now on a third lever. ⚠️Mechanism worth knowing: the budget **is** `len(left_thr)` (slots
+surviving threshold+NMS) and `beat_nms_radius=1` is in **slots**, so both scale with the grid.
+🟡**Still viable, at 2× generation cost**: run at subdiv 8 and keep it only if onset precision against
+**our own stem onsets** does not degrade — precision is exactly what breaks on the harmed songs
+(`30097` 0.972 → 0.857) and it needs no human map. ⚠️A probability-level test would NOT discriminate:
+`30097` has plenty of mass on the new slots and uses it; the problem is not that the model declines
+them but that taking them exceeds what the song supports.
 **Next**: needs Kyle's ear before any default flips — but note the 13 improved songs are corpus songs,
 so this has the same "not on his standing four" problem as the phase lever.
 

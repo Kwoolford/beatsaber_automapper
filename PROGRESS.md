@@ -41,9 +41,35 @@ zero `same` regressions ✓ — but the criterion was silent on the case that ac
 
 **Verdict: clears its DoD.** 13 songs materially improved, 2 degraded, 129 untouched, cohort-median
 precision change −0.003. **Default stays OFF** pending Kyle's ear, like every other lever here.
-🟡**The obvious refinement, not built**: decide by whether doubling *helps*, measured against our own
-stem onsets — the self-supervised move that rescued `BEAT_GRID_PHASE` after predicting the phase
-failed. It costs a second generation pass per song, which is why it is a proposal rather than a change.
+### 🔴 AND THE CHEAP REFINEMENT IS REFUTED — I tested my own proposed fix before believing it
+**Mechanism first**: `_bL, _bR = len(left_thr), len(right_thr)` — the note budget **is** the count of
+slots surviving threshold + NMS, and `beat_nms_radius = 1` is expressed in **slots**, so at subdiv 8
+its wall-clock reach halves. Both scale with the grid, which is why the note count roughly doubles.
+That suggested a contained fix: compensate the budget (`BEAT_NOTE_BUDGET=0.5`) so subdiv 8 buys finer
+*placement* without inflating *density*. **Measured on one song from each group:**
+
+| song | arm | ebpm ratio | notes ÷ human | precision |
+|---|---|---|---|---|
+| `209d2` (real ceiling) | budget 1.0 | **1.00** | 0.99 | 0.9083 |
+| `209d2` | budget 0.5 | 🔴**0.50** — lift gone | 0.50 | 0.9429 |
+| `30097` (no ceiling) | budget 1.0 | 2.00 | 0.99 | 0.8574 |
+| `30097` | budget 0.5 | 🔴**2.00** — harm remains | 0.50 | 0.8476 |
+
+★★**Exactly backwards: it removes the benefit where we want it and keeps the harm where we do not.**
+Mechanism: `ebpm_burst` is a p95 over the *fastest* gaps. Thinning `209d2` stretches its fastest gaps
+back out, so the ceiling returns; `30097` already had dense fast passages, so thinning leaves plenty
+of close pairs and the doubled burst rate survives.
+⇒**Note count and burst ceiling are NOT separable by a global budget knob.** This is the project's
+standing lesson again — *"no setting buys structure for free; gain and damage are the same dial"* —
+now demonstrated on a third lever.
+
+🟡**What remains viable, at 2× generation cost**: run the song at subdiv 8 and keep it only if onset
+precision against **our own stem onsets** does not degrade. That works precisely because precision is
+the thing that degrades on the harmed songs (`30097` 0.972 → 0.857), and it needs no human map. It is
+the self-supervised move that rescued `BEAT_GRID_PHASE` after predicting the phase failed.
+⚠️A cheaper probability-level test (is there mass on the newly-added slots?) **would not
+discriminate** — `30097` plainly does have mass there and uses it; the problem is not that the model
+declines the new slots but that taking them exceeds what the song supports.
 
 ---
 
