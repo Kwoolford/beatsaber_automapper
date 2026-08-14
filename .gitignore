@@ -66,3 +66,6 @@ experiments/leaderboard.jsonl
 
 # Scratch files
 test.py
+
+# agent_mapper working sessions (notes.tsv + session.json per song) — artifacts
+agent_mapper/sessions/
