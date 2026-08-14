@@ -35,7 +35,31 @@ ground truth is a random draw"*) — that one was about the onset **cache** buil
 reproducible but seed-*dependent*, which is a different and less visible problem.
 ✅**And it makes the phase-inversion seed test meaningful after all** — the windows genuinely can
 differ between seeds, so *"no predictor ⇒ internal to Stage-1, not the audio"* is testable rather
-than vacuous. Still to run.
+than vacuous.
+
+### ✅ THE SEED TEST, RUN — **the main-beat defect is SONG-DRIVEN. "Internal to Stage-1" is RETRACTED.**
+Seed 0 vs seed 1 over the same 149 wide-cohort songs (0 skipped):
+
+| | `main_covered` | `main_continuity` |
+|---|---|---|
+| corr(s0, s1) | **+0.9811** | +0.9171 |
+| median \|s0 − s1\| | 0.0101 | 0.0187 |
+| spread across songs (sd) | **0.1791** (18×) | 0.1563 (8×) |
+| worst-30 songs overlapping | **27/30** (chance 6.0) | 25/30 (chance 6.0) |
+
+⇒**The same songs fail at both seeds**, and the seed moves coverage by ~1/18th of the between-song
+spread. ★**This holds even though the seed genuinely perturbs Stage-1's probabilities** (max \|Δ\|
+0.205, above) — the perturbation is not enough to change *which* songs fail.
+⇒🔴**The 2026-08-04 conclusion *"NO PREDICTOR ⇒ internal to Stage-1, not the audio"* is RETRACTED as
+stated.** The defect is a property of the SONG; we have simply not found the feature that predicts it.
+★★**THIS IS THE THIRD TIME THIS EXACT INFERENCE HAS BEEN CAUGHT HERE** — alignment (2026-08-11), grid
+phase (2026-08-13, where phase turned out to be an audio property nobody had checked), and now the
+main-beat defect. ⇒**Promote it to a standing rule: "no predictor among the features I checked" is
+NEVER evidence of "not driven by the audio". The seed test separates the two and costs one paired
+lookup whenever a second seed cohort exists.**
+⚠️Method note: my first run of this returned **n=0 songs** because I asked `coverage()` for a key it
+does not have (`covered` vs `main_covered`) inside a `try/except` that swallowed the error — the exact
+silent-drop shape that hid A8 for two nights. **Do not wrap an exploratory loop in a bare except.**
 
 ---
 

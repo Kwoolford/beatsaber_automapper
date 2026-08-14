@@ -210,16 +210,19 @@ empower you."* One command: **`scripts/suite_report.py --song X`** (or `--all`).
 more filler. ✅**`BEAT_MAIN_BEAT_BONUS`** (default OFF, `mbb015` the conservative pick) takes alignment
 0.260→0.087 with nothing regressing; it does NOT rescue starved windows. *(Full numbers in PROGRESS.)*
 
-### 🔴 LIVE ITEM — the phase-inversion claim has never had the seed test
-Stage-1's probability **inverts metrical phase** (our best windows 0.301/**0.725**/0.287 vs worst
+### ✅ RESOLVED 2026-08-14 — the main-beat defect is SONG-DRIVEN; "internal to Stage-1" is RETRACTED
+Stage-1's probability **inverts metrical phase** (best windows 0.301/**0.725**/0.287 vs worst
 0.590/**0.320**/0.577; the human covers the main beat 0.653 and the offbeat 0.104 in those same
-windows ⇒ grid right, model wrong). No predictor was found among stem mix, drums-on-beat, onset
-density, song position or beat-slot offset — and *"no predictor among the features I checked"* was
-concluded to mean **"internal to Stage-1, not the audio"**.
-★**That is the exact reasoning the alignment work REFUTED in one step on 2026-08-11**, and again on
-2026-08-13 (phase is a property of the audio and was simply never among the features checked).
-**TASK**: run the seed test — do the same windows invert at a different seed? A second seed cohort
-already exists, so it costs one paired lookup. **Do it before relying on the claim.**
+windows ⇒ grid right, model wrong). That part **stands**. What is retracted is the inference from
+*"no predictor found"* to *"internal to Stage-1, not the audio"*.
+**Seed test, n=149**: `main_covered` corr(s0,s1) **+0.9811**, median |Δ| 0.0101 against a between-song
+sd of **0.1791**, and **27 of the worst 30 songs are the same at both seeds** (chance 6.0).
+⇒**The same songs fail every time.** It is a property of the SONG; we have not found the feature.
+★★**STANDING RULE (this inference has now been caught THREE times — alignment, grid phase, and this):
+"no predictor among the features I checked" is NEVER evidence of "not driven by the audio."** The seed
+test separates them and costs one paired lookup whenever a second seed cohort exists.
+**Still open**: *which* audio property predicts the failing songs. 35 reproducibly-failing songs is a
+named, stable target.
 
 ## ✅ THE MASTERPIECE AXES — BUILT, 7 cleared to steer *(construction in PROGRESS.md)*
 `python scripts/masterpiece_report.py --arm X [--vs Y] [--wide]`. Human bar:
