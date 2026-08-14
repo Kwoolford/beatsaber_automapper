@@ -76,7 +76,15 @@ independent confirmation that the phase search and subdiv work actually fixed so
 error gives a coarse-but-aligned grid; a 2:3 misread puts the beats in the **wrong places**, drifting
 through the song, so no global shift can rescue it — exactly the distinction `build_true_bpm_wide.py`
 draws, which is why the labels were split that way in the first place.
-⚠️The other ~11 failures are correct-tempo songs and remain unexplained; that part *is* C1 territory.
+✅**The other 10 are correct-tempo and are now established as a PURE SELECTION defect** (2026-08-14),
+by elimination rather than assumption: not tempo, not phase (no shift helps), not onset supply
+(**4.5 onsets per note we emit**; 0/10 below 1.5 — the one-note-per-onset ceiling is nowhere near
+binding), and **not song difficulty — the human scores 0.943 on exactly these songs, better than the
+0.934 they score on the ones we handle fine.** Same note count, same onset budget, we just match less
+of it. ⇒**C1 / Track B.** ⚠️`26327` may be a third kind — scatter **25.4 ms**, 2.5× the others, which
+looks like timing rather than selection; open that one first if this subset is revisited.
+⇒**The original 39-song defect is fully accounted for: ~18 fixed by phase, ~10 tempo-ratio, ~10
+selection.**
 
 🔴**AND THE CHEAP FIX THERE IS ALSO CLOSED (2026-08-14).** `fit_tempo` keeps candidates within
 `R_NEAR=0.9` and takes `max(near, key=bpm)`. That rule **does** discard correct answers — on `271de`

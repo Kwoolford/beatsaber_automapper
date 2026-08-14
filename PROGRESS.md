@@ -7,6 +7,40 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ✅ 2026-08-14 — THE ALIGNMENT RESIDUAL IS FULLY SPLIT: ~10 TEMPO, ~10 PURE SELECTION
+Closing the thread that started at 39 failing songs. The phase search took it to 21; those 21 now
+split cleanly, and the second half is established **by elimination** rather than by assumption.
+
+**The 10 correct-tempo failures**, against the 90 correct-tempo songs we handle fine:
+
+| | failing (10) | fine (90) |
+|---|---|---|
+| our precision | 0.824 | 0.930 |
+| **human precision** | **0.943** | 0.934 |
+| our distinct note times | 429 | 426 |
+| human distinct note times | 625 | 687 |
+| onsets available | 1998 | 2037 |
+| **onsets per note we emit** | **4.50** | 4.88 |
+| our scatter | 10.8 ms | 9.6 ms |
+
+🔴**The onset-supply hypothesis is refuted.** `match_offsets` is one-note-per-onset by design (so note
+spam cannot manufacture precision), which puts a mechanical ceiling of `onsets ÷ our distinct times`
+on the score — but that ratio is **4.5**, and **0 of 10** failing songs sit below 1.5. There is ample
+supply; we are simply matching a smaller fraction of it.
+
+★**What is left after elimination**: not tempo (these are the correct-tempo group), not phase (a
+global shift does not help them), not supply (4.5× headroom), and **not song difficulty — the human
+scores 0.943 on exactly these songs, slightly BETTER than the 0.934 they score on the ones we handle
+fine.** Same note count as our successful songs, same onset budget. ⇒**It is purely *which* onsets we
+pick: a selection defect, and now demonstrated rather than assumed.** That is C1 / Track B territory.
+
+⇒**The 39-song alignment defect is now fully accounted for**: ~18 fixed by grid phase, ~10 are
+tempo-ratio errors that need a real tempo model, ~10 are selection. ⚠️`26327` is a possible third
+kind — scatter **25.4 ms**, 2.5× the others — which looks like a timing rather than a selection
+problem and would be the one to open first if this subset is revisited.
+
+---
+
 ## ✅ 2026-08-14 — W4 REPRODUCES AT n=123 AND **GREW**; ITS MECHANISM IS IN OUR OWN DOCSTRING
 W4 (*"phrases abandoned mid-vocal"*) was measured on the 13-song songset. Re-measured on the wide
 cohort — and unusually for this project, **the effect did not shrink at scale**:
