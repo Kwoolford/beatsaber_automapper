@@ -411,13 +411,20 @@ half 0.885 vs same 0.702 but they **overlap**: 100 % recall costs an **88.6 %** 
 ★**Cause: stem onsets are DENSE — 70 % of gaps are already sub-slot at a CORRECT tempo**, so the
 statistic measures onset density, not grid coarseness. **Measuring representability via raw onset
 gaps measures the wrong thing.**
-🟡**NEXT CANDIDATE (untried): a tempogram-ratio method.** The discriminator must be about
-**periodicity** — is there a regular pulse at a period shorter than our slot — not about how many
-events are close together. ⚠️This is **not** what failed in 2026-07-27; that was onset-energy
-*balance* between on- and off-beat positions, a different statistic. `bpm_octave_probe.py`'s own
-postmortem recommends exactly this.
-**DoD for any detector**: separates `half` from `same` well enough that recall × (1 − FP) beats doing
-nothing, priced at 0.127 precision per false positive.
+🔴**CLOSED: ACF periodicity** (`scripts/diag_tempo_octave_acf.py`) — ACF(P/2)/ACF(P) on the onset
+train. **Best of the three and still not usable**: half 1.041 vs same 0.810, but 75 % recall costs a
+40 % false-positive rate (separation 0.350). ⚠️**Drums-only is WORSE** (0.248) than bass (0.286) or
+union (0.350) — my "the pulse lives in the drums" hypothesis is refuted; the union's extra events
+reinforce the periodicity more than they blur it.
+
+⇒🔴**OCTAVE DETECTION IS OPEN AFTER THREE ATTEMPTS** (energy balance 2026-07-27; onset-gap density and
+ACF periodicity 2026-08-14). ★**What is now established that none of the earlier attempts had is the
+PAYOFF**: a correct detector takes 28 of 149 songs from a hard 0.500× ceiling to 1.000×, and a false
+positive costs **0.127** onset precision. **That price is the bar.** ⇒Three summary statistics have
+now failed; the next attempt should be a method with a **model** behind it (a small tempo/metrical
+classifier trained on the corpus, where the human-declared bpm is free supervision on 5,373 maps),
+not a fourth hand-designed statistic.
+**DoD for any detector**: separation (TPR − FPR) > 0.5, priced at 0.127 precision per false positive.
 
 **Two candidate fixes, and ★the second is much cheaper than it looks:**
 1. **Fix tempo-octave detection** (the "real" fix; `bpm_octave_probe.py`'s two heuristics both made it
