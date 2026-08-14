@@ -10,7 +10,35 @@ this file had reached 4,076 lines.
 
 ---
 
-## 📍 CURRENT STATE (2026-08-11)
+## 📍 CURRENT STATE (2026-08-13)
+
+### 🔵 RUNNING — `BEAT_GRID_PHASE` at n=149 (`scripts/overnight_2026-08-13.sh`)
+`generate.py` estimates the beat grid's **phase**, logs it, and throws it away; the grid is anchored
+at **t=0**. Measured on maps we already had (n=144, no GPU): **20 of the 39 alignment-failing songs
+gain from a shift their HUMAN map does not want** ⇒ our grid, not the onset detector. The phase we
+already estimate **predicts** that shift (median |err| 15.2 ms vs 39.1 chance; **corr +0.757** on the
+12 songs it rescues most). Smoke test on `2c352`: precision **0.456 → 0.897**, scatter 23.1 → 6.9 ms
+(human 7.0), note count unchanged. ✅Built as `BEAT_GRID_PHASE`, **default OFF**, applied *after*
+postprocess as a rigid translation — construction and evidence in PROGRESS.md.
+
+★**READ THE SUBSET, NOT THE MEDIAN.** The cohort median is expected to move ~+0.003 even if this works
+perfectly. The statistic is **songs >0.10 below human: 39 → ?** (the oracle predicts ~26).
+⚠️**And precision UNDERSTATES it** — on `1fccd` a −25 ms shift left precision identical to 4 dp while
+scatter went 9.10 → 7.10 ms and lag +7.80 → −2.80 ms. Verified genuine (the control shifted by the
+same −25 ms scores identically), so **read scatter and lag beside precision.**
+**Pre-registered**: SHIP = subset approaches ~26 and the positional axes tie to 3 dp (a rigid
+translation cannot move them — here a **tie is the pass** and movement is a bug signal) · PARTIAL =
+shrinks but well short ⇒ the *estimator* is the limit, not the idea · PIVOT = no shrink ⇒ explain why
+the translation did not transfer from diagnostic to generation before building anything else.
+⚠️**Still only ~half of one defect**: 15 of the 39 recover from no shift at all, and the phase-fixable
+20 keep a −0.076 median residual.
+
+### ✅ THE CROSSOVER GUARD IS BUILT (the P0 TASK below is done)
+`flow.crossover_guard` + `scripts/calibrate_crossover.py`. Human band, n=200 strict Expert:
+median **0.187**, p10 0.105, p90 0.275. Baseline **FAILS** (0.0000, 149/149 zeros); `xsep` **PASSES**
+(0.1119). Reported unconditionally, gates `passed` only under `CROSSOVER_GUARD=1`.
+★**Flip that default to ON when `COLOR_SEP_MODE=extreme` ships** — it is left off only because gating
+would flip the *promoted* baseline to FAIL, which is Kyle's call, not a side effect of adding a metric.
 
 **Two independent candidates are installed and waiting on Kyle's ear.** Neither is promoted; both
 default OFF. `outputs/kyle_review_2026-08-11/` + [`docs/review_2026-08-11.md`](docs/review_2026-08-11.md).
@@ -323,7 +351,9 @@ the *non-human* state, and it is the state we ship today.
 chasing that showed `crossover` detects it perfectly (0.000→1.000) but is wired into **no axis**.
 `flow.py` excludes it from the composite deliberately (it is order-independent and would dilute the
 shuffled control) with the comment *"still reported, as guards"* — **nothing ever guarded it.**
-**TASK**: implement that guard, calibrated on the human band, once the arm reports.
+✅**THE GUARD IS BUILT** (2026-08-13, see CURRENT STATE). What remains is not a build:
+**ship `COLOR_SEP_MODE=extreme` and set `CROSSOVER_GUARD=1` in the same change** — the capability and
+the gate that protects it belong together, and shipping either alone re-creates the failure mode.
 
 ## 🔬 THE SENSITIVITY BATTERY (new 2026-08-11) — `scripts/audit_sensitivity.py`
 **A different question from every audit we had.** `audit_eval_suite` / `audit_masterpiece` are

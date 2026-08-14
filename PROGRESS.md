@@ -7,6 +7,113 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★ 2026-08-13 — HALF THE ALIGNMENT FAILURE IS A GRID-PHASE DEFECT WE ALREADY MEASURED AND THREW AWAY
+
+**The predictor nobody checked.** The subset defect below is song-driven near-deterministically
+(corr(Δs0,Δs1) = +0.981) and nothing checked predicted which songs — bpm, our nps, human nps, density
+ratio, onset density, all null. **Phase was never on that list**, and the mechanism was sitting in our
+own source: `generate.py` runs `estimate_tempo`, takes `_fit.bpm`, and **merely logs `_fit.phase_s`**.
+The grid stays anchored at **t=0**. `estimate_tempo` fits `time = period*index + phase`, so beat *k*
+belongs at `phase + k*period` while we place it at `k*period` — the map is **early by `phase`**.
+It fits every constraint the null predictors left: a property of the AUDIO (⇒ song-driven and
+seed-invariant), and invisible to every rate/density statistic.
+
+### The measurement — n=144, no GPU, on maps we already had
+Sweeping a global time shift. ★Shifting the **onsets** by −δ instead of the notes by +δ is identical
+for a nearest-match statistic and leaves the beatmap untouched — which also sidesteps the
+`copy.deepcopy` landmine entirely.
+
+| group | n | ours@0 | ours@best | recovered | human@0 | residual |
+|---|---|---|---|---|---|---|
+| failing (>0.10 below human) | 39 | 0.7938 | 0.8474 | **+0.0428** | 0.9385 | −0.1023 |
+| rest | 105 | 0.9181 | 0.9403 | +0.0174 ← **selection floor** | 0.9299 | +0.0104 |
+
+⚠️**The `rest` group is a built-in null and it is load-bearing**: an argmax over 97 shift candidates
+finds gain by chance, so the floor is what a real effect has to clear. Gain above floor **+0.0254**.
+
+★★**THE C2 SPLIT — 20 of the 39 failing songs gain materially from a shift their HUMAN map does not
+want** ⇒ our grid is genuinely misplaced there. Only **1** is an onset-detector offset. Unlike the
+songset's `1f767` warning, this one is overwhelmingly **ours to fix**. Individual rescues are large:
+`2c352` 0.456→0.900, `2e593` 0.545→0.877, `29a01` 0.700→**0.956** (above its own human), while their
+humans gain +0.003/+0.003/+0.028.
+
+✅**Phase and tempo are INDEPENDENT defects — 11 of the 20 have a perfectly correct BPM.** Reproduces
+the 2026-08-02 songset finding at n=149 rather than restating it.
+
+⚠️⚠️**AND THE MEAN CANNOT SEE IT.** Cohort median −0.0327 → −0.0296 (nearly nothing) while **songs
+>0.10 below human go 39 → 26**. The same trap this project walked into twice on 2026-08-11, on two
+different instruments. **Read the subset.**
+
+### 🔴 THE PRE-BUILD TEST — an ORACLE shift is not a shift we can PRODUCE
+The argmax above is unavailable at generation time. Before building anything: does the phase we
+already estimate *predict* it? (`scripts/diag_phase_predicts.py`)
+
+| subset | n | median \|err\| | chance | corr |
+|---|---|---|---|---|
+| all | 144 | **15.2 ms** | 39.1 | +0.367 |
+| the failing songs | 39 | 21.1 ms | 37.0 | +0.354 |
+| **the 12 a shift rescues most** | 12 | **17.6 ms** | 39.8 | **+0.757** |
+
+⇒**It carries the information, and it is sharpest exactly where it matters.** A ~18 ms residual sits
+well inside the 50 ms tolerance.
+
+🔴**METHOD — I RAN THIS WITH THE SIGN BACKWARDS AND THE DATA SAID SO.** The first pass used `-phase`
+and read **corr −0.367 … −0.444 across four different subsets**. ★**A negative correlation that holds
+at the same size on four independent subsets is a bug report, not a null** — noise does not reproduce
+that consistently. Flipping the sign gave +0.367 and cut median |err| 33.4 → 15.2 ms. **Reusable
+tell**: when a null is *stable across subsets*, suspect the instrument's sign before the hypothesis.
+
+### ✅ BUILT — `BEAT_GRID_PHASE` (default OFF), `generation/grid_phase.py`
+★**Applied AFTER `postprocess_beatmap`, deliberately.** The evidence is for a **rigid translation of
+finished note times** — that is what the diagnostic swept. Re-gridding the MERT pooling would change
+what Stage-1 *sees* and has no measurement behind it. Postprocess also keeps operating on the grid its
+parity and reachability rules were tuned against.
+
+**Smoke test, `2c352` — one song, therefore a mechanism demonstration and NOT a confirmation:**
+
+| | precision | scatter | lag | notes |
+|---|---|---|---|---|
+| baseline (grid at t=0) | 0.4562 | 23.1 ms | −19.1 ms | 483 |
+| `BEAT_GRID_PHASE=1` | **0.8969** | **6.9 ms** | **+2.0 ms** | 483 |
+| human | 0.9569 | 7.0 ms | +1.9 ms | 713 |
+
+The fit wanted **+76.5 ms** where the oracle wanted **+80.0** (3.5 ms error). Scatter and lag land
+*on* the human's; the identical note count confirms the translation is pure.
+
+⚠️**A unit test caught dead code in my own first draft**: an "implausible phase" bound expressed in
+beats **can never fire**, because `wrap_to_slot` already constrains the result to ±half a slot.
+Removed rather than kept — **a guard that cannot fire reads as protection that is not there.**
+
+**Status: PARTLY CONFIRMED, and the limit is on the record** — 15 of the 39 failing songs recover from
+no shift at all, and even the phase-fixable 20 keep a −0.076 median residual. This is about half of
+one defect, not the alignment story.
+
+## ✅ 2026-08-13 — THE CROSSOVER GUARD (TODO P0) — the metric that was computed and never looked at
+`flow.py` excludes `crossover` from the `flow_dist` composite with the comment *"still reported, as
+guards"*, and **nothing ever guarded it** — which is how we shipped `crossover == 0.0000` on 149/149
+maps for months while every axis passed.
+
+Calibrated through `load_expert_only` (⚠️**never `scorecard._load_any`**, which prefers ExpertPlus)
+over 200 strict-Expert maps: median **0.187**, p10 0.105, p90 0.275 — **replicating** the 0.183
+measured on an independent draw of 150.
+
+| cohort | median | zeros | guard |
+|---|---|---|---|
+| baseline | 0.0000 | **149/149** | 🔴**FAIL** |
+| `COLOR_SEP_MODE=extreme` | 0.1119 | 0/149 | ✅PASS (just inside p10) |
+
+★**Two-sided, and the LOWER bound is the one that matters**: zero crossovers is the *non-human* state,
+so a guard catching only excess would have passed the exact defect we shipped.
+⚠️**Small correction to the standing claim** *"0 of 150 human maps have zero crossovers"*: at n=200,
+**1 does**. It does not change the conclusion (0.5% vs our 100%).
+
+**Reported unconditionally; gates `passed` only under `CROSSOVER_GUARD=1`.** The "why not" the standing
+rule demands: gating flips the **promoted** baseline to FAIL, which changes what `passed` *means* and
+invalidates every historical comparison at once — Kyle's call, not a side effect of adding a metric.
+**Flip it when `COLOR_SEP_MODE=extreme` ships.**
+
+---
+
 ## 🔬 THE BASELINE'S ALIGNMENT FAILURE IS A SUBSET DEFECT — AND NOTHING PREDICTS WHICH SONGS
 
 Restoring A8 exposed that our promoted maps fail alignment at n=149. Scored **paired, with the SAME
