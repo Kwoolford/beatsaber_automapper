@@ -61,6 +61,13 @@ ceiling against **9 working songs losing 0.127 precision** — roughly 2:1, and 
 that were fine, which is exactly the asymmetry Kyle's *"tread carefully, isolated and tactical"* rule
 exists to protect.
 
+★★**AND HERE IS WHY THE TEMPO FIT MATTERS — it is already doing octave correction.** `tempo.fit_tempo`
+scores the metrical relatives in `RATIOS` and then picks
+`max(near, key=lambda c: c[0])` — **the HIGHEST bpm among the near-best candidates**. That explicit
+bias toward the higher metrical level is what lifts the `same` group's floor from 77.1 to 96.0.
+⇒The post-fit bpm is not merely "a better tempo estimate"; it is a tempo estimate **that has already
+had an octave heuristic applied**, which is exactly the property the detector needs.
+
 ★★**THE CONCLUSION NAMES THE BUILD: decide the subdivision AFTER `BEAT_TEMPO_FIT`, not before.** The
 tempo fit is what makes this detector work — it pulls the `same` group's floor from 77.1 up to 96.0
 and restores a free operating point. And it is *feasible*: the subdivision is first used at
