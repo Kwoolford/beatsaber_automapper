@@ -41,6 +41,21 @@ precision 0.456 → 0.900).
 **Still open from 2026-08-04**: is Fallen Kingdom empty compared to what our model *used to do*, or
 compared to what the *song wants*?
 
+### Your answers now become data
+Verdicts used to live hardcoded in a script and as prose in `PROGRESS.md`. There is now a tracked
+ledger, so the P0 preference loop can actually accumulate:
+
+```bash
+python scripts/record_verdict.py --song 2c352 --name BEcause \
+    --better PHASE --worse BEFORE --quote "locks onto the beat, the other drifts"
+
+python scripts/record_verdict.py --song 2c352 --name BEcause \
+    --tie PHASE BEFORE --quote "can't tell them apart"     # a REAL verdict
+python scripts/preference_screen.py                        # which axes agree with you
+```
+It refuses to record a verdict about a map that is not on disk, and treats *"can't tell"* as a
+first-class answer rather than a non-answer.
+
 ---
 
 ## 2. The biggest finding — three defects are one defect
