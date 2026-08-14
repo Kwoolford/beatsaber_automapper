@@ -37,6 +37,7 @@ Note format (one per line, '#' comments ignored):
 from __future__ import annotations
 
 import argparse
+import bisect
 import json
 import pathlib
 import sys
@@ -284,6 +285,158 @@ def cmd_view(a) -> int:
     return 0
 
 
+def cmd_auto(a) -> int:
+    """Follow a stem over a bar range: the bulk-placement primitive.
+
+    ★**This is what makes a full map reachable.** Hand-writing 1 300 notes one line at
+    a time is not a workflow; deciding *which instrument carries each section and how
+    densely* is. The agent supplies the musical judgement — follow the drums here, the
+    vocal line there, thin the breakdown, swap which hand leads — and this handles the
+    bookkeeping that has exactly one right answer: parity, hand alternation, and
+    keeping each hand on its own side.
+
+    ★**`--follow vocals` is the point of the whole folder.** It is precisely what the
+    generator cannot do: `follow_vocals` is ours 0.020 against a human 0.149.
+
+    ★★**HANDS ARE ASSIGNED OVER THE MERGED TIMELINE, not over this pass in isolation.**
+    Layering a second `auto` on the same bars (drums, then the vocal line) doubled
+    `ebpm_burst` — 376 to 752 against a human 376 — because each pass tracked its own
+    hand and parity state, so the new notes landed *between* the old ones and handed
+    one hand two fast consecutive swings. Found by measuring the first full map.
+
+    ⚠️**A hypothesis the same measurement refuted.** I expected hand RUNS to look more
+    human than strict alternation, since `role_asymmetry` is human 0.115 against our
+    0.026. For burst speed it is the opposite: `runs=1` gives exactly the human's 376
+    and `runs>=2` gives 752, because `ebpm_burst` is a PER-HAND rate and alternating is
+    what keeps each hand slow. `--runs` stays because it is a real stylistic knob, but
+    its default is 1 for a measured reason.
+    """
+    import brief as B
+    s = load_session(a.name)
+    an = B.analyse(pathlib.Path(s["audio"]))
+    if a.follow not in B.STEMS:
+        print(f"--follow must be one of {B.STEMS}", file=sys.stderr)
+        return 2
+    b0, b1 = (int(x) for x in a.bars.split("-"))
+    cur = read_notes(a.name)
+    occupied = {(n["bar"], n["slot"]) for n in cur}
+    n_cells = BEATS_PER_BAR * SUBDIV
+
+    picks: list[tuple[int, int]] = []
+    for bar in range(b0, b1 + 1):
+        t0 = s["phase"] + (bar - 1) * s["bar_s"]
+        t1 = t0 + s["bar_s"]
+        seen = set()
+        for t in an["onsets"][a.follow]:
+            if not (t0 <= t < t1):
+                continue
+            i = int(round((t - t0) / s["slot_s"]))
+            if 0 <= i < n_cells and i not in seen:
+                seen.add(i)
+                picks.append((bar, i))
+    picks.sort()
+    if a.every > 1:
+        picks = picks[::a.every]
+    if a.max_per_bar:
+        by_bar: dict[int, list[int]] = {}
+        keep = []
+        for bar, sl in picks:
+            got = by_bar.setdefault(bar, [])
+            if len(got) < a.max_per_bar:
+                got.append(sl)
+                keep.append((bar, sl))
+        picks = keep
+    picks = [p for p in picks if p not in occupied]
+    if not picks:
+        print("nothing to place (no onsets in range, or all slots already taken)")
+        return 0
+
+    run = max(1, a.runs)
+    merged = sorted([(n["t"], 0, n) for n in cur]
+                    + [(to_time(s, to_beat(s, b, sl)), 1, (b, sl)) for b, sl in picks],
+                    key=lambda r: (r[0], r[1]))
+    last_hand = None
+    # Every time each hand plays, INCLUDING notes already in the session, kept sorted
+    # so a new note can be checked against its neighbours on both sides.
+    hand_times = {"L": sorted(n["t"] for n in cur if n["hand"] == "L"),
+                  "R": sorted(n["t"] for n in cur if n["hand"] == "R")}
+    last_t: dict[str, float] = {}
+    skipped = 0
+    last_down = {"L": True, "R": True}
+    since_swap = 0
+    cols = {"L": [1, 0], "R": [2, 3]}
+    new = []
+    k = 0
+    for _t, kind, payload in merged:
+        if kind == 0:
+            last_t[payload["hand"]] = _t
+            last_hand = payload["hand"]
+            last_down[payload["hand"]] = payload["dir"] not in (1, 6, 7)
+            since_swap = 1
+            continue
+        bar, sl = payload
+        if a.hands != "alternate":
+            h = a.hands.upper()
+        elif last_hand is None:
+            h = a.lead.upper()
+        elif since_swap >= run:
+            h = "R" if last_hand == "L" else "L"
+        else:
+            h = last_hand
+        # ★THE PER-HAND FLOOR, measured from 31 723 human gaps over 40 songs: a human
+        # hand almost never swings twice inside ~150 ms (cohort p5 = 148 ms; Hunger's
+        # human map has a hard 160 ms floor). Without this the first agent map allowed
+        # 80 ms — one sixteenth at 188 bpm — and scored ebpm_burst 752 against a human
+        # 376 while its AVERAGE per-hand rate matched the human's exactly (3.96 vs
+        # 3.99). The defect was never the average, it was the fast tail.
+        # ⚠️Check BOTH neighbours, not just the previous note. A later `auto` pass
+        # inserts notes BETWEEN ones already fixed, so a hand can satisfy its backward
+        # gap and still land 40 ms before an existing note of the same hand. Checking
+        # only backwards left 70 violations of the floor in place and the burst rate
+        # unchanged at 752 — the fix looked applied and did nothing.
+        if a.min_gap_ms > 0:
+            gap = a.min_gap_ms / 1000.0
+
+            def _free(hand: str) -> bool:
+                ts = hand_times[hand]
+                i = bisect.bisect_left(ts, _t)
+                if i > 0 and _t - ts[i - 1] < gap:
+                    return False
+                if i < len(ts) and ts[i] - _t < gap:
+                    return False
+                return True
+
+            if not _free(h):
+                o = "R" if h == "L" else "L"
+                if _free(o):
+                    h = o          # the other hand is free — give it the note
+                else:
+                    skipped += 1   # neither hand can play it; a human would not either
+                    continue
+        d = "D" if last_down[h] else "U"
+        row = 0 if last_down[h] else 2
+        col = cols[h][k % 2] if a.wide else cols[h][0]
+        new.append(parse_note_line(s, f"{bar}.{sl} {h} {col} {row} {d}"))
+        last_down[h] = not last_down[h]
+        bisect.insort(hand_times[h], _t)
+        last_t[h] = _t
+        since_swap = since_swap + 1 if h == last_hand else 1
+        last_hand = h
+        k += 1
+
+    write_notes(a.name, cur + new)
+    dens = len(new) / max((b1 - b0 + 1) * s["bar_s"], 1e-9)
+    print(f"placed {len(new)} notes over bars {b0}-{b1} following {a.follow} "
+          f"({dens:.2f} nps)")
+    if skipped:
+        print(f"  skipped {skipped} onset(s) that no hand could reach inside "
+              f"{a.min_gap_ms:.0f}ms — the human floor. Follow a sparser stem, or "
+              f"--every 2, if you wanted them.")
+    if occupied:
+        print("  (slots already occupied were skipped; `clear` a range to redo it)")
+    return 0
+
+
 def cmd_check(a) -> int:
     s = load_session(a.name)
     notes = read_notes(a.name)
@@ -351,6 +504,22 @@ def main() -> int:
 
     p = sub.add_parser("view"); p.add_argument("name")
     p.add_argument("--bars", required=True); p.set_defaults(fn=cmd_view)
+
+    p = sub.add_parser("auto"); p.add_argument("name")
+    p.add_argument("--bars", required=True)
+    p.add_argument("--follow", default="drums", help="drums|bass|other|vocals")
+    p.add_argument("--lead", default="L", help="which hand starts")
+    p.add_argument("--hands", default="alternate", help="alternate|L|R")
+    p.add_argument("--every", type=int, default=1, help="thin: keep every Nth onset")
+    p.add_argument("--max-per-bar", type=int, default=0, help="cap notes per bar")
+    p.add_argument("--wide", action="store_true", help="use both columns per hand")
+    p.add_argument("--min-gap-ms", type=float, default=150.0,
+                   help="floor on the gap between two swings of the SAME hand; "
+                        "150 = the human cohort p5 (n=31723 gaps). 0 disables.")
+    p.add_argument("--runs", type=int, default=1,
+                   help="notes one hand plays before the other takes over; 1 (strict "
+                        "alternation) measured as the human burst rate")
+    p.set_defaults(fn=cmd_auto)
 
     p = sub.add_parser("check"); p.add_argument("name"); p.set_defaults(fn=cmd_check)
 
