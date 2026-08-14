@@ -121,12 +121,35 @@ half the human's burst rate** — no decode lever could ever have reached it.
 
 ---
 
-## 6. What I would do next, in order
+## 6. The alignment defect is now fully accounted for
+
+It started at **39 songs** more than 0.10 below their human. As of this morning every one is
+attributed:
+
+| | how many | what it needs |
+|---|---|---|
+| fixed by grid phase | ~18 | ✅ done (`BEAT_GRID_PHASE=search`, awaiting your ear) |
+| 2:3 / odd-ratio tempo misreads | ~10 | a real tempo model |
+| pure selection defect | ~10 | Track B |
+
+The last group is established by **elimination**, not assumption: not tempo, not phase, not onset
+supply (4.5 onsets available per note we emit), and **not song difficulty — the human scores 0.943 on
+exactly those songs, better than the 0.934 they score on the ones we handle fine.** Same note count,
+same onset budget; we just match less of it.
+
+---
+
+## 7. What I would do next, in order
 
 1. **Your three answers above.** Two levers and the next capability all hinge on them.
 2. **The 2:3 / odd-ratio tempo misreads** — 4.6–5.5× the base alignment failure rate, from 11 % of
    the cohort. Needs a real tempo model, not a fifth statistic.
 3. **Track B**, with W1 + W4 + `follow_vocals` as one acceptance target rather than three.
+
+⚠️**Both 2 and 3 are multi-day builds whose direction you flagged as yours to set** — the v8 /
+representation direction is explicitly *"worth re-opening after the preference loop exists to judge
+it, not before"*. I have not started either. The unblocked stack is genuinely thin now; the next
+real move is your ear.
 
 *Full evidence in `PROGRESS.md`; forward work in `TODO.md`. Everything committed and pushed;
 557 tests pass.*
