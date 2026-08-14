@@ -285,6 +285,21 @@ def cmd_view(a) -> int:
     return 0
 
 
+def _agree(an: dict, t: float, slot_s: float) -> int:
+    """How many stems have an onset within one grid slot of `t`.
+
+    A downbeat that drums, bass and the melody all hit is an accent worth marking with
+    both hands; one that only the bass touches is not. This is the coincidence signal
+    the 2026-08-03 work measured — humans map a 4-stem collision 84.5 % of the time.
+    """
+    n = 0
+    for ts in an["onsets"].values():
+        arr = np.asarray(ts, dtype=float)
+        if arr.size and np.min(np.abs(arr - t)) < slot_s:
+            n += 1
+    return n
+
+
 def cmd_auto(a) -> int:
     """Follow a stem over a bar range: the bulk-placement primitive.
 
@@ -318,6 +333,7 @@ def cmd_auto(a) -> int:
         print(f"--follow must be one of {B.STEMS}", file=sys.stderr)
         return 2
     b0, b1 = (int(x) for x in a.bars.split("-"))
+    a.double_slots = {int(x) for x in str(a.accent_slots).split(",")}
     cur = read_notes(a.name)
     occupied = {(n["bar"], n["slot"]) for n in cur}
     n_cells = BEATS_PER_BAR * SUBDIV
@@ -360,8 +376,13 @@ def cmd_auto(a) -> int:
     # so a new note can be checked against its neighbours on both sides.
     hand_times = {"L": sorted(n["t"] for n in cur if n["hand"] == "L"),
                   "R": sorted(n["t"] for n in cur if n["hand"] == "R")}
+    # (time -> was it a DOWN cut) per hand, so an inserted note can be checked against
+    # the note that FOLLOWS it, not only the one before.
+    hand_dir = {"L": {n["t"]: n["dir"] not in (1, 6, 7) for n in cur if n["hand"] == "L"},
+                "R": {n["t"]: n["dir"] not in (1, 6, 7) for n in cur if n["hand"] == "R"}}
     last_t: dict[str, float] = {}
     skipped = 0
+    n_doubles = 0
     last_down = {"L": True, "R": True}
     since_swap = 0
     cols = {"L": [1, 0], "R": [2, 3]}
@@ -394,16 +415,22 @@ def cmd_auto(a) -> int:
         # gap and still land 40 ms before an existing note of the same hand. Checking
         # only backwards left 70 violations of the floor in place and the burst rate
         # unchanged at 752 — the fix looked applied and did nothing.
-        if a.min_gap_ms > 0:
-            gap = a.min_gap_ms / 1000.0
+        gap = a.min_gap_ms / 1000.0 if a.min_gap_ms > 0 else 0.0
 
-            def _free(hand: str) -> bool:
-                ts = hand_times[hand]
-                i = bisect.bisect_left(ts, _t)
-                if i > 0 and _t - ts[i - 1] < gap:
-                    return False
-                if i < len(ts) and ts[i] - _t < gap:
-                    return False
+        def _free(hand: str) -> bool:
+            if gap <= 0:
+                return True
+            ts = hand_times[hand]
+            i = bisect.bisect_left(ts, _t)
+            if i > 0 and _t - ts[i - 1] < gap:
+                return False
+            if i < len(ts) and ts[i] - _t < gap:
+                return False
+            return True
+
+        if a.min_gap_ms > 0:
+
+            def _unused(hand: str) -> bool:
                 return True
 
             if not _free(h):
@@ -413,10 +440,39 @@ def cmd_auto(a) -> int:
                 else:
                     skipped += 1   # neither hand can play it; a human would not either
                     continue
-        d = "D" if last_down[h] else "U"
-        row = 0 if last_down[h] else 2
+        # Parity is left to `postprocess.fix_parity` on check/export: it has
+        # flow-aware look-ahead and is the model `swing_sim` actually scores. Two
+        # rounds of hand-rolled repair here cost 380 notes in skips and still left 5
+        # violations. The simple alternation below is a good STARTING guess, nothing more.
+        want_down = last_down[h]
+        d = "D" if want_down else "U"
+        row = 0 if want_down else 2
         col = cols[h][k % 2] if a.wide else cols[h][0]
         new.append(parse_note_line(s, f"{bar}.{sl} {h} {col} {row} {d}"))
+        hand_dir[h][_t] = want_down
+        # ★DOUBLES MARK THE DOWNBEAT. Humans put both hands on an accent —
+        # `hands_x_downbeat` is human 0.182 against our 0.036, and the note is that
+        # "we spend doubles on 2/3 of all events so they mark nothing". A double also
+        # buys density WITHOUT speeding either hand up, which is how the human map
+        # reaches 8.35 nps at the same ebpm_burst as ours at 4.00.
+        # Only on a bar downbeat, and only where several stems agree it is an accent.
+        # ⚠️Bar downbeats ALONE are too few: 24 bars give at most 24 chances, and after
+        # stem agreement and the per-hand floor only ~3 survive — a double share of
+        # 0.016 against a human 0.146. Humans accent every STRONG beat, so slots 0 and
+        # 8 (beats 1 and 3) both qualify.
+        if a.doubles and sl in a.double_slots and \
+                _agree(an, _t, s["slot_s"]) >= a.doubles_stems:
+            o = "R" if h == "L" else "L"
+            if a.min_gap_ms <= 0 or _free(o):
+                od = "D" if last_down[o] else "U"
+                orow = 0 if last_down[o] else 2
+                new.append(parse_note_line(
+                    s, f"{bar}.{sl} {o} {cols[o][0]} {orow} {od}"))
+                hand_dir[o][_t] = last_down[o]
+                last_down[o] = not last_down[o]
+                bisect.insort(hand_times[o], _t)
+                last_t[o] = _t
+                n_doubles += 1
         last_down[h] = not last_down[h]
         bisect.insort(hand_times[h], _t)
         last_t[h] = _t
@@ -426,6 +482,8 @@ def cmd_auto(a) -> int:
 
     write_notes(a.name, cur + new)
     dens = len(new) / max((b1 - b0 + 1) * s["bar_s"], 1e-9)
+    if n_doubles:
+        print(f"  {n_doubles} downbeat double(s) — both hands on an accent")
     print(f"placed {len(new)} notes over bars {b0}-{b1} following {a.follow} "
           f"({dens:.2f} nps)")
     if skipped:
@@ -437,6 +495,20 @@ def cmd_auto(a) -> int:
     return 0
 
 
+def _fix_parity(bm):
+    """Run the pipeline's own parity fixer over an authored map.
+
+    ★**Do not reimplement this.** `auto` keeps a simple down/up alternation per hand,
+    which is right for placement but is NOT the model `swing_sim` scores against — that
+    one accounts for reset timing and swing angles. Two rounds of hand-rolled parity
+    repair here got 13 violations down to 5 and cost 380 notes in skips;
+    `postprocess.fix_parity` has flow-aware look-ahead, is already validated, and is
+    what the ML pipeline uses. Reuse beats rebuild.
+    """
+    from beatsaber_automapper.generation.postprocess import fix_parity
+    return fix_parity(bm)
+
+
 def cmd_check(a) -> int:
     s = load_session(a.name)
     notes = read_notes(a.name)
@@ -445,7 +517,12 @@ def cmd_check(a) -> int:
         return 0
     from beatsaber_automapper.evaluation import swing_sim as ss
     bm = _bm_from_notes(s, notes)
+    raw = ss.simulate(bm, bpm=s["bpm"]).violations
+    bm = _fix_parity(bm)
     card = ss.simulate(bm, bpm=s["bpm"])
+    if raw and not card.violations:
+        print(f"({raw} raw violation(s) repaired by postprocess.fix_parity — the "
+              f"export applies the same fix)")
     times = sorted(n["t"] for n in notes)
     doubles = sum(1 for i in range(1, len(times)) if abs(times[i] - times[i - 1]) < 1e-4)
     print(f"notes {len(notes)}   swings {card.n_swings}   "
@@ -468,7 +545,7 @@ def cmd_export(a) -> int:
         print("nothing to export", file=sys.stderr)
         return 2
     from beatsaber_automapper.generation.export import package_level
-    bm = _bm_from_notes(s, notes)
+    bm = _fix_parity(_bm_from_notes(s, notes))
     out = pathlib.Path(a.out).resolve()
     # ⚠️The map is written on the FITTED grid, whose downbeat is `phase` seconds after
     # t=0. Beat Saber applies `song_time_offset` to the audio, so the offset must be
@@ -513,6 +590,14 @@ def main() -> int:
     p.add_argument("--every", type=int, default=1, help="thin: keep every Nth onset")
     p.add_argument("--max-per-bar", type=int, default=0, help="cap notes per bar")
     p.add_argument("--wide", action="store_true", help="use both columns per hand")
+    p.add_argument("--doubles", action="store_true",
+                   help="both hands on bar downbeats where stems agree; how a human "
+                        "adds density without speeding either hand up")
+    p.add_argument("--accent-slots", default="0,8",
+                   help="slots that count as a strong beat for doubles (0,8 = beats "
+                        "1 and 3). Downbeats alone are too few to reach a human rate.")
+    p.add_argument("--doubles-stems", type=int, default=2,
+                   help="how many stems must agree for a downbeat to count as an accent")
     p.add_argument("--min-gap-ms", type=float, default=150.0,
                    help="floor on the gap between two swings of the SAME hand; "
                         "150 = the human cohort p5 (n=31723 gaps). 0 disables.")

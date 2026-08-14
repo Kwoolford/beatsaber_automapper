@@ -55,3 +55,40 @@ Nothing yet — the map has not been played. That is the whole point of building
 `docs/eval_suite_v2.md`'s axes have been measured to not track Kyle's ear (M-F ranks
 the map he called *"really empty"* second-best), so a hand-built map that scores well
 proves only that it scores well. **Installed as `AUTO Hunger [AGENT]` for his verdict.**
+
+## v2 — accents, and the value of not reinventing a solved problem
+
+| | notes | nps | precision | ebpm | travel | doubles | parity |
+|---|---|---|---|---|---|---|---|
+| **AGENT v2** | 1261 | 4.66 | 0.984 | **376** | 4.60 | 0.034 | **0** |
+| ML baseline | 1328 | 4.96 | 0.960 | 376 | 5.94 | 0.391 | 0 |
+| HUMAN | 2254 | 8.35 | 0.956 | 376 | 12.53 | 0.146 | 0 |
+
+**Doubles**, added because humans use them to buy density *without* speeding either
+hand up — `hands_x_downbeat` is human 0.182 against our 0.036, and the note there was
+that *"we spend doubles on 2/3 of all events so they mark nothing"*.
+★**Order turned out to matter more than the rule**: in a dense alternating pass both
+hands are always busy, so a double can never be placed — bolting them onto a finished
+pass gave 0.016. Running a **sparse accent pass first and filling around it** gives
+0.034. ⚠️Still 4× below the human 0.146, because only strong beats (slots 0 and 8) with
+≥2 stems agreeing qualify; bar downbeats alone capped it at ~3 doubles in 24 bars.
+
+### 🔴 Two rounds of hand-rolled parity repair, and the lesson
+Adding doubles introduced **13 parity violations** — caught by `check`, before export,
+which is what it is for. I fixed the "insert between two existing notes" case for
+parity the same way I had for the gap floor… and got 13 → **5**, at a cost of **380
+notes** in skips.
+★**Then I stopped and used the parity fixer that already exists.**
+`postprocess.fix_parity` has flow-aware look-ahead and is the model `swing_sim`
+actually scores against; running it on check/export gives **0 violations and 0 resets**
+(from 381) with **no** notes lost. The hand-rolled skipping was then deleted — it was
+solving a solved problem and paying for it in notes.
+⇒**Keep `auto`'s alternation as a starting guess and let the validated component own
+correctness.** The gap floor stays hand-rolled because it is about *timing*, which
+`fix_parity` does not address.
+
+### Still open, both measured
+- **travel 4.60 vs human 12.53** — `auto` uses two columns and two rows per hand, so
+  the hands barely move. The human map is far more physical.
+- **doubles 0.034 vs 0.146** — needs a broader accent model than "strong beat with
+  stem agreement".
