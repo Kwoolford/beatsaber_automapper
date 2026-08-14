@@ -1992,6 +1992,33 @@ def generate_v7_level(
         except Exception as exc:  # noqa: BLE001
             logger.warning("BEAT_TEMPO_FIT failed (%s) — keeping detected bpm", exc)
 
+    # ---- 2b. GRID SUBDIVISION, chosen from the FITTED tempo (BEAT_SUBDIV_AUTO) ----
+    # On songs whose tempo is detected an octave low, our minimum swing gap is one
+    # grid slot and that slot is twice as long in real time, so the map is capped at
+    # exactly 0.500x the human's burst rate (28 of 149 songs, p10 = 0.500). Doubling
+    # the subdivision restores the training-time slot exactly and lifts the ceiling
+    # (0.500 -> 1.000, n=28) — but it WRECKS correctly-detected songs (1.000 -> 2.000,
+    # onset precision -0.127), so it must only fire where the tempo really is low.
+    #
+    # ★It is decided HERE, after BEAT_TEMPO_FIT, because the post-fit bpm is a far
+    # better discriminator than anything available earlier: at bpm < 95 it catches 15
+    # of 28 with ZERO false positives, where the raw detection costs 5 and a stem-free
+    # refit costs 2. `fit_tempo` prefers the highest near-best metrical level, i.e. it
+    # has already applied an octave correction — that is exactly the property needed.
+    # ⚠️Safe because the subdivision is first *used* just below, at pool_to_beat_grid.
+    from beatsaber_automapper.data import mert_encoder as _me
+    _me.reset_beat_subdiv()          # never inherit another song's grid in-process
+    if os.environ.get("BEAT_SUBDIV_AUTO", "0") == "1" and bpm is not None:
+        _thr = float(os.environ.get("BEAT_SUBDIV_AUTO_BPM", "95"))
+        if 0 < float(bpm) < _thr:
+            _me.set_beat_subdiv(_me.BEAT_SUBDIV * 2)
+            logger.info("BEAT_SUBDIV_AUTO: fitted bpm %.2f < %.0f — subdiv %d "
+                        "(grid slot %.1f ms, restoring the training-time resolution)",
+                        float(bpm), _thr, _me.BEAT_SUBDIV,
+                        60.0 / float(bpm) / _me.BEAT_SUBDIV * 1000.0)
+    # Rebind the local: it was imported at the top of this function, before the fit.
+    BEAT_SUBDIV = _me.BEAT_SUBDIV
+
     # ---- 3. MERT feature extraction ----
     logger.info("Extracting MERT features …")
     drum_mert = mert_extract(stems["drums"], DEMUCS_SR, device=str(device_obj))
@@ -2908,7 +2935,10 @@ def generate_v7_level(
     logger.info("Running Stage 2 LayoutPhraseModel …")
 
     from beatsaber_automapper.data.swing_tokenizer import _SwingEvent
-    from beatsaber_automapper.data.beat_grid import BEAT_SUBDIV as _BEAT_SUBDIV
+    # Read from mert_encoder, NOT beat_grid: `beat_grid` binds the value at import
+    # time, so it would keep the process default after `set_beat_subdiv`. Importing
+    # inside the function re-reads the live value on every call.
+    from beatsaber_automapper.data.mert_encoder import BEAT_SUBDIV as _BEAT_SUBDIV
 
     all_events: list[_SwingEvent] = []
     max_phrase_slots_inf  = layout_module.model.max_phrase_slots
@@ -3148,7 +3178,10 @@ def _decode_phrase_tokens(
         HAND_LEFT, HAND_RIGHT,
     )
     from beatsaber_automapper.data.layout_dataset import HAND_LEFT_IDX
-    from beatsaber_automapper.data.beat_grid import BEAT_SUBDIV
+    # From mert_encoder, not beat_grid — see the note at the other read site. This one
+    # converts slot index -> beat position, so a stale value here would silently place
+    # every note at the wrong time rather than raise.
+    from beatsaber_automapper.data.mert_encoder import BEAT_SUBDIV
 
     events: list[_SwingEvent] = []
     i = 0

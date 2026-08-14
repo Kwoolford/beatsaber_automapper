@@ -43,6 +43,37 @@ MERT_HZ = 75          # output frame rate (frames per second)
 # ⚠️Raising this on a CORRECTLY detected song hands the model a finer grid than it was
 # ever trained on. Only use it where the tempo is believed to be an octave error.
 BEAT_SUBDIV = int(os.environ.get("BEAT_SUBDIV", "4"))
+_BEAT_SUBDIV_DEFAULT = BEAT_SUBDIV
+
+
+def set_beat_subdiv(n: int) -> int:
+    """Set the grid subdivision for the current process. Returns the value set.
+
+    ★**This module is the single source of truth.** `beat_grid` re-exports it and
+    `generate.py` reads it from here, because the value has to be chosen *after*
+    `BEAT_TEMPO_FIT` — the post-fit bpm separates half-tempo songs from correct ones
+    far better than anything available before the fit (0 false positives at bpm<95 vs
+    5 on the raw detection), and `fit_tempo` is where the octave correction actually
+    happens.
+
+    ⚠️**Mutating a module global is process state.** Generation normally runs one song
+    per process (`build_wide_cohort.py` spawns a fresh `generate.py` per map), but any
+    caller that generates twice in one process MUST call `reset_beat_subdiv()` first
+    or the second song inherits the first song's grid. `generate_v7_level` does this.
+    """
+    n = int(n)
+    if n < 1 or n > 16:
+        raise ValueError(f"BEAT_SUBDIV must be in 1..16, got {n}")
+    global BEAT_SUBDIV
+    BEAT_SUBDIV = n
+    return BEAT_SUBDIV
+
+
+def reset_beat_subdiv() -> int:
+    """Restore the process default (the env value, or 4)."""
+    global BEAT_SUBDIV
+    BEAT_SUBDIV = _BEAT_SUBDIV_DEFAULT
+    return BEAT_SUBDIV
 
 
 @lru_cache(maxsize=1)
