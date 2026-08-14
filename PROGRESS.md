@@ -7,6 +7,60 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 🔬 2026-08-14 — THE 2:3 TEMPO ERRORS ARE MADE BY THE SAME RULE THAT FIXES THE HALF-TEMPO ONES
+The residual alignment failures are concentrated in `three_halves` (66.7 % failing, 4.6× base), so
+the question is where a 3/2 misread comes from. It comes from our own tie-break.
+
+`tempo.fit_tempo` scores `RATIOS = (1.0, 4/3, 3/2, 2.0, 3.0)` — **upward only** — keeps everything
+within `R_NEAR = 0.9` of the best comb score, and then takes **`max(near, key=bpm)`**: the highest
+tempo among near-ties. Probing the candidates on the `three_halves` songs shows **two distinct
+failure modes**, and only one of them is about scoring:
+
+| song | true (×1.0) R | chosen (×1.5) R | mode |
+|---|---|---|---|
+| `236e7` | 0.0759 | **0.1319** | the comb genuinely prefers 3/2 |
+| `2b5db` | 0.1230 | **0.3124** | " |
+| `2a03c` | 0.1624 | **0.1900** | " |
+| `2cea6` | 0.1395 | **0.1797** | " |
+| **`271de`** | **0.2215** | 0.2011 | 🔴**the TRUE tempo WON on score and the tie-break overrode it** |
+| **`33d5c`** | **0.1174** | 0.1104 | 🔴 " |
+
+★**On `271de` and `33d5c` the correct answer already had the highest score** and was discarded only
+because the 3/2 candidate landed inside the 10 % `R_NEAR` band and the rule prefers the higher bpm.
+That is a self-inflicted error, not a limit of the signal.
+
+⚠️**But the tie-break is not simply wrong** — on `21836` librosa returns 79.5 bpm and the ×2 candidate
+(159.0 = the human's) wins at R = 0.2863, i.e. the same rule performs the octave correction that makes
+the post-fit bpm such a good half-tempo detector. **It both fixes and causes tempo errors**, which is
+why it survived: nobody had counted the two effects against each other.
+### 🔴 COUNTED — the tie-break is NOT the problem. Right mechanism, wrong magnitude.
+Scored against the human-declared bpm (within 3 %), n=149:
+
+| rule | correct | rate |
+|---|---|---|
+| **current** `max(near_0.90, key=bpm)` | 105 | **70.5 %** |
+| plain `argmax(R)` | 106 | 71.1 % |
+| `max(near_0.95 / 0.97 / 0.99, key=bpm)` | 106 | 71.1 % |
+
+`argmax(R)` **fixes exactly the 2 songs predicted** (`271de`, `33d5c`, both `three_halves`) and
+**breaks 1** (a `same` song). ⇒**Net +1 of 149 — noise-level**, and nowhere near enough to justify a
+one-line change sitting upstream of the grid, the slots and every note time.
+
+★**My hypothesis was right about the mechanism and wrong about the size**: the tie-break really does
+discard correct answers, on precisely the songs the probe named — but that is **2 of the 6**
+`three_halves` failures. The other 4 are cases where the comb score *genuinely prefers* the 3/2 grid,
+so the defect lives in the **scoring**, not the selection among candidates.
+⇒**The 2:3 problem needs a better tempo model, the same conclusion the octave-detection thread
+reached** — three statistics and a classifier there, a tie-break here, all landing on "the cheap fixes
+are exhausted".
+★**Headline worth keeping**: **our tempo is right on 70.5 % of songs** measured against the mapper's
+own declared bpm at n=149 — confirming `bpm_octave_probe.py`'s "30 % wrong" from n=23 on a cohort 6×
+larger. **Tempo is the largest single upstream defect this project has quantified**, and after tonight
+it is also the best-understood: half-tempo is handled (`half` is now the best-performing group), 2:3
+is not.
+
+---
+
 ## ✅✅ 2026-08-14 — `BEAT_SUBDIV_AUTO` AT n=149: **CLEARS ITS DoD, with a named and mechanistic cost**
 The deployable lever — no oracle, the generator decides from its own fitted tempo.
 

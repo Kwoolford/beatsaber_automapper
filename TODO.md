@@ -74,6 +74,19 @@ through the song, so no global shift can rescue it — exactly the distinction `
 draws, which is why the labels were split that way in the first place.
 ⚠️The other ~11 failures are correct-tempo songs and remain unexplained; that part *is* C1 territory.
 
+🔴**AND THE CHEAP FIX THERE IS ALSO CLOSED (2026-08-14).** `fit_tempo` keeps candidates within
+`R_NEAR=0.9` and takes `max(near, key=bpm)`. That rule **does** discard correct answers — on `271de`
+and `33d5c` the true tempo had the **highest** comb score and lost to the 3/2 candidate on the
+"prefer higher bpm" tie-break. But counted at n=149: current **70.5 %** correct vs `argmax(R)`
+**71.1 %** — it fixes those 2 and breaks 1 ⇒**net +1 song, noise-level**, not worth a change upstream
+of the grid, the slots and every note time. ★**Right mechanism, wrong magnitude**: 4 of the 6
+`three_halves` failures are cases where the comb score *genuinely prefers* the 3/2 grid, so the defect
+is in the **scoring**, not the tie-break.
+★**HEADLINE**: our tempo is right on **70.5 %** of songs vs the mapper's declared bpm at n=149,
+confirming `bpm_octave_probe.py`'s "30 % wrong" on a 6× larger cohort. **Tempo is the biggest
+quantified upstream defect**, and every cheap route into it is now closed (3 statistics, a
+cross-validated classifier, and this tie-break) ⇒**what remains is a real tempo model.**
+
 ### ✅ THE CROSSOVER GUARD IS BUILT (the P0 TASK below is done)
 `flow.crossover_guard` + `scripts/calibrate_crossover.py`. Human band, n=200 strict Expert:
 median **0.187**, p10 0.105, p90 0.275. Baseline **FAILS** (0.0000, 149/149 zeros); `xsep` **PASSES**
