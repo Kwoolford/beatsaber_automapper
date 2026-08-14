@@ -245,39 +245,41 @@ metronome is identical everywhere so it scores ~0 by construction.
 ⚠️`follow_mean`/`follow_best`/`follow_drums` correlate 0.65–0.84 ⇒ **ONE measurement**; report one
 rhythm-fidelity finding, not three. Run `audit_axis_redundancy.py` whenever an axis is added.
 
-## ✅ M-E IS DONE AND WAITING ON KYLE — the dose cap is built and validated *(details in PROGRESS.md)*
-Candidate: **`BEAT_STRUCTURE_REUSE=diag_full:0.70:4:1.5:2.0:4:0.20`**, default OFF.
-Replicated at 2 seeds, degenerate-controlled, dose-capped, deployed as `[AFTER CAPPED]`.
-★**Dose is ONE DIAL** — gain, playability damage and loss of variety all scale together, smoothly.
-**Where to sit on it is his taste call, not the suite's.** Capped: ~19–37 % of the structural gap,
-flow 0.05 over its bar, diversity human-normal. Uncapped: ~2× the gain, ~2× the damage, and a
-visible checkerboard on repetitive songs.
-**What to do with his answer**: *"repetition reads INTENTIONAL"* ⇒ consider raising the cap toward
-human parity (share ~0.25–0.30). *"reads LAZY"* ⇒ the next capability is **variation-on-repeat**
-(copy the section, then vary it), which is a different and easier problem than the one solved here.
-*"can't tell"* ⇒ leave it OFF; a lever nobody can hear is not worth its flow/idiom cost.
+## 📦📦 AWAITING KYLE'S EAR — **TWO review sets installed, 32 maps.** Nothing is promoted.
 
-**Two standing facts from that work** *(full outcomes in PROGRESS.md)*: the **✅-but-unshipped lever
-sweep is CLOSED** — exactly two existed, `COLOR_SEP_MODE=extreme` (candidate) and
-`LAYOUT_TRAVEL_PENALTY=1` (🔴REJECTED, flow 0.37→0.49, superseded by `BEAT_REACH`) — and **keep
-`make_periodic_degenerate.py`**, the only degenerate in the battery aimed at a *structural* lever.
+### Set A — structure reuse + crossover (2026-08-11), his 4 standing songs
+📖[`docs/review_2026-08-11.md`](docs/review_2026-08-11.md) · `AUTO <song> [BEFORE] / [CROSSOVER] /
+[AFTER CAPPED] / [BOTH] / [AFTER]`
+★**Play `[BEFORE]` vs `[BOTH]`.** Candidate: `BEAT_STRUCTURE_REUSE=diag_full:0.70:4:1.5:2.0:4:0.20`
+(default OFF) — replicated at 2 seeds, degenerate-controlled, dose-capped.
+★**Dose is ONE DIAL**: gain, playability damage and loss of variety scale together smoothly, so where
+to sit on it is **his taste call, not the suite's**. ⚠️`[AFTER]` is the uncapped version, kept only so
+he can hear over-repetition if curious.
+**① Does the repetition read INTENTIONAL or LAZY?** *Intentional* ⇒ raise the cap toward human parity
+(share ~0.25–0.30). *Lazy* ⇒ next capability is **variation-on-repeat** (copy, then vary) — a
+different and easier problem. *Can't tell* ⇒ leave OFF; not worth its flow/idiom cost.
+**② Do the crossovers play better?** A straight quality question.
 
-## 📦 AWAITING KYLE'S EAR — 20 maps installed, 5 variants × his 4 standing songs
-📖**Full brief (leads with what to distrust): [`docs/review_2026-08-11.md`](docs/review_2026-08-11.md)**
-Installed as `AUTO <song> [BEFORE] / [CROSSOVER] / [AFTER CAPPED] / [BOTH] / [AFTER]`.
-★**Tell him: play `[BEFORE]` vs `[BOTH]`.** Second priority `[CROSSOVER]` — the larger single change,
-and it affects every song where structure reuse only bites where the music repeats.
-⚠️`[AFTER]` is the **uncapped** structure lever, kept installed only so he can hear what
-over-repetition sounds like if curious. On Hunger / Fallen Kingdom `[AFTER]` and `[AFTER CAPPED]` are
-byte-identical (already under the cap).
+### Set B — grid phase (2026-08-14), 6 corpus songs
+📖[`docs/review_2026-08-14.md`](docs/review_2026-08-14.md) · `AUTO <song> [BEFORE] / [PHASE]`
+🔴**His 4 standing songs are NOT in this set and that is a finding, not an omission**: the lever
+declined to touch all four (best gains +0.0099…+0.0166, under `MIN_GAIN`) and the maps came out
+**byte-identical**. ⇒**The defect it fixes does not occur on the songs he reviews**, so the only way
+to hear it is on unfamiliar songs. ★**Lead with BEcause** (Dreamcatcher) — the largest correction in
+the cohort (+80 ms, precision 0.456 → 0.900).
+**③ Does `[PHASE]` sit on the beat better than `[BEFORE]`?** ★**"Can't tell" is a real answer** — it
+would mean a measured 0.62 → 0.35 axis improvement is inaudible, which is worth knowing about the axis.
 
-**THE QUESTIONS FOR HIM** (not "is it better"):
-1. **Does the repetition read as INTENTIONAL or LAZY?** We copy a chorus and never vary it; a mapper
-   copies and then varies. *Lazy* ⇒ next capability is **variation-on-repeat**. *Intentional* ⇒ raise
-   the cap toward human parity (share ~0.25–0.30). *Can't tell* ⇒ leave OFF; not worth its flow cost.
-2. **Do the crossovers make it play better?** That one is a straight quality question.
-3. Still open from 2026-08-04: **is Fallen Kingdom empty vs what our model used to do, or vs what the
-   song wants?**
+**④ Still open from 2026-08-04**: is Fallen Kingdom empty vs what our model used to do, or vs what the
+song wants?
+
+⚠️**Before building any future review set: check the lever actually CHANGES those 4 maps.** They are a
+fixed, comparatively well-behaved sample, so a lever aimed at a defect they lack is invisible there.
+
+**Two standing facts** *(outcomes in PROGRESS.md)*: the **✅-but-unshipped lever sweep is CLOSED** —
+exactly two existed, `COLOR_SEP_MODE=extreme` (candidate) and `LAYOUT_TRAVEL_PENALTY=1` (🔴REJECTED,
+flow 0.37→0.49, superseded by `BEAT_REACH`) — and **keep `make_periodic_degenerate.py`**, the only
+degenerate in the battery aimed at a *structural* lever.
 
 ## 🔵 P2 — CARRIED FORWARD
 
@@ -442,31 +444,18 @@ the constant is env-read today. ⚠️Also keep `beats_per_phrase = 64 // subdiv
 **DoD**: on the 149-song cohort, the `half` group's ebpm ratio moves off 0.500 with **zero** `same`
 songs regressing on onset precision.
 
-**Two candidate fixes, and ★the second is much cheaper than it looks:**
-1. **Fix tempo-octave detection** (the "real" fix; `bpm_octave_probe.py`'s two heuristics both made it
-   WORSE in 2026-07-27 — onset-energy balance does not discriminate metrical level, so this needs a
-   tempogram-ratio method or a small tempo model, not another heuristic).
-2. ★★**Double `BEAT_SUBDIV` on songs detected at half tempo — and it should need NO RETRAIN.**
-   Checked 2026-08-13: ⚠️`BEAT_GRID_SUBDIV` is a **red herring** — it is a *quantisation* knob
-   (`generate.py:457`) and genuinely does nothing to grid resolution. The real constant is
-   `BEAT_SUBDIV = 4` in `data/beat_grid.py` (must match `mert_encoder.BEAT_SUBDIV`).
-   ★**THE ARGUMENT**: the model's input is a TEMPORAL grid, and at half tempo `subdiv=8` restores the
-   training-time slot **exactly** — on a 174 bpm song, true-tempo/subdiv-4 = **86.2 ms** and
-   half-tempo/subdiv-8 = **86.2 ms**. `n_slots` is unchanged too (total_beats halves, subdiv doubles),
-   and Stage-1 is a transformer over the slot axis so the length is free. The Δt token vocabulary is
-   in 1/subdiv units, so its wall-clock meaning is restored as well.
-   ⚠️**What it does NOT fix, stated plainly**: beat-keyed windows. `beats_per_phrase=16` is 11.0 s at
-   half tempo vs 5.5 s at true tempo, and doubling subdiv leaves that untouched. **That is already
-   true today and is not made worse** — this is a targeted fix for the measured ceiling, not for the
-   octave error in general.
-   **Next step**: make `BEAT_SUBDIV` overridable, gate it on a half-tempo suspicion, generate the 28
-   `half` songs both ways and read the DoD below. ⚠️Do NOT edit `beat_grid.py` or `generate.py` while
-   a cohort build is running — `build_wide_cohort.py` spawns a fresh `generate.py` per map.
-
-**DoD**: the `half` group's `ebpm_burst` ratio moves off 0.500 toward the `same` group's 1.000, with
-no regression on the `same` group. ★**A hard, non-statistical acceptance test** — rare on this list.
-⚠️Do NOT read this as "make maps faster": `ebpm_burst` is a CEILING measurement, and W3 says we are
-already too intense where we *can* be fast. The defect is the ceiling, not the current level.
+**Facts worth keeping from that work** *(full account in PROGRESS.md)*:
+- ⚠️`BEAT_GRID_SUBDIV` is a **red herring** — a *quantisation* knob (`generate.py:457`) that does
+  nothing to grid resolution. The real constant is `BEAT_SUBDIV`, now env-read from **one** place
+  (`beat_grid` imports it from `mert_encoder`; they must never disagree).
+- ★At half tempo `subdiv=8` restores the training-time slot **exactly** (174 bpm/subdiv-4 = 86.2 ms =
+  87 bpm/subdiv-8) and, paired with `beats_per_phrase = 64 // subdiv`, the phrase's wall-clock length
+  too. That pairing is **required**, not cosmetic: Stage-2's `slot_emb` is sized 97 and a literal
+  `beats_per_phrase=16` at subdiv 8 indexes off the end (CUDA device-side assert).
+- ⚠️Do NOT edit `beat_grid.py` / `generate.py` while a cohort build runs — `build_wide_cohort.py`
+  spawns a fresh `generate.py` per map, so an edit splits the arm.
+- ⚠️Do NOT read this as "make maps faster": `ebpm_burst` is a **CEILING** measurement and W3 says we
+  are already too intense where we *can* be fast. **The defect is the ceiling, not the level.**
 
 ## 🔬 THE SENSITIVITY BATTERY (new 2026-08-11) — `scripts/audit_sensitivity.py`
 **A different question from every audit we had.** `audit_eval_suite` / `audit_masterpiece` are
