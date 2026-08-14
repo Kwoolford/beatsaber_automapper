@@ -35,16 +35,40 @@ hand-designed statistics (0.114, 0.350, and an outright regression in 2026-07-27
 ⇒**T = 95 is free** — 15 of the 28 ceilings lifted and **not one song harmed**. T = 100 buys 5 more
 for 2 false positives.
 
-🔴🔴**THE NUMBERS ABOVE ARE SWEPT ON THE WRONG QUANTITY — CORRECTION IN FLIGHT.** They use the bpm
-written into our *generated maps*, which is **post-`BEAT_TEMPO_FIT`**. A production detector can only
-see the **raw `detect_bpm` output**, before the fit, and the two disagree enough to flip songs:
-`21836` is correct-tempo but raw-detects at **79.5 bpm**, a false positive the post-fit sweep never
-showed. ★**This is the same "validated on a different input than production" error that refuted
-`BEAT_GRID_PHASE=1` earlier the same night** — this time caught *before* it cost a run, by testing the
-lever's own output against the songs it was calibrated on rather than trusting the calibration table.
-⇒**Re-sweeping on raw `detect_bpm` across the 149-song cohort; the threshold and both operating points
-must be re-derived before anything is shipped.** The qualitative finding (a bpm threshold beats the
-tempogram and all three statistics) is not in doubt — the *numbers* are.
+🔴🔴**THOSE NUMBERS ARE SWEPT ON THE WRONG QUANTITY.** They use the bpm written into our *generated
+maps* — which is **post-`BEAT_TEMPO_FIT`**. A detector running before generation sees only the **raw
+`detect_bpm` output**. ★**Same "validated on a different input than production" error that refuted
+`BEAT_GRID_PHASE=1` earlier the same night** — caught this time *before* it cost a run, by testing
+`pick_subdiv`'s own output against the songs it was calibrated on instead of trusting the table.
+
+### ✅ RE-SWEPT ON RAW `detect_bpm` (n=133) — and the correction changes the decision
+
+| | `half` min | `same` min | overlap |
+|---|---|---|---|
+| **post-fit bpm** | 71.0 | **96.0** | narrow |
+| **raw bpm** | 70.8 | **77.1** | wide |
+
+| threshold | TPR | FPR | caught | false positives | *(post-fit was)* |
+|---|---|---|---|---|---|
+| 95 | 54 % | 5 % | 15 | **5** | *0* |
+| 100 | 71 % | 9 % | 20 | **9** | *2* |
+| 110 | 93 % | 17 % | 26 | 18 | — |
+| best sep | — | — | — | 0.757 @ T=110 | *0.848 @ T=120* |
+
+🔴**The free operating point is GONE.** On raw bpm the largest zero-false-positive threshold catches
+**1 of 28**; on post-fit bpm it caught 15 with no harm. At T=100 the trade is 20 songs gaining the
+ceiling against **9 working songs losing 0.127 precision** — roughly 2:1, and the harm lands on songs
+that were fine, which is exactly the asymmetry Kyle's *"tread carefully, isolated and tactical"* rule
+exists to protect.
+
+★★**THE CONCLUSION NAMES THE BUILD: decide the subdivision AFTER `BEAT_TEMPO_FIT`, not before.** The
+tempo fit is what makes this detector work — it pulls the `same` group's floor from 77.1 up to 96.0
+and restores a free operating point. And it is *feasible*: the subdivision is first used at
+`pool_to_beat_grid`, which already runs **after** the fit. The only obstacle is that `BEAT_SUBDIV` is
+read from the environment at import time (deliberately, so `beat_grid` and `mert_encoder` cannot
+disagree), so the value would have to be threaded through as a parameter instead.
+⇒**Do not ship `pick_subdiv.py` as a pre-pass.** Its measured trade is not good enough, and the
+version that would be good enough is a different, well-specified change.
 
 ★**WHY IT WORKS, AND ITS LIMIT.** `librosa.beat.beat_track` defaults to `start_bpm=120`, a prior that
 pulls estimates toward 120; when it errs it errs **low** (halving), so octave errors land in a band

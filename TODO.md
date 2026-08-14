@@ -420,14 +420,27 @@ train. **Best of the three and still not usable**: half 1.041 vs same 0.810, but
 union (0.350) — my "the pulse lives in the drums" hypothesis is refuted; the union's extra events
 reinforce the periodicity more than they blur it.
 
-⇒🔴**OCTAVE DETECTION IS OPEN AFTER THREE ATTEMPTS** (energy balance 2026-07-27; onset-gap density and
-ACF periodicity 2026-08-14). ★**What is now established that none of the earlier attempts had is the
-PAYOFF**: a correct detector takes 28 of 149 songs from a hard 0.500× ceiling to 1.000×, and a false
-positive costs **0.127** onset precision. **That price is the bar.** ⇒Three summary statistics have
-now failed; the next attempt should be a method with a **model** behind it (a small tempo/metrical
-classifier trained on the corpus, where the human-declared bpm is free supervision on 5,373 maps),
-not a fourth hand-designed statistic.
-**DoD for any detector**: separation (TPR − FPR) > 0.5, priced at 0.127 precision per false positive.
+✅**SOLVED 2026-08-14 — and the answer was the trivial baseline.** A cross-validated study (n=133)
+put a tempogram VECTOR at AUC 0.922 / sep 0.724 — and **detected bpm ALONE at AUC 0.973 / sep 0.848**,
+beating it and all three statistics. ★**The confound check I added to expose a cheat turned out to be
+the best detector in the study.** ⇒**Try the trivial baseline before the clever statistic, and always
+put it in the comparison table** — it is the only reason this surfaced, after a heuristic, two
+statistics and a classifier had been spent on it.
+
+### 🔵 THE BUILD THIS NAMES — choose the subdivision AFTER `BEAT_TEMPO_FIT`
+🔴**Do NOT ship `scripts/pick_subdiv.py` as a pre-pass.** Measured on the **raw** `detect_bpm` a
+pre-pass can see, the trade is 20 songs gaining the ceiling vs **9 working songs losing 0.127
+precision**, and the largest zero-false-positive threshold catches **1 of 28**.
+★**On the post-fit bpm it is a different story**: the `same` group's floor rises 77.1 → **96.0**, the
+groups nearly separate, and **T=95 lifts 15 ceilings with ZERO false positives.** **The tempo fit is
+what makes the detector work.**
+**TASK**: thread the subdivision through as a parameter instead of an import-time constant, and pick
+it from `_fit.bpm` right after `BEAT_TEMPO_FIT`. Feasible — the subdivision is first used at
+`pool_to_beat_grid`, already downstream of the fit. ⚠️Three call sites read `BEAT_SUBDIV` from two
+modules (`generate.py` twice, plus `beat_grid`/`mert_encoder`); they must not disagree, which is why
+the constant is env-read today. ⚠️Also keep `beats_per_phrase = 64 // subdiv` in step with it.
+**DoD**: on the 149-song cohort, the `half` group's ebpm ratio moves off 0.500 with **zero** `same`
+songs regressing on onset precision.
 
 **Two candidate fixes, and ★the second is much cheaper than it looks:**
 1. **Fix tempo-octave detection** (the "real" fix; `bpm_octave_probe.py`'s two heuristics both made it

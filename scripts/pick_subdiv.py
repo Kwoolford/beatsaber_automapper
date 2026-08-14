@@ -10,14 +10,29 @@ really is an octave low.
 
 ★**The detector is a threshold on the detected bpm itself**, which beat three
 hand-designed statistics and a cross-validated tempogram classifier (AUC 0.973 vs
-0.922; separations 0.848 vs 0.724, 0.350, 0.114). On the 149-song wide cohort the
-groups barely overlap — `half` tops out at 117.5 bpm, `same` bottoms out at 96.0:
+0.922; separations 0.848 vs 0.724, 0.350, 0.114).
 
-| threshold | catches | false positives |
-|---|---|---|
-| 95 | 15/28 | **0** |
-| **100 (default)** | 20/28 | 2 of 105 |
-| 120 | 28/28 | 16 of 105 |
+🔴🔴**BUT MEASURED ON THE RAW BPM THIS SCRIPT CAN SEE, THE TRADE IS NOT GOOD ENOUGH —
+DO NOT SHIP THIS AS A PRE-PASS.** n=133:
+
+| threshold | catches | false positives | *(on post-fit bpm)* |
+|---|---|---|---|
+| 95 | 15/28 | **5** | *0* |
+| 100 | 20/28 | **9** | *2* |
+| 110 | 26/28 | 18 | — |
+
+The largest zero-false-positive threshold catches **1 of 28**. At T=100 the trade is
+20 songs gaining the ceiling against **9 working songs losing 0.127 precision**, and
+the harm lands on songs that were fine.
+
+★**WHY, AND WHAT TO BUILD INSTEAD**: on the **post-`BEAT_TEMPO_FIT`** bpm the groups
+nearly separate (`same` floor rises 77.1 → 96.0) and T=95 is free. **The tempo fit is
+what makes this detector work.** So the subdivision should be chosen *after* the fit,
+inside the generator — which is feasible, since the subdivision is first used at
+`pool_to_beat_grid`, already downstream of the fit. The obstacle is only that
+`BEAT_SUBDIV` is read at import time (so `beat_grid` and `mert_encoder` cannot
+disagree); the value would have to be threaded through as a parameter instead.
+**This file is kept as the measurement that establishes that, not as a shipping path.**
 
 ⚠️**This is a heuristic about OUR DETECTOR, not a metrical analysis.** `librosa`'s
 `start_bpm=120` prior means octave errors land *low*, which is the whole reason a flat
