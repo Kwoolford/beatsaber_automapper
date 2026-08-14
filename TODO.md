@@ -24,7 +24,20 @@ this file had reached 4,076 lines.
 against the same onsets the axis scores, so the gain is partly circular; the non-circular signals
 (zero regressions, scatter 10.4 → 9.7, we approach but never exceed the human) are reassuring, not
 conclusive. **Per the standing rule, the "why not" is: this needs his ear before a default flips.**
-**NEXT**: deploy `[PHASE]` into a review set on the 4 standing songs, alongside `[BEFORE]`.
+
+🔴🔴**AND THE STANDING SONGSET CANNOT TEST IT.** Built all four first, as always: the lever **declined
+to touch every one of them** (best gains +0.0099 / +0.0121 / +0.0166 / +0.0081, all under `MIN_GAIN`)
+and the maps came out **byte-identical** — same `.dat` SHA. **Removed them rather than spend his ear
+on a pair that cannot differ.** ⇒**The defect this lever fixes does not occur on the songs he reviews**,
+so the only way to hear it is on unfamiliar corpus songs. That trade is his to accept.
+📦**Deployed instead**: `outputs/kyle_review_2026-08-14/` + [`docs/review_2026-08-14.md`](docs/review_2026-08-14.md)
+— 6 real songs × `[BEFORE]`/`[PHASE]`, led by **BEcause** (Dreamcatcher), the largest single fix in
+the cohort (+80 ms, 0.456 → 0.900). ★**The question is narrow**: does `[PHASE]` sit on the beat
+better? **"Can't tell" is a real answer** — it would mean a 0.62 → 0.35 axis move is inaudible, which
+is worth knowing about the axis.
+⚠️**This is a new instance of the standing-songset limitation**: the 4 songs are a fixed, *well-behaved*
+sample, so a lever targeting a defect they do not have is invisible there. Check "does the lever
+change these maps at all" **before** building a review set on them.
 
 ⚠️**Two things this arm taught that outlive it:**
 1. 🔴**`handrole` is NOT translation-invariant** — it bins on `int(n.beat // WINDOW_BEATS)`, anchored
