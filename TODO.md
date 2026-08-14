@@ -391,6 +391,34 @@ true tempo makes that slot 2× the human's in real time (`20fc6` 211.3 ms vs 105
 lever, no selection change and no better probability field can reach it** — this is upstream of all of
 them, which makes it unlike almost everything else on this list.
 
+## ✅ MEASURED 2026-08-14 — SUBDIV 8 LIFTS IT EXACTLY. **THE BOTTLENECK IS NOW DETECTION.**
+| | **HALF** (n=28, tempo wrong) | **SAME** (n=25, tempo right) |
+|---|---|---|
+| ebpm ratio vs human | 0.500 → **1.000** | 1.000 → **2.000** |
+| onset precision | 0.9172 → **0.9189** | 0.9077 → **0.7812** |
+| notes ÷ human | 0.451 → **0.838** | 0.763 → 1.140 |
+| per-song **min** ratio | 0.916 | 1.000 |
+
+★**The lever is exactly right where the tempo is wrong and exactly wrong where it is right** ⇒ the
+whole value now sits in telling the two apart. ★★**Mechanism confirmed**: 2× slots *raises* precision
+at half tempo (the new slots land on onsets that were unrepresentable) and *collapses* it at correct
+tempo (they land between real onsets) — `BEAT_HAND_DEAL`'s death was about **where** the slots are,
+not how many. **Do NOT raise subdiv globally**; a false positive costs 0.127 precision.
+
+### 🔴 DETECTION — one route closed 2026-08-14, one named and untried
+🔴**CLOSED: "share of onset gaps shorter than a slot"** (`scripts/diag_grid_too_coarse.py`) —
+half 0.885 vs same 0.702 but they **overlap**: 100 % recall costs an **88.6 %** false-positive rate.
+★**Cause: stem onsets are DENSE — 70 % of gaps are already sub-slot at a CORRECT tempo**, so the
+statistic measures onset density, not grid coarseness. **Measuring representability via raw onset
+gaps measures the wrong thing.**
+🟡**NEXT CANDIDATE (untried): a tempogram-ratio method.** The discriminator must be about
+**periodicity** — is there a regular pulse at a period shorter than our slot — not about how many
+events are close together. ⚠️This is **not** what failed in 2026-07-27; that was onset-energy
+*balance* between on- and off-beat positions, a different statistic. `bpm_octave_probe.py`'s own
+postmortem recommends exactly this.
+**DoD for any detector**: separates `half` from `same` well enough that recall × (1 − FP) beats doing
+nothing, priced at 0.127 precision per false positive.
+
 **Two candidate fixes, and ★the second is much cheaper than it looks:**
 1. **Fix tempo-octave detection** (the "real" fix; `bpm_octave_probe.py`'s two heuristics both made it
    WORSE in 2026-07-27 — onset-energy balance does not discriminate metrical level, so this needs a

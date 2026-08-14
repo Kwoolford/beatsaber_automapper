@@ -7,6 +7,46 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ✅✅ 2026-08-14 — SUBDIV 8 LIFTS THE HALF-TEMPO CEILING **EXACTLY**, AND THE CONTROL EARNS THE RESULT
+The defect: on the 28 wide-cohort songs detected at **half** the true tempo, our maps sit at exactly
+0.500× the human's `ebpm_burst`, because our minimum swing gap is **one grid slot** and at half tempo
+that slot is twice as long in real time. Doubling the subdivision restores the training-time slot.
+
+| | **HALF** (n=28 — tempo is an octave error) | **SAME** (n=25 — tempo is CORRECT) |
+|---|---|---|
+| ebpm ratio vs human | 0.500 → **1.000** | 1.000 → **2.000** |
+| onset precision | 0.9172 → **0.9189** | 0.9077 → **0.7812** |
+| notes ÷ human notes | 0.451 → **0.838** | 0.763 → 1.140 |
+| songs >1.25× human burst | **3/28** | **23/25** |
+| ⚠️per-song **minimum** ratio | 0.916 | 1.000 |
+
+⇒**WORTH DETECTING**, exactly as pre-registered. ★**The `same` arm is what makes this a result rather
+than a hope**: the lever is precisely right where the tempo is wrong and precisely wrong where it is
+right. Without it we would have learned that the lever helps where we aimed it, and nothing about
+what it does elsewhere.
+
+★★**THE MECHANISM CONFIRMS ITSELF, and it inverts a known failure.** Doubling the slots *raised*
+precision slightly on the half group (0.9172 → 0.9189) while *collapsing* it on the same group
+(0.9077 → 0.7812, −0.127). Both follow from one fact: at half tempo the new slots land on onsets that
+were **physically unrepresentable** before, whereas at correct tempo they land *between* real onsets.
+The `same` arm is a textbook reproduction of `BEAT_HAND_DEAL`'s death ("2× the slots means going
+deeper down the probability ranking, and the marginal note is much worse than the average note") —
+and the `half` arm shows that lesson is about *where the slots are*, not about how many.
+⚠️Per-song minimum on the half group is **0.916**, so no subset is left behind — the check that this
+project has been caught by twice.
+
+⇒**THE BOTTLENECK IS NOW OCTAVE DETECTION**, which is a real research problem: `bpm_octave_probe.py`
+tried two heuristics on 2026-07-27 and **both made detection worse** (16/23 → 10/23 and → 14/23),
+because onset-energy balance does not discriminate metrical level.
+★**But the ceiling result reframes what needs detecting.** We do not need the true metrical level —
+we need to know **whether our grid can represent this music**, which is a property of the audio we
+already have: if a large share of stem-onset gaps are shorter than one slot, the grid is too coarse,
+full stop. That is measurable at generation time with no human map, it is the same self-supervised
+move that made `BEAT_GRID_PHASE=search` work after predicting the phase failed, and it sidesteps the
+question that beat two heuristics.
+
+---
+
 ## ✅ THE PERIODIC-DEGENERATE CONTROL (2026-08-11) — the M-axes reward MUSICAL, not MECHANICAL, repetition
 *(migrated from TODO 2026-08-13 during curation — it was recorded nowhere else.)*
 `scripts/make_periodic_degenerate.py --lag 8` builds a map that repeats on a **fixed lag**, i.e. the
