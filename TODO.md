@@ -210,6 +210,14 @@ empower you."* One command: **`scripts/suite_report.py --song X`** (or `--all`).
 more filler. ✅**`BEAT_MAIN_BEAT_BONUS`** (default OFF, `mbb015` the conservative pick) takes alignment
 0.260→0.087 with nothing regressing; it does NOT rescue starved windows. *(Full numbers in PROGRESS.)*
 
+⚠️**READ "MAIN BEAT" CORRECTLY (2026-08-14)**: `find_main_beat` picks the finest level on 139/149
+songs, and that pulse is **2× the mapper's declared bpm on 104 of 144** ⇒ the quoted numbers are
+usually **eighth-note** coverage, not the mapper's beat. ✅The defect survives the check and gets
+**bigger** where the grid does match the mapper's beat: **ours 0.549 vs human 0.901 (+0.345)** on
+those 34 songs — the starker and more honest statement of his complaint.
+⚠️**Clean NULL worth keeping**: the bpm label barely predicts coverage (`same` 0.542 vs `half` 0.500),
+so the half-tempo octave problem is **not** what drives this. Two metrical-looking problems, independent.
+
 ### ✅ RESOLVED 2026-08-14 — the main-beat defect is SONG-DRIVEN; "internal to Stage-1" is RETRACTED
 Stage-1's probability **inverts metrical phase** (best windows 0.301/**0.725**/0.287 vs worst
 0.590/**0.320**/0.577; the human covers the main beat 0.653 and the offbeat 0.104 in those same

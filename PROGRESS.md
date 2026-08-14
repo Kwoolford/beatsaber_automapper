@@ -7,6 +7,36 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ★ 2026-08-14 — WHAT "MAIN BEAT" ACTUALLY MEANS IN THE SUITE, AND THE DEFECT SURVIVES THE CHECK
+Chasing what predicts the 35 reproducibly-failing main-beat songs, checked whether the **metrical
+level** is implicated — the natural suspicion after tonight's tempo work.
+
+🔴**`find_main_beat` picks the FINEST candidate (ratio 0.5) on 139 of 149 songs**, and measured
+against ground truth the selected pulse sits at **2× the mapper's declared bpm on 104 of 144 songs**
+(median ratio exactly **2.000**, p90 2.000). ⇒**When the suite says "main beat coverage", it usually
+means the EIGHTH-NOTE pulse, not the beat the mapper declared.** That is a real interpretation caveat
+on a number this project quotes often (ours 0.546 vs human 0.704).
+
+✅**But the defect is NOT an artifact of the too-fine grid — the check makes it worse, not better:**
+
+| grid the metric chose | n | ours | human | gap |
+|---|---|---|---|---|
+| ~2× declared (eighth notes) | 96 | 0.5240 | 0.7860 | +0.283 |
+| **~1× declared (the mapper's own beat)** | 34 | 0.5494 | **0.9008** | **+0.345** |
+
+★**On the songs where the grid IS the mapper's beat, humans cover 0.90 and we cover 0.55.** That is a
+much starker statement of Kyle's original complaint than the 0.70-vs-0.55 usually quoted, and it is
+the honest one to use when the metrical level agrees.
+
+⚠️**Also a clean NULL that separates two threads**: the bpm label barely predicts coverage (`same`
+0.542 vs `half` 0.500), so the half-tempo octave problem is **not** what drives the main-beat defect.
+Two open problems that both look metrical are independent.
+⚠️`main_beat.py`'s docstring already warns that tolerance must scale with the period or `capture`=1.0
+by construction picks the finest grid — that fix is in, and the level is still 0.5 on 93 % of songs,
+so this is the scoring genuinely preferring the eighth-note pulse rather than the old bug resurfacing.
+
+---
+
 ## ★★ 2026-08-14 — THE OCTAVE DETECTOR WAS A ONE-LINE BASELINE, AFTER THREE STATISTICS AND A CLASSIFIER
 Before spending hours labelling the 5,373-map corpus to train a metrical classifier, I asked the
 cheap question — **is the signal learnable at all?** — with a tempogram VECTOR (ACF at 11 lags, all
