@@ -1,0 +1,41 @@
+{
+ "_README": [
+  "KYLE'S EAR. The only ground truth in this project, and the scarcest.",
+  "",
+  "Every judgement he has given on a SPECIFIC map file, with the words he used.",
+  "Keep the quote: 'really empty' and 'A+' are different KINDS of statement and a",
+  "later reader needs to see that, not a number we invented for them.",
+  "",
+  "Tracked in docs/ on purpose — outputs/ is gitignored (see TODO C6), and losing",
+  "this would mean asking him to listen to everything again. It was previously a",
+  "hardcoded list inside scripts/preference_screen.py and, before that, prose",
+  "scattered through PROGRESS.md.",
+  "",
+  "WRITE WITH: python scripts/record_verdict.py --help",
+  "READ WITH:  python scripts/preference_screen.py",
+  "",
+  "RULES, each of which has already cost something here:",
+  "  * `better`/`worse` must name the maps he ACTUALLY PLAYED. Scoring a different",
+  "    arm's map and calling it his verdict is the ExpertPlus-contamination error",
+  "    in a new costume.",
+  "  * A same-song A/B (two arms, one song) is worth far more than a cross-song",
+  "    comparison: cross-song forces every axis through 'gap to that song's human'",
+  "    to be commensurable at all, which is the project's most repeated mistake.",
+  "  * 'Can't tell' is a REAL verdict and must be recorded as one. It says the",
+  "    difference is inaudible, which is evidence about the axis that claimed it."
+ ],
+ "verdicts": [
+  {
+   "id": "2026-08-03/hunger-vs-fallen-kingdom",
+   "date": "2026-08-03",
+   "kind": "cross_song",
+   "better": {"song": "1f333", "name": "Hunger",
+              "map": "outputs/kyle_review_2026-08-03/1f333_AFTER2_reach.zip",
+              "quote": "The vast majority of the 1f333 song is A+ and better than what we had before so promote it."},
+   "worse": {"song": "1f8d6", "name": "Fallen Kingdom",
+             "map": "outputs/kyle_review_2026-08-03/1f8d6_AFTER2_reach.zip",
+             "quote": "Fallen Kingdom feels really empty."},
+   "note": "Different songs, so read every axis as a gap to THAT song's human. He may also be judging on different scales - 'A+ vs what we used to do' against 'empty vs what the song wants'. Four instruments have already failed to explain 'empty' (PROGRESS.md 2026-08-04)."
+  }
+ ]
+}

@@ -49,28 +49,46 @@ sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "scripts"))
 
 # --------------------------------------------------------------------------------
-# THE LEDGER. Every judgement Kyle has given on a specific map file, with the words
-# he used. Keep the quote: "really empty" and "A+" are different KINDS of statement
-# and a later reader needs to see that, not a number we invented for them.
+# THE LEDGER lives in docs/eval_references/preference_verdicts.json and is written by
+# scripts/record_verdict.py. It was a hardcoded list right here until 2026-08-14 —
+# ★the P0 preference loop is worthless if answering it requires editing a script, and
+# his verdicts had previously been lost to prose in PROGRESS.md.
 #
-# ⚠️`better` / `worse` must name the maps he ACTUALLY PLAYED. He judged the AFTER2
-# (reach) build on 2026-08-03; scoring a different arm's map and calling it his
-# verdict would be the ExpertPlus-contamination error in a new costume.
+# ⚠️`better` / `worse` must name the maps he ACTUALLY PLAYED; `record_verdict.py`
+# refuses to write a verdict whose map files are not on disk, because attaching his
+# words to a map he did not play is the ExpertPlus-contamination error in a costume.
 # --------------------------------------------------------------------------------
-PAIRS = [
-    {
-        "id": "2026-08-03/hunger-vs-fallen-kingdom",
-        "better": ("1f333", "outputs/kyle_review_2026-08-03/1f333_AFTER2_reach.zip"),
-        "worse":  ("1f8d6", "outputs/kyle_review_2026-08-03/1f8d6_AFTER2_reach.zip"),
-        "quote_better": "The vast majority of the 1f333 song is A+ and better than "
-                        "what we had before so promote it.",
-        "quote_worse":  "Fallen Kingdom feels really empty.",
-        "note": "Different songs, so read every axis as a gap to THAT song's human. "
-                "⚠️He may also be judging on different scales — 'A+ vs what we used "
-                "to do' against 'empty vs what the song wants'. Four instruments "
-                "already failed to explain 'empty' (PROGRESS.md, 2026-08-04).",
-    },
-]
+_LEDGER = REPO / "docs" / "eval_references" / "preference_verdicts.json"
+
+
+def _load_pairs() -> list[dict]:
+    """Read the verdict ledger.
+
+    Ties are skipped: *"I can't tell them apart"* is a real and valuable verdict, but
+    it is not an ORDERING, and this screen only asks which axes reproduce an ordering.
+    """
+    try:
+        raw = json.loads(_LEDGER.read_text())
+    except Exception as exc:  # noqa: BLE001
+        # Loud, not silent — an empty screen would read as "no axes agree with him".
+        print(f"⚠️ could not read the verdict ledger ({exc}); screen has no data.",
+              file=sys.stderr)
+        return []
+    out = []
+    for v in raw.get("verdicts", []):
+        if v.get("kind") == "tie":
+            continue
+        b, w = v["better"], v["worse"]
+        out.append({"id": v["id"],
+                    "better": (b["song"], b["map"]),
+                    "worse": (w["song"], w["map"]),
+                    "quote_better": b.get("quote", ""),
+                    "quote_worse": w.get("quote", ""),
+                    "note": v.get("note", "")})
+    return out
+
+
+PAIRS = _load_pairs()
 
 NAMES = {"1f333": "Hunger", "1f8d6": "Fallen Kingdom",
          "1f913": "Digital Life Hacker", "1f767": "アリスブルー"}
