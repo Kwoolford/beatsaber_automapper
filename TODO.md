@@ -157,7 +157,7 @@ cohort stays blocked **by his choice**, not oversight.
 | **W1** | can't find the core tempo-carrying instrument (*"the core aha tempo/instrument that a mapper obviously adheres to"*) | 🔴**OPEN.** Coincidence hypothesis CONFIRMED (humans map a 4-stem collision 84.5%); the real defect is **we play the OFFBEAT** (`halfbeat_rate` 0.245 vs human 0.095). ⚠️Grid phase cannot fix it — a selection defect. Track B indicated. |
 | **W2** | Fallen Kingdom *"feels really empty"* | 🔴**CAUSE UNIDENTIFIED.** Five instruments have now failed to explain it. ⚠️**ASK HIM**: empty vs what our model used to do, or vs what the song wants? New 2026-08-11 hypothesis: he may judge **absolute** activity while our instruments normalise by the human map. |
 | **W3** | *"some parts get really intense to play"* | **PARTLY CONFIRMED** — it is C5 wearing a hat: fewer distinct moments, more notes/s. ⚠️Any difficulty axis must count **NOTES**, not events. |
-| **W4** | phrases abandoned mid-vocal | ✅**CONFIRMED** — sung phrases with a >1 s hole: ours 0.539 vs human 0.250. |
+| **W4** | phrases abandoned mid-vocal | ✅✅**CONFIRMED AT n=123 AND IT GREW**: >1 s hole ours **0.500** vs human **0.182** (2.75×); >2 s ours 0.071 vs human **0.000**; **paired 109/123 worse, 6 better**. ★**Mechanism is in our own docstring** — `weight = wmean**gamma` (γ=2.5) *"quiet ones thin out"*, ×`BEAT_ONSET_EVIDENCE`. 🔵Arm running. |
 | **W5** | dot blocks used decoratively | ⏸️**he deferred this himself.** |
 | **W6** | multi-note swings missing | 🟡**missing capability** — right answer for grand low-density drops. |
 | **W7** | last note *"did not line up together"* | ✅**FIXED** — `BEAT_END_RESOLVE=0.75`, orphaned ending 0.153→0.014 at no cost. **Default OFF, awaiting his ear.** |

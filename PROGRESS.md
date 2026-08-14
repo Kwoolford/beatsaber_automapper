@@ -7,6 +7,42 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## ✅ 2026-08-14 — W4 REPRODUCES AT n=123 AND **GREW**; ITS MECHANISM IS IN OUR OWN DOCSTRING
+W4 (*"phrases abandoned mid-vocal"*) was measured on the 13-song songset. Re-measured on the wide
+cohort — and unusually for this project, **the effect did not shrink at scale**:
+
+| metric | ours | human | ratio |
+|---|---|---|---|
+| share of sung phrases with a >1 s hole | **0.500** | 0.182 | **2.75×** |
+| share with a >2 s hole | 0.071 | **0.000** | — |
+| `med_hole` | 1.029 s | 0.612 s | 1.68× |
+
+**Paired: we abandon MORE on 109 of 123 songs and LESS on 6.** The n=13 figures were 0.539 vs 0.250
+(2.16×), so the small sample slightly **understated** it. ⚠️**A useful counterexample to this
+project's own "n=13 inflates effect sizes 3–20×" rule** — that rule came from levers measured as
+paired deltas; a *cohort-level defect* this lopsided (109/6) had no room to be an artefact.
+⇒**W4 is now the most robustly established defect on the list.**
+
+★**AND THE MECHANISM IS WRITTEN IN OUR OWN CODE.** `_density_aware_select` sets
+`weight = (window-mean prob) ** gamma` with `gamma = 2.5`, and its docstring says the purpose out
+loud: *"so loud/dense windows keep more notes and **quiet ones thin out**"*. **A sung phrase over
+sparse backing IS a quiet window.** `BEAT_ONSET_EVIDENCE` (0.3) then multiplies a second
+concentration factor, `(onset count)^0.3`, on top — and that knob is *already known* to concentrate
+notes into dense windows, which is how it degraded reachability on 2026-08-03 without any axis noticing.
+⇒Two multiplicative mechanisms, both thinning exactly the windows W4 measures.
+
+⚠️**A hypothesis I killed by reading rather than running**: `section_gate="loud_only"` looked like the
+obvious culprit (it gates on loudness), but it can only ever *lower* the threshold — *"no section,
+however mislabeled, can silence a real onset."* It cannot abandon a phrase, by construction.
+
+🔵**ARM RUNNING** (`scripts/overnight_2026-08-14c.sh`): 12 vocal-heavy songs × {gamma 1.5, gamma 1.0,
+onset-evidence 0} vs baseline, reading `share_over_1s` beside precision and note count.
+**Pre-registered**: LEVER FOUND (falls toward human, cost bounded) · CONFOUNDED (falls but precision
+and notes fall in step ⇒ report the trade curve, the "gain and damage are one dial" result again) ·
+REFUTED (does not move ⇒ the cause is upstream in Stage-1, making W4 a Track B item like W1).
+
+---
+
 ## 🔬 2026-08-14 — THE 2:3 TEMPO ERRORS ARE MADE BY THE SAME RULE THAT FIXES THE HALF-TEMPO ONES
 The residual alignment failures are concentrated in `three_halves` (66.7 % failing, 4.6× base), so
 the question is where a 3/2 misread comes from. It comes from our own tie-break.
