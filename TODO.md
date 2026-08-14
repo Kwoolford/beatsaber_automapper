@@ -54,10 +54,25 @@ Subset 39 → 37 and the alignment gap **doubled** 0.62 → 1.32, because corr(a
 `generate.py` fits from Demucs stems. ★**A pre-build test run on a different input than production is
 not a pre-build test.** *(Full account in PROGRESS.md.)*
 
-⚠️**The residual is now the honest open question**: 21 songs still sit >0.10 below human, and the
-original diagnostic says ~15 of them recover from **no shift at all** ⇒ that remainder is a
-**SELECTION** defect (which slots we pick), not a grid defect. That is where the next alignment work
-goes, and it is C1 territory.
+### 🔵 THE RESIDUAL 21 — **half of it is still TEMPO, and it names the next target**
+🔴**I called this "a SELECTION defect, not a grid defect" earlier the same night. That was too
+strong.** Failure rate by tempo label after the phase fix (base rate 14.6 %, n=144):
+
+| label | n | failing | rate | vs base |
+|---|---|---|---|---|
+| `three_halves` (2:3 misread) | 9 | 6 | **66.7 %** | **4.6×** |
+| `other` (odd ratios) | 5 | 4 | **80.0 %** | **5.5×** |
+| `same` | 100 | 10 | 10.0 % | 0.7× |
+| **`half`** | 28 | **1** | **3.6 %** | **0.2×** |
+
+★**10 of the 21 remaining failures (48 %) are non-half tempo errors — from only 11 % of the cohort.**
+★★**And the `half` group is now the BEST-performing group in the cohort** (0.2× base), which is the
+independent confirmation that the phase search and subdiv work actually fixed something.
+⇒**The next alignment target is the 2:3 / odd-ratio tempo misreads**, not selection. A half-tempo
+error gives a coarse-but-aligned grid; a 2:3 misread puts the beats in the **wrong places**, drifting
+through the song, so no global shift can rescue it — exactly the distinction `build_true_bpm_wide.py`
+draws, which is why the labels were split that way in the first place.
+⚠️The other ~11 failures are correct-tempo songs and remain unexplained; that part *is* C1 territory.
 
 ### ✅ THE CROSSOVER GUARD IS BUILT (the P0 TASK below is done)
 `flow.crossover_guard` + `scripts/calibrate_crossover.py`. Human band, n=200 strict Expert:
