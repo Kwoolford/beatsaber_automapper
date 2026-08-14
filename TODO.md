@@ -473,6 +473,16 @@ so it is blind to *everything* positional by construction. That is correct behav
 "rhythm unchanged" is never evidence a placement lever is safe.
 
 ## 🧭 REFERENCE
+### 🔴 Landmine found 2026-08-14 — a seed re-draws the AUDIO, not just the decode
+**`seed_everything(args.seed)` seeds the RNG that Demucs' random-shift augmentation uses**, so the
+seed changes the STEMS → the MERT features → **Stage-1's probability field**. Measured on 1f333:
+same seed twice is **bit-identical**; seed 0 vs 1 gives max \|Δ\| **0.2049** (mean 0.0264, corr
+0.9915) and only **87.3 %** of the top-300 slots survive.
+⇒**Every seed-based error bar in this repo contains Demucs stem variance**, including the ±0.004
+"seed noise floor". The standing note that *"pairing helps alignment only — the rest ride the torch
+decode"* is **wrong at the root**: the draw happens before the model runs.
+⇒When you want to vary ONLY the decode, you cannot do it with the run seed as things stand.
+
 ### Landmines found 2026-08-11
 - ⚠️⚠️**`copy.deepcopy` of a `scorecard._load_any` beatmap DOES NOT ISOLATE IT.** `_load_any` builds a
   local `_BM` whose `color_notes` is a **class attribute**, so the copy shares the same note list and

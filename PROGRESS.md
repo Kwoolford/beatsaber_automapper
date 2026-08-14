@@ -7,6 +7,38 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 🔴🔴 2026-08-14 — **"SEED NOISE" IN THIS PROJECT STARTS AT THE AUDIO, NOT AT THE DECODE**
+Went to run the seed test on the Stage-1 phase-inversion claim and first checked whether the test was
+even meaningful — `module.eval()` is called, so Stage-1 *should* be deterministic. It is not.
+
+| | result |
+|---|---|
+| **same seed (0), run twice** | **bit-identical**, max \|Δ\| = 0.000e+00 |
+| **seed 0 vs seed 1** | max \|Δ\| **0.2049**, mean 0.0264, p99 0.1302, corr +0.9915 |
+| top-300 selected slots overlapping | **87.3 %** |
+| top-600 selected slots overlapping | 91.3 % |
+
+⇒**The seed changes Stage-1's PROBABILITY FIELD, deterministically.** Mechanism:
+`scripts/generate.py` calls `seed_everything(args.seed)`, which seeds the torch RNG that **Demucs'
+random shift augmentation** draws from ⇒ different stems ⇒ different MERT features ⇒ different
+probabilities. Reproducible at a fixed seed, different across seeds.
+
+★★**THE CONSEQUENCE, and it is broad.** This project has treated a seed as a *decode-sampling* draw —
+"pairing helps alignment only, it rides the postprocess `random` stream; the rest ride the torch
+decode". **That is wrong at the root**: a seed re-draws the audio representation itself, so **every
+seed-based error bar here (including the ±0.004 floor) contains Demucs stem variance**, and ~10 % of
+the slots that reach the map are a seed lottery decided before the model ever runs.
+⇒It also explains a standing puzzle: why seeds move quantities that have no sampling in them.
+⚠️This is the **same mechanism** as the 2026-08-03 landmine (*"Demucs was never seeded, so the onset
+ground truth is a random draw"*) — that one was about the onset **cache** builders and was fixed with
+`DEMUCS_SEED=0`. The **generation** path has it too; there it is seeded by the run seed, so it is
+reproducible but seed-*dependent*, which is a different and less visible problem.
+✅**And it makes the phase-inversion seed test meaningful after all** — the windows genuinely can
+differ between seeds, so *"no predictor ⇒ internal to Stage-1, not the audio"* is testable rather
+than vacuous. Still to run.
+
+---
+
 ## ✅✅ 2026-08-14 — SUBDIV 8 LIFTS THE HALF-TEMPO CEILING **EXACTLY**, AND THE CONTROL EARNS THE RESULT
 The defect: on the 28 wide-cohort songs detected at **half** the true tempo, our maps sit at exactly
 0.500× the human's `ebpm_burst`, because our minimum swing gap is **one grid slot** and at half tempo
