@@ -29,13 +29,33 @@
    "id": "2026-08-03/hunger-vs-fallen-kingdom",
    "date": "2026-08-03",
    "kind": "cross_song",
-   "better": {"song": "1f333", "name": "Hunger",
-              "map": "outputs/kyle_review_2026-08-03/1f333_AFTER2_reach.zip",
-              "quote": "The vast majority of the 1f333 song is A+ and better than what we had before so promote it."},
-   "worse": {"song": "1f8d6", "name": "Fallen Kingdom",
-             "map": "outputs/kyle_review_2026-08-03/1f8d6_AFTER2_reach.zip",
-             "quote": "Fallen Kingdom feels really empty."},
+   "better": {
+    "song": "1f333",
+    "name": "Hunger",
+    "map": "outputs/kyle_review_2026-08-03/1f333_AFTER2_reach.zip",
+    "quote": "The vast majority of the 1f333 song is A+ and better than what we had before so promote it."
+   },
+   "worse": {
+    "song": "1f8d6",
+    "name": "Fallen Kingdom",
+    "map": "outputs/kyle_review_2026-08-03/1f8d6_AFTER2_reach.zip",
+    "quote": "Fallen Kingdom feels really empty."
+   },
    "note": "Different songs, so read every axis as a gap to THAT song's human. He may also be judging on different scales - 'A+ vs what we used to do' against 'empty vs what the song wants'. Four instruments have already failed to explain 'empty' (PROGRESS.md 2026-08-04)."
+  },
+  {
+   "kind": "same_song_ab",
+   "better": "BEFORE",
+   "worse": "AGENT",
+   "id": "2026-08-17/1f333-C",
+   "date": "2026-08-17",
+   "set": "C",
+   "song": "1f333",
+   "name": "Hunger",
+   "quote": "Wow, I was expecting the agents song to be much better. The main problem is the notes flow in a really odd way.",
+   "note": "Kyle's vision, stated in the same breath: give the agent NOTESHEET MUSIC per instrument and vocals, and map the structure off what is actually played. The map he judged was built 2026-08-14 off brief.py's 8-bar onset-density timeline ONLY — it predates melody.py/structure.py/percussion.py (2026-08-16) and knew no pitch, no sections, no kit. Treat this as the BEFORE for the perception work, not a test of it.",
+   "defect": "FLOW — the note-to-note motion, not the note choice or the density.",
+   "incomplete": "He was still writing when the message sent; more notes may follow."
   }
  ]
 }
