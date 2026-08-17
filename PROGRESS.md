@@ -10550,10 +10550,16 @@ time, not following the main vocals or having random bursts of really fast non f
 notes… **the nps is generally wasted on every few non main notes**… they aren't hitting
 that main flow that mappers can generally see."*
 
-★**Three levers with strong numeric evidence have now failed to reach his ear**:
-`COLOR_SEP_MODE` (flow 0.37 → 0.23), `BEAT_GRID_PHASE` (74 better / 0 worse, first ever
-alignment-axis pass) and the agent map (human `ebpm_burst` exactly, human nps median,
-zero parity violations). ⇒ **A passed DoD is evidence about the metric, not about the
+★**Two things with strong numeric evidence have now failed to reach his ear**:
+`BEAT_GRID_PHASE` (74 better / 0 worse, first ever alignment-axis pass — and he still
+hears *"slightly off beat"*) and the agent map (human `ebpm_burst` exactly, human nps
+median, zero parity violations).
+⚠️**Corrected during the close**: I first wrote "three", counting `COLOR_SEP_MODE`. He
+reviewed *"the before and after as well as the before vs phase"* — **`[CROSSOVER]` was
+never played.** Writing it off would have discarded the strongest unjudged candidate on
+the board, and one that improves the very axis (flow) he complains about. ★A claim about
+what the user thinks is exactly the kind that must be checked against what he actually
+said before it becomes a premise. ⇒ **A passed DoD is evidence about the metric, not about the
 map.** This supersedes the old P0 *"the metrics still don't capture the full picture"* —
 its answer is no longer "find a better axis" but **"make the map legible enough that he
 is the evaluator"**, which is now P0 as the VISIBILITY SUITE.
@@ -10575,3 +10581,42 @@ verdict with nps held constant.
 
 ⚠️**C2 reopened**: grid phase was "largely resolved" by the alignment axis and he still
 hears "slightly off beat". Tempo (right on 70.5 % of songs) is now the better suspect.
+
+
+## W1–W7 — the objection table, retired from TODO.md at the 2026-08-17 close
+
+Retired because his 2026-08-17 defect list (D1–D6) restates most of it more directly and
+more recently: W1 → D2/D4, W3 → D5, W4 → D4. W2, W5 and W6 stayed in TODO because nothing
+in D1–D6 covers them. Kept verbatim here so the evidence behind each verdict is not lost.
+
+| # | complaint | status |
+|---|---|---|
+| **W1** | can't find the core tempo/instrument | 🔴**OPEN → Track B.** The real defect is we play the OFFBEAT (`halfbeat_rate` 0.245 vs 0.095); a selection defect grid phase cannot fix. |
+| **W2** | Fallen Kingdom *"really empty"* | 🔴**CAUSE UNIDENTIFIED**, five instruments have failed. ⚠️**ASK HIM** (above). |
+| **W3** | *"parts get really intense"* | **PARTLY CONFIRMED** — C5 wearing a hat. Any difficulty axis must count **notes**, not events. |
+| **W4** | phrases abandoned mid-vocal | ✅**CONFIRMED n=123 and it GREW** (0.500 vs 0.182; 109/123 paired) 🔴density weighting **refuted** as the cause ⇒**Track B**. |
+| **W5** | dot blocks decorative | ⏸️**he deferred this himself.** |
+| **W6** | multi-note swings missing | 🟡**missing capability** — right answer for grand low-density drops. **Untouched; a good `agent_mapper` target.** |
+| **W7** | last note didn't line up | ✅**FIXED** — `BEAT_END_RESOLVE=0.75`, 0.153 → 0.014 at no cost. Default OFF, awaiting his ear. |
+
+⚠️**Protect these — he named them by ear**: A6 hand-role division, and the density pacing
+(*"when there is a slow spot we let the player breathe"*).
+
+---
+
+
+## C6 closed at the 2026-08-17 close — `outputs/` stays gitignored, verdicts are tracked
+
+The decision owed was: move the live path into version control, or keep copy-and-remember.
+**Answered by keeping the split and making it explicit.** Map files are artifacts and stay
+gitignored (`outputs/`, and now `for_review/`); the things that cannot be regenerated —
+**Kyle's verdicts and defects** — are tracked in `docs/eval_references/preference_verdicts.json`,
+and `scripts/review.py` refuses to file a review set away without one. Losing a map costs a
+rerun; losing a verdict costs asking him to listen again.
+
+Retired item:
+
+### C6 — `outputs/` is gitignored: one decision still owed
+All calibration references are snapshotted to tracked `docs/eval_references/`. ⚠️It is a **copy**,
+so re-copy whenever a reference changes. **Decision owed**: move the live path into version
+control, or keep copy-and-remember.

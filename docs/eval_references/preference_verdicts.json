@@ -57,5 +57,75 @@
    "defect": "FLOW — the note-to-note motion, not the note choice or the density.",
    "incomplete": "He was still writing when the message sent; more notes may follow."
   }
+ ],
+ "defects": [
+  {
+   "id": "2026-08-17/D1",
+   "date": "2026-08-17",
+   "code": "D1",
+   "kind": "too_slow",
+   "phrase": "very slow",
+   "scope": "ALL songs he played — sets A ([BEFORE] vs [AFTER]) and B ([BEFORE] vs [PHASE])",
+   "quote": "For all of the songs, it varys from very slow, slightly off beat, doing drops at the wrong time, not following the main vocals or having random bursts of really fast non flowy notes. Personally I would really like the general beat parts of the song to be faster and play more main notes. Like I think the nps is generally wasted on every few non main notes. This isn't to take away from the wins, there is a good deal of notes that are on beat and I can tell play part of the song, but they aren't hitting that main flow that mappers can generally see.",
+   "note": "Reported as a defect list across every song, NOT as a preference between arms. This is why review.py gains defect capture (TODO V5)."
+  },
+  {
+   "id": "2026-08-17/D2",
+   "date": "2026-08-17",
+   "code": "D2",
+   "kind": "off_beat",
+   "phrase": "slightly off beat",
+   "scope": "ALL songs he played — sets A ([BEFORE] vs [AFTER]) and B ([BEFORE] vs [PHASE])",
+   "quote": "For all of the songs, it varys from very slow, slightly off beat, doing drops at the wrong time, not following the main vocals or having random bursts of really fast non flowy notes. Personally I would really like the general beat parts of the song to be faster and play more main notes. Like I think the nps is generally wasted on every few non main notes. This isn't to take away from the wins, there is a good deal of notes that are on beat and I can tell play part of the song, but they aren't hitting that main flow that mappers can generally see.",
+   "note": "Reported as a defect list across every song, NOT as a preference between arms. This is why review.py gains defect capture (TODO V5)."
+  },
+  {
+   "id": "2026-08-17/D3",
+   "date": "2026-08-17",
+   "code": "D3",
+   "kind": "drop_timing",
+   "phrase": "doing drops at the wrong time",
+   "scope": "ALL songs he played — sets A ([BEFORE] vs [AFTER]) and B ([BEFORE] vs [PHASE])",
+   "quote": "For all of the songs, it varys from very slow, slightly off beat, doing drops at the wrong time, not following the main vocals or having random bursts of really fast non flowy notes. Personally I would really like the general beat parts of the song to be faster and play more main notes. Like I think the nps is generally wasted on every few non main notes. This isn't to take away from the wins, there is a good deal of notes that are on beat and I can tell play part of the song, but they aren't hitting that main flow that mappers can generally see.",
+   "note": "Reported as a defect list across every song, NOT as a preference between arms. This is why review.py gains defect capture (TODO V5)."
+  },
+  {
+   "id": "2026-08-17/D4",
+   "date": "2026-08-17",
+   "code": "D4",
+   "kind": "not_following_vocals",
+   "phrase": "not following the main vocals",
+   "scope": "ALL songs he played — sets A ([BEFORE] vs [AFTER]) and B ([BEFORE] vs [PHASE])",
+   "quote": "For all of the songs, it varys from very slow, slightly off beat, doing drops at the wrong time, not following the main vocals or having random bursts of really fast non flowy notes. Personally I would really like the general beat parts of the song to be faster and play more main notes. Like I think the nps is generally wasted on every few non main notes. This isn't to take away from the wins, there is a good deal of notes that are on beat and I can tell play part of the song, but they aren't hitting that main flow that mappers can generally see.",
+   "note": "Reported as a defect list across every song, NOT as a preference between arms. This is why review.py gains defect capture (TODO V5)."
+  },
+  {
+   "id": "2026-08-17/D5",
+   "date": "2026-08-17",
+   "code": "D5",
+   "kind": "random_bursts",
+   "phrase": "random bursts of really fast non flowy notes",
+   "scope": "ALL songs he played — sets A ([BEFORE] vs [AFTER]) and B ([BEFORE] vs [PHASE])",
+   "quote": "For all of the songs, it varys from very slow, slightly off beat, doing drops at the wrong time, not following the main vocals or having random bursts of really fast non flowy notes. Personally I would really like the general beat parts of the song to be faster and play more main notes. Like I think the nps is generally wasted on every few non main notes. This isn't to take away from the wins, there is a good deal of notes that are on beat and I can tell play part of the song, but they aren't hitting that main flow that mappers can generally see.",
+   "note": "Reported as a defect list across every song, NOT as a preference between arms. This is why review.py gains defect capture (TODO V5)."
+  },
+  {
+   "id": "2026-08-17/D6",
+   "date": "2026-08-17",
+   "code": "D6",
+   "kind": "wasted_nps",
+   "phrase": "the nps is generally wasted on every few non main notes",
+   "scope": "ALL songs he played — sets A ([BEFORE] vs [AFTER]) and B ([BEFORE] vs [PHASE])",
+   "quote": "For all of the songs, it varys from very slow, slightly off beat, doing drops at the wrong time, not following the main vocals or having random bursts of really fast non flowy notes. Personally I would really like the general beat parts of the song to be faster and play more main notes. Like I think the nps is generally wasted on every few non main notes. This isn't to take away from the wins, there is a good deal of notes that are on beat and I can tell play part of the song, but they aren't hitting that main flow that mappers can generally see.",
+   "note": "Reported as a defect list across every song, NOT as a preference between arms. This is why review.py gains defect capture (TODO V5)."
+  },
+  {
+   "id": "2026-08-17/positive",
+   "date": "2026-08-17",
+   "code": "P1",
+   "kind": "what_is_working",
+   "phrase": "a good deal of notes that are on beat and I can tell play part of the song",
+   "note": "Recorded deliberately: the on-beat/recognisable half is WORKING and must not be regressed while chasing the defect list."
+  }
  ]
 }

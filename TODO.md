@@ -28,14 +28,29 @@ And the directive that follows from it:
 > you can go back through and evaluate through me instead of making another evaluation
 > metric."*
 
-🔴**Three levers with strong numeric evidence have now failed to reach his ear**
-(`COLOR_SEP_MODE` flow 0.37→0.23; `BEAT_GRID_PHASE` 74 better/0 worse; the agent map at
-human `ebpm_burst` and human nps). ⇒**A passed DoD is evidence about the METRIC, not
+🔴**Two things with strong numeric evidence have now failed to reach his ear**
+(`BEAT_GRID_PHASE`, 74 better/0 worse — he still hears *"slightly off beat"*; and the
+agent map at human `ebpm_burst`, human nps median, zero parity violations). ⇒**A passed DoD is evidence about the METRIC, not
 about the map.** The answer is not a seventh axis — it is to make the map legible enough
 that *he* is the evaluator. That is what P0 now is.
 
 ⚠️**And the review framing was wrong.** The A/B pipeline collects *preferences between
 arms*; he produces *defects located in songs*. Preference is second, defects are first.
+
+---
+
+### ▶️ START THE NEXT SESSION HERE
+1. `python scripts/review.py list` — 32 maps still staged; **`[CROSSOVER]` is unjudged and is
+   the strongest candidate on the board.**
+2. Build **V1 bass transcription** first — it is the only stem with *no* transcription at all,
+   it is monophonic so pYIN works exactly as it does for vocals, and V1/V2 both need it.
+3. Then the **V1 notesheet render** → **V2 overlay** (HIT / MISSED / WASTED), on
+   **Fallen Kingdom (`1f8d6`), not Hunger** — Hunger's vocals are unpitched (pYIN voiced-on-loud
+   0.19 vs 0.91–0.99 elsewhere), so it is the worst song to show a notesheet on.
+4. Read `docs/perception_scorecard.md` for what perception is already CONFIRMED to do.
+
+⚠️**Nothing is running.** No GPU job, no autonomous loop — `/todo` must be re-run to restart
+research.
 
 ---
 
@@ -128,6 +143,11 @@ first principles is exactly what produced the anti-correlation.
 `for_review/` holds 32 maps; `python scripts/review.py next` is the shortlist and
 `review.py list` the full pending list. **He has now answered both sets at the level of
 defects rather than arms**, so:
+- ★⚠️**`[CROSSOVER]` HAS NEVER BEEN PLAYED.** He reviewed *"the before and after as well
+  as the before vs phase"* — crossover was not among them. It remains the **strongest
+  unjudged candidate** (crossover 0.000 → 0.112 against a human 0.183 with 0 of 150 human
+  maps at zero; flow 0.37 → **0.23**, i.e. it improves the exact axis he complains about).
+  🔴Do not let it get swept into "numeric wins that failed his ear" — it has not been tried.
 - ⬜**`[AFTER]` vs `[BEFORE]` (set A) is still unresolved per-arm** — the intentional/lazy
   question was never answered, and `mapctl reuse --vary 0.15` is still a guess.
 - ⚠️**`[PHASE]` did not remove *"slightly off beat"*** ⇒ do NOT flip
@@ -183,24 +203,27 @@ propose.** ⚠️Does *not* revive v8 as built (its `follow_vocals` gain died at
 
 ---
 
-## 🎯 W1–W7 — KYLE'S OBJECTIONS *(evidence in PROGRESS.md)*
+## 🎯 W1–W7 — KYLE'S OLDER OBJECTIONS → mostly folded into D1–D6
 
-★**His standing instruction**: *"tread carefully, make isolated and tactical changes, and document
-like crazy."* One lever at a time, ≥3 seeds, nothing promoted without his ear.
+★**His standing instruction, still binding**: *"tread carefully, make isolated and tactical
+changes, and document like crazy."* One lever at a time, ≥3 seeds, nothing promoted without his ear.
 ⚠️He declined to name exemplary mappers *yet* — the best-mapper cohort is blocked **by his choice**.
 
-| # | complaint | status |
-|---|---|---|
-| **W1** | can't find the core tempo/instrument | 🔴**OPEN → Track B.** The real defect is we play the OFFBEAT (`halfbeat_rate` 0.245 vs 0.095); a selection defect grid phase cannot fix. |
-| **W2** | Fallen Kingdom *"really empty"* | 🔴**CAUSE UNIDENTIFIED**, five instruments have failed. ⚠️**ASK HIM** (above). |
-| **W3** | *"parts get really intense"* | **PARTLY CONFIRMED** — C5 wearing a hat. Any difficulty axis must count **notes**, not events. |
-| **W4** | phrases abandoned mid-vocal | ✅**CONFIRMED n=123 and it GREW** (0.500 vs 0.182; 109/123 paired) 🔴density weighting **refuted** as the cause ⇒**Track B**. |
-| **W5** | dot blocks decorative | ⏸️**he deferred this himself.** |
-| **W6** | multi-note swings missing | 🟡**missing capability** — right answer for grand low-density drops. **Untouched; a good `agent_mapper` target.** |
-| **W7** | last note didn't line up | ✅**FIXED** — `BEAT_END_RESOLVE=0.75`, 0.153 → 0.014 at no cost. Default OFF, awaiting his ear. |
+**The full W1–W7 table moved to PROGRESS.md in the 2026-08-17 close.** Most of it is now
+restated, more directly and more recently, by the **D1–D6** list he gave on 2026-08-17:
+W1 → **D2/D4**, W3 → **D5**, W4 → **D4**. Work D1–D6; do not track both lists.
+
+**Still open and NOT covered by D1–D6:**
+- **W2** — Fallen Kingdom *"really empty"*. 🔴Cause unidentified; five instruments have failed.
+  ⚠️**Ask him**: empty vs what our model *used to do*, or vs what the *song wants*?
+- **W6** — multi-note swings (sliders/chains) are a **missing capability**, the right answer for
+  grand low-density drops. Untouched, and a good `agent_mapper` target.
+- **W5** — dot blocks as decoration: ⏸️**he deferred this himself.** Do not revive unprompted.
 
 ⚠️**Protect these — he named them by ear**: A6 hand-role division, and the density pacing
-(*"when there is a slow spot we let the player breathe"*).
+(*"when there is a slow spot we let the player breathe"*). ★And new on 2026-08-17: *"there is a
+good deal of notes that are on beat and I can tell play part of the song"* — **that half works.
+Do not regress it while chasing D1–D6.**
 
 ---
 
@@ -239,15 +262,10 @@ rhythm 6× — **C5 is not reachable by decode.**
 ★**2026-08-14 adds the flip side**: doubles are how a human buys density *without* speeding either
 hand up (the human plays 8.35 nps at the same `ebpm_burst` as our 4.00).
 
-### C6 — `outputs/` is gitignored: one decision still owed
-All calibration references are snapshotted to tracked `docs/eval_references/`. ⚠️It is a **copy**,
-so re-copy whenever a reference changes. **Decision owed**: move the live path into version
-control, or keep copy-and-remember.
-
 ---
 
 ## 🧭 REFERENCE
-### 🔴 Landmine found 2026-08-14 — a seed re-draws the AUDIO, not just the decode
+### 🔴 Landmines — a seed re-draws the AUDIO, not just the decode
 **`seed_everything(args.seed)` seeds the RNG that Demucs' random-shift augmentation uses**, so the
 seed changes the STEMS → the MERT features → **Stage-1's probability field**. Measured on 1f333:
 same seed twice is **bit-identical**; seed 0 vs 1 gives max \|Δ\| **0.2049** (mean 0.0264, corr
@@ -257,7 +275,6 @@ same seed twice is **bit-identical**; seed 0 vs 1 gives max \|Δ\| **0.2049** (m
 decode"* is **wrong at the root**: the draw happens before the model runs.
 ⇒When you want to vary ONLY the decode, you cannot do it with the run seed as things stand.
 
-### Landmines found 2026-08-11
 - ⚠️⚠️**`copy.deepcopy` of a `scorecard._load_any` beatmap DOES NOT ISOLATE IT.** `_load_any` builds a
   local `_BM` whose `color_notes` is a **class attribute**, so the copy shares the same note list and
   the same note objects (`deepcopy(bm).color_notes is bm.color_notes` → True). Mutating "a copy"
@@ -276,7 +293,6 @@ decode"* is **wrong at the root**: the draw happens before the model runs.
 - ⚠️**Never edit a running bash script** — bash reads it incrementally and a one-byte shift corrupts
   its read offset. Kill, edit, relaunch.
 
-### Landmines (each cost real time at least once)
 - `scripts/generate.py` takes `audio` as a **positional** arg, not `--audio`.
 - Load beat checkpoints with `strict=False`.
 - **Never pick inference checkpoints by `val_token_acc` / `val_f1_avg_tol`** — they anti-correlate
