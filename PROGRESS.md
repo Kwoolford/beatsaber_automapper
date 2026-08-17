@@ -10540,3 +10540,38 @@ PhraseIndex tried to hard-code.
 across thresholds 0.30–0.80). Section-aware thresholds create 5–8 NPS variation but
 not the 0–9 NPS range of real maps. Target: wire `_compute_adaptive_threshold()` for
 per-section NPS targeting.
+
+
+## 2026-08-17 — Kyle judged the maps, and the answer reorganised the whole TODO
+
+He played the agent map, set A and set B, and did **not** answer in arms. He answered in
+defects, across every song: *"very slow, slightly off beat, doing drops at the wrong
+time, not following the main vocals or having random bursts of really fast non flowy
+notes… **the nps is generally wasted on every few non main notes**… they aren't hitting
+that main flow that mappers can generally see."*
+
+★**Three levers with strong numeric evidence have now failed to reach his ear**:
+`COLOR_SEP_MODE` (flow 0.37 → 0.23), `BEAT_GRID_PHASE` (74 better / 0 worse, first ever
+alignment-axis pass) and the agent map (human `ebpm_burst` exactly, human nps median,
+zero parity violations). ⇒ **A passed DoD is evidence about the metric, not about the
+map.** This supersedes the old P0 *"the metrics still don't capture the full picture"* —
+its answer is no longer "find a better axis" but **"make the map legible enough that he
+is the evaluator"**, which is now P0 as the VISIBILITY SUITE.
+
+★**A pre-registered prediction, scored** (`docs/eval_references/prediction_2026-08-17.md`,
+committed *before* he answered). The headline — *his dominant complaint will be FLOW, not
+what either lever changes* — was **CONFIRMED at 65 % stated confidence**. The instructive
+miss: I predicted he would answer **per arm**, and he did not. The A/B pipeline collects
+preferences between arms; he produces defects located in songs. ⇒ `review.py` gains
+defect capture, and preference becomes the secondary record.
+
+★★**The unifying hypothesis, in his words**: *our nps problem is an ALLOCATION problem,
+not a budget problem.* "Wasted on non-main notes" + "not following the main vocals" +
+"I'd like the beat parts faster with more main notes" are plausibly **one defect** — we
+do not distinguish the main musical line from incidental onsets, so the budget goes to
+filler and the map feels **slow and busy at the same time**. Stated, not measured; the
+test is whether reallocating a *fixed* note budget onto main-line events improves his
+verdict with nps held constant.
+
+⚠️**C2 reopened**: grid phase was "largely resolved" by the alignment axis and he still
+hears "slightly off beat". Tempo (right on 70.5 % of songs) is now the better suspect.

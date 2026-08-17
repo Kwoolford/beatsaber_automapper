@@ -11,125 +11,149 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 📍 CURRENT STATE (2026-08-14)
+## 📍 CURRENT STATE (2026-08-17)
 
-📖★**START HERE: [`docs/overnight_2026-08-14.md`](docs/overnight_2026-08-14.md)** — the brief,
-leading with the questions that need Kyle's ear.
+★★**Kyle has judged the maps and the answer is a DEFECT LIST, not a preference.** He
+reviewed the agent map, set A and set B and reported, across *every* song:
 
-**Promoted**: the 2026-08-03 baseline (8 defaults, `docs/BASELINE_2026-08-03.md`). Unchanged.
-**Built, validated, and default OFF — all three await his ear**:
+> *"it varys from very slow, slightly off beat, doing drops at the wrong time, not
+> following the main vocals or having random bursts of really fast non flowy notes…
+> **I think the nps is generally wasted on every few non main notes**… there is a good
+> deal of notes that are on beat and I can tell play part of the song, but **they aren't
+> hitting that main flow that mappers can generally see**."*
 
-| lever | evidence |
-|---|---|
-| `COLOR_SEP_MODE=extreme` | crossover 0.000 → 0.112 (human 0.183); flow 0.37 → 0.23 |
-| `BEAT_STRUCTURE_REUSE=diag_full:…:0.20` | ~45–51 % of the `rhy_rhythm`/`harm_rhythm` gap, 2 seeds |
-| `BEAT_GRID_PHASE=search` | songs >0.10 below human **39 → 21**; **alignment axis 0.62 FAIL → 0.35 PASS**, first ever pass; 74 better / 0 worse |
-| `BEAT_SUBDIV_AUTO=1` | fired on 15 songs with **zero false positives**; burst ceiling 0.500 → 0.958 |
+And the directive that follows from it:
 
-**Song names**: `1f333`=Hunger · `1f8d6`=Fallen Kingdom · `1f913`=Digital Life Hacker ·
-`1f767`=アリスブルー · plus SO TIRED ROCK.
+> *"I think we need to make the visibility suite the top priority… so visibly great that
+> you can go back through and evaluate through me instead of making another evaluation
+> metric."*
 
----
+🔴**Three levers with strong numeric evidence have now failed to reach his ear**
+(`COLOR_SEP_MODE` flow 0.37→0.23; `BEAT_GRID_PHASE` 74 better/0 worse; the agent map at
+human `ebpm_burst` and human nps). ⇒**A passed DoD is evidence about the METRIC, not
+about the map.** The answer is not a seventh axis — it is to make the map legible enough
+that *he* is the evaluator. That is what P0 now is.
 
-## 🔴🔴🔴 P0 — AGENT MAP AUTHORING (`agent_mapper/`) ★KYLE'S PRIORITY, 2026-08-14
-
-> *"I'd really like to see an agentic way to manually build a map… if you or another LLM has a
-> longitudinal view with notes by breakdown and importantly with when lyrics are said you could
-> create some amazing maps."*
-
-**Why it is P0 and not a side quest.** W1, W4 and `follow_vocals` are **one defect**: Stage-1's
-representation does not carry the melodic instruments. An agent reading timestamped lyrics and a
-per-stem timeline **does not have that defect**, so this answers a question the ML track cannot:
-*if the model could hear the vocal line and see the whole song, would the maps be good?* A good
-hand-built map justifies Track B by demonstration; a bad one says the problem is elsewhere.
-
-**Built** (`agent_mapper/`, workflow in `WORKFLOW.md`, skill `/buildmap`):
-`brief.py` (song as a text score + **lyric repeat map**) · `lyrics.py` (Whisper on the separated
-vocals) · `mapctl.py` (`init/auto/add/view/check/status/clear/export`).
-**First map**: Hunger, 1 261 notes from a 20-line plan, `ebpm_burst` **376 = human exactly**,
-nps 4.66, zero parity violations. Installed as `AUTO Hunger [AGENT]`.
-
-**Perception is now built and controlled** (2026-08-16, outcome in
-`agent_mapper/PROGRESS.md`, scorecard in [`docs/perception_scorecard.md`](docs/perception_scorecard.md)):
-`melody.py` (pitch), `percussion.py` (which drum), `structure.py` (sections + which
-repeat), `stemcache.py`. Structure is CONFIRMED on held-out songs (p = 0.019); melody is
-PARTLY CONFIRMED (key agreement 36 % vs 4 % chance).
-
-### Tasks, in order
-1. ★**Get his verdict on `AUTO Hunger [AGENT]`.** Everything else here is unfalsifiable
-   until a human plays it — onset precision is **circular** (`auto` places notes on the
-   onsets the metric scores), so the suite cannot judge this map. Record with
-   `scripts/record_verdict.py`.
-2. ★**`travel` as a SEQUENCE property.** Ours 4.77 vs a human 12.53. 🔴Per-note pitch
-   placement is **REFUTED** — mapping the contour made travel *worse* (4.77 → 3.56,
-   melodies move in small steps) and mapping the interval overshot crossover to 0.523
-   against a human 0.183. So do not try another per-note rule. **DoD**: a placement rule
-   scored on the *sequence* that reaches travel ≥ 8 with crossover ≤ 0.25 and zero parity
-   violations.
-3. **Wire `structure.py` into `mapctl`** — map section `D` once, reuse and vary it at each
-   later `D`. This is the confirmed result and the placer does not use it yet. It is what
-   `BEAT_STRUCTURE_REUSE` infers from an SSM and an agent can simply read.
-   **DoD**: the same section maps to a recognisably related pattern, and Kyle reads the
-   repetition as INTENTIONAL rather than LAZY (same question as review set A).
-4. **Wire `percussion.py` into doubles** — spend them on crashes and snare accents instead
-   of "a strong beat with ≥2 stems agreeing", which capped at ~3 doubles in 24 bars.
-   **DoD**: `double_share` ≥ 0.10 (human 0.146) with parity clean and `ebpm_burst` unmoved.
-5. **Map a second song** with a different shape — Fallen Kingdom, which he called *"really
-   empty"*, is the sharpest test of whether a longitudinal view fixes emptiness.
-   ⚠️Its drum labels self-report as untrustworthy (groove-repetition z = +1.5) and its
-   vocals are fine (coverage 0.85), so lead with melody and structure there, not the kit.
-
-🔴**Do NOT build a downbeat detector.** Measured over 363 human maps, note placement by
-beat-of-bar is 0.254/0.249/0.251/0.246 and only 29 % of maps peak on beat 1 vs 25 %
-chance. Human mappers do not weight bar position; their structure is entirely in the
-subdivision. This was nearly half a day of work.
-
-**DoD**: Kyle plays an agent-built map and says it is better than the generator's on the same
-song. That is the only bar that matters here; every suite number on these maps is either
-circular or known not to track his ear.
-
-⚠️**Landmines already paid for** (details in `agent_mapper/PROGRESS.md`): a guard that checks only
-one neighbour looks applied and does nothing (70 floor violations survived, metric unmoved);
-`postprocess.fix_parity` already solves parity — hand-rolling it cost 380 notes and still left 5
-violations; and doubles cannot be bolted onto a dense pass because both hands are always busy —
-**place accents first, then fill**.
+⚠️**And the review framing was wrong.** The A/B pipeline collects *preferences between
+arms*; he produces *defects located in songs*. Preference is second, defects are first.
 
 ---
 
-## 📦 AWAITING KYLE'S EAR — 3 review sets, 33 maps in `for_review/`
+## 🔴🔴🔴 P0 — THE VISIBILITY SUITE ★KYLE'S PRIORITY, 2026-08-17
 
-★**They are staged, not scattered**: `python scripts/review.py list` is the authoritative pending list, `review.py open <terms>` launches ArcViewer on one, `review.py verdict …` records the judgement, `review.py done <set>` files the set into `outputs/reviewed/`. A set cannot be filed without a verdict in the ledger — that guard is why these three grew to 33 maps unnoticed.
+**The goal, in his words: "so visibly great that you can evaluate through me."** Every
+item below is judged on whether it lets him point at a moment and name what is wrong —
+not on whether it produces a number.
 
-| set | maps | the question |
-|---|---|---|
-| **A** structure + crossover (`docs/review_2026-08-11.md`) | `[BEFORE]/[CROSSOVER]/[AFTER CAPPED]/[BOTH]/[AFTER]` × his 4 songs | ★Play `[BEFORE]` vs `[BOTH]`: **does the repetition read INTENTIONAL or LAZY?** And do the crossovers play better? |
-| **B** grid phase (`docs/review_2026-08-14.md`) | `[BEFORE]/[PHASE]` × 6 corpus songs | ★Lead with **BEcause**: does `[PHASE]` sit on the beat better? **"Can't tell" is a real answer.** |
-| **C** agent-built | `AUTO Hunger [AGENT]` | Is it better than the generator's Hunger? |
+**What already exists to build on**: `melody.py` (pitch per onset), `percussion.py`
+(kit labels), `structure.py` (sections + which repeat, CONFIRMED held-out p=0.019),
+`brief.py` (per-bar stem grid + lyrics), `map_view.py` (map as text), ArcViewer (play
+preview). ⚠️**None of it is time-aligned into one picture**, which is the whole gap.
 
-🔴**His 4 standing songs are absent from set B by measurement, not oversight** — the lever left
-them byte-identical, so there was nothing to hear. ⚠️**Check that a lever changes those 4 maps at
-all before building a review set on them**; they are a well-behaved sample and a lever aimed at a
-defect they lack is invisible there.
+### V1 — The NOTESHEET: the song as a readable score
+One time axis, one lane per voice: vocal pitch line + lyric, bass line, the `other`
+lead/chords, four kit lanes, with the section banner above it.
+- ⚠️**Terminal text will not carry this.** 4 minutes × 6 lanes does not fit usefully;
+  this must render (HTML/SVG page or PNG), because the whole point is that he looks at it.
+- ❌**`bass` has no transcription at all** — build it first, it is the cheapest possible
+  win (bass is monophonic, so pYIN works directly, exactly as for vocals).
+- ⚠️`other` is currently ONE salience peak per frame, not chords. Real polyphony needs a
+  model — `basic-pitch` installs here via its ONNX backend (the TF wheel blocks Python
+  3.12; `--no-deps` + onnxruntime resolves). **De-risk with a PoC on one song first.**
+**DoD**: he opens one page and can read what the song is doing without the audio.
 
-**Also still open from 2026-08-04**: is Fallen Kingdom empty vs what our model *used to do*, or vs
-what the *song wants*?
+### V2 — ★THE OVERLAY: our map drawn ON the notesheet
+The single most important view, because it makes his central complaint visible without
+inventing a metric for it. Every placed note is drawn against the musical event under it
+and falls into exactly one of three classes:
+- **HIT** — a note on a main musical event
+- **MISSED** — a main event with no note ⇒ *"not following the main vocals"*
+- **WASTED** — a note with no main event under it ⇒ ★*"the nps is generally wasted on
+  every few non main notes"*
+**DoD**: he can look at one section and agree or disagree with the three colours. If he
+disagrees, the *definition of "main"* is what is wrong — and that is a far better thing
+to argue about than an axis score.
+
+### V3 — The FLOW view: play-level clarity
+Hand paths over time (L/R column+row), cut directions, and **bursts marked where they
+happen**. His flow complaint has been unlocatable so far: *"random bursts of really fast
+non flowy notes"* names a symptom with no timestamp.
+**DoD**: given his complaint, we can point at the bar it refers to.
+
+### V4 — One page per song
+V1+V2+V3 on a single scrollable page, published so he can open it on any device and
+scrub to a timestamp. This is the surface that replaces metric invention.
+**DoD**: he reviews a map from the page + ArcViewer and never needs a scorecard.
+
+### V5 — Defect capture, replacing arm-preference as the primary record
+`scripts/review.py` collects `--better/--worse`. He produces *"drop is late at 2:10"*.
+Add `review.py defect --song X --at 2:10 --kind drop_timing --quote "…"`, and make the
+defect list the thing that drives work.
+**DoD**: his review of a song lands in the ledger as located, typed defects.
 
 ---
 
-## 🔴🔴 P0 — "THE METRICS STILL DON'T CAPTURE THE FULL PICTURE" (Kyle, 2026-08-10)
+## 🔴🔴 P0.5 — THE SIX DEFECTS HE NAMED (2026-08-17)
 
-The masterpiece axes rank the map he called *"really empty"* **second-best** and the one he graded
-**A+** **fifth-worst**. Three measured senses in which the suite misses: it is at a coin flip per
-axis (13/26 on his one known verdict), nearly **blind to placement** (M-E rewrote 25 % of note
-positions and 12 of 15 axes moved by +0.0000), and **the six-axis suite cannot score a single map
-at all** — they are cohort statistics and return `nan` on one map.
+★**Unifying hypothesis, and the most valuable thing he has said in weeks:**
+> **Our nps problem is an ALLOCATION problem, not a budget problem.**
 
-⇒**The answer is a different SOURCE OF TRUTH, not a seventh metric** — building metrics from first
-principles is what produced the anti-correlation.
-✅**The blocker is removed**: `scripts/record_verdict.py` + `docs/eval_references/preference_verdicts.json`
-now exist, so verdicts accumulate instead of living in prose. `preference_screen.py` reads them.
-**DoD**: an axis (or weighting) that reproduces his ordering on held-out pairs above chance. Until
-something clears that, no axis may be called a quality metric — only a defect detector.
+*"The nps is generally wasted on every few non main notes"* + *"not following the main
+vocals"* + *"I'd like the general beat parts to be faster and play more main notes"* are
+plausibly **one defect**: we do not distinguish the MAIN musical line from incidental
+onsets, so the note budget is spent on filler and the map simultaneously feels **slow**
+(the notes you want are absent) and **busy** (notes you do not want are present).
+⚠️This is a hypothesis stated in his words, not a measured finding. **Test it before
+building on it**: if true, reallocating a *fixed* note budget onto main-line events
+should improve his verdict with nps held constant.
+
+| # | defect, his words | first read | DoD |
+|---|---|---|---|
+| **D1** | *"very slow"* | ours ~4.96 nps vs human 8.35 on Hunger — but see the allocation hypothesis before simply raising density | he stops calling it slow **without** a raw nps increase |
+| **D2** | *"slightly off beat"* | survives `BEAT_GRID_PHASE`; tempo is right on only **70.5 %** of songs (n=149) and 2:3 misreads are open | he stops calling it off-beat on a song whose tempo we call correct |
+| **D3** | *"doing drops at the wrong time"* | ⭐**directly actionable now** — `structure.py` finds sections and marks `DROP`/`build`/`breakdown`, and the generator does not use any of it | detected drop bar == where he says the drop is, on 4 songs |
+| **D4** | *"not following the main vocals"* | `follow_vocals` ours **0.020** vs human **0.149**; root cause known — Stage-1 carries no melodic instruments (Track B) | `follow_vocals` ≥ 0.10 **and** he agrees the vocal line is being played |
+| **D5** | *"random bursts of really fast non flowy notes"* | two joined problems: bursts are not musically motivated, **and** they break flow. V3 must locate them first | he cannot find a burst he calls random |
+| **D6** | ★*"nps wasted on non main notes"* | the allocation hypothesis above; needs a definition of **main** that he endorses via V2 | main-line recall up with nps flat, and he agrees |
+
+⚠️**D6 is the one that must not become another invented axis.** Define "main" in V2,
+show it to him, and let him correct the definition. A metric he has endorsed by looking
+at it is a different object from one built from first principles — building those from
+first principles is exactly what produced the anti-correlation.
+
+---
+
+## 📦 AWAITING KYLE'S EAR — sets A and B, now answered globally
+
+`for_review/` holds 32 maps; `python scripts/review.py next` is the shortlist and
+`review.py list` the full pending list. **He has now answered both sets at the level of
+defects rather than arms**, so:
+- ⬜**`[AFTER]` vs `[BEFORE]` (set A) is still unresolved per-arm** — the intentional/lazy
+  question was never answered, and `mapctl reuse --vary 0.15` is still a guess.
+- ⚠️**`[PHASE]` did not remove *"slightly off beat"*** ⇒ do NOT flip
+  `BEAT_GRID_PHASE=search` on this evidence. Either the lever is inaudible or the
+  off-beat feel has a different cause (tempo, D2).
+
+**Also still open from 2026-08-04**: is Fallen Kingdom empty vs what our model *used to
+do*, or vs what the *song wants*?
+
+---
+
+## 🔵 P1 — AGENT MAP AUTHORING (`agent_mapper/`) — demoted 2026-08-17
+
+Was P0; **visibility is now above it**, because the agent map's verdict was
+*"expecting… much better"* + *"the notes flow in a really odd way"* and we cannot fix
+flow we cannot see. The perception tools built for it (`melody`/`percussion`/`structure`)
+are exactly what the visibility suite is built from, so this is a demotion in priority,
+not a retreat.
+🔴**The judged map predates all of them** — it was planned off `brief.py`'s 8-bar onset
+densities alone and knew no pitch, no sections and no kit. It is the BEFORE for the
+perception work, not a test of it.
+- Rebuild a map using melody + structure + percussion, on **Fallen Kingdom, not Hunger**
+  (Hunger's vocals are genuinely unpitched — pYIN voiced-on-loud 0.19 vs 0.91–0.99).
+- 🔴`travel` is a **sequence** property — per-note pitch placement is REFUTED (made it
+  worse, 4.77 → 3.56). Do not try another per-note rule.
+- Wire `percussion.py` into doubles (crashes/snare accents, not "strong beat + 2 stems").
 
 ---
 
@@ -190,9 +214,12 @@ defect**, established by elimination — not tempo, not phase, **not onset suppl
 available per note we emit), and **not difficulty** (the human scores 0.943 on exactly those songs
 vs 0.934 on the ones we handle fine).
 
-### C2 — Grid PHASE ✅ largely resolved
-`BEAT_GRID_PHASE=search` fixed ~18 of 39 failing songs. Remaining phase work is inside the tempo
-item above. ⚠️Never apply a blanket global shift — on `1f767` the human wants the same shift we do,
+### C2 — Grid PHASE ⚠️resolved ON THE METRIC ONLY — reopened 2026-08-17
+`BEAT_GRID_PHASE=search` fixed ~18 of 39 failing songs **by the alignment axis**.
+🔴**Kyle still reports *"slightly off beat"* across every song after playing `[PHASE]`**, so
+either the lever is inaudible or the off-beat feel is not phase at all — see **D2**, where tempo
+(right on only 70.5 % of songs) is the better suspect. Do not flip the default on the axis alone;
+the axis is the thing the lever optimises. Remaining phase work is inside the tempo item above. ⚠️Never apply a blanket global shift — on `1f767` the human wants the same shift we do,
 so that part is an **onset-detector offset**, and "fixing" it is the `h_dist` failure.
 
 ### C3 — Density/rhythm tension: you cannot thin your way to human density

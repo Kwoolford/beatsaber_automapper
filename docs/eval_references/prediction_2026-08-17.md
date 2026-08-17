@@ -80,3 +80,30 @@ much"**, and I am applying it here rather than talking myself out of it.
 | `[PHASE]` clearly better | flip `BEAT_GRID_PHASE=search` ON — the circularity objection is answered by an ear outside the loop |
 | `[PHASE]` can't tell | the alignment axis is measuring something **inaudible**; stop treating it as a quality axis |
 | `[PHASE]` wrong on a song | the search has an **octave/offbeat failure mode**; constrain it to sub-beat offsets |
+
+---
+
+# OUTCOME — scored 2026-08-17, after he answered
+
+His verdict, verbatim: *"it varys from very slow, slightly off beat, doing drops at the
+wrong time, not following the main vocals or having random bursts of really fast non
+flowy notes… I think the nps is generally wasted on every few non main notes… they
+aren't hitting that main flow that mappers can generally see."*
+
+| prediction | conf | outcome |
+|---|---|---|
+| ★**dominant complaint is FLOW, not what either lever changes** | 65 % | ✅ **CONFIRMED** — *"random bursts of really fast non flowy notes"*, *"aren't hitting that main flow"* |
+| set A: he dislikes `[AFTER]` | 70 % | ⬜ **NOT RESOLVED** — he answered globally across all songs rather than per arm |
+| set B: `[PHASE]` not the clean win the numbers imply | 50/30/20 | ⚠️ **PARTLY** — *"slightly off beat"* persists across **all** songs, so the lever did not deliver an audible fix. Consistent with the 50 % branch; the 20 % "actively wrong on one song" branch is neither confirmed nor ruled out |
+| he answers per-arm at all | (implicit) | ❌ **WRONG** — I framed the whole thing as A/B arms. He does not experience the maps that way; he described **defects that cut across every song**. The review-set framing was mine, not his |
+
+★**The miss is the useful part.** I built a review pipeline around pairwise arm
+comparisons because that is how the *evidence* is structured. He listens to maps and
+reports what is wrong with them. Both A/B arms were nearly irrelevant to what he
+actually had to say — his signal is a **defect list**, not a preference ordering.
+⇒ The pipeline should collect *defects per song* first and preferences second.
+
+★★**And the base rate held.** Both levers have strong numeric evidence
+(74 better / 0 worse; flow 0.37 → 0.23) and neither reached his ear as a preference.
+That is now **three** independent times numeric wins have failed to translate. Stop
+treating a passed DoD as evidence about quality; it is evidence about the metric.
