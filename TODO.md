@@ -96,7 +96,9 @@ violations; and doubles cannot be bolted onto a dense pass because both hands ar
 
 ---
 
-## 📦 AWAITING KYLE'S EAR — 3 review sets, 33 maps installed
+## 📦 AWAITING KYLE'S EAR — 3 review sets, 33 maps in `for_review/`
+
+★**They are staged, not scattered**: `python scripts/review.py list` is the authoritative pending list, `review.py open <terms>` launches ArcViewer on one, `review.py verdict …` records the judgement, `review.py done <set>` files the set into `outputs/reviewed/`. A set cannot be filed without a verdict in the ledger — that guard is why these three grew to 33 maps unnoticed.
 
 | set | maps | the question |
 |---|---|---|

@@ -69,3 +69,8 @@ test.py
 
 # agent_mapper working sessions (notes.tsv + session.json per song) — artifacts
 agent_mapper/sessions/
+
+# Maps staged for Kyle's ear. Pending review lives here; once reviewed a set is
+# cataloged into outputs/reviewed/ by scripts/review.py. Both are gitignored —
+# the VERDICTS are what gets tracked, in docs/eval_references/preference_verdicts.json.
+/for_review/
