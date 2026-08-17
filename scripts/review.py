@@ -82,6 +82,99 @@ SETS = {
 }
 
 
+# ★THE SHORTLIST. 33 maps is not a review, it is a chore nobody does — and three sets
+# sat untouched long enough to prove that. Each entry below is ONE comparison that
+# unblocks ONE decision that is currently blocked. Ordered by value per minute of his
+# time, which is the scarcest resource this project has.
+#
+# Song choice is deliberate: three of the four are Hunger, which he already knows well
+# enough to have graded parts of it A+, so he learns two songs instead of ten. BEcause
+# is unavoidable for the grid-phase question — the lever left his four standing songs
+# BYTE-IDENTICAL, so there is literally nothing to hear on them.
+SHORTLIST = [
+    {
+        "n": 1,
+        "set": "A",
+        "play": ["Hunger_BEFORE.zip", "Hunger_CROSSOVER.zip"],
+        "decides": "Flip COLOR_SEP_MODE=extreme (crossover) ON by default?",
+        "why": "The cleanest numbers on this project. We cross hands over on 0.000 of "
+               "notes; 150 human maps have a median of 0.183 and NOT ONE of them has "
+               "zero. Flow improves 0.37 -> 0.23 and two reachability measures land "
+               "exactly on the human value. It changes every song, not just repetitive "
+               "ones. If you play one thing, play this.",
+        "ask": "Do the crossovers feel natural, or do they feel like the map is "
+               "fighting you?",
+    },
+    {
+        "n": 2,
+        "set": "C",
+        "play": ["Hunger_AGENT.zip"],
+        "against": "Hunger_BEFORE.zip (set A) — the same song you just played",
+        "decides": "Is agent-authored mapping worth keeping as P0?",
+        "why": "A whole research direction rests on this one map. Every suite number on "
+               "it is either circular (it places notes on the onsets the metric scores) "
+               "or known not to track your ear, so nothing but you can answer it.",
+        "ask": "Better or worse than the generator's Hunger? Blunt is fine.",
+    },
+    {
+        "n": 3,
+        "set": "B",
+        "play": ["BEcause_BEFORE.zip", "BEcause_PHASE.zip"],
+        "decides": "Flip BEAT_GRID_PHASE=search ON by default?",
+        "why": "It passed its DoD at n=149 and made the alignment axis pass for the "
+               "FIRST TIME EVER (0.62 FAIL -> 0.35 PASS), 74 songs better and 0 worse. "
+               "It is still default-OFF for one reason: it optimises the same onsets "
+               "the axis scores, so the axis cannot be trusted to judge it. Your ear is "
+               "the only thing outside that circle.",
+        "ask": "Does [PHASE] sit ON the beat better? \"Can't tell\" is a real answer "
+               "and worth recording — it would mean the axis is measuring something "
+               "inaudible.",
+    },
+    {
+        "n": 4,
+        "set": "A",
+        "optional": True,
+        "play": ["Hunger_BEFORE.zip", "Hunger_BOTH.zip"],
+        "decides": "Does deliberate repetition read INTENTIONAL or LAZY?",
+        "why": "Only if you still have patience. Hunger's chorus is genuinely the same "
+               "music three times (bars 55/113/194, confirmed) so it is the sharpest "
+               "test. It matters because mapctl's new `reuse` defaults to varying 15 % "
+               "of a repeated section — if repetition reads LAZY that default is wrong. "
+               "⚠️[BOTH] stacks crossover AND structure reuse, so judge it only after "
+               "comparison 1 has told you what crossover alone feels like.",
+        "ask": "Does the repeat feel like a callback, or like I got lazy?",
+    },
+]
+
+
+def cmd_next(a) -> int:
+    """The shortlist: a few comparisons, each with the decision it unblocks."""
+    print("★ SHORTLIST — 4 comparisons, 6 distinct maps, 2 songs.\n"
+          "  (33 maps are staged; these are the ones whose answers change what I build.)\n")
+    for c in SHORTLIST:
+        if c.get("optional") and not a.all:
+            continue
+        tag = "  [optional]" if c.get("optional") else ""
+        print(f"{c['n']}. set {c['set']}{tag}  —  {c['decides']}")
+        for f in c["play"]:
+            hit = next((z for z in STAGE.rglob(f)), None)
+            mark = " " if hit else " ⚠️MISSING "
+            print(f"     play{mark}{f}")
+        if c.get("against"):
+            print(f"     against  {c['against']}")
+        print(f"     why      {c['why']}")
+        print(f"     ★ask     {c['ask']}")
+        print(f"     open     python scripts/review.py open "
+              f"{' '.join(c['play'][0].replace('.zip', '').split('_'))}")
+        print()
+    if not a.all:
+        print("A 4th optional comparison exists: python scripts/review.py next --all")
+    print("\nRecord an answer:\n"
+          "  python scripts/review.py verdict --set A --song 1f333 --name Hunger \\\n"
+          "      --better CROSSOVER --worse BEFORE --quote \"your words\"")
+    return 0
+
+
 def _ledger() -> dict:
     if LEDGER.exists():
         return json.loads(LEDGER.read_text())
@@ -129,7 +222,13 @@ def cmd_stage(a) -> int:
 def _write_readme() -> None:
     lines = ["# Maps waiting on Kyle's ear", "",
              "Open one with ArcViewer:", "",
-             "```bash", "python scripts/review.py open Hunger AGENT", "```", ""]
+             "```bash",
+             "python scripts/review.py next          # ★ the 3 that matter, start here",
+             "python scripts/review.py open Hunger CROSSOVER",
+             "```", "",
+             "**33 maps are staged. You do not need to play 33 maps** — "
+             "`review.py next` lists the handful whose answers change what gets built.",
+             ""]
     for sid, meta in SETS.items():
         d = STAGE / meta["dir"]
         if not d.exists():
@@ -286,6 +385,10 @@ def main() -> int:
 
     p = sub.add_parser("stage", help="move pending sets out of outputs/ into for_review/")
     p.set_defaults(fn=cmd_stage)
+
+    p = sub.add_parser("next", help="★the shortlist — a few comparisons that matter")
+    p.add_argument("--all", action="store_true", help="include the optional one")
+    p.set_defaults(fn=cmd_next)
 
     p = sub.add_parser("list", help="what is pending, and the question each set asks")
     p.add_argument("--long", action="store_true", help="list every map file")
