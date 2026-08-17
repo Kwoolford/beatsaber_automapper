@@ -49,19 +49,40 @@ vocals) · `mapctl.py` (`init/auto/add/view/check/status/clear/export`).
 **First map**: Hunger, 1 261 notes from a 20-line plan, `ebpm_burst` **376 = human exactly**,
 nps 4.66, zero parity violations. Installed as `AUTO Hunger [AGENT]`.
 
+**Perception is now built and controlled** (2026-08-16, outcome in
+`agent_mapper/PROGRESS.md`, scorecard in [`docs/perception_scorecard.md`](docs/perception_scorecard.md)):
+`melody.py` (pitch), `percussion.py` (which drum), `structure.py` (sections + which
+repeat), `stemcache.py`. Structure is CONFIRMED on held-out songs (p = 0.019); melody is
+PARTLY CONFIRMED (key agreement 36 % vs 4 % chance).
+
 ### Tasks, in order
-1. ★**Get his verdict on `AUTO Hunger [AGENT]`.** Everything else here is unfalsifiable until a
-   human plays it — onset precision is **circular** (`auto` places notes on the onsets the metric
-   scores), so the suite cannot judge this map. Record with `scripts/record_verdict.py`.
-2. **Close the two measured gaps**: `travel` **4.60 vs human 12.53** (hands barely move — `auto`
-   uses two columns and two rows per hand) and `double_share` **0.034 vs 0.146** (needs a broader
-   accent model than "strong beat with ≥2 stems agreeing").
-3. **Map a second song**, ideally one with a different shape (Fallen Kingdom — he called it
-   *"really empty"*, so it is the sharpest test of whether a longitudinal view fixes emptiness).
-4. **Add a `--crossover` placement mode** — human maps cross hands over on ~18 % of notes and
-   both our generator *and* `auto` emit exactly zero. It would move `travel` too.
-5. **Teach `auto` the lyric repeat map**: map a chorus once and reuse it deliberately, which is
-   what `BEAT_STRUCTURE_REUSE` infers from an SSM and an agent can simply read.
+1. ★**Get his verdict on `AUTO Hunger [AGENT]`.** Everything else here is unfalsifiable
+   until a human plays it — onset precision is **circular** (`auto` places notes on the
+   onsets the metric scores), so the suite cannot judge this map. Record with
+   `scripts/record_verdict.py`.
+2. ★**`travel` as a SEQUENCE property.** Ours 4.77 vs a human 12.53. 🔴Per-note pitch
+   placement is **REFUTED** — mapping the contour made travel *worse* (4.77 → 3.56,
+   melodies move in small steps) and mapping the interval overshot crossover to 0.523
+   against a human 0.183. So do not try another per-note rule. **DoD**: a placement rule
+   scored on the *sequence* that reaches travel ≥ 8 with crossover ≤ 0.25 and zero parity
+   violations.
+3. **Wire `structure.py` into `mapctl`** — map section `D` once, reuse and vary it at each
+   later `D`. This is the confirmed result and the placer does not use it yet. It is what
+   `BEAT_STRUCTURE_REUSE` infers from an SSM and an agent can simply read.
+   **DoD**: the same section maps to a recognisably related pattern, and Kyle reads the
+   repetition as INTENTIONAL rather than LAZY (same question as review set A).
+4. **Wire `percussion.py` into doubles** — spend them on crashes and snare accents instead
+   of "a strong beat with ≥2 stems agreeing", which capped at ~3 doubles in 24 bars.
+   **DoD**: `double_share` ≥ 0.10 (human 0.146) with parity clean and `ebpm_burst` unmoved.
+5. **Map a second song** with a different shape — Fallen Kingdom, which he called *"really
+   empty"*, is the sharpest test of whether a longitudinal view fixes emptiness.
+   ⚠️Its drum labels self-report as untrustworthy (groove-repetition z = +1.5) and its
+   vocals are fine (coverage 0.85), so lead with melody and structure there, not the kit.
+
+🔴**Do NOT build a downbeat detector.** Measured over 363 human maps, note placement by
+beat-of-bar is 0.254/0.249/0.251/0.246 and only 29 % of maps peak on beat 1 vs 25 %
+chance. Human mappers do not weight bar position; their structure is entirely in the
+subdivision. This was nearly half a day of work.
 
 **DoD**: Kyle plays an agent-built map and says it is better than the generator's on the same
 song. That is the only bar that matters here; every suite number on these maps is either

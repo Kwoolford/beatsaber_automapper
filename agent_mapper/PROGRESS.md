@@ -92,3 +92,62 @@ correctness.** The gap floor stays hand-rolled because it is about *timing*, whi
   the hands barely move. The human map is far more physical.
 - **doubles 0.034 vs 0.146** — needs a broader accent model than "strong beat with
   stem agreement".
+
+
+## 2026-08-16 — three perception axes, and the one hypothesis they refuted
+
+Kyle: *"mostly work on the manual mapping suite and keep building crazy good tools until
+you believe you have the same insights into a song to map as a human does."* The answer,
+written down falsifiably, is **[`docs/perception_scorecard.md`](../docs/perception_scorecard.md)**
+— 13 rows of what a human mapper perceives, each marked with the control it passes.
+**Short version: not yet, but the gap is now named, and three of the four biggest rows
+closed.**
+
+### Built, each with a control
+| tool | what it adds | control | verdict |
+|---|---|---|---|
+| `stemcache.py` | separate once, analyse many ways | — | infrastructure |
+| `melody.py` | **pitch** — what note, and which way it moves | two independent trackers agree on the key on 36 % of 14 songs vs 4 % chance | **PARTLY CONFIRMED** |
+| `percussion.py` | **which drum** is hitting | labelled groove repeats bar-to-bar, z = +12.7…+25.7 vs a shuffled null | **CONFIRMED, 3 of 4 songs** |
+| `structure.py` | **sections, and which repeat** | repeated lyric lines share a letter 0.485 vs null 0.317, p = 0.019, 6 **held-out** songs | **CONFIRMED** |
+
+### ★The refutation: `travel` is not a contour problem
+Our hands barely move (`travel` 4.77 vs a human 12.53) and the obvious cause was that
+nothing told the placer *where* to go. Built it, measured it, wrong:
+
+- `--pitch` (level → column) made travel **worse, 4.77 → 3.56**. Melodies move in small
+  steps, so following the contour parks consecutive notes in the same cell.
+- `--pitch-span full` (interval → jump size) recovered the baseline (4.789) but
+  overshot crossover to **0.523 against a human 0.183**.
+
+⇒ **`travel` is a property of the note SEQUENCE, not of any per-note rule**, and is
+therefore not a perception defect at all. Isolating that is the useful part.
+
+### A real bug: `--wide` never widened anything
+Hands strictly alternate and the column came from a *global* note counter, so `k % 2` was
+perfectly correlated with the hand — the left hand only ever saw even `k`. Measured as
+exactly **two** distinct columns across a 449-note map; now four, evenly. Fixed.
+
+### Two controls thrown out for being wrong, not for failing
+- **The backbeat** ("snare on 2 and 4"). Over **363 human maps**, note placement by
+  beat-of-bar is 0.254/0.249/0.251/0.246 and only 29 % of maps peak on beat 1 against a
+  25 % chance. Human structure is entirely in the **subdivision** (0.52 on-beat, 0.31
+  eighth, 0.17 sixteenth). ⇒ **a downbeat detector is not worth building**, which this
+  nearly was.
+- **The melody step control** used a *median* of integer semitone intervals, quantised to
+  1.0 for signal and noise alike. It read as a refutation and was a blunt ruler.
+
+### Landmines paid for
+- librosa's `voiced_prob` is **0.01–0.16 even where the flag is True and the pitch is
+  right** — gating on it threw away 95 % of a correctly tracked vocal line.
+- Segmenting f0 into notes independently of the onsets gives **48 "notes" for a 343-word
+  song** (vibrato flips the rounded semitone every ~35 ms). Anchor **one pitch per onset**.
+- Absolute spectral thresholds **do not transfer between mixes** — two hand-tuned drum
+  classifiers each broke somewhere different (47 % "tom"; 96 % "snare"). Cluster each
+  song against itself.
+- Beat-level chroma clustering finds the **chord loop**, not the sections. Bar-level
+  features with delay embedding put the window at phrase scale.
+- The checkerboard novelty curve is almost entirely negative (~4 % above zero), so gate
+  peaks on **prominence**, never height.
+- Hunger's vocals are genuinely **unpitched** (metalcore; pYIN voiced-on-loud 0.19 vs
+  0.91–0.99 elsewhere). The one song we hand-mapped is the worst case for a melody tool.

@@ -300,6 +300,44 @@ def _agree(an: dict, t: float, slot_s: float) -> int:
     return n
 
 
+def _pitch_levels(audio: pathlib.Path, stem: str) -> list[tuple[float, int]]:
+    """(time, level 0-9) for every pitched onset of a melodic stem, or [] if none.
+
+    ★**This is where pitch becomes PLACEMENT.** `travel` is ours 4.60 against a human
+    12.53 — our hands barely move — and the reason is visible in the two lines below
+    this function: two columns and two rows per hand, chosen by parity alone. Nothing
+    in the placer ever knew whether the melody went up or down, so there was nothing
+    for it to follow. A human walks the grid with the line.
+    """
+    import melody as M
+    try:
+        res = M.analyse(audio)
+    except Exception:                                             # noqa: BLE001
+        return []
+    ev = res["stems"].get(stem) or []
+    meta = res.get("meta", {}).get(stem, {})
+    # Refuse to place off a line the melody tool itself does not trust: a screamed
+    # vocal has no f0 and a level derived from one is a number, not a pitch.
+    if len(ev) < 20 or meta.get("coverage", 0) < 0.45:
+        return []
+    M.levels(ev)
+    return [(e["t"], e.get("level", 4)) for e in ev]
+
+
+def _level_at(levels: list[tuple[float, int]], t: float, tol: float = 0.12) -> int | None:
+    """The pitch level of the note nearest `t`, if one is close enough to be it."""
+    if not levels:
+        return None
+    import bisect as _b
+    ts = [x[0] for x in levels]
+    i = _b.bisect_left(ts, t)
+    best, bd = None, tol
+    for j in (i - 1, i, i + 1):
+        if 0 <= j < len(levels) and abs(levels[j][0] - t) < bd:
+            best, bd = levels[j][1], abs(levels[j][0] - t)
+    return best
+
+
 def cmd_auto(a) -> int:
     """Follow a stem over a bar range: the bulk-placement primitive.
 
@@ -334,6 +372,14 @@ def cmd_auto(a) -> int:
         return 2
     b0, b1 = (int(x) for x in a.bars.split("-"))
     a.double_slots = {int(x) for x in str(a.accent_slots).split(",")}
+    plevels: list[tuple[float, int]] = []
+    if getattr(a, "pitch", False):
+        pstem = a.follow if a.follow in ("vocals", "other") else "vocals"
+        plevels = _pitch_levels(pathlib.Path(s["audio"]), pstem)
+        if not plevels:
+            print(f"⚠️--pitch asked for, but `{pstem}` has no trustworthy melodic line "
+                  "(screamed vocals, or coverage below 0.45). Falling back to the "
+                  "parity-only layout — this is the honest answer, not a failure.")
     cur = read_notes(a.name)
     occupied = {(n["bar"], n["slot"]) for n in cur}
     n_cells = BEATS_PER_BAR * SUBDIV
@@ -388,6 +434,13 @@ def cmd_auto(a) -> int:
     cols = {"L": [1, 0], "R": [2, 3]}
     new = []
     k = 0
+    # ⚠️Per-HAND counter. `--wide` used the global note counter `k`, but hands strictly
+    # alternate, so `k % 2` was perfectly correlated with which hand was playing: the
+    # left hand only ever saw even k and the right only odd. `--wide` therefore pinned
+    # L to column 1 and R to column 3 and never widened anything — measured as exactly
+    # two distinct columns across a 449-note map.
+    wide_k = {"L": 0, "R": 0}
+    last_lvl: dict[str, int] = {}
     for _t, kind, payload in merged:
         if kind == 0:
             last_t[payload["hand"]] = _t
@@ -447,7 +500,39 @@ def cmd_auto(a) -> int:
         want_down = last_down[h]
         d = "D" if want_down else "U"
         row = 0 if want_down else 2
-        col = cols[h][k % 2] if a.wide else cols[h][0]
+        col = cols[h][wide_k[h] % 2] if a.wide else cols[h][0]
+        wide_k[h] += 1
+        lvl = _level_at(plevels, _t) if plevels else None
+        if lvl is not None and a.pitch_span == "full":
+            # ★INTERVAL, not absolute level. Mapping level->position directly made
+            # `travel` WORSE (4.77 -> 3.56 against a human 12.53), and the reason is
+            # musical: a melody moves in small steps, so following its contour
+            # literally parks consecutive notes in the same cell. What a human
+            # actually mirrors is the LEAP — a big interval becomes a big move.
+            prev = last_lvl.get(h)
+            span = cols[h] + cols["R" if h == "L" else "L"]      # all four columns
+            if prev is None:
+                col = cols[h][0]
+            else:
+                jump = min(abs(lvl - prev), 5)
+                # a small interval stays on this hand's side, a big one crosses over
+                col = span[min(jump * 3 // 2, 3)]
+            row = 1 if (prev is not None and abs(lvl - prev) >= 4) else row
+            last_lvl[h] = lvl
+        elif lvl is not None:
+            # Column follows the line outward: a high note sits on the OUTER column of
+            # the hand playing it, a low note on the inner one. Deliberately kept
+            # inside the hand's own two columns — crossing hands over is a separate,
+            # bigger change and mixing the two would make neither measurable.
+            col = cols[h][1] if lvl >= 5 else cols[h][0]
+            # Row nudges toward the pitch, but only by one, and only away from the
+            # parity-natural extreme. ⚠️Parity decides the cut DIRECTION and is what
+            # makes the map playable; this moves the note within what that allows and
+            # never overrides it. The middle row was previously never used at all.
+            if want_down and lvl >= 7:
+                row = 1
+            elif (not want_down) and lvl <= 2:
+                row = 1
         new.append(parse_note_line(s, f"{bar}.{sl} {h} {col} {row} {d}"))
         hand_dir[h][_t] = want_down
         # ★DOUBLES MARK THE DOWNBEAT. Humans put both hands on an accent —
@@ -590,6 +675,14 @@ def main() -> int:
     p.add_argument("--every", type=int, default=1, help="thin: keep every Nth onset")
     p.add_argument("--max-per-bar", type=int, default=0, help="cap notes per bar")
     p.add_argument("--wide", action="store_true", help="use both columns per hand")
+    p.add_argument("--pitch-span", default="hand", choices=("hand", "full"),
+                   help="hand = pitch picks the column inside the hand's own two; "
+                        "full = the pitch INTERVAL picks how far to jump, across all "
+                        "four columns (crossovers allowed)")
+    p.add_argument("--pitch", action="store_true",
+                   help="★place by the MELODY: column and row follow the pitch "
+                        "contour of the followed stem (needs agent_mapper/melody.py; "
+                        "falls back with a warning if the line is not trustworthy)")
     p.add_argument("--doubles", action="store_true",
                    help="both hands on bar downbeats where stems agree; how a human "
                         "adds density without speeding either hand up")
