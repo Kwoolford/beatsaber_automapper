@@ -218,6 +218,101 @@ def cmd_clear(a) -> int:
     return 0
 
 
+def cmd_plan(a) -> int:
+    """Print the song's own section plan — the longitudinal view, as a work list.
+
+    This is `structure.py`'s CONFIRMED result (repeated lyric lines land under the same
+    letter 0.485 vs a shuffled null 0.317, p = 0.019 on held-out songs) turned into
+    something you map against: which bars, which letter, and which instances are the
+    same music as which.
+    """
+    import structure as ST
+    s = load_session(a.name)
+    secs = ST.analyse(pathlib.Path(s["audio"]))["sections"]
+    notes = read_notes(a.name)
+    print(f"session '{a.name}'   {len(secs)} sections")
+    print(f"{'sec':>4} {'bars':>10} {'len':>5} {'notes':>6}   reuse")
+    byl: dict[str, list[dict]] = {}
+    for sec in secs:
+        byl.setdefault(sec["label"], []).append(sec)
+    for sec in secs:
+        b0, b1 = sec["bar0"], sec["bar0"] + sec["bars"] - 1
+        n = sum(1 for x in notes if b0 <= x["bar"] <= b1)
+        peers = [x["bar0"] for x in byl[sec["label"]] if x["bar0"] != sec["bar0"]]
+        print(f"{sec['label']:>4} {f'{b0}-{b1}':>10} {sec['bars']:>4}b {n:>6}   "
+              + (f"same as bar {peers}" if peers else "—"))
+    return 0
+
+
+def cmd_reuse(a) -> int:
+    """★Map a section once, then reuse it at every repeat — deliberately.
+
+    `BEAT_STRUCTURE_REUSE` exists to infer this from an audio self-similarity matrix and
+    apply it to the generator. An agent does not have to infer it: `structure.py` reads
+    it off the song, and this copies the pattern across.
+
+    ⚠️**Vary it on purpose.** The open question on review set A is whether the repetition
+    reads INTENTIONAL or LAZY, and a byte-identical repeat is the definition of lazy.
+    `--vary` drops a fraction of the copied notes, deterministically per instance, so
+    the second chorus is the same idea played a little differently rather than the same
+    file pasted twice. `--vary 0` gives an exact copy when that is what you want.
+
+    ⚠️Sections that repeat are rarely the same LENGTH. The copy is truncated to the
+    target's bars rather than overrunning into the next section, which is the failure
+    mode that would otherwise quietly corrupt everything downstream of it.
+    """
+    import structure as ST
+    s = load_session(a.name)
+    secs = ST.analyse(pathlib.Path(s["audio"]))["sections"]
+    notes = read_notes(a.name)
+
+    byl: dict[str, list[dict]] = {}
+    for sec in secs:
+        byl.setdefault(sec["label"], []).append(sec)
+    labels = [a.label] if a.label else sorted(byl)
+
+    def count(sec) -> int:
+        b0, b1 = sec["bar0"], sec["bar0"] + sec["bars"] - 1
+        return sum(1 for x in notes if b0 <= x["bar"] <= b1)
+
+    total_added = 0
+    for lb in labels:
+        insts = byl.get(lb, [])
+        if len(insts) < 2:
+            continue
+        src = max(insts, key=count)
+        if count(src) == 0:
+            print(f"{lb}: no instance is mapped yet — map bars "
+                  f"{src['bar0']}-{src['bar0']+src['bars']-1} first, then reuse")
+            continue
+        s0, s1 = src["bar0"], src["bar0"] + src["bars"] - 1
+        pattern = [x for x in notes if s0 <= x["bar"] <= s1]
+        for i, tgt in enumerate(insts):
+            if tgt["bar0"] == src["bar0"]:
+                continue
+            t0, t1 = tgt["bar0"], tgt["bar0"] + tgt["bars"] - 1
+            notes = [x for x in notes if not (t0 <= x["bar"] <= t1)]
+            shift = tgt["bar0"] - src["bar0"]
+            kept = 0
+            for j, x in enumerate(pattern):
+                nb = x["bar"] + shift
+                if nb > t1:
+                    continue                      # never overrun into the next section
+                # Deterministic thinning, so the same call always gives the same map.
+                if a.vary > 0 and ((j * 7 + i * 3) % 100) < a.vary * 100:
+                    continue
+                beat = to_beat(s, nb, x["slot"])
+                notes.append({**x, "bar": nb, "beat": beat, "t": to_time(s, beat)})
+                kept += 1
+            total_added += kept
+            print(f"{lb}: bars {s0}-{s1} -> {t0}-{t1}   {kept} notes"
+                  + (f" ({a.vary:.0%} varied away)" if a.vary > 0 else " (exact copy)"))
+    write_notes(a.name, notes)
+    print(f"\n{total_added} notes placed by reuse; {len(notes)} in the map. "
+          "Run `check` before export — reuse can create parity work.")
+    return 0
+
+
 def cmd_status(a) -> int:
     s = load_session(a.name)
     notes = read_notes(a.name)
@@ -663,6 +758,17 @@ def main() -> int:
     p.add_argument("--bars", required=True); p.set_defaults(fn=cmd_clear)
 
     p = sub.add_parser("status"); p.add_argument("name"); p.set_defaults(fn=cmd_status)
+
+    p = sub.add_parser("plan", help="the song's section plan, and which repeat which")
+    p.add_argument("name"); p.set_defaults(fn=cmd_plan)
+
+    p = sub.add_parser("reuse", help="copy a mapped section to its repeats")
+    p.add_argument("name")
+    p.add_argument("--label", default=None, help="one section letter; default = all")
+    p.add_argument("--vary", type=float, default=0.15,
+                   help="fraction of copied notes to drop, so a repeat reads as "
+                        "INTENTIONAL rather than pasted (0 = exact copy)")
+    p.set_defaults(fn=cmd_reuse)
 
     p = sub.add_parser("view"); p.add_argument("name")
     p.add_argument("--bars", required=True); p.set_defaults(fn=cmd_view)

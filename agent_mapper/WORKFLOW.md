@@ -9,6 +9,17 @@ python agent_mapper/lyrics.py data/eval_songset/1f333.ogg --lines
 ```
 Instrumental songs legitimately return nothing — that is an answer, not a failure.
 
+## 0b. THE OTHER THREE PERCEPTION AXES (all cached after the first run)
+```bash
+python agent_mapper/structure.py  <audio>            # ★sections, and which REPEAT
+python agent_mapper/melody.py     <audio>            # pitch: what note, which way it moves
+python agent_mapper/percussion.py <audio>            # which drum is hitting
+```
+Each takes `--validate` and will tell you **on this song** whether to trust it —
+a screamed vocal has no pitch, and a drum track too repetitive to carry information
+says so instead of guessing. See `docs/perception_scorecard.md` for what each control
+established and what is still missing.
+
 ## 1. READ THE WHOLE SONG BEFORE PLACING ANYTHING
 ```bash
 python agent_mapper/brief.py data/eval_songset/1f333.ogg          # 8-bar timeline
@@ -47,6 +58,17 @@ worse than none, because you cannot see which half landed.
 **Layering is normal**: follow the drums, then add the vocal line on top. `auto`
 assigns hands over the **merged** timeline and enforces the human per-hand floor
 (~150 ms), so it will *skip* onsets no hand can reach and tell you how many.
+
+## 3b. ★MAP A SECTION ONCE, THEN REUSE IT
+```bash
+python agent_mapper/mapctl.py plan  hunger                 # the section work list
+python agent_mapper/mapctl.py auto  hunger --bars 55-74 --follow drums --wide
+python agent_mapper/mapctl.py reuse hunger --label D       # -> 113-130 and 194-215
+```
+`reuse` copies the mapped instance of a section to its repeats, truncated to each
+target's own length. ⚠️**`--vary` defaults to 0.15 on purpose** — the open question on
+review set A is whether repetition reads INTENTIONAL or LAZY, and a byte-identical
+repeat is the definition of lazy. Use `--vary 0` only when you want an exact copy.
 
 ## 4. CHECK BEFORE YOU EXPORT
 ```bash
