@@ -24,10 +24,19 @@ WHEN. Pitch says WHERE.
 - **key and mode**, so "this note is the tonic" is answerable
 - **register shifts** — where the melody jumps octave or the chorus lifts
 
-⚠️**Two stems, two different confidences.** `vocals` is near-monophonic and pYIN is
-reliable there. `other` (guitar/synth/lead) is polyphonic, so its "melody" is a
-salience peak of the CQT — treat it as *the top line you'd hum*, not as transcription.
-The confidence is printed; below ~0.4 do not place notes off it.
+⚠️**Three stems, three different confidences.** `vocals` and `bass` are near-monophonic
+and pYIN is reliable on both. `other` (guitar/synth/lead) is polyphonic, so its
+"melody" is a salience peak of the CQT — treat it as *the top line you'd hum*, not as
+transcription. The confidence is printed; below ~0.4 do not place notes off it.
+
+★**`bass` added 2026-08-17** — it was the only stem with no transcription at all, and
+it is the stem that carries the harmony when the vocal rests. Measured on 1f8d6:
+coverage **0.94** of bass onsets, 12 s to track. ⚠️**Its octave is verified against the
+spectrum, not assumed**: `subharm` in the meta is the share of notes with more energy
+one octave *below* the tracked pitch, i.e. notes pYIN probably tracked an octave high.
+On 1f8d6 it is 0.000 — the passage sitting up in octave 3 is what the bass actually
+plays, not a partial. **A local-neighbour octave fix cannot see a whole passage shifted;
+this can.**
 
 Usage:
     python agent_mapper/melody.py <audio.ogg>                 # overview + contour
@@ -50,7 +59,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 REPO = pathlib.Path(__file__).resolve().parents[1]
 CACHE = REPO / "outputs" / "melody_cache"
 HOP = 256                       # 11.6 ms at 22 050 Hz — finer than a 1/16 at any bpm
-MELODIC = ("vocals", "other")
+MELODIC = ("vocals", "bass", "other")
+
+# pYIN search range per monophonic stem. `bass` bottoms out at C1 (32.7 Hz): a
+# 5-string's low B sits a semitone below that and would be tracked an octave up —
+# which is exactly what `subharm` in the meta reports, rather than hiding it.
+_PYIN_RANGE = {"vocals": ("C2", "C6"), "bass": ("C1", "C4")}
 NAMES = ("C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B")
 
 # Krumhansl-Schmuckler key profiles: the standard correlation template for
@@ -64,8 +78,8 @@ def note_name(midi: float) -> str:
     return f"{NAMES[m % 12]}{m // 12 - 1}"
 
 
-def _track_vocals(y: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """pYIN on the near-monophonic vocals stem. Returns (times, midi, voiced).
+def _track_mono(y: np.ndarray, sr: int, stem: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """pYIN on a near-monophonic stem (`vocals` or `bass`). Returns (times, midi, voiced).
 
     ⚠️**Gate on `voiced_flag`, never on `voiced_prob`.** librosa's returned posterior
     on these stems sits at **0.01-0.16 even where the flag is True and the pitch is
@@ -75,13 +89,53 @@ def _track_vocals(y: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray, np.nd
     """
     import librosa
 
+    lo, hi = _PYIN_RANGE[stem]
     f0, voiced, _prob = librosa.pyin(
         y, sr=sr, hop_length=HOP,
-        fmin=float(librosa.note_to_hz("C2")), fmax=float(librosa.note_to_hz("C6")),
+        fmin=float(librosa.note_to_hz(lo)), fmax=float(librosa.note_to_hz(hi)),
     )
     t = librosa.frames_to_time(np.arange(len(f0)), sr=sr, hop_length=HOP)
     midi = librosa.hz_to_midi(np.nan_to_num(f0, nan=1.0))
     return t, midi, np.asarray(voiced) & np.isfinite(f0)
+
+
+def subharmonic_share(y: np.ndarray, sr: int, events: list[dict],
+                      thresh: float = 1.5) -> float:
+    """Share of notes with MORE energy an octave below the pitch we assigned them.
+
+    ★**The check `_fix_octaves` structurally cannot do.** That one compares a note to
+    its four neighbours, so a whole *passage* tracked an octave high is locally
+    self-consistent and passes untouched. This asks the spectrum instead: if the true
+    fundamental were an octave lower, its energy would be there — and it isn't, for a
+    partial-lock is only ever the *upper* of the two.
+
+    Reported, never applied. It was written expecting to find octave errors in the
+    bass of 1f8d6 (194 of 682 notes sat in octave 3, high for a bass) and **returned
+    0.000** — the ratio is 0.10 even on those notes. The suspicion was wrong, and a
+    silent "fix" would have moved a third of a correct bass line down an octave.
+    """
+    import librosa
+
+    if not events:
+        return 0.0
+    fmin = float(librosa.note_to_hz("C1"))
+    C = np.abs(librosa.cqt(y, sr=sr, hop_length=HOP, fmin=fmin,
+                           n_bins=12 * 4, bins_per_octave=12))
+    base = librosa.hz_to_midi(fmin)
+    ct = librosa.frames_to_time(np.arange(C.shape[1]), sr=sr, hop_length=HOP)
+
+    def _e(fr: int, m: float) -> float:
+        b = int(round(m - base))
+        if b < 0 or b >= C.shape[0]:
+            return 0.0
+        return float(C[max(0, b - 1):b + 2, fr].max())
+
+    hits = 0
+    for e in events:
+        fr = min(int(np.searchsorted(ct, e["t"] + 0.03)), C.shape[1] - 1)
+        if _e(fr, e["midi"] - 12) > thresh * (_e(fr, e["midi"]) + 1e-9):
+            hits += 1
+    return round(hits / len(events), 3)
 
 
 def _track_salience(y: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -183,7 +237,11 @@ def analyse(audio: pathlib.Path, force: bool = False) -> dict:
     CACHE.mkdir(parents=True, exist_ok=True)
     f = CACHE / f"{audio.stem}.json"
     if f.exists() and not force:
-        return json.loads(f.read_text())
+        cached = json.loads(f.read_text())
+        # ⚠️A cache written before `bass` joined MELODIC is silently incomplete, and a
+        # KeyError three modules downstream is a bad way to learn that. Recompute.
+        if all(s in cached.get("stems", {}) for s in MELODIC):
+            return cached
 
     import brief as _brief
     from stemcache import stems, SR
@@ -192,7 +250,9 @@ def analyse(audio: pathlib.Path, force: bool = False) -> dict:
     onsets = _brief.analyse(audio)["onsets"]
     out: dict = {"stems": {}, "meta": {}}
     for name in MELODIC:
-        t, midi, voiced = (_track_vocals if name == "vocals" else _track_salience)(s_[name], SR)
+        mono = name in _PYIN_RANGE
+        t, midi, voiced = (_track_mono(s_[name], SR, name) if mono
+                           else _track_salience(s_[name], SR))
         on = np.asarray(onsets[name], dtype=float)
         ev = pitch_at_onsets(on, t, midi, voiced)
         n_oct = _fix_octaves(ev)
@@ -201,6 +261,8 @@ def analyse(audio: pathlib.Path, force: bool = False) -> dict:
             "onsets": int(len(on)),
             "coverage": round(len(ev) / max(len(on), 1), 3),
             "octaves_fixed": n_oct,
+            # only meaningful where a fundamental is claimed; `other` is a salience peak
+            "subharm": subharmonic_share(s_[name], SR, ev) if mono else None,
             "step": round(float(np.median(np.abs(np.diff(
                 [e["midi"] for e in ev])))), 2) if len(ev) > 2 else None,
         }
@@ -317,16 +379,24 @@ def main() -> int:
         print(f"{s_.upper():>7}: {len(e)}/{m['onsets']} onsets pitched "
               f"(coverage {m['coverage']:.2f})   range {note_name(ms.min())}-"
               f"{note_name(ms.max())}   key {k} (r={r:.2f})   "
-              f"median step {m['step']} semitones   {m['octaves_fixed']} octave fixes")
-        # Two honesty gates, both measured rather than asserted.
+              f"median step {m['step']} semitones   {m['octaves_fixed']} octave fixes"
+              + (f"   subharm {m['subharm']:.3f}" if m.get("subharm") is not None else ""))
+        # Three honesty gates, all measured rather than asserted.
+        if m.get("subharm") is not None and m["subharm"] > 0.10:
+            print(f"{'':>9}⚠️{m['subharm']:.0%} of these notes have MORE energy an octave "
+                  "below the pitch assigned to them — pYIN is locking onto a partial. "
+                  "The contour is still usable; the absolute register is not.")
         if m["coverage"] < 0.45:
             print(f"{'':>9}⚠️LOW COVERAGE — most onsets have no trackable pitch. Screamed "
                   "or heavily distorted vocals genuinely have no f0; this is the song, "
                   "not a bug. Map this stem on RHYTHM, not contour.")
-        if m["step"] is not None and m["step"] > 4:
-            print(f"{'':>9}⚠️median step {m['step']} semitones is too large for a sung "
-                  "melody (real ones step by ~1-3) — this line is probably tracking "
-                  "chords or bleed. Treat the contour as unreliable.")
+        # A bass legitimately walks in fifths and octaves where a singer steps by 1-3,
+        # so the same threshold on both would cry wolf on every bass line.
+        step_max = 7 if s_ == "bass" else 4
+        if m["step"] is not None and m["step"] > step_max:
+            print(f"{'':>9}⚠️median step {m['step']} semitones is too large even for a "
+                  f"{s_} line (expected ≤{step_max}) — this is probably tracking chords "
+                  "or bleed. Treat the contour as unreliable.")
 
     if a_.bars:
         b0, b1 = (int(x) for x in a_.bars.split("-"))
