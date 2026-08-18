@@ -9,6 +9,57 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ## 2026-08-18 — THE VISIBILITY SUITE V1+V2, AND THE ALLOCATION HYPOTHESIS IS NOT SUPPORTED
 
+### Later the same day — Kyle read the page, and named two defects in it
+
+★**His verdict on the score itself: *"It looks correct. Playing instruments until the main words
+come in."*** ⇒**V1's read of the song is ENDORSED** — the first time an instrument in this project
+has been confirmed against his ear rather than against a human corpus. Two defects followed.
+
+**Defect 1 — *"a little hard to tell without hearing it."*** ✅**FIXED: the page now plays the
+song.** `notesheet.audio_data_uri()` encodes mono AAC 64 kbps (2.0 MB for 4 min) and inlines it as
+a `data:` URI — **required, not chosen**: the published page runs under a CSP that blocks every
+external host, so a file:// or http:// src would not load. Page 0.27 MB -> **3.2 MB**, against a
+16 MB budget. Adds a sticky transport, a per-system playhead, click-anywhere-to-seek and
+space-to-toggle.
+🔴🔴**UNTESTED IN A BROWSER — THERE IS NO BROWSER ON THIS BOX AND THE PUBLISH WAS DECLINED.** The
+HTML is verified to *contain* the audio element, 19 playheads, 19 time-windowed systems and one
+script; **that the JS actually runs is not established.** Treat the player as unverified code.
+
+**Defect 2 — *"our voice extraction could use some work, I'm not seeing all words from the song."***
+✅**CAUSE FOUND: `vad_filter=True` was eating the singing.** Silero's VAD is tuned for *speech* and
+discards sustained singing as non-speech. Measured on 1f8d6 against the pitched vocal onsets we
+already detect ("sung-coverage" = share of pitched vocal onsets with a transcribed word over them):
+
+| config | words | sung-coverage |
+|---|---|---|
+| medium, vad ON (old default) | 303 | 0.927 |
+| large-v3, vad ON | 327 | 0.918 |
+| large-v3, **vad OFF** | 457 | **0.974** |
+| large-v3, vad OFF, **temperature=0** (shipped) | 430 | 0.967 |
+
+🔴🔴**CORRECTION TO MYSELF — I SHIPPED TWO CHANGES AND ONLY ONE IS EVIDENCED.** At fixed VAD=ON,
+`medium -> large-v3` moved coverage **0.927 -> 0.918**, i.e. *slightly worse*. **The lever is VAD,
+not model size.** `large-v3` is now the default on the untested assumption that a bigger model is
+more accurate at *word identity* — which is precisely the thing not measured here. ⇒**Next session:
+run `medium` + vad OFF + temp 0 as the isolated control.** Cost is minutes.
+✅**`temperature=0` is a REPRODUCIBILITY fix, not a quality one.** faster-whisper defaults to a
+temperature *fallback list*, so two identical runs returned **391 and 387** words. temperature=0 is
+byte-identical across runs. **A transcription that changes between runs silently moves every lyric
+on the page.**
+⚠️**ACCURACY OF THE WORDS IS STILL NOT ESTABLISHED, and coverage does not measure it.** Ground-truth
+-free proxy tried (the same section letter should transcribe the same way twice): **0.187 old vs
+0.198 new over 3 pairs = NOT RESOLVABLE**, settles nothing. Kyle's complaint that the words are
+*wrong* is **not addressed** — only that they are *missing*.
+✅Re-transcribed all four standing songs: 1f8d6 **430** (was 299), 1f913 599 (ja), 1f767 380 (ja),
+1f333 **40**. ⚠️1f333's 40 words is **consistent with** its vocals being screamed (melody coverage
+0.28) rather than a failure — consistent-with, not proven.
+⚠️**The old per-song word counts for 1f913/1f767/1f333 were overwritten by `--force` and are lost**,
+so the +42 % is established on **1f8d6 only** (n=1).
+
+🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
+the **old lyrics and no audio**. Local files are current; the URLs are not.
+
+
 **Built (P0, Kyle's priority):**
 - ✅**Bass transcription** (`melody.py`) — the only stem with none. pYIN C1-C4, coverage
   **0.86-0.95** across the four standing songs, ~12 s a song, cached. ★It matters most where

@@ -13,6 +13,14 @@ An agent given the words and their times has none of that handicap.
 vocal stem; running Whisper on the full mix transcribes over drums and guitar and
 produces both worse text and worse timings. We pay for the separation anyway.
 
+⚠️**Whisper is transcribing SINGING, and it is not reliable at it.** Coverage — is
+there a word wherever there is singing — is now good (0.967 of pitched vocal onsets on
+1f8d6). **Accuracy of the words themselves is a different question and is NOT
+established**: a self-consistency check (the same section letter should transcribe the
+same way twice) scored 0.187 for the old config and 0.198 for the new one over only 3
+pairs, which is **not resolvable** and settles nothing. Treat the words as a landmark
+for *where you are in the song*, not as a quotation.
+
 ⚠️**Word timings are approximate.** Whisper's per-word timestamps come from
 cross-attention alignment, not from onset detection — they are good to roughly a
 syllable, not to the 50 ms the alignment axis uses. Use them to know *what is being
@@ -33,7 +41,7 @@ import sys
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 CACHE = REPO / "outputs" / "lyrics_cache"
-DEFAULT_MODEL = "medium"
+DEFAULT_MODEL = "large-v3"
 
 
 def _vocals_stem(audio: pathlib.Path, out_dir: pathlib.Path) -> pathlib.Path:
@@ -76,8 +84,20 @@ def transcribe(audio: pathlib.Path, model_name: str = DEFAULT_MODEL,
     # float16 on the 5090; the model is small next to Demucs so this is not the
     # expensive part of the pipeline.
     model = WhisperModel(model_name, device="cuda", compute_type="float16")
+    # ⚠️**`vad_filter=True` EATS SUNG LYRICS.** Silero's VAD is tuned for speech and
+    # discards sustained singing as non-speech, which is exactly the defect Kyle
+    # reported ("I'm not seeing all words from the song"). Measured on 1f8d6 against
+    # the pitched vocal onsets we already detect: VAD on covers **0.927** of the
+    # singing, VAD off **0.967**, and word count goes 303 -> 430 (+42 %).
+    #
+    # ⚠️**`temperature=0` is not a quality knob here, it is a REPRODUCIBILITY one.**
+    # faster-whisper's default is a temperature *fallback* list, so two identical runs
+    # returned 391 and 387 words. Measured: temperature=0 gives byte-identical output
+    # across runs; the fallback does not. A transcription that changes between runs
+    # silently moves every lyric on the page.
     segments, info = model.transcribe(str(wav), word_timestamps=True,
-                                      language=language, vad_filter=True)
+                                      language=language, vad_filter=False,
+                                      temperature=0)
     words, lines = [], []
     for seg in segments:
         txt = (seg.text or "").strip()

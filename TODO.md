@@ -40,17 +40,26 @@ arms*; he produces *defects located in songs*. Preference is second, defects are
 ---
 
 ### ▶️ START THE NEXT SESSION HERE
-✅**V1 (notesheet) and V2 (overlay) are BUILT and PUBLISHED** — bass transcription, the score
-view and the HIT/MISSED/WASTED overlay all shipped 2026-08-18; see PROGRESS.md for the numbers.
-1. ★**THE GATE IS KYLE'S CORRECTION OF "MAIN"**, and it is the one thing nothing else can
-   substitute for. Overlay: `claude.ai/code/artifact/34bf3922-080b-4c9b-bcd6-90792bb1a6b9`,
-   score: `.../f47350fb-9592-42db-a992-8c9e5b85b015`. **Ask which events he would have called
-   main**, then change `overlay.MAIN_DEFAULT` — not the map.
-2. Build **V3 (flow view)** while waiting — it needs no answer from him and D5 is unlocatable
-   without it.
-3. `python scripts/review.py list` — 32 maps still staged; **`[CROSSOVER]` is unjudged and is
-   the strongest candidate on the board.**
-4. Read `docs/perception_scorecard.md` for what perception is already CONFIRMED to do.
+✅**V1 (notesheet) + V2 (overlay) BUILT, and Kyle ENDORSED V1's read of the song** — *"It looks
+correct. Playing instruments until the main words come in."* See PROGRESS.md for all numbers.
+
+1. 🔴🔴**FIRST: THE PLAYER HAS NEVER RUN IN A BROWSER.** The page now embeds the song and draws a
+   moving playhead, but there is no browser on this box and the republish was declined, so the
+   transport / playhead / click-to-seek / space-to-play are **unverified code**. Open
+   `outputs/notesheets/fallen_kingdom_overlay.html` locally, or republish, **before building
+   anything else on top of it**.
+2. 🔴**THE PUBLISHED PAGES ARE STALE** — both live artifacts carry the OLD lyrics and no audio.
+   Republish (needs Kyle's approval): overlay
+   `claude.ai/code/artifact/34bf3922-080b-4c9b-bcd6-90792bb1a6b9`, score
+   `.../f47350fb-9592-42db-a992-8c9e5b85b015`.
+3. ★**THE GATE IS STILL KYLE'S CORRECTION OF "MAIN"** — nothing substitutes for it. **Ask which
+   events he would have called main**, then change `overlay.MAIN_DEFAULT`, not the map.
+4. ⬜**Isolate the lyric change I bundled** (minutes): `medium` + vad OFF + temp 0. At fixed
+   VAD=ON, large-v3 made coverage slightly *worse* (0.927→0.918) ⇒ **VAD is the lever and the
+   model upgrade is unvalidated.**
+5. Build **V3 (flow view)** — needs no answer from him, and D5 is unlocatable without it.
+6. `python scripts/review.py list` — 32 maps staged; **`[CROSSOVER]` is unjudged and is the
+   strongest candidate on the board.**
 
 ⚠️**Nothing is running.** No GPU job, no autonomous loop — `/todo` must be re-run to restart
 research.
@@ -75,6 +84,12 @@ met until he looks**, which is item 1 above. Still open inside them:
   `basic-pitch` installs via its ONNX backend (the TF wheel blocks Python 3.12; `--no-deps`
   + onnxruntime resolves). **De-risk with a PoC on one song first.**
 - ⬜Only `1f8d6` is published. The other three standing songs render but are not up.
+- 🔴**Word ACCURACY is unaddressed.** The VAD fix made the words *present* (sung-coverage
+  0.927→0.967 on 1f8d6); Kyle's other complaint is that they are *wrong*, and coverage cannot
+  see that. The ground-truth-free proxy (same section letter should transcribe alike) gave
+  0.187 vs 0.198 over 3 pairs = **not resolvable**. ⇒If exact words matter, the route is
+  **forced alignment against supplied lyrics**, not a bigger ASR model. **Ask him whether
+  roughly-right landmark words are enough** before building that.
 
 ### V3 — The FLOW view: play-level clarity
 Hand paths over time (L/R column+row), cut directions, and **bursts marked where they
@@ -204,15 +219,12 @@ propose.** ⚠️Does *not* revive v8 as built (its `follow_vocals` gain died at
 
 ---
 
-## 🎯 W1–W7 — KYLE'S OLDER OBJECTIONS → mostly folded into D1–D6
+## 🎯 STANDING CONSTRAINTS + the three older objections D1–D6 does NOT cover
 
 ★**His standing instruction, still binding**: *"tread carefully, make isolated and tactical
 changes, and document like crazy."* One lever at a time, ≥3 seeds, nothing promoted without his ear.
 ⚠️He declined to name exemplary mappers *yet* — the best-mapper cohort is blocked **by his choice**.
-
-**The full W1–W7 table moved to PROGRESS.md in the 2026-08-17 close.** Most of it is now
-restated, more directly and more recently, by the **D1–D6** list he gave on 2026-08-17:
-W1 → **D2/D4**, W3 → **D5**, W4 → **D4**. Work D1–D6; do not track both lists.
+*(The W1–W7 table and its mapping onto D1–D6 is history and lives in PROGRESS.md. Work D1–D6.)*
 
 **Still open and NOT covered by D1–D6:**
 - **W2** — Fallen Kingdom *"really empty"*. 🔴Cause unidentified; five instruments have failed.

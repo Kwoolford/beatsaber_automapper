@@ -80,6 +80,37 @@ def _mmss(t: float) -> str:
     return f"{int(t // 60)}:{t % 60:04.1f}"
 
 
+def audio_data_uri(audio: pathlib.Path, kbps: int = 64) -> str | None:
+    """The song as a base64 `data:` URI, small enough to inline in the page.
+
+    ★**This is what turns the page from a diagram into an instrument.** Kyle's first
+    reaction to the score was *"a little hard to tell without hearing it"* — reading a
+    notesheet against a song you are remembering is a different, much harder task than
+    reading it while the song plays under a playhead.
+
+    Mono AAC at 64 kbps: 2.0 MB for a 4-minute song, 2.8 MB once base64'd, against a
+    16 MB page budget. ⚠️The published page is served under a strict CSP that blocks
+    every external host, so the audio **must** be inlined — a file:// or http:// src
+    would simply not load for him.
+    """
+    import base64
+    import subprocess
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as td:
+        out = pathlib.Path(td) / "a.m4a"
+        r = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-i", str(audio),
+             "-c:a", "aac", "-b:a", f"{kbps}k", "-ac", "1", "-y", str(out)],
+            capture_output=True)
+        if r.returncode != 0 or not out.exists() or out.stat().st_size == 0:
+            print(f"⚠️audio encode failed, page will have no sound: "
+                  f"{r.stderr.decode()[:200]}", file=sys.stderr)
+            return None
+        b = base64.b64encode(out.read_bytes()).decode()
+    return f"data:audio/mp4;base64,{b}"
+
+
 def collect(audio: pathlib.Path, force: bool = False,
             map_zip: pathlib.Path | None = None, main_rule: str | None = None) -> dict:
     """Everything the page draws, on one time axis. Each tool is cached separately."""
@@ -110,7 +141,7 @@ def collect(audio: pathlib.Path, force: bool = False,
 
     d = {"song": audio.stem, "title": None, "grid": g, "dur": a["dur"], "r": a.get("r"),
          "melody": mel, "perc": perc, "sections": sec["sections"],
-         "span": span, "words": words, "overlay": None}
+         "span": span, "words": words, "overlay": None, "audio_uri": None}
 
     if map_zip is not None:
         import overlay as _ov
@@ -273,9 +304,78 @@ def _system(d: dict, b0: int, nbars: int) -> str:
                  f'y="{kit_top + row * KIT_ROW + KIT_ROW - 2:.1f}">{piece}</text>')
     s.extend(_kit(d, t0, t1, kit_top))
 
-    return (f'<div class="sys"><svg viewBox="0 0 {W} {height}" width="{W}" '
-            f'height="{height}" role="img" aria-label="bars {b0} to {b0 + nbars - 1}">'
+    s.append(f'<line class="ph" x1="-99" y1="{BANNER_H}" x2="-99" y2="{height - 6}" />')
+    return (f'<div class="sys" data-t0="{t0:.4f}" data-t1="{t1:.4f}">'
+            f'<svg viewBox="0 0 {W} {height}" width="{W}" height="{height}" '
+            f'role="img" aria-label="bars {b0} to {b0 + nbars - 1}">'
             + "".join(s) + "</svg></div>")
+
+
+PLAYER_JS = """
+(function(){
+  var au=document.getElementById('au'), pp=document.getElementById('pp'),
+      tc=document.getElementById('tc'), sys=[].slice.call(document.querySelectorAll('.sys'));
+  if(!au||!sys.length) return;
+  var GUT=%d, W=%d, PADR=%d, live=null, raf=null;
+  var reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function mmss(t){ t=Math.max(t,0); var m=Math.floor(t/60);
+    return m+':'+(t-m*60).toFixed(1).padStart(4,'0'); }
+
+  // Each system owns a time window, so only one can hold the playhead. Parking the
+  // line at x=-99 is how a system says "not me" without a second class toggle.
+  function draw(){
+    var t=au.currentTime; tc.textContent=mmss(t);
+    var cur=null;
+    for(var i=0;i<sys.length;i++){
+      var el=sys[i], t0=+el.dataset.t0, t1=+el.dataset.t1,
+          ph=el.querySelector('.ph');
+      if(t>=t0&&t<t1){
+        var x=GUT+(t-t0)/(t1-t0)*(W-GUT-PADR);
+        ph.setAttribute('x1',x); ph.setAttribute('x2',x); cur=el;
+      } else if(ph.getAttribute('x1')!=='-99'){
+        ph.setAttribute('x1',-99); ph.setAttribute('x2',-99);
+      }
+    }
+    if(cur&&cur!==live){
+      if(live) live.classList.remove('live');
+      cur.classList.add('live'); live=cur;
+      var r=cur.getBoundingClientRect();
+      if(r.top<0||r.bottom>innerHeight)
+        cur.scrollIntoView({block:'center', behavior:reduce?'auto':'smooth'});
+    }
+    if(!au.paused) raf=requestAnimationFrame(draw);
+  }
+
+  function toggle(){ au.paused?au.play():au.pause(); }
+  pp.addEventListener('click',toggle);
+  au.addEventListener('play',function(){ pp.textContent='Pause';
+    cancelAnimationFrame(raf); raf=requestAnimationFrame(draw); });
+  au.addEventListener('pause',function(){ pp.textContent='Play';
+    cancelAnimationFrame(raf); draw(); });
+  au.addEventListener('seeked',draw);
+
+  sys.forEach(function(el){
+    el.addEventListener('click',function(e){
+      var svg=el.querySelector('svg'), r=svg.getBoundingClientRect();
+      // client px -> SVG user units -> time, using the same GUT..W-PADR span the
+      // marks are drawn in, so a click lands on the note you clicked.
+      var u=(e.clientX-r.left)/r.width*W;
+      var f=(u-GUT)/(W-GUT-PADR);
+      if(f<0) f=0; if(f>1) f=1;
+      var t0=+el.dataset.t0, t1=+el.dataset.t1;
+      au.currentTime=t0+f*(t1-t0);
+      if(au.paused) au.play();
+    });
+  });
+
+  addEventListener('keydown',function(e){
+    if(e.code==='Space'&&!/^(INPUT|TEXTAREA|BUTTON)$/.test(e.target.tagName)){
+      e.preventDefault(); toggle(); }
+  });
+  draw();
+})();
+""" % (GUT, W, PAD_R)
 
 
 CSS = """
@@ -382,6 +482,27 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:ta
 .ly{font-family:"IBM Plex Sans",sans-serif; font-size:9.5px; fill:var(--ink-2)}
 .note{color:var(--ink-2); font-size:13px; max-width:66ch; margin:26px 0 0}
 .note b{color:var(--ink)}
+.ph{stroke:var(--ink); stroke-width:1.6; opacity:.85; pointer-events:none}
+.sys{cursor:crosshair}
+.sys.live{border-color:var(--ink-3)}
+.transport{
+  position:sticky; top:0; z-index:20; display:flex; align-items:center; gap:12px;
+  background:var(--surface); border:1px solid var(--rule); border-radius:5px;
+  padding:8px 12px; margin:0 0 12px;
+}
+.transport button{
+  font:600 13px/1 "IBM Plex Sans Condensed","IBM Plex Sans",sans-serif;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--ground);
+  background:var(--ink); border:0; border-radius:4px; padding:9px 16px; cursor:pointer;
+  min-width:82px;
+}
+.transport button:focus-visible{outline:2px solid var(--vox); outline-offset:2px}
+.transport .t{
+  font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:13px;
+  font-variant-numeric:tabular-nums; color:var(--ink-2); min-width:96px;
+}
+.transport .hint{font-size:12px; color:var(--ink-3)}
+@media (max-width:640px){.transport .hint{display:none}}
 """
 
 
@@ -448,6 +569,16 @@ def render(d: dict, bars: int = 8) -> str:
   + """&nbsp;ms. <b>If the colours look wrong to you, the rule is what is wrong</b> &mdash;
   tell me which events you would have called main and I will change this line, not the map.</p>""")
 
+    transport = player = ""
+    if d.get("audio_uri"):
+        transport = ('<div class="transport">'
+                     '<button id="pp" type="button" aria-label="Play or pause">Play</button>'
+                     '<span class="t" id="tc">0:00.0</span>'
+                     '<span class="hint">Click anywhere on a system to jump there · '
+                     'space toggles play</span></div>')
+        player = (f'<audio id="au" preload="auto" src="{d["audio_uri"]}"></audio>'
+                  f'<script>{PLAYER_JS}</script>')
+
     legend = "".join(
         f'<li><i style="background:var(--{cls})"></i>{lbl}</li>'
         for _, lbl, cls in MELODIC) + '<li><i style="background:var(--kit)"></i>KIT</li>'
@@ -478,7 +609,9 @@ def render(d: dict, bars: int = 8) -> str:
   {tally}
   {rulebox}
 </header>
+{transport}
 <div class="scroll">{systems}</div>
+{player}
 {caveat}
 <p class="note">Each system is {bars} bars. Lane height is pitch, scaled to that stem's
 own range across the whole song — so a mark that sits higher <b>is</b> a higher note,
@@ -505,6 +638,8 @@ def main() -> int:
     ap.add_argument("--main", default=None,
                     help="which events count as main (see overlay.py)")
     ap.add_argument("--name", default=None, help="the song's real name, for the heading")
+    ap.add_argument("--no-audio", action="store_true",
+                    help="skip embedding the song (the page is ~3 MB smaller, and mute)")
     a_ = ap.parse_args()
     if not a_.audio.exists():
         print(f"no such audio: {a_.audio}", file=sys.stderr)
@@ -512,6 +647,8 @@ def main() -> int:
 
     d = collect(a_.audio, a_.force, a_.map, a_.main)
     d["title"] = a_.name
+    if not a_.no_audio:
+        d["audio_uri"] = audio_data_uri(a_.audio)
     tag = f".{a_.map.stem}" if a_.map else ""
     out = a_.out or (OUT / f"{a_.audio.stem}{tag}.html")
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -529,7 +666,8 @@ def main() -> int:
               f"MISSED {o['n_missed']} of {o['n_main']} main events "
               f"(we play {o['recall']:.1%}) | WASTED {o['wasted']} "
               f"({o['wasted_on_nothing']} on nothing)")
-    print(f"wrote {out}")
+    print(f"wrote {out}  ({out.stat().st_size/1e6:.1f} MB"
+          + (", with audio)" if d["audio_uri"] else ", muted)"))
     return 0
 
 
