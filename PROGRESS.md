@@ -7,6 +7,57 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-18 — THE VISIBILITY SUITE V1+V2, AND THE ALLOCATION HYPOTHESIS IS NOT SUPPORTED
+
+**Built (P0, Kyle's priority):**
+- ✅**Bass transcription** (`melody.py`) — the only stem with none. pYIN C1-C4, coverage
+  **0.86-0.95** across the four standing songs, ~12 s a song, cached. ★It matters most where
+  the vocal fails: on `1f333` vocals pitch-track at **0.28** (screamed) and bass at **0.91**.
+- ✅**`subharmonic_share`** — the octave check `_fix_octaves` structurally cannot do (that one
+  compares a note to four neighbours, so a whole passage tracked an octave high is locally
+  self-consistent). Written expecting to find errors in 1f8d6's bass (194 of 682 notes sat in
+  octave 3) and **returned 0.000**. 🔴**The suspicion was wrong and a silent "fix" would have
+  moved a third of a correct bass line down an octave.** Reported, never applied.
+- ✅**V1 `notesheet.py`** — melody + percussion + structure + lyrics on ONE time axis, rendered
+  as stacked systems. Published: `claude.ai/code/artifact/f47350fb-9592-42db-a992-8c9e5b85b015`
+- ✅**V2 `overlay.py`** — HIT / MISSED / WASTED per note, rule printed on the page.
+  Published: `claude.ai/code/artifact/34bf3922-080b-4c9b-bcd6-90792bb1a6b9`
+
+## 🔴🔴 THE HEADLINE: "nps wasted on non main notes" is NOT what the numbers show
+
+Ours vs the human under the **same rule**, four standing songs (main = pitched vocal onsets +
+kick + snare + lead during vocal rests, tolerance +/-70 ms):
+
+| song | notes ours/human | precision ours/human | recall ours/human |
+|---|---|---|---|
+| Hunger | 1328 / 2254 | 78.2% / 74.8% | **39.9% / 82.6%** |
+| FallenKingdom | 788 / 917 | 81.0% / 78.2% | **42.4% / 56.1%** |
+| DigitalLifeHacker | 1035 / 1272 | 84.3% / 88.1% | **40.1% / 54.0%** |
+| AliceBlue | 813 / 767 | 85.1% / 89.8% | **32.0% / 38.7%** |
+
+★**Precision has MIXED SIGN** (+0.034, +0.028, -0.038, -0.047) ⇒ by this definition our notes
+are **not** more wasted than a human's. **Recall is worse on 4/4** (-0.067 to -0.427).
+⇒**The defect is MISSED, not WASTED.** PARTLY CONFIRMED — one rule, four songs, and the rule
+is a guess until Kyle corrects it.
+
+★★**BUT THE ALLOCATION CLAIM SURVIVES IN A FORM PRECISION CANNOT SEE.** Distinct main events
+covered per note placed: ours **0.464-0.537**, human **0.565-0.647** (worse 4/4); notes spent
+per event covered: ours **1.86-2.16**, human **1.54-1.77**. ⇒**We spend ~2 notes where a human
+spends ~1.7 to buy the same musical event**, because both notes of a double land on the *same*
+event and both score HIT. 🔴**This is C5 (doubles) reproduced from the musical side, not a new
+finding** — simultaneous-note share ours 35.8-39.6% vs human 14.6-26.9%. Its value is that it
+prices C5 in Kyle's terms: at Hunger we place 1328 notes and cover 616 events; the human places
+2254 and covers 1275.
+
+## ⚠️ CONTROL: THESE NUMBERS ARE METRONOME-GAMEABLE — PICTURE ONLY, NEVER A STEERING TARGET
+A metronome on 1f8d6 scores, by division: 1/4 **precision 78.7% / recall 48.5%** (better recall
+than our own map, precision level with the human), 1/8 59.5%/73.4%, 1/16 38.3%/88.1%.
+⇒**precision and recall FAIL the degenerate control at the 1/4 operating point.** The one column
+that separates is **on-nothing**: metronome 13.3% vs human 3.8% vs ours 6.3%. ⇒Do not build a
+seventh axis out of this; it exists to colour a picture Kyle reads.
+✅Sanity check the metric passed: `[CROSSOVER]` scores **bit-identical** to `[BEFORE]` (it moves
+hands, not times), so the instrument reads timing only, as intended.
+
 ## ✅ 2026-08-14 — THE ALIGNMENT RESIDUAL IS FULLY SPLIT: ~10 TEMPO, ~10 PURE SELECTION
 Closing the thread that started at 39 failing songs. The phase search took it to 21; those 21 now
 split cleanly, and the second half is established **by elimination** rather than by assumption.

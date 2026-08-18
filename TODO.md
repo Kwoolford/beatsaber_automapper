@@ -11,7 +11,7 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 📍 CURRENT STATE (2026-08-17)
+## 📍 CURRENT STATE (2026-08-18)
 
 ★★**Kyle has judged the maps and the answer is a DEFECT LIST, not a preference.** He
 reviewed the agent map, set A and set B and reported, across *every* song:
@@ -40,13 +40,16 @@ arms*; he produces *defects located in songs*. Preference is second, defects are
 ---
 
 ### ▶️ START THE NEXT SESSION HERE
-1. `python scripts/review.py list` — 32 maps still staged; **`[CROSSOVER]` is unjudged and is
+✅**V1 (notesheet) and V2 (overlay) are BUILT and PUBLISHED** — bass transcription, the score
+view and the HIT/MISSED/WASTED overlay all shipped 2026-08-18; see PROGRESS.md for the numbers.
+1. ★**THE GATE IS KYLE'S CORRECTION OF "MAIN"**, and it is the one thing nothing else can
+   substitute for. Overlay: `claude.ai/code/artifact/34bf3922-080b-4c9b-bcd6-90792bb1a6b9`,
+   score: `.../f47350fb-9592-42db-a992-8c9e5b85b015`. **Ask which events he would have called
+   main**, then change `overlay.MAIN_DEFAULT` — not the map.
+2. Build **V3 (flow view)** while waiting — it needs no answer from him and D5 is unlocatable
+   without it.
+3. `python scripts/review.py list` — 32 maps still staged; **`[CROSSOVER]` is unjudged and is
    the strongest candidate on the board.**
-2. Build **V1 bass transcription** first — it is the only stem with *no* transcription at all,
-   it is monophonic so pYIN works exactly as it does for vocals, and V1/V2 both need it.
-3. Then the **V1 notesheet render** → **V2 overlay** (HIT / MISSED / WASTED), on
-   **Fallen Kingdom (`1f8d6`), not Hunger** — Hunger's vocals are unpitched (pYIN voiced-on-loud
-   0.19 vs 0.91–0.99 elsewhere), so it is the worst song to show a notesheet on.
 4. Read `docs/perception_scorecard.md` for what perception is already CONFIRMED to do.
 
 ⚠️**Nothing is running.** No GPU job, no autonomous loop — `/todo` must be re-run to restart
@@ -65,29 +68,13 @@ not on whether it produces a number.
 `brief.py` (per-bar stem grid + lyrics), `map_view.py` (map as text), ArcViewer (play
 preview). ⚠️**None of it is time-aligned into one picture**, which is the whole gap.
 
-### V1 — The NOTESHEET: the song as a readable score
-One time axis, one lane per voice: vocal pitch line + lyric, bass line, the `other`
-lead/chords, four kit lanes, with the section banner above it.
-- ⚠️**Terminal text will not carry this.** 4 minutes × 6 lanes does not fit usefully;
-  this must render (HTML/SVG page or PNG), because the whole point is that he looks at it.
-- ❌**`bass` has no transcription at all** — build it first, it is the cheapest possible
-  win (bass is monophonic, so pYIN works directly, exactly as for vocals).
-- ⚠️`other` is currently ONE salience peak per frame, not chords. Real polyphony needs a
-  model — `basic-pitch` installs here via its ONNX backend (the TF wheel blocks Python
-  3.12; `--no-deps` + onnxruntime resolves). **De-risk with a PoC on one song first.**
-**DoD**: he opens one page and can read what the song is doing without the audio.
-
-### V2 — ★THE OVERLAY: our map drawn ON the notesheet
-The single most important view, because it makes his central complaint visible without
-inventing a metric for it. Every placed note is drawn against the musical event under it
-and falls into exactly one of three classes:
-- **HIT** — a note on a main musical event
-- **MISSED** — a main event with no note ⇒ *"not following the main vocals"*
-- **WASTED** — a note with no main event under it ⇒ ★*"the nps is generally wasted on
-  every few non main notes"*
-**DoD**: he can look at one section and agree or disagree with the three colours. If he
-disagrees, the *definition of "main"* is what is wrong — and that is a far better thing
-to argue about than an axis score.
+✅**V1 + V2 SHIPPED 2026-08-18** — `agent_mapper/notesheet.py` (the score) and
+`agent_mapper/overlay.py` (HIT/MISSED/WASTED), both published as pages. **Their DoD is not
+met until he looks**, which is item 1 above. Still open inside them:
+- ⬜`other` is ONE salience peak per frame, not chords. Real polyphony needs a model —
+  `basic-pitch` installs via its ONNX backend (the TF wheel blocks Python 3.12; `--no-deps`
+  + onnxruntime resolves). **De-risk with a PoC on one song first.**
+- ⬜Only `1f8d6` is published. The other three standing songs render but are not up.
 
 ### V3 — The FLOW view: play-level clarity
 Hand paths over time (L/R column+row), cut directions, and **bursts marked where they
@@ -118,9 +105,23 @@ vocals"* + *"I'd like the general beat parts to be faster and play more main not
 plausibly **one defect**: we do not distinguish the MAIN musical line from incidental
 onsets, so the note budget is spent on filler and the map simultaneously feels **slow**
 (the notes you want are absent) and **busy** (notes you do not want are present).
-⚠️This is a hypothesis stated in his words, not a measured finding. **Test it before
-building on it**: if true, reallocating a *fixed* note budget onto main-line events
-should improve his verdict with nps held constant.
+🔴🔴**MEASURED 2026-08-18, AND IT SPLITS IN TWO** (V2 overlay, 4 standing songs, ours vs
+human under one rule):
+- **As "our notes land off the music": NOT SUPPORTED.** Our precision 78–85% vs the human's
+  75–90%, **mixed sign across songs** (+0.034, +0.028, −0.038, −0.047). We are not spending
+  the budget on non-events more than a human does.
+- **As "our notes don't buy new musical events": SUPPORTED 4/4.** Distinct main events
+  covered per note: ours **0.464–0.537** vs human **0.565–0.647**; notes per event covered
+  ours **1.86–2.16** vs human **1.54–1.77**. ⇒**both halves of a double land on the SAME
+  event and both count as HIT.** 🔴This is **C5 (doubles) from the musical side, not a new
+  finding** — but it prices C5 in his terms for the first time.
+- ★**The dominant gap is MISSED, not WASTED**: we play **32–42%** of the main line where the
+  human plays **39–83%**.
+⚠️**PARTLY CONFIRMED, and the rule is a guess until he corrects it.**
+⚠️⚠️**DO NOT STEER ON THESE NUMBERS — they FAIL the degenerate control.** A metronome on
+1f8d6 scores precision 78.7% / recall 48.5% at 1/4, i.e. **better recall than our own map**.
+Only `on-nothing` separates it (13.3% vs human 3.8%, ours 6.3%). The overlay is a **picture**;
+the tally underneath it is a caption, never an axis.
 
 | # | defect, his words | first read | DoD |
 |---|---|---|---|
@@ -129,7 +130,7 @@ should improve his verdict with nps held constant.
 | **D3** | *"doing drops at the wrong time"* | ⭐**directly actionable now** — `structure.py` finds sections and marks `DROP`/`build`/`breakdown`, and the generator does not use any of it | detected drop bar == where he says the drop is, on 4 songs |
 | **D4** | *"not following the main vocals"* | `follow_vocals` ours **0.020** vs human **0.149**; root cause known — Stage-1 carries no melodic instruments (Track B) | `follow_vocals` ≥ 0.10 **and** he agrees the vocal line is being played |
 | **D5** | *"random bursts of really fast non flowy notes"* | two joined problems: bursts are not musically motivated, **and** they break flow. V3 must locate them first | he cannot find a burst he calls random |
-| **D6** | ★*"nps wasted on non main notes"* | the allocation hypothesis above; needs a definition of **main** that he endorses via V2 | main-line recall up with nps flat, and he agrees |
+| **D6** | ★*"nps wasted on non main notes"* | ⚠️**re-read above** — measured, and it is a *doubles* defect, not an off-music one. Needs the definition of **main** that he endorses | main-line recall up with nps flat, and he agrees |
 
 ⚠️**D6 is the one that must not become another invented axis.** Define "main" in V2,
 show it to him, and let him correct the definition. A metric he has endorsed by looking
