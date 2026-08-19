@@ -292,7 +292,12 @@ changes, and document like crazy."* One lever at a time, ≥3 seeds, nothing pro
   write v3 (3.3.0), so we CAN emit all of them.**
   ★**This gives W2 (*"Fallen Kingdom is really empty"*) its first untested candidate cause** — five
   instruments have failed to explain it and every one of them looked at notes.
-  ⬜**Testable without model work**: place walls by rule and give him a `[WALLS]` arm vs `[BASE]`.
+  ✅**BUILT 2026-08-19k — `agent_mapper/walls.py`**, a post-processor (notes byte-identical, so the
+  A/B isolates one thing). Copies the measured human vocabulary: 84 walls, width 1, outer lanes,
+  median 0.16 beats, 62 % crouch, **0 of 84 colliding with a note**. ✅**Installed as
+  `AUTO … [WALLS]` for Fallen Kingdom and アリスブルー**, built on the DENSER map.
+  ⬜**Ask: does `[WALLS]` still feel "really empty" next to `[DENSER]`?** ⚠️A candidate cause, not
+  a measured defect — "no difference" is a good answer too. ⬜Arcs/chains remain unbuilt.
 - **W5** — dot blocks as decoration: ⏸️**he deferred this himself.** Do not revive unprompted.
 
 ⚠️**Protect these — he named them by ear**: A6 hand-role division, and the density pacing

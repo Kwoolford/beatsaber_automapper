@@ -1261,6 +1261,35 @@ looked at notes.
 ⬜**Cheap next step**: no model work is needed to *test* it — walls can be placed by rule
 (section-aware, avoiding note lanes) and given to his ear as a `[WALLS]` arm against `[BASE]`.
 
+### 2026-08-19k — `agent_mapper/walls.py`: the missing layer, built as a post-processor and installed
+
+**Learned the human vocabulary first** (135 maps, 16,504 walls) rather than inventing a rule:
+
+| property | human | ours |
+|---|---|---|
+| walls per map | median **84** | 84 |
+| duration | median **0.12** beats (p10 0.03, p90 1.25) | 0.16 |
+| width | 90 % are **1 lane** | 1 |
+| lane | **52 % x=0, 41 % x=3** (93 % outer) | 42/42 across x=0/3 |
+| height | 62 % crouch | 65 % |
+| **notes inside a wall's own lanes** | median **0.000** (8 % any overlap) | **0 of 84** |
+
+🔴🔴**54 % of the corpus's walls are MODDED and had to be discarded** (Mapping/Noodle Extensions
+repurpose the fields: negative durations, lane −4750, width 1000). Read raw, they give a **median
+duration of minus 2.5 beats** — which is how the contamination was caught. ★*A statistic that is
+physically impossible is the cheapest contamination detector there is.*
+⚠️**And a self-correction**: sampling durations log-uniformly between the human **median and p90**
+gave a median of 0.38 against the human's 0.12 — **you cannot reproduce a median by sampling above
+it**. Fixed to sample between p10 and p90 → 0.16.
+
+**Design: a post-processor on a finished zip, not a generator change.** The `[WALLS]` arm is
+byte-identical to `[DENSER]` in every note, so his A/B isolates exactly one thing.
+✅**Installed**: `AUTO Fallen Kingdom [WALLS]` and `AUTO アリスブルー [WALLS]`, both built on the
+`v4t0.25` (DENSER) map.
+**DoD**: he plays `[DENSER]` vs `[WALLS]` and says whether the map still feels *"really empty"*
+(W2). ⚠️**This tests a candidate cause of W2, not a defect anyone has measured** — walls may make
+no difference to how full a map feels, and that is a perfectly good answer.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
