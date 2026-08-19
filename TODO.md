@@ -54,9 +54,12 @@ correct. Playing instruments until the main words come in."* See PROGRESS.md for
    `.../f47350fb-9592-42db-a992-8c9e5b85b015`.
 3. ★**THE GATE IS STILL KYLE'S CORRECTION OF "MAIN"** — nothing substitutes for it. **Ask which
    events he would have called main**, then change `overlay.MAIN_DEFAULT`, not the map.
-4. ⬜**Isolate the lyric change I bundled** (minutes): `medium` + vad OFF + temp 0. At fixed
-   VAD=ON, large-v3 made coverage slightly *worse* (0.927→0.918) ⇒ **VAD is the lever and the
-   model upgrade is unvalidated.**
+4. ✅**DONE 2026-08-18b** — `scripts/lyric_ablation.py`. VAD confirmed at both model sizes; the
+   model upgrade is not a coverage lever; and the two transcripts **disagree on ~1 line in 4 with
+   errors on both sides**, which sung-coverage cannot see. ⇒**The "bigger ASR" route is closed;
+   forced alignment against supplied lyrics is the only route to word accuracy.** See PROGRESS.
+   ⬜**Ask Kyle**: are roughly-right landmark words enough? If not, he can paste the real lyrics
+   for the standing songs and we get a true WER for free.
 5. Build **V3 (flow view)** — needs no answer from him, and D5 is unlocatable without it.
 6. `python scripts/review.py list` — 32 maps staged; **`[CROSSOVER]` is unjudged and is the
    strongest candidate on the board.**

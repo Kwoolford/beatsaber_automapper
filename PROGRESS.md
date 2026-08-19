@@ -56,6 +56,50 @@ on the page.**
 ⚠️**The old per-song word counts for 1f913/1f767/1f333 were overwritten by `--force` and are lost**,
 so the +42 % is established on **1f8d6 only** (n=1).
 
+### 2026-08-18b — The lyric ablation: VAD confirmed, the model upgrade is NOT a coverage lever, and the first real look at word ACCURACY
+
+`scripts/lyric_ablation.py` runs the full 2x2 with **one metric definition applied to all four
+arms** (`lyrics.transcribe` gained `vad` / `temperature` / `cache_key` params; production defaults
+unchanged). ⚠️Absolute numbers are NOT comparable to the 2026-08-18a table — that one was ad hoc
+and this one pads word spans by 0.15 s — but every arm here is measured the same way, which the
+earlier table was not.
+
+1f8d6, 453 pitched vocal onsets:
+
+| config | words | sung-coverage |
+|---|---|---|
+| medium, vad ON (the old default) | 301 | 0.898 |
+| **medium, vad OFF** (the missing control) | 312 | **0.956** |
+| large-v3, vad ON | 532 | 0.876 |
+| large-v3, vad OFF (shipped) | 430 | **0.962** |
+
+✅**CONFIRMED: VAD is the lever, and now at BOTH model sizes** — +0.058 on `medium`, +0.086 on
+`large-v3`, same sign both times. The 2026-08-18a claim survives its own control.
+✅**CONFIRMED: model size is not a coverage lever.** At fixed VAD it moves coverage **-0.022** (ON)
+and **+0.006** (OFF). `large-v3` emits **38 % more words** than `medium` for +0.006 coverage ⇒ the
+extra words land where words already were. **The bundled change bought nothing measurable.**
+
+★★**AND THE ABLATION ANSWERED A QUESTION IT WAS NOT BUILT FOR — word ACCURACY, unaddressed since
+Kyle raised it.** Comparing the two vad-OFF arms:
+- Time-matched word agreement is only **0.309**, but that is a *tokenisation artifact*: time-
+  agnostic, **92 % of `medium`'s words appear in `large-v3`'s bag**. The models mostly agree.
+- **Where they disagree, roughly 1 line in 4, and BOTH are wrong about half the time.**
+  `medium` gets "Villagers would cheer my way", "cried for my help", "boxed us in";
+  `large-v3` gets "I go stow away", "pick up my sword and wield", "stay and fight" — where
+  `medium` writes "a ghost stole away", "sword and wheel", "stay in fight".
+- `large-v3` also fragments the line structure (**65 lines vs 47**), which is worse for the
+  notesheet, where a line is a display unit.
+⇒**PARTLY CONFIRMED, n=1 song, judged by ear against a song whose lyrics are published.** But it
+prices the accuracy defect for the first time: **~25 % of lines carry a disputed word, and
+sung-coverage is blind to every one of them** (0.956 vs 0.962 across transcripts that disagree
+this much). 🔴**This closes the "bigger ASR model" route for good** — the remaining route is
+**forced alignment against supplied lyrics**, exactly as suspected.
+**DECIDED (not blocking Kyle): `large-v3` stays the default.** There is no evidence to move it and
+its errors are not worse than `medium`'s — but the docstring now says the upgrade is unevidenced
+rather than implying it was measured. ⬜**Cheap and now obvious**: three of the four standing songs
+have published lyrics, so a real WER against ground truth is available for the price of pasting
+them in. Ask Kyle before fetching anything external.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

@@ -71,10 +71,18 @@ def _vocals_stem(audio: pathlib.Path, out_dir: pathlib.Path) -> pathlib.Path:
 
 
 def transcribe(audio: pathlib.Path, model_name: str = DEFAULT_MODEL,
-               force: bool = False, language: str | None = None) -> dict:
-    """Return {'words': [{t, end, word}], 'lines': [{t, end, text}], ...}."""
+               force: bool = False, language: str | None = None,
+               vad: bool = False, temperature: float = 0.0,
+               cache_key: str | None = None) -> dict:
+    """Return {'words': [{t, end, word}], 'lines': [{t, end, text}], ...}.
+
+    ⚠️`vad` / `temperature` / `cache_key` exist for the ABLATION only
+    (`scripts/lyric_ablation.py`); their defaults ARE the shipped production path.
+    The cache is keyed by song alone, so an arm that changes a setting **must** pass
+    its own `cache_key` or it silently reads back another arm's transcription.
+    """
     CACHE.mkdir(parents=True, exist_ok=True)
-    cache_f = CACHE / f"{audio.stem}.json"
+    cache_f = CACHE / f"{cache_key or audio.stem}.json"
     if cache_f.exists() and not force:
         return json.loads(cache_f.read_text())
 
@@ -96,8 +104,8 @@ def transcribe(audio: pathlib.Path, model_name: str = DEFAULT_MODEL,
     # across runs; the fallback does not. A transcription that changes between runs
     # silently moves every lyric on the page.
     segments, info = model.transcribe(str(wav), word_timestamps=True,
-                                      language=language, vad_filter=False,
-                                      temperature=0)
+                                      language=language, vad_filter=vad,
+                                      temperature=temperature)
     words, lines = [], []
     for seg in segments:
         txt = (seg.text or "").strip()
@@ -110,6 +118,7 @@ def transcribe(audio: pathlib.Path, model_name: str = DEFAULT_MODEL,
                 words.append({"t": round(w.start, 3), "end": round(w.end, 3),
                               "word": tok})
     out = {"song": audio.stem, "model": model_name,
+           "vad": bool(vad), "temperature": temperature,
            "language": getattr(info, "language", None),
            "language_probability": round(getattr(info, "language_probability", 0.0), 3),
            "n_words": len(words), "n_lines": len(lines),
