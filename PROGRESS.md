@@ -1377,6 +1377,27 @@ moves, as the model predicts.
 ⇒**Flip it on when chains are actually adopted, and recalibrate the human reference in the same
 change.** Until then it is opt-in, and chains can be scored without disturbing anything else.
 
+### 2026-08-19o — The review ladder is complete on all four standing songs, with one unambiguous baseline
+
+| song | notes | walls | arcs | chains | parity violations |
+|---|---|---|---|---|---|
+| Fallen Kingdom | 913 | 84 | 48 | 16 | **0** |
+| Hunger | 1380 | 84 | 48 | 16 | **0** |
+| アリスブルー | 925 | 84 | 48 | 16 | **0** |
+| Digital Life Hacker | 1047 | 84 | 48 | 16 | **0** |
+
+Every rung's notes are **byte-identical** to the `DENSER` map, and the chains are scored with the
+model **on** (2026-08-19n), so those zeros mean something.
+
+⚠️**A naming hazard I created and then fixed.** Today's baselines had been installed as
+`[BEFORE]` under the *pretty* song names, while stale 2026-08-11 maps sit under the *compact*
+names — two maps called `[BEFORE]` separated only by whether the title has spaces in it. **All four
+songs now have a `[BASE]`**, so the instruction is one line with no exceptions:
+★**play `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]` → `[CHAINS]`, and ignore anything called
+`[BEFORE]`.**
+⚠️The old `[BEFORE]`/`[AFTER]`/`[BOTH]`/`[CROSSOVER]`/`[PHASE]` maps are deliberately left in
+place — `[CROSSOVER]` in particular is still unjudged and is the oldest open question on the board.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

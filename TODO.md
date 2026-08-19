@@ -47,10 +47,13 @@ modulate density per song at all (r = 0.046)** while crude audio features reach 
 ### ▶️ START THE NEXT SESSION HERE
 ★**The whole session on one page (share with him):**
 `https://claude.ai/code/artifact/13d35dcc-02b3-4ac1-8b9a-800030fefd5f`
-1. ★★**ASK HIM TO PLAY `[BASE]` vs `[DENSER]`** (installed 2026-08-18v; ⚠️**not** `[BEFORE]`,
-   which is a stale 2026-08-11 map). **Fallen Kingdom is the song to judge** — +161 notes,
-   vocal coverage 0.371 → 0.447 (human 0.655). ★**If he cannot hear that, vocal coverage joins
-   `BEAT_GRID_PHASE` as a number that does not reach his ear** — worth knowing precisely.
+1. ★★**ASK HIM TO PLAY THE LADDER — `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]` → `[CHAINS]`**,
+   installed on **all four standing songs**, each rung adding exactly one thing (notes
+   byte-identical throughout, 0 parity violations). ⚠️**Ignore anything called `[BEFORE]`** — those
+   are stale 2026-08-11 maps. **Fallen Kingdom is the song to judge the density on** (+161 notes,
+   coverage 0.371 → 0.447 vs human 0.655). **Two questions: does it still feel SLOW, and does it
+   still feel EMPTY?** ★**If `[DENSER]` is inaudible, vocal coverage joins `BEAT_GRID_PHASE` as a
+   number that does not reach his ear** — worth knowing precisely.
 2. 🔴🔴**THE PAGE PLAYER HAS STILL NEVER RUN IN A BROWSER** (no browser on this box). Open
    `outputs/notesheets/fk_flow.html` before building anything on top of it.
 3. 🔴**THE PUBLISHED PAGES ARE STALE** (old lyrics, no audio). Republish needs his approval:
