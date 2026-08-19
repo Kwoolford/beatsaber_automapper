@@ -296,7 +296,12 @@ different idea, not another sweep.
 A2 rhythm, A6 handrole and the hand-offset work were tuned against a bpm that was wrong on 20 of
 21 songs. Re-derive before building further on them.
 
-### C5 — Doubles: root cause found; 🔴decode fix FAILED, do not revive
+### C5 — Doubles: root cause found; 🔴decode fix FAILED — but ★now PRICED against D4
+★★**2026-08-18k gives C5 a payoff in the units of the biggest defect**: **39.6 % of the notes we
+spend on the vocal line are doubles** onto an onset the other hand already covered (human 20.7 %),
+so **fixing doubling alone lifts vocal coverage 0.385 → ≈0.487 — a quarter of the D4 gap, with no
+extra notes.** ⚠️Still not reachable by decode (`BEAT_HAND_DEAL` failed); this justifies costing a
+**representational** fix, not reviving the old one.
 Not too many notes — **too few distinct times** (467 vs the human's 626). Stage-1's two hand
 channels correlate **0.985–0.993**, so both hands get the same information and pick the same slots;
 66 % doubles is structurally guaranteed. `BEAT_HAND_DEAL` hit every structural target and degraded

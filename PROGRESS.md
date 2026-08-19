@@ -390,6 +390,36 @@ not expect Track B alone to close D4.**
 human's when the drum disappears (−0.185 vs −0.238, p = 0.003), which reads as the opposite
 conclusion. That is an artifact of our lower base rate — **the ratio is the fair comparison**.
 
+### 2026-08-18k — D4 factorised: budget AND efficiency, and C5's price tag in the units that matter
+
+`scripts/eval_vocal_coverage.py --decompose`. Kyle's hypothesis was *"an ALLOCATION problem, not a
+budget problem"*. **Measured, it is both — and the split is clean.**
+
+| | ours | human | ratio |
+|---|---|---|---|
+| notes spent on vocal onsets | 314 | 470 | **0.669** |
+| …at how many **distinct** times | 192 | 378 | |
+| distinct vocal onsets covered | 210 | 386 | |
+| **efficiency** (onsets covered per note spent) | **0.661** | **0.836** | **0.791** |
+| doubled share of those notes | **0.396** | 0.207 | |
+
+**0.669 × 0.791 = 0.529 against an observed coverage ratio of 0.518** — the two-term model
+reproduces the gap, so nothing large is missing from it. Efficiency is lower on **134/144** songs
+(p = 3.6e-24), and allocation proper is a smaller term (0.487 of our notes sit on vocals vs the
+human's 0.551, −0.062, p = 1.2e-12).
+
+★★**~40 % of the notes we spend on the vocal line are DOUBLES onto an onset the other hand already
+covered** (the human: 20.7 %). ⇒**C5 costs 21 % of the vocal budget, and fixing doubling ALONE
+would lift vocal coverage from 0.385 to ≈0.487 — a quarter of the D4 gap, with no extra notes.**
+⚠️**A price tag, not a plan**: `BEAT_HAND_DEAL` already failed to fix doubling by decode (C5 is
+"not reachable by decode"). What is new is that C5's payoff is now stated in the units of the
+biggest confirmed defect, which makes a *representational* fix worth costing.
+
+★**A method note worth keeping.** The first decomposition (our allocation × the human's note
+count) predicted **0.782**, which *exceeds the human's own 0.743* — it assumed every added note
+lands on a **new** onset. ⇒*When a model of a gap over-predicts the reference itself, the model is
+missing a term.* The missing term was exactly the efficiency above.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

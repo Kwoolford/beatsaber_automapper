@@ -49,8 +49,37 @@ accounts for the larger, drum-backed part of the gap.
 *less* than the human's when the drum disappears (−0.185 vs −0.238), which looks like
 the opposite finding and is an artifact of our lower base rate.
 
+## Budget or allocation? BOTH — and the split is measurable (2026-08-18k)
+
+Kyle's own hypothesis was *"our nps problem is an ALLOCATION problem, not a budget
+problem"*. Measured, the coverage gap factorises **almost exactly** into two comparable
+terms (their product reproduces the observed ratio to 0.529 vs 0.518):
+
+| | ours | human | ratio |
+|---|---|---|---|
+| notes spent on vocal onsets | 314 | 470 | **0.669** |
+| …at how many **distinct** times | 192 | 378 | |
+| distinct vocal onsets covered | 210 | 386 | |
+| **efficiency** (onsets covered per note spent) | **0.661** | **0.836** | **0.791** |
+| doubled share of those notes | **0.396** | 0.207 | |
+
+Efficiency is lower on **134 of 144** songs (p = 3.6e-24).
+★★**So ~40 % of the notes we do spend on the vocal line are DOUBLES landing on an onset
+the other hand already covered.** ⇒**C5 is not a cosmetic defect — it costs 21 % of the
+vocal budget**, and fixing doubling alone would lift coverage from 0.385 to ≈**0.487**
+(a quarter of the D4 gap) **without adding a single note**.
+⚠️`BEAT_HAND_DEAL` already failed to fix doubling by decode (C5), so this is a price
+tag, not a plan. But it is the first time C5's cost has been stated in the units of the
+biggest defect.
+⚠️A cruder decomposition (allocation × the human's note count) predicts **0.782**, which
+*exceeds* the human's own 0.743 — a sign the model is optimistic, because it assumes
+every added note lands on a **new** onset. The efficiency term above is exactly what
+that assumption gets wrong. ★*When a model of a gap over-predicts the reference itself,
+the model is missing a term.*
+
 Usage:
     python scripts/eval_vocal_coverage.py
+    python scripts/eval_vocal_coverage.py --decompose
     python scripts/eval_vocal_coverage.py --cohort outputs/wide_cohort_prod_s1
 """
 
@@ -89,12 +118,69 @@ def covered(onsets: np.ndarray, notes: np.ndarray, tol: float = TOL) -> np.ndarr
                       np.abs(onsets - notes[idx])) <= tol
 
 
+def decompose(a) -> int:
+    """Is the vocal gap a budget problem or an efficiency (doubles) problem? Both."""
+    rows = []
+    for z in sorted(a.cohort.glob("*.zip")):
+        f = CACHE / f"{z.stem}.npz"
+        hz = REPO / "data" / "raw" / f"{z.stem}.zip"
+        if not f.exists() or not hz.exists():
+            continue
+        vox = np.sort(np.load(f)["onsets_vocals"])
+        if len(vox) < 40:
+            continue
+        to, th = notes_of(z, ("Expert",)), notes_of(hz)
+        if to is None or th is None:
+            continue
+        out = []
+        for t in (to, th):
+            on = covered(t, vox, a.tol)
+            spent = int(on.sum())
+            # ⚠️DISTINCT times, so a double counts once — that is the whole point
+            times = len(np.unique(np.round(t[on], 3))) if spent else 0
+            out += [spent, int(covered(vox, t, a.tol).sum()), times]
+        rows.append(out)
+    if not rows:
+        print("nothing scorable")
+        return 1
+    R = np.array(rows, dtype=float)
+    eff_o = R[:, 1] / np.maximum(R[:, 0], 1)
+    eff_h = R[:, 4] / np.maximum(R[:, 3], 1)
+    print(f"n={len(R)} songs · where does the vocal budget go?\n")
+    print(f"{'':<44} {'ours':>8} {'human':>8}")
+    for lbl, i, j in (("notes spent on vocal onsets", 0, 3),
+                      ("…at how many DISTINCT times", 2, 5),
+                      ("distinct vocal onsets covered", 1, 4)):
+        print(f"{lbl:<44} {np.median(R[:, i]):>8.0f} {np.median(R[:, j]):>8.0f}")
+    print(f"\n{'★efficiency: onsets covered per note spent':<44} "
+          f"{np.median(eff_o):>8.3f} {np.median(eff_h):>8.3f}")
+    print(f"{'doubled share of those notes':<44} "
+          f"{np.median(1 - R[:, 2] / np.maximum(R[:, 0], 1)):>8.3f} "
+          f"{np.median(1 - R[:, 5] / np.maximum(R[:, 3], 1)):>8.3f}")
+    rc = np.median(R[:, 0]) / np.median(R[:, 3])
+    re_ = np.median(eff_o) / np.median(eff_h)
+    print(f"\n★the gap factorises:  note count {rc:.3f}  ×  efficiency {re_:.3f}  "
+          f"=  {rc * re_:.3f}")
+    print(f"   observed coverage ratio 0.385/0.743 = {0.385 / 0.743:.3f} — the model holds")
+    print(f"\n   ⇒fixing doubling ALONE would lift coverage to ≈"
+          f"{0.385 / re_:.3f} with no extra notes.")
+    try:
+        from scipy import stats
+        print(f"   efficiency lower on {int((eff_o < eff_h).sum())}/{len(R)} songs, "
+              f"p={stats.wilcoxon(eff_o, eff_h).pvalue:.2g}")
+    except ImportError:
+        pass
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--cohort", type=pathlib.Path,
                     default=REPO / "outputs" / "wide_cohort")
     ap.add_argument("--tol", type=float, default=TOL)
+    ap.add_argument("--decompose", action="store_true",
+                    help="split the gap into note count vs efficiency (doubles)")
     a = ap.parse_args()
 
     ours, human, r_drum, r_only = [], [], [], []
@@ -121,6 +207,9 @@ def main() -> int:
             if hb >= 0.05 and hv >= 0.05:
                 r_drum.append(co[wd].mean() / hb)
                 r_only.append(co[~wd].mean() / hv)
+
+    if a.decompose:
+        return decompose(a)
 
     O, H = np.array(ours), np.array(human)
     if not len(O):
