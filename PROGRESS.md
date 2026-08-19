@@ -207,6 +207,45 @@ songs). The added notes have the **same median amplitude** as the matched ones (
 so they are not quiet artifacts.
 ⚠️Both remain **unseen in a browser** — same standing caveat.
 
+### 2026-08-18f — ★★D3 CONFIRMED AT n=144, with a human-human ceiling that makes it readable
+
+`scripts/eval_drop_agreement.py`. **The human mapper's own density jump is an oracle for where
+the drop is** — a mapper marks a drop by moving the note rate, so the times a human map steps up
+are that mapper's answer to "where does this song turn". No ear needed, and it does not use our
+own section detector, which would make the test circular.
+
+**Two cheaper explanations were measured first and BOTH are REFUTED:**
+1. 🔴*We fail to lift density at drops.* **No.** Density at detected `DROP`/`peak` against each
+   map's own mean: ours **1.09 / 1.21 / 1.08 / 0.95**, human **1.11 / 1.21 / 1.09 / 0.99** — the
+   same lift, song for song. ⇒**The old key-note "flat ~8 NPS ignores song structure" does not
+   survive at this granularity.**
+2. 🔴*Our density jumps miss our own detected drops.* Also no — ours sit 1.9/0.4/0.5/4.0 s from a
+   detected `DROP`, the human's 3.2/0.3/0.0/3.5 s. Equally aligned.
+
+⇒What is left is **where the moves are**, and that is the defect:
+
+| what | agreement | n |
+|---|---|---|
+| uniformly random jump times | **0.140** | 2000 permutations |
+| **ours vs the human** | **0.347**, 95 % CI **[0.302, 0.392]** | 144 songs / 432 jumps |
+| two **DIFFERENT** humans, same song | **0.49** (0.56 allowing one global offset) | 54 pairs |
+| the same human, two difficulties | 1.00 | n=2, same-author ⇒ inflated |
+
+★★**CONFIRMED: the CI excludes the null AND the human-human band.** We are not random and we are
+not human. **43 of 144 songs agree on NOTHING** — not one of our three biggest density moves
+coincides with any of the human's.
+★★**The human-human band is the finding that makes the number readable.** Two humans mapping the
+same song agree only ~half the time, so 1.00 was never the target and 0.347 could otherwise have
+been argued either way. ⇒*Every "we are worse than a human" number needs its human-to-human
+spread before it means anything* — the same lesson as `feedback_target_is_best_mappers`, arrived
+at from the other side.
+⚠️**Caveats, stated plainly**: the human-human band comes from a **different sample** (115 corpus
+songs mapped by more than one mapper) than our 144, because no human map exists twice for the
+songs we generate on ⇒ cross-cohort, not paired. The same-mapper 1.00 is an upper bound inflated
+by the two difficulties being authored from one another.
+🔴**NOT A STEERING SIGNAL YET** — it has not passed `scripts/audit_eval_suite.py`. Diagnosis only.
+✅No GPU was needed: `outputs/wide_cohort` (150 generated maps) already existed.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
