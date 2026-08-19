@@ -1177,6 +1177,30 @@ regression (`idiom`) shown to be a **measurement artifact of the halved bpm**, a
 false-fires on **0 of 121** correct-tempo songs. **It has been switched off in production the
 whole time.** The only thing between it and a default flip is **his ear**.
 
+### 2026-08-19h — What tempo fixes are WORTH, cohort-wide — and one estimate that is not sound
+
+Cohort median vocal coverage is **0.385** (human 0.743). Substituting measured values:
+
+| scenario | cohort median | gain |
+|---|---|---|
+| **A. `BEAT_SUBDIV_AUTO` as it is** (fires on 16 of 28 half-tempo songs) | **0.414** | **+0.030** |
+| B. all 28 half-tempo songs fixed | 0.439 | +0.055 |
+| ~~C. all tempo errors fixed → correct-tempo median~~ | ~~0.410~~ | ~~+0.025~~ |
+
+★★**Scenario A is worth as much cohort-wide (+0.030) as the entire `--beat-threshold` lever
+(+0.029) — and it is available TODAY by flipping one environment variable.** Together they are
+roughly +0.06 of the 0.358 gap to the human, i.e. **about a sixth of D4**, from two settings.
+★**Scenario B prices the tempo model**: catching the other 12 half-tempo songs is worth a further
+**+0.025** cohort-wide. That is the number to weigh a real tempo model against.
+
+⚠️**SCENARIO C IS NOT A SOUND ESTIMATE AND IS STRUCK OUT.** It substitutes the *correct-tempo
+group's* median (0.410) into the tempo-error songs — a **cross-population** substitution. Those
+songs are not the same songs: their **human** maps score 0.788 against the correct-tempo group's
+0.727, so they are easier to cover, which is also why half-tempo + subdiv-auto reaches 0.493 and
+appears to "beat" correct-tempo songs. ★*The only sound comparison for a lever is within-song*
+— which is the measured 0.272 → 0.493 on the same 15 songs, not a median swapped between
+populations.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

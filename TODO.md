@@ -241,6 +241,12 @@ perception work, not a test of it.
 ---
 
 ## 🔵 P1 — TEMPO, the largest quantified upstream defect
+★**PRICED 2026-08-19h**: `BEAT_SUBDIV_AUTO` as it stands is worth **+0.030 cohort-wide** on vocal
+coverage — as much as the whole `--beat-threshold` lever — **for one env var**. Catching the other
+**12 half-tempo songs is worth a further +0.025**; that is the number to weigh a real tempo model
+against. ⚠️Do not estimate by swapping medians between song populations (tempo-error songs have
+*easier* vocals: their humans score 0.788 vs 0.727).
+
 
 **Our tempo is right on 70.5 % of songs** vs the mapper's declared bpm (n=149) — the old "30 %
 wrong" confirmed on a 6× larger cohort. ✅Half-tempo is **handled** (`BEAT_SUBDIV_AUTO`; the `half`
