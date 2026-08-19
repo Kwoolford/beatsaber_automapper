@@ -238,7 +238,14 @@ even at the right tempo and 1/16** (BPM changes or unquantised placement).
 songs**). **Production `version_4` has only `drum_proj` + `mix_proj`.** ⇒The melodic-blindness
 remedy exists on disk and was never evaluated at inference — plausibly because `val_f1_avg_tol`
 rates it 0.58-0.60 vs v4's 0.603, **and that is the metric the landmine list says not to trust.**
-🔴**EVALUATED 2026-08-18n and it is NOT a drop-in win**: vocal coverage v4prod **0.420** vs
+🔴🔴**SETTLED 2026-08-18p — PARITY, NOT IMPROVEMENT. Do not promote v7/v8 for D4.** At a
+near-matched budget (thr 0.12, 736 notes vs prod 752) v8 scores **0.417 vs 0.420, p=0.665** —
+a coin flip. Its allocation is better (0.444 vs 0.410) and it doubles less, but **none of it
+reaches coverage**. ★★**The sweep found the real lever instead: the human plays 1088 notes to our
+750.** ⇒**D4 is BUDGET-dominated** — and D1 *"very slow"* + D4 + his *"play more main notes"* are
+**one lever: more notes, spent on the vocal line** (⚠️not more notes everywhere — C3, and he
+called 6.18 nps unplayable).
+🔴Earlier detail 2026-08-18n: vocal coverage v4prod **0.420** vs
 v7 0.362 (p=0.00013) and v8 0.373 (p=0.0019) on 23 songs. ★**But the features are not inert** —
 v7 lifts *allocation* (+0.020, 18/23) and v8 lifts *efficiency* and cuts doubles (+0.018, 17/23);
 both lose it to a **9-12 % smaller note budget**. ⬜**Budget-matched arms running** (v8 at

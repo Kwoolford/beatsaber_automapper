@@ -544,6 +544,40 @@ extra notes land on real events, and **v8's better vocal allocation (0.441-0.444
 at every threshold.**
 **Running**: thresholds 0.20 and 0.12, to find out whether the budget can be reached at all.
 
+### 2026-08-18p — ★★TRACK B SETTLED: parity, not improvement — and D4 is BUDGET-dominated
+
+Full Stage-1 threshold sweep on v8 (`instr_dim=10`), 23 songs:
+
+| arm | coverage | notes | alloc | effic | on-onset |
+|---|---|---|---|---|---|
+| **v4prod** | **0.420** | **752** | 0.410 | 0.658 | 0.953 |
+| v8 @0.40 | 0.373 | 685 | 0.441 | 0.679 | 0.939 |
+| v8 @0.34 | 0.396 | 694 | 0.444 | 0.674 | 0.952 |
+| v8 @0.30 | 0.405 | 704 | 0.441 | 0.665 | 0.944 |
+| v8 @0.20 | 0.415 | **734** | 0.441 | 0.672 | 0.944 |
+| v8 @0.12 | 0.417 | **736** | 0.444 | 0.667 | 0.940 |
+| **human** | **0.692** | **1088** | — | — | 0.979 |
+
+★**The note count SATURATES at ~736**: 0.40 → 0.12 is a threefold cut in the threshold and buys
+only 51 notes, with 734 → 736 across the last step. ⇒**v8's probability mass is concentrated; the
+budget is a property of the model, and the threshold cannot buy it back.**
+★★**At that near-matched budget, v8 and production are INDISTINGUISHABLE: 0.417 vs 0.420,
+p = 0.665, better on 11/23 — a coin flip.** ⇒**TRACK B AS TRAINED IS PARITY, NOT AN IMPROVEMENT.**
+**A model handed the vocal line explicitly does not follow the vocals better.** Its allocation is
+reliably better (0.444 vs 0.410) and it doubles less, but **none of that reaches vocal coverage.**
+⚠️Still not a clean instr-only ablation (v7/v8 carry `struct_proj` and separate training), so what
+is settled is *"promoting v7/v8 does not fix D4"* — not *"melodic features are worthless"*.
+
+★★★**AND THE SWEEP EXPOSES THE REAL LEVER: the human plays 1088 notes to our ~750 — a budget
+45 % larger.** With the 2026-08-18k factorisation (count 0.669 × efficiency 0.791), **D4 is
+budget-dominated**, and no re-pointing of a small budget closes it: every arm here moved
+allocation and none moved coverage.
+★**This CONVERGES WITH KYLE'S OWN WORDS.** *"Very slow"* (D1) and *"not following the main
+vocals"* (D4) plus *"I'd like the general beat parts to be faster and play more main notes"* are
+**one lever**: more notes, spent on the vocal line. ⚠️And raising density is not free — C3 says
+thinning costs rhythm, and he called 6.18 nps unplayable — so the target is **more notes on the
+main line, not more notes everywhere.**
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
