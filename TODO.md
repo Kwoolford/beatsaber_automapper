@@ -45,6 +45,8 @@ modulate density per song at all (r = 0.046)** while crude audio features reach 
 ---
 
 ### ▶️ START THE NEXT SESSION HERE
+★**The whole session on one page (share with him):**
+`https://claude.ai/code/artifact/13d35dcc-02b3-4ac1-8b9a-800030fefd5f`
 1. ★★**ASK HIM TO PLAY `[BASE]` vs `[DENSER]`** (installed 2026-08-18v; ⚠️**not** `[BEFORE]`,
    which is a stale 2026-08-11 map). **Fallen Kingdom is the song to judge** — +161 notes,
    vocal coverage 0.371 → 0.447 (human 0.655). ★**If he cannot hear that, vocal coverage joins

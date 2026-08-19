@@ -971,6 +971,19 @@ numbers of guesses, compare lift over their own nulls, never raw hit rate.*
 (*"deliberately coarse"*). This refutes the proposed fix; it does not prove the detector useless
 for other purposes (its section *repeats* passed a held-out test at p = 0.019).
 
+### 2026-08-19 — The session's findings as one page: the defect scoreboard
+
+Published **https://claude.ai/code/artifact/13d35dcc-02b3-4ac1-8b9a-800030fefd5f** (private until
+he shares it). All six defects on one page, each read **against the human-to-human ceiling** — the
+method that made this session's numbers mean anything — plus the four eliminated fixes, the one
+validated lever, and the four things that need his ear.
+
+★It is built from the project's **own** design system (`notesheet.py`'s palette and IBM Plex
+pairing) rather than a new identity, so the score, the overlay, the flow view and this page all
+read as one instrument. The signature device is a **measurement track per defect** (chance floor ·
+ours · human band), which is the literal shape of the session's argument.
+⚠️Source is in the scratchpad, not the repo — republishing the same path keeps the URL.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
