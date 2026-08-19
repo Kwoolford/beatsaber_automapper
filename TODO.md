@@ -297,7 +297,14 @@ changes, and document like crazy."* One lever at a time, ≥3 seeds, nothing pro
   median 0.16 beats, 62 % crouch, **0 of 84 colliding with a note**. ✅**Installed as
   `AUTO … [WALLS]` for Fallen Kingdom and アリスブルー**, built on the DENSER map.
   ⬜**Ask: does `[WALLS]` still feel "really empty" next to `[DENSER]`?** ⚠️A candidate cause, not
-  a measured defect — "no difference" is a good answer too. ⬜Arcs/chains remain unbuilt.
+  a measured defect — "no difference" is a good answer too. ✅**Arcs BUILT 2026-08-19l** (`agent_mapper/arcs.py`, additive — notes byte-identical; 48 arcs,
+  median span 1.00 beat, 48/48 anchored on real notes, per-hand 24/24). Installed as `[FULL]`
+  (= DENSER + walls + arcs) for Fallen Kingdom and アリスブルー.
+  ⇒**Review ladder: `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]`, one change per step.**
+  ⬜**CHAINS still unbuilt, and now with a REASON to build them**: a chain is one swing carrying
+  4 segments — **density with no new distinct time**, which is exactly what we buy with doubles
+  (39.6 % vs human 20.7 %, costing 21 % of the vocal budget). ⚠️Chains alter notes, so they must
+  clear the swing simulator before shipping.
 - **W5** — dot blocks as decoration: ⏸️**he deferred this himself.** Do not revive unprompted.
 
 ⚠️**Protect these — he named them by ear**: A6 hand-role division, and the density pacing

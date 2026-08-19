@@ -1290,6 +1290,36 @@ byte-identical to `[DENSER]` in every note, so his A/B isolates exactly one thin
 (W2). ⚠️**This tests a candidate cause of W2, not a defect anyone has measured** — walls may make
 no difference to how full a map feels, and that is a perfectly good answer.
 
+### 2026-08-19l — `agent_mapper/arcs.py`: the second missing element, and why chains are held back
+
+**Human vocabulary, 51 v3 maps:**
+
+| | arcs (`sliders`) | chains (`burstSliders`) |
+|---|---|---|
+| maps using it | **45/51 = 88 %** | 25/51 = 49 % |
+| per map | median **48** (p10 15, p90 93) | median 16 |
+| span | median **1.00 beat** (p90 2.00) | median **0.062** beats |
+| shape | head/tail in different cells **93 %** | **4-5 slices** (51 % use 4) |
+
+★**Arcs are ADDITIVE and chains are not.** In v3 an arc is its own object drawn between two
+positions, so it lays over a finished map without altering a note. A chain **turns a note into a
+head plus segments**, changing what the hand does, so it must clear the swing simulator first.
+⇒Arcs built now; **chains deliberately held** for a build that can be parity-checked.
+★★**But the chain measurement is the more interesting finding: a chain is ONE swing carrying 4
+segments — density with NO new distinct time.** We buy density with **doubles** instead (39.6 % of
+our vocal notes vs a human 20.7 %, costing 21 % of the vocal budget, 2026-08-18k). **Chains are how
+a human buys what we buy with doubles.** ⇒That makes chains a candidate answer to C5 *and* D1, and
+it is now on the stack with a reason rather than as "a missing capability".
+
+**Built and verified**: notes **byte-identical** to the source (913 = 913), 48 arcs at a median
+span of **1.00 beat** matching the human, **48/48 anchored on real notes at both ends**, 0 % holds.
+🔴**A bug my own verification caught**: the first version put **all 48 arcs on the red hand** —
+one shared counter filled the quota before blue was reached. Budget is now **per hand** (24/24).
+★*Check per-hand balance on anything that iterates colours in order.*
+✅**Installed**: `AUTO Fallen Kingdom [FULL]` and `AUTO アリスブルー [FULL]` = DENSER + walls + arcs.
+⇒**The review ladder is now `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]`, each step adding exactly
+one thing.**
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
