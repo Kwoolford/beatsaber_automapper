@@ -765,6 +765,30 @@ biggest confirmed defect. **If a 13-point coverage gain on Fallen Kingdom is ina
 vocal-onset coverage joins `BEAT_GRID_PHASE` on the list of numbers that do not reach him** — and
 that is worth knowing precisely.
 
+### 2026-08-18w — The note budget is MODEL-limited on 9 of 23 songs, and they are the ones that need it most
+
+Notes-as-a-function-of-threshold **is** the Stage-1 probability CDF, so the ladder already run
+(0.40 / 0.25 / 0.15 on production) reads it per song without new inference:
+
+- growth from thr 0.40 → 0.15: **median +7 %**, range **+0 % to +27 %**
+- **SATURATED (<5 % growth): 9 of 23 songs.** The threshold buys them essentially nothing —
+  0 %, 1 %, 1 %, 1 %, 2 %, 2 %, 3 %, 3 %, 3 %.
+- RESPONSIVE (>20 %): only **2 of 23** (Fallen Kingdom +27 %, 1f336 +23 %).
+
+🔴🔴**And the saturated songs are NOT the ones that are already dense enough** — they sit at
+891/1251, 699/1112, 1036/1272, 696/943 notes against their human. **Their nps shortfall is 33 %
+against the responsive songs' 22 %.** ⇒**The songs that most need more notes are exactly the ones
+where the decode lever cannot supply any.**
+★★**So the decode route to the budget is EXHAUSTED**: on 40 % of songs Stage-1 simply has no
+probability mass left above 0.15. **This is a model limitation, not a threshold one**, and it is
+the same principle as the W1/W4 finding — *you cannot select what the model does not propose* —
+now applying to the note BUDGET rather than to phrases.
+
+**What predicts saturation? Nothing cleanly at n=23** — every correlation is weak: bpm **0.273**,
+duration 0.243, onset density −0.178, our nps −0.184. The direction of the strongest one is at
+least sensible (saturated songs are slower: median **120 vs 161 bpm**, so fewer 1/4-beat slots per
+second), but r = 0.27 at n = 23 is **not resolvable** and must not be treated as a finding.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
