@@ -319,6 +319,40 @@ on every single song**.
 REFUTED (subdiv 8 wrecks correct-tempo songs, precision −0.127); the open route was, and now has
 evidence for, **picking the subdivision per song AFTER `BEAT_TEMPO_FIT`**.
 
+### 2026-08-18i — ⚠️CORRECTION TO 2026-08-18h: the subdivision prize is small, and mostly already collected
+
+2026-08-18h ended by saying per-song subdivision "now has a measured need behind it". **That
+overstated it, and this measures the actual size of the prize before anyone spends a GPU night on
+it.** New label, better than the old proxies: **does the HUMAN's map even fit on OUR grid** at our
+detected bpm (best over a phase offset, ±2 % of a slot)?
+
+| | n | median fit at 1/4 | at 1/8 | at 1/16 |
+|---|---|---|---|---|
+| all songs | 144 | **0.969** | 0.989 | — |
+| the misfits (<0.95) | **49** | 0.856 | 0.886 | **0.970** |
+
+- **Subdiv 8 rescues only 12 of the 49** — and **8 of those 12 are the half-tempo group**, which
+  `BEAT_SUBDIV_AUTO` **already handles**. ⇒**The marginal prize for subdiv-8 selection is about
+  4 songs in 144.**
+- Subdiv **16** rescues 32 of 49, leaving 17. ⚠️But raising the grid globally is measured harmful
+  (precision −0.127 at subdiv 8), so this is only available as a **per-song** choice, and no
+  selector for it exists.
+- **The 17 that no grid fixes**: 11 of them are songs where **our bpm already agrees with the
+  human's**. Right tempo, fine grid, still no fit ⇒ those maps sit off any uniform grid (BPM
+  changes, or deliberately unquantised placement).
+- 🔴**Predicting "needs a finer grid" from our own detected bpm is not usable**: bpm < 140 catches
+  37 of 49 but false-alarms on 58 of 95. The trivial baseline does **not** transfer to this label
+  (consistent with the known result that it only works on *post*-tempo-fit bpm).
+
+⚠️**And it tempers 2026-08-18h's headline.** "131 of 144 human maps place notes finer than a 1/4
+beat" is true, but those notes are a **median 3.9 %** of a human map, and **96.9 %** of a human's
+notes already fit our grid. The quantisation ceiling is real and is **not the dominant defect** —
+it is worth roughly a twentieth of a map, not a rewrite.
+⚠️**"Fit" is an upper bound on what a subdivision could buy, not a quality prediction** — a good
+map need not reproduce a human's exact positions.
+⇒**Recommendation: do NOT build per-song subdiv-8 selection.** The half-tempo case is served; what
+is left is the tempo model (2:3 misreads) and the 11 right-tempo songs that fit no grid at all.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

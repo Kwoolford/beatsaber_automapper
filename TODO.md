@@ -223,12 +223,14 @@ density, ACF periodicity, a cross-validated tempogram classifier, and the `fit_t
 (+1 song of 149). ⇒**What remains is a real tempo model**, with free supervision from the declared
 bpm in 5,373 corpus maps.
 
-★★**NEW EVIDENCE 2026-08-18h — the subdivision item now has a measured need behind it.**
-`BEAT_SUBDIV = 4` means our maps are the 1/4-beat grid **by construction**: measured in the exact
-beat domain, **131 of 144 human maps place notes finer than a 1/4 beat (median 3.9 % of their
-notes) and we place ZERO on 0 of 144 songs** (p = 3e-23). Global subdiv 8 stays REFUTED
-(precision −0.127 on correct-tempo songs) ⇒**per-song subdivision chosen AFTER `BEAT_TEMPO_FIT`
-is the build**, and it is no longer speculative.
+⚠️**2026-08-18h/i — the subdivision ceiling is REAL but SMALL, and the build is NOT recommended.**
+`BEAT_SUBDIV = 4` makes our maps the 1/4-beat grid by construction and **we place zero finer notes
+on 0 of 144 songs**, while **131 of 144 human maps use them** — but only for a **median 3.9 %** of
+their notes, and **96.9 % of a human's notes already fit our grid**. Sized properly (2026-08-18i):
+of the 49 songs whose human map misfits, **subdiv 8 rescues 12, of which 8 are the half-tempo
+group `BEAT_SUBDIV_AUTO` already handles ⇒ a marginal prize of ~4 songs in 144.** 🔴**Do not build
+per-song subdiv-8 selection.** The residue is the tempo model plus **11 songs that fit NO grid
+even at the right tempo and 1/16** (BPM changes or unquantised placement).
 
 ## 🔵 P1 — TRACK B: three defects are one defect
 
