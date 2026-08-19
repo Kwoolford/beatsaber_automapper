@@ -166,6 +166,14 @@ def p_quantize_to_beat(notes, rng):
         n.beat = round(n.beat)
 
 
+# ★**INVARIANCES, not blind spots.** A perturbation listed here is one the suite SHOULD be
+# insensitive to, so a Δ near zero is the *correct* answer and reporting it as a blind spot is a
+# false alarm. `mirror_x` is the clear case: a left-right mirrored map is a legitimate map —
+# mappers publish mirrored versions — so an axis that moved on it would be encoding a
+# left/right convention as if it were quality. (`mirror_y` is NOT an invariance: up and down
+# are not symmetric for a standing player, and `idiom` correctly moves 0.325 on it.)
+INVARIANCES = {"mirror_x"}
+
 PERTURBATIONS = {
     "mirror_x": p_mirror_x,
     "mirror_y": p_mirror_y,
@@ -276,13 +284,24 @@ def main() -> None:
 
     print("\n🔴 BLIND SPOTS — perturbations no axis notices (|Δgap| < 0.02 everywhere):")
     any_blind = False
+    held = []
     for r in rows:
         ds = [d for d in r["delta"].values() if d is not None]
         if ds and max(ds) < 0.02:
+            if r["perturbation"] in INVARIANCES:
+                held.append((r["perturbation"], max(ds)))
+                continue
             print(f"    {r['perturbation']:22s} max |Δ| = {max(ds):.4f}")
             any_blind = True
     if not any_blind:
         print("    (none at this threshold — every perturbation moved at least one axis)")
+    # ★An invariance that stayed flat is the suite behaving correctly, not a defect. Reporting
+    # it as a blind spot cries wolf on the one row that should be quiet.
+    for name, d in held:
+        print(f"\n✅ INVARIANCE HELD — {name}: max |Δ| = {d:.4f}. The suite is *supposed* to be "
+              f"insensitive here;\n   an axis that moved would be scoring a convention, not quality.")
+    print("\n⚠️NOT MEASURED HERE AT ALL: walls, arcs and chains. Adding 84 + 48 + 16 of them moves "
+          "every\n   axis by exactly 0.000 (2026-08-19p) — the suite scores notes and nothing else.")
 
     print("""
 HOW TO READ THIS

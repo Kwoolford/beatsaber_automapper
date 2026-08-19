@@ -1427,6 +1427,38 @@ scored on five axes instead of six and nothing says so.** This is the same class
 `load_expert_only` 2-tuple landmine. ★*Name generated maps `<arm>__<songid>.zip`, never
 `<songid>_<arm>.zip`.*
 
+### 2026-08-19q — The sensitivity audit re-run, and its one "blind spot" is actually the suite behaving correctly
+
+Ran `audit_sensitivity.py` on 24 production maps. **What the suite can and cannot see, in full:**
+
+| perturbation | biggest axis response |
+|---|---|
+| reverse cut directions | idiom **7.09** |
+| drop a double's partner | handrole **12.84** |
+| all notes → dots | idiom **4.52**, playfeel 1.81 |
+| flatten rows / cols | idiom 2.90 / 2.80 |
+| randomise rows / cols | idiom 3.03 / 3.12 |
+| quantize to the beat | flow 1.08, rhythm 1.08, alignment 0.31 |
+| shift 60 ms | alignment **9.39** |
+| swap hand colours | handrole 0.09 |
+| **mirror_x** | **0.0009 — nothing moves** |
+
+★★**The audit flags `mirror_x` as a blind spot. It is not one — it is an INVARIANCE the suite is
+supposed to have.** A left-right mirrored map is a legitimate map (mappers publish mirrored
+versions), so an axis that moved on it would be scoring a **left/right convention as if it were
+quality**. ⇒Patched the audit to report invariances separately, so the one row that *should* be
+quiet stops crying wolf. (`mirror_y` is **not** an invariance — up and down are not symmetric for a
+standing player — and `idiom` correctly moves 0.325 on it.)
+⇒**The audit now also states what it does not cover at all**: walls, arcs and chains, which move
+every axis by exactly 0.000 (2026-08-19p).
+
+**The suite's coverage, stated plainly:**
+- ✅**Sees**: note geometry (idiom, by a mile), hand assignment (handrole), absolute timing
+  (alignment), quantisation (flow + rhythm).
+- ✅**Correctly blind**: mirroring.
+- 🔴**Wrongly blind**: walls, arcs, chains — three of the five elements a map is built from.
+- ⚠️**Barely sensitive**: `playfeel` moves on only 2 of 13 perturbations; `rhythm` on only 1.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
