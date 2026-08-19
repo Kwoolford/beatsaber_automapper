@@ -232,6 +232,15 @@ group `BEAT_SUBDIV_AUTO` already handles ⇒ a marginal prize of ~4 songs in 144
 per-song subdiv-8 selection.** The residue is the tempo model plus **11 songs that fit NO grid
 even at the right tempo and 1/16** (BPM changes or unquantised placement).
 
+## 🔴 P0.7 — TRACK B IS ALREADY TRAINED (2026-08-18m) — evaluate, do not build
+★★`logs/beat_classifier/version_7` and **`version_8`** were trained with `instr_dim=10`
+(`instr_beat_features`: Demucs → basic-pitch on **vocals**/bass/lead, **cached on all 5,320
+songs**). **Production `version_4` has only `drum_proj` + `mix_proj`.** ⇒The melodic-blindness
+remedy exists on disk and was never evaluated at inference — plausibly because `val_f1_avg_tol`
+rates it 0.58-0.60 vs v4's 0.603, **and that is the metric the landmine list says not to trust.**
+⬜**Evaluate with vocal coverage** (`eval_vocal_coverage.py`, production 0.385 vs human 0.743) —
+arms generating now into `outputs/trackb/`. ⚠️Check alignment did not pay for it.
+
 ## 🔵 P1 — TRACK B: three defects are one defect
 
 **W1** (can't find the tempo-carrying instrument), **W4** (phrases abandoned mid-vocal, 2.75× the

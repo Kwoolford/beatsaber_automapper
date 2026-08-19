@@ -451,6 +451,38 @@ Only **1 of 144** songs reaches the human's bottom decile, and only 3 beat their
 (two of those by <0.01, against humans near the bottom of their own distribution). ⇒**There is no
 subset of songs where we currently follow vocals like a human.**
 
+### 2026-08-18m — ★★Track B was ALREADY BUILT AND TRAINED. It has never been evaluated at inference.
+
+Scoping the Track B build (carry the melodic instruments into Stage-1) found that **it does not
+need building**:
+
+- **The features exist and are cached on all 5,320 preprocessed songs** — `instr_beat_features`,
+  10-dim, from `data/instrument_features.py`: Demucs → **basic-pitch on vocals**, bass and lead
+  (`other`), pooled onto the same beat-slot grid Stage-1 uses. Sampled 120 processed songs:
+  **120/120 have it.**
+- **`beat_classifier` already has the `instr_proj` input** for exactly these features
+  (`models/beat_classifier.py:91`), gated by `instr_dim` which defaults to **0**.
+- ★★**Two checkpoints were trained WITH them**: `logs/beat_classifier/version_7` and
+  **`version_8`**, both `instr_dim=10` (and `struct_dim>0`). ⇒This is the scoped-V8 **TASK 2**
+  that TODO has carried for months as *"inference-DoD pending"*.
+- 🔴**Production still runs `version_4`, which has ONLY `drum_proj` + `mix_proj`** (verified from
+  the checkpoint's own weights — no `instr_proj`, no `struct_proj`).
+
+⇒**The standing claim "Stage-1 carries no melodic instruments" is true OF PRODUCTION, and the
+remedy has been sitting trained on disk.** ⚠️It was never measured at inference, plausibly because
+the only metrics available then were `val_f1_avg_tol` (which the landmine list says
+anti-correlates with map quality) — **v7/v8 score 0.58-0.60 against v4's 0.603, so by that metric
+they look like a regression, and that is exactly the metric not to trust.**
+★**Now there is a metric that means something**: vocal-onset coverage (2026-08-18j), where
+production sits at **0.385** against a human **0.743**.
+
+**Running now**: `scripts/generate.py` over the 23-song eval songset × 3 arms
+(`v4prod` / `v7instr` / `v8instr`), production decode settings, → `outputs/trackb/`,
+log `logs/overnight/trackb_2026-08-19.log`.
+**DoD**: vocal coverage rises materially above v4prod's on the same songs. Read it with
+`scripts/eval_vocal_coverage.py --cohort outputs/trackb` (per-arm). ⚠️**Also check it did not buy
+vocals by wrecking alignment** — this is the checkpoint the old metric called worse.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
