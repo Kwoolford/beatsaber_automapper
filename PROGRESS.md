@@ -816,6 +816,26 @@ occupancy and the denominator of growth — so it is descriptive, not evidence o
 story. ★It is still a far better *descriptor* of which songs saturate than bpm (r = 0.273), which
 is what 2026-08-18w went looking for and failed to find.
 
+### 2026-08-18y — A near-miss worth recording: the NPS thinning is LEGACY-ONLY
+
+Chasing the note-budget ceiling, `generate.py` turned out to contain a **hard-coded difficulty→NPS
+table** (`_NPS_RANGES`, Expert = 4-10 nps) feeding `_apply_density_curve()`, which *thins* onsets
+to hit it. That is an extremely plausible cap on the note budget — **and it is not on the
+production path.**
+
+`_apply_density_curve` is called only from `predict_onsets()`, and the repo already documents the
+trap in a comment at the v7 tail-trim: *"this is deliberately in the v7 path and not in
+predict_onsets(), which only the legacy generate_level() calls — a lever placed there would be a
+silent no-op in production, which is exactly how `BEAT_GRID_SUBDIV` died."*
+⇒**Hypothesis dead before it cost anything.** ★Recorded so the next session does not re-find
+`_NPS_RANGES` and conclude the budget is hand-capped. **Two things now live in `generate.py` that
+look like production levers and are not: `predict_onsets` and everything it calls.**
+
+⇒The budget ceiling really is Stage-1's probability field. **Running `--beat-threshold 0.05`** on
+all 23 songs to measure the tail directly: if the note count still does not move, the model has
+essentially **no probability mass** below 0.25 and the decode route is closed by measurement
+rather than by inference.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
