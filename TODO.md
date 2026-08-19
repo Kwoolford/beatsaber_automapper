@@ -147,7 +147,10 @@ timing distribution matches the human's almost exactly** (1/4: 0.499 vs 0.435; 1
 ⚠️**The lever has been OFF by default the whole time** despite passing its DoD.
 ⬜**Do NOT flip it unilaterally — it needs his ear**, and ⬜`idiom`'s collapse needs its own
 investigation (at subdiv 8 the note-type mix changes with the density; the axis may be reading
-that). ⬜The **13 half-tempo songs with bpm ≥ 95 are missed entirely** by the trigger.
+that). ⚠️**The 13 half-tempo songs with bpm ≥ 95 stay missed, and that is NOT fixable by the trigger
+(2026-08-19f)**: raw bpm is the best feature available (AUC 0.978, 16/28 at zero false fires);
+adding a drum-gap rule buys ~3 songs for ~1 false fire, and widening to bpm<110 costs 10 false
+fires for 8 songs. ⇒**Do not widen it.** Those songs need the **real tempo model** (P1).
 
 ## 🟢 P0.6 — ★THE POSITIVE LEVER, VALIDATED AND AWAITING HIS EAR: `--beat-threshold 0.25`
 Production v4, threshold 0.40 → **0.25**. **At 3 seeds: vocal coverage +0.029 (8.6× the seed sd),

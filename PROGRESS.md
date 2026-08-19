@@ -1122,6 +1122,40 @@ that shows it loudest. ⇒When a beat-domain axis moves on a cohort containing t
 whether the bpm moved first. (This is `C4` — *"every beat-domain result predates the tempo fix"* —
 arriving from a new direction.)
 
+### 2026-08-19f — The half-tempo trigger is already near its ceiling; the missed songs need a real tempo model
+
+Can the 13 half-tempo songs `BEAT_SUBDIV_AUTO` misses be caught without paying false fires (each
+one costs −0.127 precision on a correct-tempo song)?
+
+| feature | AUC | catch at **zero** false positives |
+|---|---|---|
+| **raw detected bpm** | **0.978** | **16/28** (at < 96) |
+| median drum gap in beats | 0.933 | 10/28 |
+| union onsets per beat | 0.913 | 9/28 |
+| drum onsets per beat | 0.906 | 9/28 |
+
+★**The trivial baseline wins again.** My two "principled" features — at half tempo the audio's
+onsets-per-beat should double — are both **worse** than raw bpm, on a project whose own habit list
+already says *try the trivial baseline first and put it in the comparison table*.
+
+**Unions of the rules:**
+
+| rule | caught | false |
+|---|---|---|
+| bpm < 96 (current) | 16/28 | **0**/121 |
+| bpm < 96 OR drum-gap < 0.258 | **19/28** | 1/121 |
+| bpm < 96 OR drum-gap OR onsets/beat | 20/28 | 1/121 |
+| bpm < 110 | 24/28 | **10**/121 |
+
+⇒**The current trigger is close to the best available operating point.** Adding the drum-gap rule
+buys **~3 songs of 149 for ~1 false fire** — real but small, and ⚠️that single false fire is
+within sample noise (the same rule showed 0 on a slightly different subset one step earlier).
+Widening bpm to 110 is a clearly worse trade: +8 caught for +10 harmed.
+⇒**The 8-12 songs no rule reaches are not a threshold problem.** They are half-tempo songs whose
+detected bpm sits in the normal range, which is exactly the **2:3 / odd-ratio misread** class that
+the standing P1 tempo item says needs **a real tempo model**. ★This closes the trigger question:
+do not over-engineer it, and do not widen it.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
