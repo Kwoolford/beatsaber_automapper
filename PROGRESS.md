@@ -1229,6 +1229,38 @@ same conclusion the budget analysis reached, arrived at from the detector side.
 ⇒**The residue needs the real tempo model**, which 2026-08-19h prices at **+0.025 cohort-wide**.
 That is the whole decision: a tempo model buys about a fortieth of the human gap.
 
+### 2026-08-19j — ★★W6 is far bigger than recorded: we ship ONE of the five elements human maps use
+
+TODO carries W6 as *"multi-note swings (sliders/chains) are a missing capability… Untouched."*
+Measured over 147 paired maps — **and split by map format, because arcs and chains only EXIST in
+v3**:
+
+| element | human maps using it | median when used | ours |
+|---|---|---|---|
+| **walls** | **137/147 = 93 %** (both formats) | **86** | **0/146** |
+| **arcs** | **44/50 = 88 % of v3 maps** | 50 | **0/146** |
+| chains | 25/50 = **50 % of v3 maps** | 16 | 1/146 |
+| bombs | 26/146 = 18 % | — | 6/146 |
+| notes | — | 770 | 656 |
+
+⚠️**The format split matters and I nearly reported the wrong number**: arcs look like a minority
+device at 44/147 = 30 %, but 97 of those maps are **v2, where arcs do not exist**. Among maps that
+*can* have them it is **88 %**. ★*Before calling a feature rare, check it was available.*
+
+★★**THE BIGGEST GAP IS WALLS, WHICH W6 NEVER MENTIONED.** 93 % of human maps have them, a median
+of **86 per map**, and **we emit zero in every map** — verified directly on Fallen Kingdom (human
+`_obstacles` **124**, ours `obstacles` **0**). **We already write v3 format** (3.3.0), so we *can*
+emit arcs, chains and walls; we simply never do.
+⇒**Our maps use ONE of the five elements a human map is built from.**
+
+★**AND THIS GIVES W2 A CANDIDATE CAUSE.** *"Fallen Kingdom is really empty"* has had five
+instruments fail to explain it. That map, from us, has **0 walls against the human's 124**, no
+arcs, no chains, and 30 % fewer notes. **A map missing an entire visual/physical layer would feel
+empty regardless of note count** — and nothing has ever tested it, because every W2 investigation
+looked at notes.
+⬜**Cheap next step**: no model work is needed to *test* it — walls can be placed by rule
+(section-aware, avoiding note lanes) and given to his ear as a `[WALLS]` arm against `[BASE]`.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

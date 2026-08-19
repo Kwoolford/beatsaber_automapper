@@ -285,8 +285,14 @@ changes, and document like crazy."* One lever at a time, ≥3 seeds, nothing pro
 **Still open and NOT covered by D1–D6:**
 - **W2** — Fallen Kingdom *"really empty"*. 🔴Cause unidentified; five instruments have failed.
   ⚠️**Ask him**: empty vs what our model *used to do*, or vs what the *song wants*?
-- **W6** — multi-note swings (sliders/chains) are a **missing capability**, the right answer for
-  grand low-density drops. Untouched, and a good `agent_mapper` target.
+- ★★**W6 — WIDER THAN RECORDED (measured 2026-08-19j): we ship ONE of the five elements human maps
+  use.** **Walls: 93 % of human maps, median 86 each — we emit ZERO** (Fallen Kingdom: human 124,
+  ours 0). **Arcs: 88 % of the maps that CAN have them** (v3 only — 97 of 147 corpus maps are v2,
+  which is why they look rare at 30 %). Chains 50 % of v3. Bombs 18 % vs our 6/146. ⚠️**We already
+  write v3 (3.3.0), so we CAN emit all of them.**
+  ★**This gives W2 (*"Fallen Kingdom is really empty"*) its first untested candidate cause** — five
+  instruments have failed to explain it and every one of them looked at notes.
+  ⬜**Testable without model work**: place walls by rule and give him a `[WALLS]` arm vs `[BASE]`.
 - **W5** — dot blocks as decoration: ⏸️**he deferred this himself.** Do not revive unprompted.
 
 ⚠️**Protect these — he named them by ear**: A6 hand-role division, and the density pacing
