@@ -173,6 +173,40 @@ converting them into located instances is the point. P1 is counted separately as
 **works**.
 **DoD (V5): the mechanism is MET; the record is still empty of located defects** — that needs him.
 
+### 2026-08-18e — Polyphony for the LEAD lane: `chords.py`, adopted on 2 of 4 songs and REFUSED on the other 2
+
+The open V1 item ("`other` is ONE salience peak per frame, not chords") is closed. `basic-pitch`
+was already installed and runs through its **ONNX** backend in **1.6-2.4 s a song** (the TF wheel
+does not build on Python 3.12 — onnxruntime is all it needs).
+
+★**The gap was real and it was everywhere**: median polyphony **2.0** on all four standing songs,
+with **56-70 % of each song having two or more notes sounding**. The LEAD lane was drawing one
+voice of a chord about two-thirds of the time.
+
+**Is the extra content real or noise?** No ground truth exists, so the check is **key coherence** —
+a random pitch set sits at **0.583** in-key, and adding noise must drag a real transcription *down*:
+
+| song | our LEAD | basic-pitch | notes | verdict |
+|---|---|---|---|---|
+| Fallen Kingdom | 0.930 | **0.996** | 327 → 2188 | ✅adopted |
+| アリスブルー | 0.910 | **0.993** | 365 → 1696 | ✅adopted |
+| Digital Life Hacker | **0.952** | 0.936 | 313 → 2188 | ❌refused |
+| Hunger | **0.870** | 0.647 | 440 → 2178 | ❌refused |
+
+⇒**Adopted per song behind a gate (`chords.better_than_ours`), never as a blanket swap**, and the
+page *says which* it drew and why. A refused song keeps exactly the picture Kyle endorsed.
+⚠️**The Hunger row is genuinely ambiguous and is not evidence that basic-pitch is bad**: it is
+metal with distorted guitars, and the in-key proxy assumes diatonic music, so it **cannot separate
+"basic-pitch is wrong" from "the song is chromatic"**. The gate is used only to *refuse* where
+evidence for the swap is absent — the safe direction of that ambiguity.
+
+Supporting numbers on 1f8d6: our salience peak matches a basic-pitch note at the same instant on
+only **48 %** exactly (+16 % right pitch-class, wrong octave, 20 % outright disagreement), and
+basic-pitch pitches **73 %** of the onsets our tracker left unpitched (53 of 73; 43-73 % across
+songs). The added notes have the **same median amplitude** as the matched ones (0.421 vs 0.420),
+so they are not quiet artifacts.
+⚠️Both remain **unseen in a browser** — same standing caveat.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

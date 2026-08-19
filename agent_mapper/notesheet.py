@@ -76,6 +76,11 @@ MELODIC = (("vocals", "VOX", "vox"), ("other", "LEAD", "lead"), ("bass", "BASS",
 KIT_ROWS = (("crash", "crash"), ("hat", "hat"), ("snare", "snare"), ("kick", "kick"))
 
 
+def _note_name(midi: float) -> str:
+    import melody as _mel
+    return _mel.note_name(midi)
+
+
 def _mmss(t: float) -> str:
     t = max(t, 0.0)
     return f"{int(t // 60)}:{t % 60:04.1f}"
@@ -114,7 +119,7 @@ def audio_data_uri(audio: pathlib.Path, kbps: int = 64) -> str | None:
 
 def collect(audio: pathlib.Path, force: bool = False,
             map_zip: pathlib.Path | None = None, main_rule: str | None = None,
-            difficulty: str = "Expert") -> dict:
+            difficulty: str = "Expert", chords: bool = False) -> dict:
     """Everything the page draws, on one time axis. Each tool is cached separately."""
     import brief as _brief
     import melody as _mel
@@ -144,7 +149,20 @@ def collect(audio: pathlib.Path, force: bool = False,
     d = {"song": audio.stem, "title": None, "grid": g, "dur": a["dur"], "r": a.get("r"),
          "melody": mel, "perc": perc, "sections": sec["sections"],
          "span": span, "words": words, "overlay": None, "flow": None,
-         "audio_uri": None}
+         "chords": None, "audio_uri": None}
+
+    if chords:
+        # ⚠️Guarded and GATED: a song where basic-pitch is not better keeps our lane,
+        # and a missing basic-pitch install must not take the page down.
+        try:
+            import chords as _ch
+            ok, info = _ch.better_than_ours(audio, "other", force)
+            bp = _ch.transcribe(audio, "other")
+            d_chords = {"other": bp} if ok else {}
+            d["chords"] = d_chords
+            d["chords_info"] = info | {"adopted": ok} | _ch.polyphony(bp["notes"], a["dur"])
+        except Exception as e:  # noqa: BLE001
+            d["chords_info"] = {"error": str(e)}
 
     if map_zip is not None:
         import overlay as _ov
@@ -169,10 +187,25 @@ def _x(t: float, t0: float, t1: float) -> float:
 
 
 def _lane(d: dict, stem: str, cls: str, t0: float, t1: float, top: float) -> list[str]:
-    """One melodic lane: a mark per pitched onset, placed at its own pitch."""
+    """One melodic lane: a mark per pitched onset, placed at its own pitch.
+
+    ★With `--chords`, the LEAD lane draws **every voice of the chord** instead of the
+    single salience peak (`chords.py`), but only for a song where polyphony is better
+    supported than our own tracker — the gate lives in `chords.better_than_ours`, not
+    here. A refused song keeps exactly the picture Kyle has already seen.
+    """
     out = []
     sp = d["span"][stem]
-    ev = [e for e in d["melody"]["stems"].get(stem, []) if t0 <= e["t"] < t1]
+    ch = (d.get("chords") or {}).get(stem)
+    if ch:
+        ev = [{"t": n["t"], "dur": n["end"] - n["t"], "midi": n["midi"],
+               "name": _note_name(n["midi"]), "amp": n["amp"]}
+              for n in ch["notes"] if t0 <= n["t"] < t1]
+        ms = np.array([n["midi"] for n in ch["notes"]], dtype=float)
+        sp = ((float(np.percentile(ms, 2)), float(np.percentile(ms, 98)))
+              if len(ms) > 4 else sp)
+    else:
+        ev = [e for e in d["melody"]["stems"].get(stem, []) if t0 <= e["t"] < t1]
     if sp is None:
         return out
     lo, hi = sp
@@ -621,6 +654,23 @@ def render(d: dict, bars: int = 8) -> str:
                       for b0 in range(1, n_bars + 1, bars)
                       if _bar_start_ok(d, b0))
 
+    ci = d.get("chords_info") or {}
+    if ci and not ci.get("error"):
+        if ci.get("adopted"):
+            caveat += (f'<p class="note">★<b>LEAD is drawn as POLYPHONY</b> — every voice '
+                       f'of the chord ({ci["bp_notes"]} notes against the {ci["our_notes"]} '
+                       f'a single salience peak found). Median polyphony '
+                       f'{ci["median"]:.1f}; <b>{ci["share_chord"]:.0%} of this song has two '
+                       f'or more notes sounding</b>, which the old lane could not show. '
+                       f'Adopted because its notes are {ci["bp_in_key"]:.3f} in-key against '
+                       f'our {ci["ours_in_key"]:.3f} (noise floor {ci["random_floor"]}).</p>')
+        else:
+            caveat += (f'<p class="note">⚠️<b>LEAD keeps the single salience peak.</b> '
+                       f'Polyphonic transcription was tried and <b>refused</b> for this song: '
+                       f'{ci["bp_in_key"]:.3f} in-key against our {ci["ours_in_key"]:.3f}, so '
+                       f'there is no evidence it is better here. The lane still shows one '
+                       f'voice of what is really {ci["share_chord"]:.0%}-of-the-time a chord.</p>')
+
     fl = d.get("flow") or {}
     flowbox = ""
     if fl.get("rows"):
@@ -741,6 +791,9 @@ def main() -> int:
     ap.add_argument("--out", type=pathlib.Path, default=None)
     ap.add_argument("--bars", type=int, default=8, help="bars per system")
     ap.add_argument("--force", action="store_true", help="recompute every analysis")
+    ap.add_argument("--chords", action="store_true",
+                    help="draw the LEAD lane as polyphony (chords.py), where the "
+                         "in-key gate says basic-pitch beats our salience peak")
     ap.add_argument("--map", type=pathlib.Path, default=None,
                     help="a map zip to draw over the score as HIT/MISSED/WASTED")
     ap.add_argument("--main", default=None,
@@ -753,7 +806,7 @@ def main() -> int:
         print(f"no such audio: {a_.audio}", file=sys.stderr)
         return 2
 
-    d = collect(a_.audio, a_.force, a_.map, a_.main)
+    d = collect(a_.audio, a_.force, a_.map, a_.main, chords=a_.chords)
     d["title"] = a_.name
     if not a_.no_audio:
         d["audio_uri"] = audio_data_uri(a_.audio)

@@ -88,9 +88,11 @@ preview). ⚠️**None of it is time-aligned into one picture**, which is the wh
 ✅**V1 + V2 SHIPPED 2026-08-18** — `agent_mapper/notesheet.py` (the score) and
 `agent_mapper/overlay.py` (HIT/MISSED/WASTED), both published as pages. **Their DoD is not
 met until he looks**, which is item 1 above. Still open inside them:
-- ⬜`other` is ONE salience peak per frame, not chords. Real polyphony needs a model —
-  `basic-pitch` installs via its ONNX backend (the TF wheel blocks Python 3.12; `--no-deps`
-  + onnxruntime resolves). **De-risk with a PoC on one song first.**
+- ✅**DONE 2026-08-18e — `agent_mapper/chords.py` + `notesheet --chords`.** Polyphony is real and
+  everywhere (median 2.0; **56-70 % of every song has 2+ notes sounding**), basic-pitch runs in
+  **1.6-2.4 s a song** on ONNX, and it is **adopted per song by an in-key gate: 2 of 4 songs yes,
+  Hunger and Digital Life Hacker no**. ⚠️Hunger's refusal is ambiguous (metal ⇒ the diatonic proxy
+  cannot separate "wrong" from "chromatic"); the gate only ever *refuses*, which is the safe side.
 - ⬜Only `1f8d6` is published. The other three standing songs render but are not up.
 - 🔴**Word ACCURACY is unaddressed.** The VAD fix made the words *present* (sung-coverage
   0.927→0.967 on 1f8d6); Kyle's other complaint is that they are *wrong*, and coverage cannot
