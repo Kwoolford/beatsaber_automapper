@@ -420,6 +420,37 @@ count) predicted **0.782**, which *exceeds the human's own 0.743* — it assumed
 lands on a **new** onset. ⇒*When a model of a gap over-predicts the reference itself, the model is
 missing a term.* The missing term was exactly the efficiency above.
 
+### 2026-08-18l — The D4 gap is UNIFORM: two candidate mechanisms refuted, and the distributions barely overlap
+
+Where does the vocal-coverage gap live? Two natural answers, both **NOT REPRODUCED** at n=144:
+
+**1. The "late-song / final-chorus collapse" — NOT REPRODUCED in vocal coverage.**
+
+| third of the song | ours | human | ours ÷ human |
+|---|---|---|---|
+| first | 0.399 | 0.738 | 0.541 |
+| middle | 0.372 | 0.747 | 0.498 |
+| last | 0.385 | 0.743 | 0.519 |
+
+Last-minus-first is **−0.011** for us and −0.002 for the human; our decline is steeper on
+**78/144** songs — a coin flip, **p = 0.71**. ⚠️**This does not refute the original note**, which
+was about a *density* collapse at ~160-164 s on one song; it says **the vocal defect is not
+position-dependent.**
+
+**2. "We fail where the singing is fast" — NOT REPRODUCED.** Coverage on dense vocal passages
+0.374 vs the human's 0.722, on sparse 0.403 vs 0.761 — as a ratio to the human, **0.553 vs
+0.566**, paired −0.016, **p = 0.18**.
+
+★★**⇒THE DEFICIT IS A CONSTANT, NOT A FAILURE MODE.** It does not switch on late in the song, or
+in fast passages, or in dense ones. **A selection or pacing failure would be condition-dependent;
+a representational one is uniform** ⇒ this is a **second, independent line of evidence for the
+Track B / representation diagnosis**, arrived at without reference to Stage-1's inputs.
+
+★**And the separation is near-total**: our **p90 (0.502) sits below the human's p10 (0.597)**.
+Only **1 of 144** songs reaches the human's bottom decile, and only 3 beat their own song's human
+(two of those by <0.01, against humans near the bottom of their own distribution). ⇒**There is no
+subset of songs where we currently follow vocals like a human.**
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
