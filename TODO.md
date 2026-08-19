@@ -238,8 +238,12 @@ even at the right tempo and 1/16** (BPM changes or unquantised placement).
 songs**). **Production `version_4` has only `drum_proj` + `mix_proj`.** ⇒The melodic-blindness
 remedy exists on disk and was never evaluated at inference — plausibly because `val_f1_avg_tol`
 rates it 0.58-0.60 vs v4's 0.603, **and that is the metric the landmine list says not to trust.**
-⬜**Evaluate with vocal coverage** (`eval_vocal_coverage.py`, production 0.385 vs human 0.743) —
-arms generating now into `outputs/trackb/`. ⚠️Check alignment did not pay for it.
+🔴**EVALUATED 2026-08-18n and it is NOT a drop-in win**: vocal coverage v4prod **0.420** vs
+v7 0.362 (p=0.00013) and v8 0.373 (p=0.0019) on 23 songs. ★**But the features are not inert** —
+v7 lifts *allocation* (+0.020, 18/23) and v8 lifts *efficiency* and cuts doubles (+0.018, 17/23);
+both lose it to a **9-12 % smaller note budget**. ⬜**Budget-matched arms running** (v8 at
+`--beat-threshold` 0.34/0.30). ⚠️**Not a clean ablation** — v7/v8 also carry `struct_proj`; a true
+instr-only ablation is a v4-recipe retrain.
 
 ## 🔵 P1 — TRACK B: three defects are one defect
 

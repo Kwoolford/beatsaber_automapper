@@ -483,6 +483,41 @@ log `logs/overnight/trackb_2026-08-19.log`.
 `scripts/eval_vocal_coverage.py --cohort outputs/trackb` (per-arm). ⚠️**Also check it did not buy
 vocals by wrecking alignment** — this is the checkpoint the old metric called worse.
 
+### 2026-08-18n — 🔴Track B as trained is NOT a drop-in win — but the features are NOT inert
+
+23 songs of the eval songset, production decode settings, three arms:
+
+| arm | vocal coverage | notes |
+|---|---|---|
+| **v4prod** (production, no instr) | **0.420** | 752 |
+| v7instr (`instr_dim=10`) | **0.362** | 659 |
+| v8instr (`instr_dim=10`) | **0.373** | 685 |
+| human | **0.692** | — |
+
+🔴**Both Track B checkpoints are WORSE**: v7 −0.045 (better on 3/23, p = 0.00013), v8 −0.046
+(better on 5/23, p = 0.0019). ⇒**Handing Stage-1 the melodic-instrument features did not, by
+itself, make the map follow the vocals.**
+
+★★**But the decomposition says the features do exactly what they should, and something else eats
+it:**
+
+| arm | notes | allocation | efficiency | doubled |
+|---|---|---|---|---|
+| v4prod | 752 | 0.410 | 0.658 | 0.399 |
+| v7instr | 659 | **0.455** (+0.020, 18/23, p = 0.0039) | 0.627 (−0.017, p = 1.7e-5) | 0.420 |
+| v8instr | 685 | 0.441 (+0.006, p = 0.15) | **0.679** (+0.018, 17/23, p = 0.0027) | **0.377** |
+
+★**v7 steers MORE of the map onto the vocal line; v8 covers MORE distinct onsets per note spent
+and doubles LESS.** Each moves the sub-metric the feature was supposed to move. **Both then lose
+more from a 9-12 % smaller note budget than they gain.**
+⚠️**Not a clean ablation, and this matters**: v7/v8 also carry `struct_proj` and were trained at
+other times, so this is *"v7/v8 as trained"* vs *"v4 as trained"*, **not** "instr features on vs
+off". A clean ablation needs a v4-recipe run with only `instr_dim` changed.
+⇒**Running now**: v8 at `--beat-threshold` 0.34 and 0.30 (default 0.40) to **match the note budget
+to production**, isolating whether v8's efficiency gain becomes coverage once the budget is equal.
+Log `logs/overnight/trackb2_2026-08-19.log`, arms `outputs/trackb/v8t*__*.zip`.
+**DoD**: at a note count within ~5 % of v4prod's 752, does v8's coverage beat 0.420?
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
