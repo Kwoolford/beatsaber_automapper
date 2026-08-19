@@ -1459,6 +1459,47 @@ every axis by exactly 0.000 (2026-08-19p).
 - 🔴**Wrongly blind**: walls, arcs, chains — three of the five elements a map is built from.
 - ⚠️**Barely sensitive**: `playfeel` moves on only 2 of 13 perturbations; `rhythm` on only 1.
 
+## 🔒 SESSION CLOSE — 2026-08-18/19 (44 autonomous iterations)
+
+**What this session was**: all six of Kyle's defects measured against **human-to-human ceilings**
+for the first time. That method is the session's main contribution — *a gap only means something
+next to its ceiling*, and two humans mapping the same song agree with each other far less than
+anyone assumed.
+
+**Confirmed** — D4 (vocals, 0.385 vs 0.743 at **2.5× the human-human spread**, n=144) · D3 (drops,
+0.347 vs null 0.140 vs human-human 0.49) · D6 (= doubles, priced at **21 % of the vocal budget**).
+**Refuted** — D2 (his four maps have exact bpm and beat human-human timing agreement) · D5
+(⚠️PARTLY, n=4 songs: the human bursts *more*, and more unmotivated, than we do).
+**Folded** — D1 is D4's budget lever, not a separate defect.
+
+**Two levers, validated at 3 seeds, neither promoted** — `BEAT_SUBDIV_AUTO=1` (**+0.222 coverage at
+49× the seed sd**, no precision cost) and `--beat-threshold 0.25` (+0.029 at 8.6×). Both wait on
+his ear; the suite has been wrong about "ready" twice and right zero times.
+
+**Four builds stopped before they cost a GPU night** — per-song subdivision (we fill only 26–33 %
+of the grid we have), promoting the Track B checkpoints (parity at matched budget), wiring
+`structure.py` into the generator (it locates drops *worse* than our own map), and widening the
+half-tempo trigger (10 false fires for 8 songs).
+
+**Built** — `flowview.py`, `chords.py`, `walls.py`, `arcs.py`, `chains.py`, `review.py defect`,
+`eval_vocal_coverage.py`, `eval_drop_agreement.py`, `eval_beat_phase_agreement.py`,
+`lyric_ablation.py`, a chain model in `swing_sim` (default off), and the `[BASE]→[DENSER]→[WALLS]
+→[FULL]→[CHAINS]` ladder on all four standing songs.
+
+**Corrections I had to make to myself, kept because they are the transferable part**:
+"zero precision cost" (a coarse proxy is not the alignment axis) · "flow FAIL→PASS" (**seed noise
+— the axis moves more between seeds of one arm than between arms**) · "alignment PASS→FAIL"
+(collapsed to 1.0× sd at 3 seeds) · "humans swing, we can't" (**measuring in seconds instead of
+beats fabricated it**) · "chains can't be additive" (678/678 human chain heads coexist with a note)
+· "the subdiv trigger is miscalibrated" (**a 23-song glance gave the opposite of the 149-song
+measurement**) · a wall-duration sampler that could not reproduce its own median · 48 arcs that all
+landed on one hand.
+
+**And three things about the suite itself** — it **cannot score one map** (`nan` below n=5), its
+gaps **depend on cohort size** (the same maps: `flow` 1.260 at n=5 → 0.446 at n=50), and it is
+**blind to walls, arcs and chains**. ⇒Only his ear can judge the element work, and cross-size
+cohort comparisons in older docs are not valid.
+
 ### 2026-08-19r — 🔴🔴THE AXIS GAPS ARE COHORT-SIZE DEPENDENT — the same maps score 2.8× differently
 
 Two structural properties of the v2 suite, both found by trying to score a single map:
