@@ -379,6 +379,14 @@ same seed twice is **bit-identical**; seed 0 vs 1 gives max \|Δ\| **0.2049** (m
 decode"* is **wrong at the root**: the draw happens before the model runs.
 ⇒When you want to vary ONLY the decode, you cannot do it with the run seed as things stand.
 
+- 🔴**`alignment` SILENTLY RETURNS `nan` IF THE FILENAME DOES NOT START WITH THE SONG ID.**
+  `scorecard.song_id()` parses the id from the filename: `1f8d6_WALLS.zip` → `'1f8d6_WALLS'` → no
+  cached onsets → `alignment = nan`, **no error, five axes scored instead of six**.
+  ★**Name generated maps `<arm>__<songid>.zip`, never `<songid>_<arm>.zip`** (2026-08-19p).
+- 🔴**THE SUITE IS BLIND TO WALLS, ARCS AND CHAINS.** Adding 84 walls + 48 arcs + 16 chains moves
+  **every axis by exactly 0.000** — it scores notes and nothing else. ⇒**No axis can justify or
+  reject the element work; only his ear can.** (Chains: the model works, but 16 in 913 swings is
+  1.7 % and `travel` is a median — under-powered at human chain density.)
 - ⚠️⚠️**`copy.deepcopy` of a `scorecard._load_any` beatmap DOES NOT ISOLATE IT.** `_load_any` builds a
   local `_BM` whose `color_notes` is a **class attribute**, so the copy shares the same note list and
   the same note objects (`deepcopy(bm).color_notes is bm.color_notes` → True). Mutating "a copy"

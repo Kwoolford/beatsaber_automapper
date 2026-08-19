@@ -1398,6 +1398,35 @@ songs now have a `[BASE]`**, so the instruction is one line with no exceptions:
 ⚠️The old `[BEFORE]`/`[AFTER]`/`[BOTH]`/`[CROSSOVER]`/`[PHASE]` maps are deliberately left in
 place — `[CROSSOVER]` in particular is still unjudged and is the oldest open question on the board.
 
+### 2026-08-19p — ★★THE SUITE IS BLIND TO 3 OF THE 5 ELEMENTS A MAP IS BUILT FROM
+
+Scored the whole ladder on the six axes (4 songs, chain model **on**):
+
+| arm | flow | rhythm | idiom | handrole | playfeel |
+|---|---|---|---|---|---|
+| BASE | 1.102 | 0.526 | 0.573 | 1.751 | 0.839 |
+| DENSER | 0.959 | 0.518 | 0.655 | 1.530 | 1.234 |
+| **WALLS** | **0.959** | **0.518** | **0.655** | **1.530** | **1.234** |
+| **FULL** (+arcs) | **0.959** | **0.518** | **0.655** | **1.530** | **1.234** |
+| **CHAINS** | **0.959** | **0.518** | **0.655** | **1.530** | **1.234** |
+
+★★**Adding 84 walls, 48 arcs and 16 chains moves every axis by exactly zero.** The suite scores
+notes and nothing else, so **three of the five elements a human map is built from are invisible to
+it** — the same shape as the `audit_sensitivity.py` finding that the suite could not see we never
+cross hands over. ⇒**No axis can ever justify or reject the element work; only his ear can.** That
+is worth knowing *before* anyone tries to A/B walls on the scorecard and concludes they do nothing.
+⚠️Chains are invisible for a subtler reason: the model does move a swing's end position, but **16
+chains in 913 swings is 1.7 %**, and `travel` is a **median** — far too coarse to register. The
+chain model is not useless, it is under-powered at human chain density.
+
+🔴🔴**AND A LANDMINE FOUND BY ACCIDENT: `alignment` silently returns `nan` on any map whose
+filename is not `<songid>…`.** `scorecard.song_id()` parses the id out of the filename, so
+`1f8d6_WALLS.zip` → id `'1f8d6_WALLS'` → no cached onsets → **`alignment = nan`, with no error**.
+`v4t0.25__1f8d6.zip` works because the id is the last field. ⇒**A map named the wrong way is
+scored on five axes instead of six and nothing says so.** This is the same class as the standing
+`load_expert_only` 2-tuple landmine. ★*Name generated maps `<arm>__<songid>.zip`, never
+`<songid>_<arm>.zip`.*
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
