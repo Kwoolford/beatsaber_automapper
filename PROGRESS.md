@@ -635,6 +635,37 @@ in particular, which **C3 says is exactly what density changes cost** (thinning 
 and who asked for *"the general beat parts to be faster"*.
 ⚠️n=23 songs, one seed, one decode setting. `v4 @0.15` was still generating at write-up.
 
+### 2026-08-18s — 🔴CORRECTION to 2026-08-18r: the threshold lever is NOT free — it costs ALIGNMENT
+
+2026-08-18r reported `--beat-threshold 0.25` as "+88 notes at ZERO precision cost", on the basis
+of a coincidence share (notes within ±70 ms of **any** stem onset: 0.953 → 0.954). **The v2
+six-axis scorecard disagrees, and it is the authority here:**
+
+| axis | v4prod | v4 @0.25 | bar | |
+|---|---|---|---|---|
+| flow | 0.588 **FAIL** | **0.408 PASS** | 0.50 | ★better |
+| rhythm | 0.425 | **0.385** | 0.70 | better |
+| idiom | 0.449 | 0.673 | 1.00 | worse, still passing |
+| handrole | 1.169 | 1.057 | 2.00 | gap better, **spread collapses 0.441 → 0.196** |
+| playfeel | 0.738 | 0.853 | 1.00 | worse, still passing |
+| **alignment** | **0.263 PASS** | **0.515 FAIL** | 0.39 | 🔴**crosses its bar** |
+
+🔴🔴**My "zero precision cost" claim was wrong.** A coincidence share within ±70 ms of *any* stem
+onset is a generous proxy; the alignment axis scores tolerance, scatter and drift against the human
+distribution. ⇒**A crude precision proxy is not the alignment axis, and must not be reported as
+though it were.** The extra notes land near *something*, but they land less precisely.
+★**What genuinely improved is real too**: **flow crosses its bar the right way (0.588 FAIL →
+0.408 PASS)** and rhythm improves (0.425 → 0.385) — ⇒**C3's fear that density costs rhythm is NOT
+realised here.** And the threshold ladder shows **0.25 is the operating point**: 0.15 buys no
+further notes (839 vs 840) and costs on-onset precision (−0.019).
+
+⇒**Revised verdict: a TRADE, not a free win.** +0.016 vocal coverage and better flow/rhythm,
+against a failing alignment axis and collapsed handrole/playfeel spreads. ⚠️**Whether that trade is
+good is exactly what the suite has been wrong about twice** — the maps exist
+(`outputs/trackb/v4t0.25__*.zip`) and this is a question for Kyle's ear, not another axis.
+⏳**Seeds 1 and 2 are generating** for both arms; the alignment gap must be read against its own
+seed spread (already 1.14-1.46, i.e. wide) before treating 0.263 → 0.515 as settled.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
