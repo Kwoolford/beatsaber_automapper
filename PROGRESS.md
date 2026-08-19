@@ -246,6 +246,43 @@ by the two difficulties being authored from one another.
 🔴**NOT A STEERING SIGNAL YET** — it has not passed `scripts/audit_eval_suite.py`. Diagnosis only.
 ✅No GPU was needed: `outputs/wide_cohort` (150 generated maps) already existed.
 
+### 2026-08-18g — 🔴D2 REFUTED on the maps he judged: "off beat" is not where our notes are
+
+`scripts/eval_beat_phase_agreement.py`. The alignment axis scores our notes against **our own
+onset detector** (which C2 says carries its own offset), so it can pass while the map still feels
+wrong — that is exactly what `BEAT_GRID_PHASE` did. This uses a different oracle: **the human
+map**.
+
+⚠️**A statistic that saturated, recorded so it is not retried**: median |delta| from our notes to
+the nearest human note is **0.0 ms**, because over half our notes land *exactly* on a human note
+time. Use the **coincidence share** instead.
+
+| within ±30 ms of a note in the other map | share |
+|---|---|
+| ours vs human (n=147) | **0.719** |
+| **two DIFFERENT humans, same song** (n=60) | **0.676** |
+| ours with the phase destroyed (null) | 0.065 |
+
+★**We match the human's note times slightly BETTER than two humans match each other.**
+★★**And on the four maps he actually played**: agreement **0.87 / 0.92 / 0.73-0.82 / 0.67-0.71**,
+all at or above the human-human 0.676; bpm **exactly** the human's on all four (138/188/160/160);
+`_songTimeOffset` **0** on both sides.
+**Beat phase, 100 cohort songs at matching bpm**: we are **more** on-beat than the human (0.580 vs
+0.515) and place **fewer** 16ths (1/4 + 3/4 paired −0.054, we exceed on only **30/100**,
+Wilcoxon **p = 0.0006**).
+
+🔴🔴**⇒"Our notes sit off the beat" is REFUTED for the songs he judged.** ⇒**Stop pointing D2 at
+tempo for these songs.** The cohort-wide "tempo right on only 70.5 %" stands, but **his four songs
+are inside the 70.5 %** — whatever he is hearing, it is not a tempo error on those maps.
+
+⚠️**A lead, explicitly UNTESTED**: the same numbers say we are *more rigidly quantised* than a
+human. A map that puts everything squarely on the grid while the music swings can feel wrong while
+being mathematically aligned. **That is a groove hypothesis and nothing here tests it.**
+⚠️**A per-song lead that did NOT generalise** (recorded so it is not rediscovered): on Hunger
+59.5 % of our *unmatched* notes sit at the 3/4 "a" position where the human puts 12.8 % overall —
+but across 100 songs we place **fewer** 16ths than humans, so that is a property of that song,
+not of the generator. ★*The cohort inverted the per-song lead; a 4-song pattern is a hypothesis.*
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
