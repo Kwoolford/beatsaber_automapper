@@ -974,7 +974,10 @@ for other purposes (its section *repeats* passed a held-out test at p = 0.019).
 ### 2026-08-19 — The session's findings as one page: the defect scoreboard
 
 Published **https://claude.ai/code/artifact/13d35dcc-02b3-4ac1-8b9a-800030fefd5f** (private until
-he shares it). All six defects on one page, each read **against the human-to-human ceiling** — the
+he shares it). **Updated 2026-08-19o** with everything found after the first publish: both
+validated levers (`BEAT_SUBDIV_AUTO` at 49× seed noise, `--beat-threshold 0.25` at 8.6×), the
+**layer we never emit** (walls 93 %, arcs 88 %, chains 49 % — ours 0), and the review ladder
+`[BASE] → [DENSER] → [WALLS] → [FULL] → [CHAINS]`. All six defects on one page, each read **against the human-to-human ceiling** — the
 method that made this session's numbers mean anything — plus the four eliminated fixes, the one
 validated lever, and the four things that need his ear.
 
