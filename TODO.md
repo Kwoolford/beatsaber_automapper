@@ -133,7 +133,11 @@ above the 6.18 nps Kyle called unplayable** (median 4.06) and no `map_metrics` a
 ✅**FINAL AT 3 SEEDS (2026-08-18u): +0.029 vocal coverage at 8.6× sd, for +0.122 playfeel at
 4.2× sd (still inside its 1.00 bar). EVERYTHING ELSE — including alignment — IS SEED NOISE.**
 🔴Both my single-seed claims (first "free", then "costs alignment") were wrong in opposite
-directions. ⬜**Next: install for his ear.**
+directions. ✅**INSTALLED 2026-08-18v — play `[BASE]` vs `[DENSER]`** (⚠️not `[BEFORE]`, which is a stale
+2026-08-11 map left in place). ★**Fallen Kingdom is the song to judge**: +161 notes, coverage
+0.371 → 0.447 (human 0.655). Hunger/DLH barely move (+56/+11 notes — already at their ceiling).
+★**If the gain is inaudible on Fallen Kingdom, vocal coverage joins `BEAT_GRID_PHASE` as a number
+that does not reach his ear** — worth knowing precisely.
 Earlier reads 2026-08-18t: coverage **+0.031 = 13× the seed sd** (prod 0.423±0.0024 →
 0.454±0.0008); **rhythm better 3.9× sd**; **playfeel worse 3.9× sd**; alignment worse 1.8× sd
 (needs seed 3); **flow/idiom/handrole: no effect** — 🔴**my earlier "flow FAIL→PASS" was SEED

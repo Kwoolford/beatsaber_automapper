@@ -734,6 +734,37 @@ seed 1, so *neither* arm has a stable alignment PASS/FAIL. Read arm-vs-arm delta
 ⇒**Ready for Kyle's ear**: `outputs/trackb/v4t0.25__*.zip`, 23 songs. It is the first lever this
 session with a robust gain on the biggest defect and a known, bounded price.
 
+### 2026-08-18v — The density lever is INSTALLED and waiting on his ear
+
+Deployed via `scripts/deploy_maps.py` to
+`/mnt/giga_speed/BSManager/BSInstances/1.40.8/Beat Saber_Data/CustomLevels`:
+
+| song | arm | notes | nps | vocal coverage | human |
+|---|---|---|---|---|---|
+| Fallen Kingdom | BASE | 752 | 3.07 | 0.371 | |
+| | **DENSER** | **913** | **3.72** | **0.447** | 0.655 |
+| Hunger | BASE | 1324 | 4.87 | 0.506 | |
+| | **DENSER** | 1380 | 5.08 | 0.509 | 0.841 |
+| アリスブルー | BASE | 824 | 4.11 | 0.439 | |
+| | **DENSER** | 925 | 4.62 | 0.464 | 0.528 |
+| Digital Life Hacker | BASE | 1036 | 5.03 | 0.542 | |
+| | **DENSER** | 1047 | 5.07 | 0.549 | 0.795 |
+
+★**Ask him to play `[BASE]` vs `[DENSER]` on the same song** — the question is *"does it still feel
+too slow?"* (D1) and *"is it following the vocals more?"* (D4), **not** which he prefers overall.
+⚠️**`AUTO Hunger [BEFORE]` already existed from 2026-08-11 and was NOT overwritten** — a stale
+baseline would have made the A/B meaningless, so today's baseline went in as **`[BASE]`**. Use
+`[BASE]`, not `[BEFORE]`, for the comparison.
+⚠️**The lever is uneven across songs**: Fallen Kingdom gains +161 notes and +0.076 coverage, while
+Hunger and Digital Life Hacker gain almost nothing (+56/+11 notes) — **they were already near
+their probability-mass ceiling.** ⇒Fallen Kingdom and アリスブルー are the songs where he should
+hear a difference at all; if he cannot hear one there, the lever is inaudible and the coverage
+metric does not reach his ear either.
+★**That last point is the real test**: this is the first lever with a robust (8.6× sd) gain on the
+biggest confirmed defect. **If a 13-point coverage gain on Fallen Kingdom is inaudible, then
+vocal-onset coverage joins `BEAT_GRID_PHASE` on the list of numbers that do not reach him** — and
+that is worth knowing precisely.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
