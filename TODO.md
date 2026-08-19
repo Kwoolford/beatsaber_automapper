@@ -60,7 +60,12 @@ correct. Playing instruments until the main words come in."* See PROGRESS.md for
    forced alignment against supplied lyrics is the only route to word accuracy.** See PROGRESS.
    ⬜**Ask Kyle**: are roughly-right landmark words enough? If not, he can paste the real lyrics
    for the standing songs and we get a true WER for free.
-5. Build **V3 (flow view)** — needs no answer from him, and D5 is unlocatable without it.
+5. ✅**V3 BUILT 2026-08-18c** (`agent_mapper/flowview.py` + the FLOW lane). Bursts are now
+   located (`bar N · m:ss · motivation · travel`). 🔴**And D5's "random bursts" reading is NOT
+   REPRODUCED — it is backwards**: the human bursts MORE than us on 3 of 4 songs and more
+   *unmotivated* on all 4. **Do not build a burst-suppressor.** ★What is consistent is
+   **doubling (36-40 % of our swings vs a human 7-26 %)** — that is what makes our bursts run at
+   8-12 nps against their 5-7. See PROGRESS.
 6. `python scripts/review.py list` — 32 maps staged; **`[CROSSOVER]` is unjudged and is the
    strongest candidate on the board.**
 
@@ -94,11 +99,16 @@ met until he looks**, which is item 1 above. Still open inside them:
   **forced alignment against supplied lyrics**, not a bigger ASR model. **Ask him whether
   roughly-right landmark words are enough** before building that.
 
-### V3 — The FLOW view: play-level clarity
-Hand paths over time (L/R column+row), cut directions, and **bursts marked where they
-happen**. His flow complaint has been unlocatable so far: *"random bursts of really fast
-non flowy notes"* names a symptom with no timestamp.
-**DoD**: given his complaint, we can point at the bar it refers to.
+### V3 ✅BUILT — the FLOW view: `agent_mapper/flowview.py`
+Hand paths, crossover marks and located, shaded bursts. **DoD met on the located half** (every
+burst prints its bar and timestamp); **unmet on the half that needs his eye** — no browser here,
+so the lane is verified only by element count. ⚠️Open inside it:
+- 🔴**`harsh` is a DEAD metric** (0.00 in every burst of every map, ours and human) ⇒ *"non
+  flowy" is not wrist rotation*. `travel` (ours 6.4-6.5 vs human 3.3-5.3 cells/s) is the live
+  half. Do not report `angle_harsh_frac` as if it distinguished anything.
+- ⬜The RANDOM rule uses **event density**. His "random" may mean *the wrong events* instead —
+  which is D6, and needs his definition of main. **Ask him at a shaded bar: "is this one of the
+  random bursts?"** That question is now askable, which it was not yesterday.
 
 ### V4 — One page per song
 V1+V2+V3 on a single scrollable page, published so he can open it on any device and
@@ -147,7 +157,7 @@ the tally underneath it is a caption, never an axis.
 | **D2** | *"slightly off beat"* | survives `BEAT_GRID_PHASE`; tempo is right on only **70.5 %** of songs (n=149) and 2:3 misreads are open | he stops calling it off-beat on a song whose tempo we call correct |
 | **D3** | *"doing drops at the wrong time"* | ⭐**directly actionable now** — `structure.py` finds sections and marks `DROP`/`build`/`breakdown`, and the generator does not use any of it | detected drop bar == where he says the drop is, on 4 songs |
 | **D4** | *"not following the main vocals"* | `follow_vocals` ours **0.020** vs human **0.149**; root cause known — Stage-1 carries no melodic instruments (Track B) | `follow_vocals` ≥ 0.10 **and** he agrees the vocal line is being played |
-| **D5** | *"random bursts of really fast non flowy notes"* | two joined problems: bursts are not musically motivated, **and** they break flow. V3 must locate them first | he cannot find a burst he calls random |
+| **D5** | *"random bursts of really fast non flowy notes"* | 🔴**MEASURED 2026-08-18c and the density reading is BACKWARDS** — the human bursts more, and more unmotivated, than we do on every song. What separates ours is **doubling** (36-40 % vs 7-26 %) and **travel**, not burst frequency; **`harsh` is dead**. | he cannot find a burst he calls random |
 | **D6** | ★*"nps wasted on non main notes"* | ⚠️**re-read above** — measured, and it is a *doubles* defect, not an off-music one. Needs the definition of **main** that he endorses | main-line recall up with nps flat, and he agrees |
 
 ⚠️**D6 is the one that must not become another invented axis.** Define "main" in V2,

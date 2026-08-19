@@ -100,6 +100,63 @@ rather than implying it was measured. ⬜**Cheap and now obvious**: three of the
 have published lyrics, so a real WER against ground truth is available for the price of pasting
 them in. Ask Kyle before fetching anything external.
 
+### 2026-08-18c — V3, the FLOW view: D5 is now located, and the "random bursts" reading of it is NOT REPRODUCED
+
+`agent_mapper/flowview.py` + a FLOW lane in the notesheet. Hand paths (column over time, one
+polyline a hand), crossover marks, and **bursts shaded where they happen** — warm only where the
+music did *not* get busier under them. It reuses `swing_sim` and `evaluation.flow` for every
+play-level quantity, so the picture and the flow axis cannot disagree about what a swing is.
+
+🔴**THE FIRST BURST DEFINITION WAS MEASURED WRONG AND FOUND NOTHING.** A fixed "gaps <= 0.30
+beats" (1/4-note streams) returned **zero bursts in every map, ours and human alike** — because
+nothing in this corpus is that fast. Median gap is **0.5-1.0 beats** and the smallest non-zero gap
+anywhere is **0.25**. ⇒The threshold is now the map's **own** fast rate,
+`min(p10 gap, median/1.6)`, measured on **DISTINCT TIMES** — a double is two swings at one
+instant, it does not make a hand move faster, and counting it as speed would have re-reported C5
+wearing a flow costume. ★*A detector that fires nowhere is a broken detector, not a clean map.*
+
+**Ours (`*_BEFORE`) vs the human map, four standing songs:**
+
+| song | side | swings | doubled | bursts | RANDOM | burst nps | travel |
+|---|---|---|---|---|---|---|---|
+| Fallen Kingdom | ours | 788 | **37 %** | 9 | 0 | 8.3 | 6.51 |
+| | human | 692 | 7 % | 17 | 1 | 5.5 | 3.25 |
+| Hunger | ours | 1328 | **39 %** | 30 | 4 | 12.5 | 8.86 |
+| | human | 1426 | 13 % | 20 | 7 | 15.7 | 8.86 |
+| アリスブルー | ours | 813 | **40 %** | 7 | 0 | 10.7 | 6.44 |
+| | human | 748 | 26 % | 18 | 2 | 7.1 | 5.33 |
+| Digital Life Hacker | ours | 1035 | **36 %** | **0** | 0 | — | — |
+| | human | 1184 | 25 % | 14 | 5 | 12.0 | 13.51 |
+
+🔴🔴**D5 as "we burst more, and more randomly, than a human" is NOT REPRODUCED — it is BACKWARDS.**
+The human has **more** bursts than us on 3 of 4 songs (17 v 9, 18 v 7, 14 v 0) and **more**
+unmotivated ones on **all four** (15 v 4 in total). By this rule we are the *conservative* mapper.
+⇒Either "random" does not mean *unmotivated by event density*, or it is about **which** events
+the burst plays — i.e. D6/main-line, not burst frequency. **Do not build a burst-suppressor.**
+
+★★**What IS consistent across all four songs is DOUBLING: 36-40 % of our swings are simultaneous
+against a human 7-26 %** — and it is the mechanism behind "really fast". Our bursts run at
+8-12 nps against the human's 5-7 *at the same distinct-time rate and the same threshold*: the
+extra speed is both hands landing together, not either hand moving faster. ★**C5 priced a third
+way, now from the play side**, and the third independent route to the same root cause.
+★**`travel` is the other half**: ours 6.4-6.5 cells/s against the human's 3.3-5.3 inside bursts on
+the two songs where both have them. Fast *and* moving further = *"non flowy"*.
+
+🔴**`harsh` (wrist rotation > 90°) IS A DEAD METRIC HERE — 0.00 inside every burst of every map,
+ours and human, and 0.000-0.062 over whole maps.** ⇒Whatever "non flowy" is, **it is not wrist
+rotation**, and any future flow work that reports `angle_harsh_frac` is reporting a constant.
+
+⭐**Digital Life Hacker has ZERO bursts** — every note on one subdivision, nothing in the map
+faster than anything else in it. The page says so in words. That is the flat-density defect seen
+from the hands, and the *absence* of a burst is the defect there.
+
+**DoD (V3): MET on the located half** — every burst prints as `bar N · m:ss · motivation ·
+travel · resets` and shades at that bar on the page, so a complaint can be pointed at.
+🔴**UNMET on the "he points at it" half** — as with V1/V2, **no browser on this box**, so the
+lane is verified only by element count (19 systems, 36 hand polylines, 12 burst shades, 0
+crossover marks — the last agreeing with the known `crossover` 0.000 audit). Pages:
+`outputs/notesheets/{fk,Hunger,AliceBlue,DigitalLifeHacker}_flow.html`.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

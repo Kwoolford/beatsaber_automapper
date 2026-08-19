@@ -70,6 +70,7 @@ KIT_ROW = 11
 BANNER_H = 20
 RULER_H = 16
 MAP_H = 24               # the map lane, drawn only with --map
+FLOW_H = 44              # ★V3, the flow lane: hand paths + located bursts, with --map
 
 MELODIC = (("vocals", "VOX", "vox"), ("other", "LEAD", "lead"), ("bass", "BASS", "bass"))
 KIT_ROWS = (("crash", "crash"), ("hat", "hat"), ("snare", "snare"), ("kick", "kick"))
@@ -112,7 +113,8 @@ def audio_data_uri(audio: pathlib.Path, kbps: int = 64) -> str | None:
 
 
 def collect(audio: pathlib.Path, force: bool = False,
-            map_zip: pathlib.Path | None = None, main_rule: str | None = None) -> dict:
+            map_zip: pathlib.Path | None = None, main_rule: str | None = None,
+            difficulty: str = "Expert") -> dict:
     """Everything the page draws, on one time axis. Each tool is cached separately."""
     import brief as _brief
     import melody as _mel
@@ -141,7 +143,8 @@ def collect(audio: pathlib.Path, force: bool = False,
 
     d = {"song": audio.stem, "title": None, "grid": g, "dur": a["dur"], "r": a.get("r"),
          "melody": mel, "perc": perc, "sections": sec["sections"],
-         "span": span, "words": words, "overlay": None, "audio_uri": None}
+         "span": span, "words": words, "overlay": None, "flow": None,
+         "audio_uri": None}
 
     if map_zip is not None:
         import overlay as _ov
@@ -149,6 +152,13 @@ def collect(audio: pathlib.Path, force: bool = False,
         d["overlay"] = _ov.classify(notes, d, main_rule or _ov.MAIN_DEFAULT)
         d["overlay"]["map_name"] = map_zip.stem
         d["overlay"]["map_bpm"] = map_bpm
+        # ★V3. Guarded: a map whose difficulty the swing simulator cannot load must
+        # not take the whole page down with it — the song lanes are still worth having.
+        try:
+            import flowview as _fv
+            d["flow"] = _fv.analyse(map_zip, d, difficulty)
+        except Exception as e:  # noqa: BLE001
+            d["flow"] = {"error": str(e)}
     return d
 
 
@@ -192,6 +202,56 @@ def _kit(d: dict, t0: float, t1: float, top: float) -> list[str]:
     return out
 
 
+def _flow(d: dict, t0: float, t1: float, top: float) -> list[str]:
+    """★V3 — the FLOW lane: what each HAND does, and where the bursts are.
+
+    Vertical position is the **column** (0 at the bottom, 3 at the top), because
+    left-right is the movement a player feels; the grid **row** is a small sub-offset
+    inside the column band, so a lane that looks flat really is flat. One polyline per
+    hand, so a hand flying across the grid is a visible diagonal rather than a number.
+
+    Bursts are shaded behind everything: warm where the music did NOT get busier under
+    them (Kyle's *"random"*), faint where it did. ⚠️A shaded burst is **not** an
+    accusation — a motivated burst is a mapper doing their job, and this lane says so
+    by drawing it quietly.
+    """
+    f = d.get("flow") or {}
+    rows = f.get("rows") or []
+    if not rows:
+        return []
+    band = FLOW_H / 4.0
+    def _y(col: int, row: int) -> float:
+        return top + (3 - max(0, min(3, col))) * band + band / 2 \
+               + (1 - max(0, min(2, row))) * 2.6
+
+    s: list[str] = []
+    for b in f.get("bursts", []):
+        if b["t1"] < t0 or b["t0"] >= t1:
+            continue
+        xa, xb = _x(max(b["t0"], t0), t0, t1), _x(min(b["t1"], t1), t0, t1)
+        cls = "rand" if b["verdict"] == "RANDOM" else "mot"
+        s.append(f'<rect class="bst {cls}" x="{xa:.1f}" y="{top}" '
+                 f'width="{max(xb - xa, 2):.1f}" height="{FLOW_H}" rx="2">'
+                 f'<title>burst · bar {b["bar"]} · {_mmss(b["t0"])} · {b["n"]} times, '
+                 f'{b["nps"]:.1f} nps · music {b["motivation"]:.2f}x its median rate '
+                 f'({b["verdict"]}) · travel {b["travel"]:.1f} cells/s · '
+                 f'{b["resets"]} parity resets</title></rect>')
+
+    for hand, cls in ((0, "hl"), (1, "hr")):
+        pts = [(r, _x(r["t"], t0, t1), _y(r["x"], r["y"]))
+               for r in rows if t0 <= r["t"] < t1 and r["hand"] == hand]
+        if len(pts) > 1:
+            s.append(f'<polyline class="hp {cls}" points="'
+                     + " ".join(f"{x:.1f},{y:.1f}" for _, x, y in pts) + '" />')
+        for r, x, y in pts:
+            # a crossover: the hand is on the far side of the grid. Named by Kyle as an
+            # axis we sit at 0.000 on against a human 0.183, so it gets its own mark.
+            over = (hand == 0 and r["x"] >= 2) or (hand == 1 and r["x"] <= 1)
+            s.append(f'<circle class="hn {cls}{" xo" if over else ""}" cx="{x:.1f}" '
+                     f'cy="{y:.1f}" r="{2.6 if over else 1.9}" />')
+    return s
+
+
 def _system(d: dict, b0: int, nbars: int) -> str:
     """One system: `nbars` bars of every lane, plus its ruler and section banner."""
     import brief as _brief
@@ -201,9 +261,11 @@ def _system(d: dict, b0: int, nbars: int) -> str:
     t1 = t0 + nbars * g["bar_s"]
 
     top = BANNER_H + RULER_H
-    map_top = None
+    map_top = flow_top = None
     if d.get("overlay"):
-        map_top, top = top, top + MAP_H + 8
+        map_top, top = top, top + MAP_H + 2
+    if (d.get("flow") or {}).get("rows"):
+        flow_top, top = top, top + FLOW_H + 8
     lanes: list[tuple[str, str, float]] = []
     for stem, label, cls in MELODIC:
         lanes.append((label, cls, top))
@@ -297,6 +359,13 @@ def _system(d: dict, b0: int, nbars: int) -> str:
                      f'y2="{y + lane_h[m["lane"]] - 1:.1f}">'
                      f'<title>MISSED {m["src"]} · {_mmss(m["t"])}</title></line>')
 
+    if flow_top is not None:
+        s.append(f'<rect class="bed" x="{GUT}" y="{flow_top}" '
+                 f'width="{W - GUT - PAD_R}" height="{FLOW_H}" rx="2" />')
+        s.append(f'<text class="ll flowl" x="{GUT - 8}" '
+                 f'y="{flow_top + FLOW_H / 2 + 3:.1f}">FLOW</text>')
+        s.extend(_flow(d, t0, t1, flow_top))
+
     s.append(f'<text class="ll kitl" x="{GUT - 8}" '
              f'y="{kit_top + len(KIT_ROWS) * KIT_ROW / 2 + 3:.1f}">KIT</text>')
     for row, (piece, _) in enumerate(KIT_ROWS):
@@ -385,6 +454,7 @@ CSS = """
   --vox:#1E9E99; --lead:#4B6FD0; --bass:#7A5FC4; --kit:#6B7285;
   --hot:#C2410C; --hot-bed:#FBE6DA;
   --hit:#2E8B57; --missed:#C98A0B; --wasted:#C0392B;
+  --hand-l:#D2352E; --hand-r:#2D63C8;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
@@ -393,6 +463,7 @@ CSS = """
     --vox:#5BC8C4; --lead:#8AA6F0; --bass:#B49BEE; --kit:#7A8194;
     --hot:#F2884B; --hot-bed:#3A2417;
     --hit:#5FCB8C; --missed:#F0B429; --wasted:#F2685A;
+    --hand-l:#F0645C; --hand-r:#6E9BF5;
   }
 }
 :root[data-theme="dark"]{
@@ -401,6 +472,7 @@ CSS = """
   --vox:#5BC8C4; --lead:#8AA6F0; --bass:#B49BEE; --kit:#7A8194;
   --hot:#F2884B; --hot-bed:#3A2417;
   --hit:#5FCB8C; --missed:#F0B429; --wasted:#F2685A;
+  --hand-l:#F0645C; --hand-r:#6E9BF5;
 }
 *{box-sizing:border-box}
 body{
@@ -461,6 +533,15 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:ta
 .mn.hit{fill:var(--hit)}
 .mn.wasted{fill:var(--wasted)}
 .miss{stroke:var(--missed); stroke-width:1.4; opacity:.7}
+.ll.flowl{fill:var(--ink)}
+/* the two hands keep Beat Saber's own colours -- nothing else on the page is red or
+   blue, so a hand path can never be mistaken for a lane or a verdict */
+.hp{fill:none; stroke-width:1.1; opacity:.75}
+.hp.hl{stroke:var(--hand-l)} .hp.hr{stroke:var(--hand-r)}
+.hn.hl{fill:var(--hand-l)} .hn.hr{fill:var(--hand-r)}
+.hn.xo{stroke:var(--ink); stroke-width:.9}
+.bst{fill:var(--wasted); opacity:.10}
+.bst.rand{fill:var(--missed); opacity:.26}
 .tally{display:grid; grid-template-columns:repeat(auto-fit,minmax(168px,1fr)); gap:10px;
   margin:16px 0 0; padding:0; list-style:none}
 .tally li{background:var(--surface); border:1px solid var(--rule); border-left-width:3px;
@@ -540,6 +621,32 @@ def render(d: dict, bars: int = 8) -> str:
                       for b0 in range(1, n_bars + 1, bars)
                       if _bar_start_ok(d, b0))
 
+    fl = d.get("flow") or {}
+    flowbox = ""
+    if fl.get("rows"):
+        bs = fl["bursts"]
+        rand = [b for b in bs if b["verdict"] == "RANDOM"]
+        facts.append(f'<li>doubled <b>{fl["doubled"]:.0%}</b> of {fl["n_swings"]} swings</li>')
+        if bs:
+            worst = sorted(bs, key=lambda b: b["motivation"])[:3]
+            where = ", ".join(f'bar {b["bar"]} ({_mmss(b["t0"])}, {b["motivation"]:.2f}&times;)'
+                              for b in worst)
+            verdict = (f'<b>none of them RANDOM</b> — the song got busier under every '
+                       f'one' if not rand else
+                       f'<b>{len(rand)} RANDOM</b> (the song did not get busier under '
+                       f'{"it" if len(rand) == 1 else "those"})')
+            flowbox = (f'<p class="note"><b>FLOW.</b> {len(bs)} bursts, {verdict}. '
+                       f'Least-motivated first: {where}. '
+                       f'A burst here is a run at this map\'s own fastest gap '
+                       f'({fl["threshold"].get("thr_used", float("nan")):.2f} beats), and the '
+                       f'shading is warm only where the song did not ask for it.</p>')
+        else:
+            flowbox = ('<p class="note"><b>FLOW.</b> <b>No bursts at all</b> — every note '
+                       'sits on the same subdivision, so nothing in this map is faster than '
+                       'anything else in it. That is not the absence of a defect; a map with '
+                       'no rhythmic contrast is the flat-density defect seen from the '
+                       'hands.</p>')
+
     ov = d.get("overlay")
     tally = rulebox = ""
     if ov:
@@ -608,6 +715,7 @@ def render(d: dict, bars: int = 8) -> str:
   <ul class="legend">{legend}</ul>
   {tally}
   {rulebox}
+  {flowbox}
 </header>
 {transport}
 <div class="scroll">{systems}</div>
