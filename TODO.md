@@ -11,10 +11,9 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 📍 CURRENT STATE (2026-08-18)
+## 📍 CURRENT STATE (2026-08-19)
 
-★★**Kyle has judged the maps and the answer is a DEFECT LIST, not a preference.** He
-reviewed the agent map, set A and set B and reported, across *every* song:
+★★**Kyle's standing verdict is a DEFECT LIST, not a preference** (2026-08-17, every song):
 
 > *"it varys from very slow, slightly off beat, doing drops at the wrong time, not
 > following the main vocals or having random bursts of really fast non flowy notes…
@@ -22,55 +21,46 @@ reviewed the agent map, set A and set B and reported, across *every* song:
 > deal of notes that are on beat and I can tell play part of the song, but **they aren't
 > hitting that main flow that mappers can generally see**."*
 
-And the directive that follows from it:
+and the directive: *"make the visibility suite the top priority… so visibly great that you can go
+back through and evaluate through me instead of making another evaluation metric."*
+⚠️**Preference is second, defects are first** — `review.py defect` now records them.
 
-> *"I think we need to make the visibility suite the top priority… so visibly great that
-> you can go back through and evaluate through me instead of making another evaluation
-> metric."*
+★★★**THE 2026-08-18/19 SESSION MEASURED ALL SIX DEFECTS AGAINST HUMAN-HUMAN CEILINGS.** Full
+numbers in PROGRESS; the standing picture is now:
 
-🔴**Two things with strong numeric evidence have now failed to reach his ear**
-(`BEAT_GRID_PHASE`, 74 better/0 worse — he still hears *"slightly off beat"*; and the
-agent map at human `ebpm_burst`, human nps median, zero parity violations). ⇒**A passed DoD is evidence about the METRIC, not
-about the map.** The answer is not a seventh axis — it is to make the map legible enough
-that *he* is the evaluator. That is what P0 now is.
+| defect | status |
+|---|---|
+| **D4** *not following vocals* | ★**BIGGEST, CONFIRMED**: we play **0.385** of the sung line, human **0.743**, at **2.5× the human-human spread** (n=144) |
+| **D1** *very slow* | **same lever as D4** — budget, not allocation |
+| **D3** *drops at wrong time* | **CONFIRMED** (0.347 vs null 0.140, human-human 0.49) — 🔴but its proposed fix (use `structure.py`) is **backwards** |
+| **D6** *nps wasted* | = **C5 doubles**, now **priced**: 21 % of the vocal budget |
+| **D2** *slightly off beat* | 🔴**REFUTED** — on his four maps bpm is exact and our note times beat human-human agreement |
+| **D5** *random bursts* | 🔴**REFUTED/INVERTED** — the human bursts more, and more unmotivated, on every song |
 
-⚠️**And the review framing was wrong.** The A/B pipeline collects *preferences between
-arms*; he produces *defects located in songs*. Preference is second, defects are first.
+★**The whole D4 chain is closed by measurement**: decode saturates (5× lower threshold buys +4
+notes), the grid is only 26-33 % full, Track B at matched budget is parity, and **Stage-1 does not
+modulate density per song at all (r = 0.046)** while crude audio features reach **R² = 0.185**.
+⇒**The one remaining route is training-side.**
 
 ---
 
 ### ▶️ START THE NEXT SESSION HERE
-✅**V1 (notesheet) + V2 (overlay) BUILT, and Kyle ENDORSED V1's read of the song** — *"It looks
-correct. Playing instruments until the main words come in."* See PROGRESS.md for all numbers.
-
-1. 🔴🔴**FIRST: THE PLAYER HAS NEVER RUN IN A BROWSER.** The page now embeds the song and draws a
-   moving playhead, but there is no browser on this box and the republish was declined, so the
-   transport / playhead / click-to-seek / space-to-play are **unverified code**. Open
-   `outputs/notesheets/fallen_kingdom_overlay.html` locally, or republish, **before building
-   anything else on top of it**.
-2. 🔴**THE PUBLISHED PAGES ARE STALE** — both live artifacts carry the OLD lyrics and no audio.
-   Republish (needs Kyle's approval): overlay
-   `claude.ai/code/artifact/34bf3922-080b-4c9b-bcd6-90792bb1a6b9`, score
+1. ★★**ASK HIM TO PLAY `[BASE]` vs `[DENSER]`** (installed 2026-08-18v; ⚠️**not** `[BEFORE]`,
+   which is a stale 2026-08-11 map). **Fallen Kingdom is the song to judge** — +161 notes,
+   vocal coverage 0.371 → 0.447 (human 0.655). ★**If he cannot hear that, vocal coverage joins
+   `BEAT_GRID_PHASE` as a number that does not reach his ear** — worth knowing precisely.
+2. 🔴🔴**THE PAGE PLAYER HAS STILL NEVER RUN IN A BROWSER** (no browser on this box). Open
+   `outputs/notesheets/fk_flow.html` before building anything on top of it.
+3. 🔴**THE PUBLISHED PAGES ARE STALE** (old lyrics, no audio). Republish needs his approval:
+   overlay `claude.ai/code/artifact/34bf3922-080b-4c9b-bcd6-90792bb1a6b9`, score
    `.../f47350fb-9592-42db-a992-8c9e5b85b015`.
-3. ★**THE GATE IS STILL KYLE'S CORRECTION OF "MAIN"** — nothing substitutes for it. **Ask which
-   events he would have called main**, then change `overlay.MAIN_DEFAULT`, not the map.
-4. ✅**DONE 2026-08-18b** — `scripts/lyric_ablation.py`. VAD confirmed at both model sizes; the
-   model upgrade is not a coverage lever; and the two transcripts **disagree on ~1 line in 4 with
-   errors on both sides**, which sung-coverage cannot see. ⇒**The "bigger ASR" route is closed;
-   forced alignment against supplied lyrics is the only route to word accuracy.** See PROGRESS.
-   ⬜**Ask Kyle**: are roughly-right landmark words enough? If not, he can paste the real lyrics
-   for the standing songs and we get a true WER for free.
-5. ✅**V3 BUILT 2026-08-18c** (`agent_mapper/flowview.py` + the FLOW lane). Bursts are now
-   located (`bar N · m:ss · motivation · travel`). 🔴**And D5's "random bursts" reading is NOT
-   REPRODUCED — it is backwards**: the human bursts MORE than us on 3 of 4 songs and more
-   *unmotivated* on all 4. **Do not build a burst-suppressor.** ★What is consistent is
-   **doubling (36-40 % of our swings vs a human 7-26 %)** — that is what makes our bursts run at
-   8-12 nps against their 5-7. See PROGRESS.
-6. `python scripts/review.py list` — 32 maps staged; **`[CROSSOVER]` is unjudged and is the
-   strongest candidate on the board.**
+4. ★**THE GATE ON D6 IS STILL HIS CORRECTION OF "MAIN"** — ask which events he would have called
+   main, then change `overlay.MAIN_DEFAULT`, not the map.
+5. ⬜**Ask**: are roughly-right landmark words enough in the lyrics? If not he can paste real
+   lyrics for the standing songs and we get a true WER for free (the bigger-ASR route is closed).
+6. ⬜**`[CROSSOVER]` is still unjudged** — `python scripts/review.py list`.
 
-⚠️**Nothing is running.** No GPU job, no autonomous loop — `/todo` must be re-run to restart
-research.
+⚠️**Nothing is running.** No GPU job, no autonomous loop — `/todo` restarts research.
 
 ---
 
@@ -85,21 +75,14 @@ not on whether it produces a number.
 `brief.py` (per-bar stem grid + lyrics), `map_view.py` (map as text), ArcViewer (play
 preview). ⚠️**None of it is time-aligned into one picture**, which is the whole gap.
 
-✅**V1 + V2 SHIPPED 2026-08-18** — `agent_mapper/notesheet.py` (the score) and
-`agent_mapper/overlay.py` (HIT/MISSED/WASTED), both published as pages. **Their DoD is not
-met until he looks**, which is item 1 above. Still open inside them:
-- ✅**DONE 2026-08-18e — `agent_mapper/chords.py` + `notesheet --chords`.** Polyphony is real and
-  everywhere (median 2.0; **56-70 % of every song has 2+ notes sounding**), basic-pitch runs in
-  **1.6-2.4 s a song** on ONNX, and it is **adopted per song by an in-key gate: 2 of 4 songs yes,
-  Hunger and Digital Life Hacker no**. ⚠️Hunger's refusal is ambiguous (metal ⇒ the diatonic proxy
-  cannot separate "wrong" from "chromatic"); the gate only ever *refuses*, which is the safe side.
-- ⬜Only `1f8d6` is published. The other three standing songs render but are not up.
-- 🔴**Word ACCURACY is unaddressed.** The VAD fix made the words *present* (sung-coverage
-  0.927→0.967 on 1f8d6); Kyle's other complaint is that they are *wrong*, and coverage cannot
-  see that. The ground-truth-free proxy (same section letter should transcribe alike) gave
-  0.187 vs 0.198 over 3 pairs = **not resolvable**. ⇒If exact words matter, the route is
-  **forced alignment against supplied lyrics**, not a bigger ASR model. **Ask him whether
-  roughly-right landmark words are enough** before building that.
+✅**V1 + V2 + V3 + V5 ALL BUILT** (`notesheet.py`, `overlay.py`, `flowview.py`,
+`review.py defect`). **Their DoD is not met until he looks** — item 2 above. Still open:
+- ⬜**Only `1f8d6` is published**; the other three standing songs render locally but are not up.
+- 🔴**Word ACCURACY is unaddressed** and sung-coverage cannot see it. ⇒Route is **forced alignment
+  against supplied lyrics**, not a bigger ASR model (2026-08-18b closed that). **Ask him first**
+  whether roughly-right landmark words are enough.
+- ✅Polyphony for the LEAD lane is done (`chords.py`, `--chords`), adopted per song by an in-key
+  gate — 2 of 4 songs yes. Details in PROGRESS.
 
 ### V3 ✅BUILT — the FLOW view: `agent_mapper/flowview.py`
 Hand paths, crossover marks and located, shaded bursts. **DoD met on the located half** (every
@@ -126,73 +109,71 @@ unlocated, which `review.py defects` now prints as a backlog.
 
 ---
 
-## 🟢 P0.6 — ★A POSITIVE LEVER AWAITING VALIDATION: `--beat-threshold 0.25` (2026-08-18r)
-On production v4, threshold 0.40 → **0.25** lifts **vocal coverage 0.420 → 0.454** (paired
-+0.0158, **20/23 songs, p=8e-05**) via **+88 notes at ZERO precision cost**, with **0/23 songs
-above the 6.18 nps Kyle called unplayable** (median 4.06) and no `map_metrics` axis degrading.
-✅**FINAL AT 3 SEEDS (2026-08-18u): +0.029 vocal coverage at 8.6× sd, for +0.122 playfeel at
-4.2× sd (still inside its 1.00 bar). EVERYTHING ELSE — including alignment — IS SEED NOISE.**
-🔴Both my single-seed claims (first "free", then "costs alignment") were wrong in opposite
-directions. ✅**INSTALLED 2026-08-18v — play `[BASE]` vs `[DENSER]`** (⚠️not `[BEFORE]`, which is a stale
-2026-08-11 map left in place). ★**Fallen Kingdom is the song to judge**: +161 notes, coverage
-0.371 → 0.447 (human 0.655). Hunger/DLH barely move (+56/+11 notes — already at their ceiling).
-★**If the gain is inaudible on Fallen Kingdom, vocal coverage joins `BEAT_GRID_PHASE` as a number
-that does not reach his ear** — worth knowing precisely.
-Earlier reads 2026-08-18t: coverage **+0.031 = 13× the seed sd** (prod 0.423±0.0024 →
-0.454±0.0008); **rhythm better 3.9× sd**; **playfeel worse 3.9× sd**; alignment worse 1.8× sd
-(needs seed 3); **flow/idiom/handrole: no effect** — 🔴**my earlier "flow FAIL→PASS" was SEED
-NOISE** (prod flow ranges 0.296–0.588 across seeds).
-🔴Earlier single-seed read 2026-08-18s — my "zero precision cost" was a coarse
-proxy. **flow 0.588 FAIL → 0.408 PASS** and rhythm 0.425 → 0.385 (⇒C3's density-costs-rhythm fear
-NOT realised), but **alignment 0.263 PASS → 0.515 FAIL** and handrole/playfeel spreads collapse.
-★**0.25 is the operating point** — 0.15 buys no more notes and costs precision. ⏳Seeds 1-2
-generating; read the alignment move against its seed spread (already 1.14-1.46) before believing
-it. ⬜**Then his ear** — the suite has been wrong about "ready" twice.
-Maps: `outputs/trackb/v4t0.25__*.zip`.
+## 🔴🔴 P0.5 — THE SIX DEFECTS HE NAMED (2026-08-17), AS MEASURED
 
-## 🔴🔴 P0.5 — THE SIX DEFECTS HE NAMED (2026-08-17)
+★**The status table is in CURRENT STATE above; the numbers are in PROGRESS.** What remains *open*
+per defect:
 
-★**Unifying hypothesis, and the most valuable thing he has said in weeks:**
-> **Our nps problem is an ALLOCATION problem, not a budget problem.**
+| # | his words | what is still open |
+|---|---|---|
+| **D1** | *"very slow"* | **= D4's budget lever.** `--beat-threshold 0.25` is the candidate (P0.6); beyond it, training-side (P0.8) |
+| **D2** | *"slightly off beat"* | 🔴Refuted as note placement. ⚠️**Live but untested**: we may be *too* quantised for a song with groove — nothing measures that yet |
+| **D3** | *"drops at the wrong time"* | Confirmed (0.347 vs human-human 0.49). 🔴**Its obvious fix is refuted** — `structure.py` locates the human's moves *worse* than our map does. **A better route is unknown.** |
+| **D4** | *"not following the main vocals"* | ★**The main line of work.** See P0.8 — training-side density conditioning |
+| **D5** | *"random bursts"* | 🔴Refuted/inverted. **Do not build a burst-suppressor.** ⚠️Ask him at a shaded bar in the FLOW view whether *that* is what he meant |
+| **D6** | ★*"nps wasted on non main notes"* | = **C5 doubles**, priced at 21 % of the vocal budget. ★**Still gated on HIS definition of "main"** |
 
-*"The nps is generally wasted on every few non main notes"* + *"not following the main
-vocals"* + *"I'd like the general beat parts to be faster and play more main notes"* are
-plausibly **one defect**: we do not distinguish the MAIN musical line from incidental
-onsets, so the note budget is spent on filler and the map simultaneously feels **slow**
-(the notes you want are absent) and **busy** (notes you do not want are present).
-🔴🔴**MEASURED 2026-08-18, AND IT SPLITS IN TWO** (V2 overlay, 4 standing songs, ours vs
-human under one rule):
-- **As "our notes land off the music": NOT SUPPORTED.** Our precision 78–85% vs the human's
-  75–90%, **mixed sign across songs** (+0.034, +0.028, −0.038, −0.047). We are not spending
-  the budget on non-events more than a human does.
-- **As "our notes don't buy new musical events": SUPPORTED 4/4.** Distinct main events
-  covered per note: ours **0.464–0.537** vs human **0.565–0.647**; notes per event covered
-  ours **1.86–2.16** vs human **1.54–1.77**. ⇒**both halves of a double land on the SAME
-  event and both count as HIT.** 🔴This is **C5 (doubles) from the musical side, not a new
-  finding** — but it prices C5 in his terms for the first time.
-- ★**The dominant gap is MISSED, not WASTED**: we play **32–42%** of the main line where the
-  human plays **39–83%**.
-⚠️**PARTLY CONFIRMED, and the rule is a guess until he corrects it.**
-⚠️⚠️**DO NOT STEER ON THESE NUMBERS — they FAIL the degenerate control.** A metronome on
-1f8d6 scores precision 78.7% / recall 48.5% at 1/4, i.e. **better recall than our own map**.
-Only `on-nothing` separates it (13.3% vs human 3.8%, ours 6.3%). The overlay is a **picture**;
-the tally underneath it is a caption, never an axis.
+⚠️**D6 must not become another invented axis.** Show him `overlay.MAIN_DEFAULT` and let him
+correct the *definition* — a metric he has endorsed by looking at it is a different object from
+one built from first principles, and building those from first principles is exactly what produced
+the anti-correlation.
 
-| # | defect, his words | first read | DoD |
-|---|---|---|---|
-| **D1** | *"very slow"* | ours ~4.96 nps vs human 8.35 on Hunger — but see the allocation hypothesis before simply raising density | he stops calling it slow **without** a raw nps increase |
-| **D2** | *"slightly off beat"* | 🔴🔴**REFUTED as note placement 2026-08-18g** (`eval_beat_phase_agreement.py`): on all four maps he played the bpm is **exactly** the human's, offset 0, and our note times match the human's **better than two humans match each other** (0.87/0.92/0.73–0.82/0.67–0.71 vs human-human **0.676**). Cohort-wide we are **more** on-beat (0.580 vs 0.515) and place **fewer** 16ths (p=0.0006). ⇒**Stop pointing D2 at tempo for these songs.** ⚠️Live but untested: we may be *too* quantised for a song with groove. | he stops calling it off-beat on a song whose tempo we call correct |
-| **D3** | *"doing drops at the wrong time"* | 🔴🔴**AND ITS PROPOSED FIX IS BACKWARDS (2026-08-18ac)**: at a fair 3-candidate comparison, `structure.py`'s DROP/peak starts locate the human's moves at lift **+0.146** while **our map already manages +0.268** (two humans ≈ +0.36) ⇒ **wiring the detector in would make D3 WORSE.** ★★**CONFIRMED 2026-08-18f at n=144** (`eval_drop_agreement.py`): our biggest density moves coincide with the human's **0.347** [0.302, 0.392] against a null of **0.140** and a human-human band of **0.49**; **43 of 144 songs agree on nothing**. 🔴Both cheaper causes REFUTED — we lift density at drops exactly as much as the human does (1.09/1.21/1.08/0.95 vs 1.11/1.21/1.09/0.99). | agreement reaches the human-human band (0.49) at n≥100, **and** he stops saying it |
-| **D4** | *"not following the main vocals"* | ★★**CONFIRMED 2026-08-18j at n=144, and it is the BIGGEST measured defect** (`eval_vocal_coverage.py`): we play **0.385** of the sung notes, the human **0.743**, lower on **141/144** songs (p=2.6e-25) — against a human-human spread of only **0.132**. ⚠️**Track B is necessary and NOT sufficient**: we reach only **58 %** of the human even where a drum marks the vocal (vs 46 % where none does). | vocal-onset coverage reaches the human band (≈0.74 ± 0.13) **and** he agrees the vocal line is being played |
-| **D5** | *"random bursts of really fast non flowy notes"* | 🔴**MEASURED 2026-08-18c and the density reading is BACKWARDS** — the human bursts more, and more unmotivated, than we do on every song. What separates ours is **doubling** (36-40 % vs 7-26 %) and **travel**, not burst frequency; **`harsh` is dead**. | he cannot find a burst he calls random |
-| **D6** | ★*"nps wasted on non main notes"* | ⚠️**re-read above** — measured, and it is a *doubles* defect, not an off-music one. Needs the definition of **main** that he endorses | main-line recall up with nps flat, and he agrees |
+## 🟢 P0.6 — ★THE POSITIVE LEVER, VALIDATED AND AWAITING HIS EAR: `--beat-threshold 0.25`
+Production v4, threshold 0.40 → **0.25**. **At 3 seeds: vocal coverage +0.029 (8.6× the seed sd),
+playfeel +0.122 worse (4.2× sd, still inside its 1.00 bar); everything else — flow, idiom,
+handrole, alignment — is seed noise.** Median **4.06 nps**, **0/23 songs above the 6.18 he called
+unplayable**. ★**0.25 is the operating point**: lower buys no more notes and costs precision.
+✅**Installed as `[BASE]` vs `[DENSER]`** — ⚠️**not** `[BEFORE]` (stale). **Fallen Kingdom is the
+song to judge.**
+⬜**The only open question is his ear.** If it is promoted, flip the default in
+`scripts/generate.py` and re-baseline the cohort.
 
-⚠️**D6 is the one that must not become another invented axis.** Define "main" in V2,
-show it to him, and let him correct the definition. A metric he has endorsed by looking
-at it is a different object from one built from first principles — building those from
-first principles is exactly what produced the anti-correlation.
+## ✅ P0.7 — TRACK B: EVALUATED AND CLOSED (2026-08-18m/n/p)
+`version_7`/`version_8` carry `instr_dim=10` (vocals/bass/lead via basic-pitch, cached on all
+5,320 songs); production `version_4` does not. **Evaluated at last: at matched budget v8 scores
+0.417 vs prod 0.420 on vocal coverage — a coin flip.** 🔴**Do not promote them for D4.** Their
+allocation IS better and they double less; none of it reaches coverage. ⚠️Not a clean instr-only
+ablation (they also carry `struct_proj`). Full numbers in PROGRESS.
 
----
+## 🔴 P0.8 — D4's ONLY REMAINING ROUTE IS TRAINING-SIDE (chain closed 2026-08-18z)
+Every alternative is now eliminated by measurement: decode saturates at thr 0.25 (**5× lower buys
++4 notes**), the 1/4-beat grid is only **26-33 %** full, Track B at matched budget is **parity**,
+and we sit **244 notes (29 %) below the human even at the floor threshold**. **Stage-1's
+probability field is nearly BINARY — no mass below 0.25.** ⇒**Make Stage-1 propose more notes**
+(loss/target/threshold-during-training), not another decode knob. ★**SCOPED 2026-08-18aa**: we
+emit **0.217** positives per (slot,hand) against a **corpus label mean of 0.245** and these songs'
+humans at **0.294** ⇒ **we are below our own training distribution AND we do not modulate per
+song.** 🔴Dead ends already checked: training is Expert/E+ only (not diluted), and the `_NPS_RANGES`
+cap is legacy-only. ✅Span is not the gap (0.988 vs 0.990 of the music covered).
+★★**MECHANISM NAMED 2026-08-18ab: STAGE-1 DOES NOT MODULATE DENSITY PER SONG.** Our nps vs the
+human's on the same song is **r = 0.046, slope 0.026** (n=144) — no measurable tracking — while
+**crude audio features predict the human's nps at R² = +0.185** (drums/s 0.414, bpm 0.396). We emit
+**3.82 ± 0.77** nps where humans span **3.75-7.00**. ⇒**The signal exists and we are not using it.**
+⬜**PROPOSED RETRAIN, deliberately NOT queued** (it is a retrain, and the density lever is still
+unjudged): an auxiliary per-song **density target** / FiLM conditioning on the song's own label
+rate. **DoD: per-song nps correlation rises from 0.046 toward the demonstrated ≈0.43 floor AND
+vocal coverage rises, at ≥3 seeds.**
+⚠️Whatever is built must not
+regress the density Kyle already accepted — he called **6.18 nps unplayable** and the current
+lever sits at 4.06.
+
+## 🔵 P1 — W1 + W4 + `follow_vocals` are ONE defect (superseded in part by P0.8)
+**W1** (can't find the tempo-carrying instrument), **W4** (phrases abandoned mid-vocal, 2.75× the
+human at n=123) and `follow_vocals` are three views of one cause. ★The clincher: redistributing
+the note budget toward an abandoned phrase **does not fill it** ⇒*you cannot select what the model
+does not propose.* ⚠️**2026-08-18j sized it**: melodic-blindness is real but **NOT sufficient** —
+we reach only **0.581** of the human even where a drum marks the vocal (vs 0.456 where none does).
+⇒Use W1 + W4 + `follow_vocals` as **one** acceptance target, and see **P0.8** for the route.
 
 ## 📦 AWAITING KYLE'S EAR — sets A and B, now answered globally
 
@@ -257,64 +238,6 @@ per-song subdiv-8 selection.** ✅**CONFIRMED 2026-08-18x on the direct test —
 **26-29 %** of the 1/4-beat slots we already have (max 33 %; human 41 %, up to 59.5 %), so we are
 **not slot-limited**; a finer grid adds slots we leave empty.** The residue is the tempo model plus **11 songs that fit NO grid
 even at the right tempo and 1/16** (BPM changes or unquantised placement).
-
-## 🔴 P0.7 — TRACK B IS ALREADY TRAINED (2026-08-18m) — evaluate, do not build
-★★`logs/beat_classifier/version_7` and **`version_8`** were trained with `instr_dim=10`
-(`instr_beat_features`: Demucs → basic-pitch on **vocals**/bass/lead, **cached on all 5,320
-songs**). **Production `version_4` has only `drum_proj` + `mix_proj`.** ⇒The melodic-blindness
-remedy exists on disk and was never evaluated at inference — plausibly because `val_f1_avg_tol`
-rates it 0.58-0.60 vs v4's 0.603, **and that is the metric the landmine list says not to trust.**
-🔴🔴**SETTLED 2026-08-18p — PARITY, NOT IMPROVEMENT. Do not promote v7/v8 for D4.** At a
-near-matched budget (thr 0.12, 736 notes vs prod 752) v8 scores **0.417 vs 0.420, p=0.665** —
-a coin flip. Its allocation is better (0.444 vs 0.410) and it doubles less, but **none of it
-reaches coverage**. ★★**The sweep found the real lever instead: the human plays 1088 notes to our
-750.** ⇒**D4 is BUDGET-dominated** — and D1 *"very slow"* + D4 + his *"play more main notes"* are
-**one lever: more notes, spent on the vocal line** (⚠️not more notes everywhere — C3, and he
-called 6.18 nps unplayable).
-🔴Earlier detail 2026-08-18n: vocal coverage v4prod **0.420** vs
-v7 0.362 (p=0.00013) and v8 0.373 (p=0.0019) on 23 songs. ★**But the features are not inert** —
-v7 lifts *allocation* (+0.020, 18/23) and v8 lifts *efficiency* and cuts doubles (+0.018, 17/23);
-both lose it to a **9-12 % smaller note budget**. ⬜**Budget-matched arms running** (v8 at
-`--beat-threshold` 0.34/0.30). ⚠️**Not a clean ablation** — v7/v8 also carry `struct_proj`; a true
-instr-only ablation is a v4-recipe retrain.
-
-## 🔴 P0.8 — D4's ONLY REMAINING ROUTE IS TRAINING-SIDE (chain closed 2026-08-18z)
-Every alternative is now eliminated by measurement: decode saturates at thr 0.25 (**5× lower buys
-+4 notes**), the 1/4-beat grid is only **26-33 %** full, Track B at matched budget is **parity**,
-and we sit **244 notes (29 %) below the human even at the floor threshold**. **Stage-1's
-probability field is nearly BINARY — no mass below 0.25.** ⇒**Make Stage-1 propose more notes**
-(loss/target/threshold-during-training), not another decode knob. ★**SCOPED 2026-08-18aa**: we
-emit **0.217** positives per (slot,hand) against a **corpus label mean of 0.245** and these songs'
-humans at **0.294** ⇒ **we are below our own training distribution AND we do not modulate per
-song.** 🔴Dead ends already checked: training is Expert/E+ only (not diluted), and the `_NPS_RANGES`
-cap is legacy-only. ✅Span is not the gap (0.988 vs 0.990 of the music covered).
-★★**MECHANISM NAMED 2026-08-18ab: STAGE-1 DOES NOT MODULATE DENSITY PER SONG.** Our nps vs the
-human's on the same song is **r = 0.046, slope 0.026** (n=144) — no measurable tracking — while
-**crude audio features predict the human's nps at R² = +0.185** (drums/s 0.414, bpm 0.396). We emit
-**3.82 ± 0.77** nps where humans span **3.75-7.00**. ⇒**The signal exists and we are not using it.**
-⬜**PROPOSED RETRAIN, deliberately NOT queued** (it is a retrain, and the density lever is still
-unjudged): an auxiliary per-song **density target** / FiLM conditioning on the song's own label
-rate. **DoD: per-song nps correlation rises from 0.046 toward the demonstrated ≈0.43 floor AND
-vocal coverage rises, at ≥3 seeds.**
-⚠️Whatever is built must not
-regress the density Kyle already accepted — he called **6.18 nps unplayable** and the current
-lever sits at 4.06.
-
-## 🔵 P1 — TRACK B: three defects are one defect
-
-**W1** (can't find the tempo-carrying instrument), **W4** (phrases abandoned mid-vocal, 2.75× the
-human at n=123) and **`follow_vocals`** (0.020 vs 0.149, **7×**) are three views of one cause:
-**Stage-1 carries only `drum_proj` + `mix_proj`** and cannot hear the melodic instruments.
-★The clincher: redistributing the note budget toward an abandoned phrase **does not fill it**
-(γ 2.5 → 1.0 closes ~17 %, note count unchanged) ⇒**you cannot select what the model does not
-propose.**
-⚠️**BUT SIZED 2026-08-18j: Track B cannot close D4 on its own.** Split by whether a drum marks the
-vocal onset, we reach **0.581** of the human where one does and **0.456** where none does
-(p=0.00034) — so the melodic-blindness story is real, **but the drum-backed 58 % is the larger
-half of the gap and Track B does not explain it.** ⚠️Does *not* revive v8 as built (its `follow_vocals` gain died at n=149) — it says the
-**target** is right. Use W1 + W4 + `follow_vocals` as **one** acceptance target, not three.
-
----
 
 ## 🎯 STANDING CONSTRAINTS + the three older objections D1–D6 does NOT cover
 
