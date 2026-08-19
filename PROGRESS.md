@@ -157,6 +157,22 @@ lane is verified only by element count (19 systems, 36 hand polylines, 12 burst 
 crossover marks — the last agreeing with the known `crossover` 0.000 audit). Pages:
 `outputs/notesheets/{fk,Hunger,AliceBlue,DigitalLifeHacker}_flow.html`.
 
+### 2026-08-18d — V5: defects become the primary record
+
+`review.py defect --song X --at 2:10 --kind drop_timing --quote "..."` and
+`review.py defects`. His words are written to the tracked ledger **first**, before any
+analysis, so a cold perception cache or an unloadable map cannot lose them; then the command
+prints what the pipeline believed at that instant — bar, section + role, distance to the nearest
+detected DROP, the HIT/WASTED/MISSED tally within 2 s, and any burst there with its motivation
+and travel. ⇒**A complaint and the measurement it contradicts land in the same place on the same
+day.** Smoke-tested at 1:06.5 on Fallen Kingdom: bar 39, section A · DROP, nearest drop −28.3 s,
+18 notes within 2 s (12 hit / 6 wasted), 6 main events missed, burst of 5 at 9.2 nps.
+⚠️**The ledger already held D1–D6 in a different, UNLOCATED schema** (2026-08-17, `code`/`phrase`,
+"ALL songs he played") — the listing reads both and prints those six as an explicit backlog, since
+converting them into located instances is the point. P1 is counted separately as the thing he said
+**works**.
+**DoD (V5): the mechanism is MET; the record is still empty of located defects** — that needs him.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

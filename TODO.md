@@ -115,11 +115,12 @@ V1+V2+V3 on a single scrollable page, published so he can open it on any device 
 scrub to a timestamp. This is the surface that replaces metric invention.
 **DoD**: he reviews a map from the page + ArcViewer and never needs a scorecard.
 
-### V5 — Defect capture, replacing arm-preference as the primary record
-`scripts/review.py` collects `--better/--worse`. He produces *"drop is late at 2:10"*.
-Add `review.py defect --song X --at 2:10 --kind drop_timing --quote "…"`, and make the
-defect list the thing that drives work.
-**DoD**: his review of a song lands in the ledger as located, typed defects.
+### V5 ✅BUILT — defect capture (`review.py defect` / `review.py defects`)
+Records his words first, then prints what we believed at that instant (bar, section, nearest
+drop, local HIT/WASTED/MISSED, the burst there). **The mechanism is done; the ledger holds
+zero located defects because that half is his.** ⇒★**Next time he plays anything, capture with
+`review.py defect` rather than prose** — and the six standing complaints (2026-08-17) are still
+unlocated, which `review.py defects` now prints as a backlog.
 
 ---
 
