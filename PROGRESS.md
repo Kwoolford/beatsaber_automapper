@@ -1201,6 +1201,34 @@ appears to "beat" correct-tempo songs. ★*The only sound comparison for a lever
 — which is the measured 0.272 → 0.493 on the same 15 songs, not a median swapped between
 populations.
 
+### 2026-08-19i — The 12 uncaught half-tempo songs are not reachable by cheap features, pre- OR post-hoc
+
+A new angle on the songs `bpm < 96` misses: detect half tempo **after** generating, from the map
+itself — a half-tempo map should under-fill relative to the audio's onsets.
+
+| post-hoc feature | missed-half | correct-tempo | AUC | catch at ≤1 false positive |
+|---|---|---|---|---|
+| notes ÷ audio onsets | 0.244 | 0.350 | 0.848 | **4/12** |
+| notes per second | 3.053 | 3.877 | 0.903 | **0**/12 |
+| audio onsets covered | 0.307 | 0.434 | 0.905 | 1/12 |
+| our notes landing on an onset | 0.919 | 0.942 | 0.543 | 0/12 |
+
+★**Respectable AUC, useless operating point.** `notes per second` separates at AUC 0.903 and
+catches **zero** at ≤1 false positive — the distributions overlap exactly where the decision has to
+be made. ⇒*AUC is not an operating point; always report the catch at the false-positive rate you
+can actually afford.*
+✅**A clean negative worth keeping**: `our notes landing on an onset` has **AUC 0.543** — no signal
+at all. ⇒**Tempo error does not hurt WHERE our notes go, only HOW MANY there are.** That is the
+same conclusion the budget analysis reached, arrived at from the detector side.
+
+**⇒The half-tempo detection problem is at its practical ceiling with cheap features:**
+- pre-hoc: **16/28** at zero false fires (raw bpm), **19/28** at one (adding a drum-gap rule)
+- post-hoc: **4** more of the remaining 12, at one false fire
+- everything else tried — onsets-per-beat, drum onsets-per-beat, notes-per-second, coverage — is
+  worse than raw bpm.
+⇒**The residue needs the real tempo model**, which 2026-08-19h prices at **+0.025 cohort-wide**.
+That is the whole decision: a tempo model buys about a fortieth of the human gap.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

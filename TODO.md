@@ -258,7 +258,11 @@ places** and drifts, so no global shift helps.
 ⚠️**Every cheap route is closed**: onset-energy balance (2026-07-27, made it worse), onset-gap
 density, ACF periodicity, a cross-validated tempogram classifier, and the `fit_tempo` tie-break
 (+1 song of 149). ⇒**What remains is a real tempo model**, with free supervision from the declared
-bpm in 5,373 corpus maps.
+bpm in 5,373 corpus maps. ⚠️**But price it first (2026-08-19h/i): it buys ~+0.025 cohort-wide on
+vocal coverage** — about a fortieth of the human gap — because `BEAT_SUBDIV_AUTO` already recovers
+16 of the 28 half-tempo songs. 🔴**Cheap detection is exhausted**: pre-hoc 16/28 at zero false
+fires, 19/28 at one; post-hoc adds only 4 of the remaining 12 (and `notes per second` has AUC 0.903
+but catches **zero** at an affordable false-positive rate — *AUC is not an operating point*).
 
 ⚠️**2026-08-18h/i — the subdivision ceiling is REAL but SMALL, and the build is NOT recommended.**
 `BEAT_SUBDIV = 4` makes our maps the 1/4-beat grid by construction and **we place zero finer notes
