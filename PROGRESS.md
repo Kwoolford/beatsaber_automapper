@@ -1158,16 +1158,16 @@ do not over-engineer it, and do not widen it.
 
 ### 2026-08-19g — `BEAT_SUBDIV_AUTO` seed-validated: +0.220 at **36× the seed noise**
 
-The 2026-08-19d result was single-seed and flagged as such. Re-run at seed 1 (seed 2 still
-generating at write-up):
+The 2026-08-19d result was single-seed and flagged as such. **All three seeds now in:**
 
 | seed | OFF | ON | delta | OFF notes | ON notes |
 |---|---|---|---|---|---|
 | 0 | 0.275 | 0.487 | +0.212 | 432 | 855 |
 | 1 | 0.270 | 0.498 | +0.228 | 420 | 869 |
-| **mean** | **0.273 ± 0.0030** | **0.492 ± 0.0080** | **+0.220** | | |
+| 2 | 0.270 | 0.495 | +0.225 | 434 | 861 |
+| **mean** | **0.272 ± 0.0027** | **0.493 ± 0.0058** | **+0.222** | | |
 
-★★**The effect is 36× the seed spread** — by far the most robust result of the session (the
+★★**The effect is 49× the seed spread at n=3** — by far the most robust result of the session (the
 `--beat-threshold` lever was 8.6×, and that was already strong). ⇒**The single-seed caveat on the
 session's biggest finding is closed.**
 

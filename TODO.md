@@ -144,8 +144,8 @@ beats, so a halved bpm shifts every gap one bucket down. **Rescaled to true temp
 timing distribution matches the human's almost exactly** (1/4: 0.499 vs 0.435; 1/16: 0.001 vs
 0.000). ⇒**The notes are fine; the labels were wrong. The only objection to this lever falls.**
 🔴**NEW LANDMINE: every beat-domain axis is unreliable on the 28 half-tempo songs.**
-✅**SEED-VALIDATED 2026-08-19g: +0.220 at 36× the seed sd** (OFF 0.273±0.003, ON 0.492±0.008
-over 2 seeds) — the most robust result of the session.
+✅**SEED-VALIDATED 2026-08-19g at 3 seeds: +0.222 = 49× the seed sd** (OFF 0.272±0.0027,
+ON 0.493±0.0058) — the most robust result of the session by a wide margin.
 ⚠️**The lever has been OFF by default the whole time** despite passing its DoD.
 ⬜**Do NOT flip it unilaterally — it needs his ear**, and ⬜`idiom`'s collapse needs its own
 investigation (at subdiv 8 the note-type mix changes with the density; the axis may be reading
