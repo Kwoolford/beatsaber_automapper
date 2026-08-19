@@ -1091,6 +1091,37 @@ along with the density and the axis may simply be reading the density change.
 ✅The trigger's precision is what makes this safe to consider at all: **0 false fires in 121
 non-half-tempo songs** (2026-08-19c).
 
+### 2026-08-19e — ★★`idiom`'s collapse is a MEASUREMENT ARTIFACT of our halved bpm — the only objection to the biggest lever falls
+
+An idiom is `(dx, dy, dir_from, dir_to, dt_class)` and **`dt` is measured in the MAP'S OWN BEATS**
+(`idiom.py:101`, `dt = b.beat - a.beat`). On a half-tempo map our beat numbers are **half** the
+true ones, so every gap lands one bucket too low. Transition distribution over the 15 songs:
+
+| | stack | 1/16 | 1/8 | 1/4 | slow |
+|---|---|---|---|---|---|
+| OFF, map's own beats | 0.000 | 0.003 | 0.392 | 0.405 | 0.200 |
+| **ON, map's own beats** | 0.001 | **0.302** | 0.470 | 0.167 | 0.061 |
+| **ON, rescaled to TRUE bpm** | 0.000 | **0.001** | **0.322** | **0.499** | 0.177 |
+| **human (their own bpm)** | 0.022 | **0.000** | **0.361** | **0.435** | 0.182 |
+
+★★**Rescaled to the true tempo, the ON arm's timing distribution matches the human's almost
+exactly.** Unrescaled it shows **30 % of transitions in a bucket the human never uses (1/16)** —
+which is precisely what drove `idiom` 0.663 → 2.955. ⇒**The notes are in human-like physical
+positions; the LABELS were computed against a wrong tempo.**
+⇒**The `idiom` regression is not a defect in the maps and is not a reason to reject
+`BEAT_SUBDIV_AUTO`.** Every axis that *improved* (alignment, rhythm, flow) measures physical
+timing and is unaffected by the mislabelling.
+
+⚠️**CORRECTION to my own prediction one step earlier**: I expected the gaps to fall into the
+**stack** bucket (`dt ≤ 0.126`). Measured, they land in **1/16** (0.126-0.26). The mechanism —
+a one-bucket shift from the halved bpm — is confirmed; my specific bucket was wrong.
+
+🔴🔴**NEW LANDMINE, and it is broader than this lever: EVERY BEAT-DOMAIN AXIS IS UNRELIABLE ON THE
+28 HALF-TEMPO SONGS**, because they all bucket by the map's own beats. `idiom` is simply the one
+that shows it loudest. ⇒When a beat-domain axis moves on a cohort containing tempo errors, check
+whether the bpm moved first. (This is `C4` — *"every beat-domain result predates the tempo fix"* —
+arriving from a new direction.)
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

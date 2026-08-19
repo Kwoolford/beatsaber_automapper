@@ -139,7 +139,11 @@ the anti-correlation.
 On the 15 half-tempo songs its trigger fires on: **vocal coverage 0.275 → 0.487 (+0.216, 15/15
 songs, p=6e-05)**, notes 432 → 855, **precision unchanged**. Those songs go from worst-in-cohort to
 better than the correct-tempo group. **alignment 0.589 → 0.237** (crosses its bar), rhythm and flow
-much better. 🔴**But `idiom` collapses 0.663 → 2.955 (4.5×, well beyond its seed spread).**
+much better. ✅**AND `idiom`'s collapse IS AN ARTIFACT (2026-08-19e)** — `idiom` buckets `dt` in the map's own
+beats, so a halved bpm shifts every gap one bucket down. **Rescaled to true tempo the ON arm's
+timing distribution matches the human's almost exactly** (1/4: 0.499 vs 0.435; 1/16: 0.001 vs
+0.000). ⇒**The notes are fine; the labels were wrong. The only objection to this lever falls.**
+🔴**NEW LANDMINE: every beat-domain axis is unreliable on the 28 half-tempo songs.**
 ⚠️**The lever has been OFF by default the whole time** despite passing its DoD.
 ⬜**Do NOT flip it unilaterally — it needs his ear**, and ⬜`idiom`'s collapse needs its own
 investigation (at subdiv 8 the note-type mix changes with the density; the axis may be reading
