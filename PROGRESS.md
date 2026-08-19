@@ -1320,6 +1320,34 @@ one shared counter filled the quota before blue was reached. Budget is now **per
 ⇒**The review ladder is now `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]`, each step adding exactly
 one thing.**
 
+### 2026-08-19m — `agent_mapper/chains.py`: chains ARE additive, and the parity check is weaker than it looks
+
+⚠️**CORRECTION to `arcs.py`'s stated assumption one step earlier.** It says a chain "turns a note
+into a head plus segments" and so cannot be additive. **Measured: 678 of 678 human chain heads
+also exist as a `colorNote` — 100 %.** The note stays and the chain extends the same swing, so
+chains *are* additive in the data. ★*The claim was made from how chains behave in play, not from
+what the format does — check the file before ruling a change out.*
+
+**Built to the measured vocabulary** (51 v3 maps, 25 with chains): 16 per map (human median 16),
+span **0.0620 beats** (human 0.062), slices 4 or 5 (human 51 % / 35 %), heads **16/16 on real
+notes** (human 100 %), placed only where the lane is clear for 0.5 beats after the head, budgeted
+**8 per hand**. Notes byte-identical.
+
+🔴🔴**AND THE PARITY CHECK DOES NOT VALIDATE THE CHAINS.** `swing_sim` reports **0 violations and
+913 swings both with and without them** — identical, because `swing_sim.py` never references
+`burstSliders` at all (`beatmap.py` parses them into `burst_sliders`; the simulator ignores that
+field). ⇒**What is verified is that the NOTES are still legal — which was already guaranteed by
+them being byte-identical. Nothing has verified that the chains themselves are comfortable to
+play.** ★*A checker that returns the same number with and without your change has not checked your
+change.*
+✅Installed anyway as `AUTO … [CHAINS]` for Fallen Kingdom and アリスブルー, **with that caveat
+stated**: the risk is low (chains are swept through, and every note is unchanged) but it is
+unvalidated, and he should be told rather than discovering it in a headset.
+
+⇒**Review ladder, one change per rung**: `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]` (+arcs)
+→ `[CHAINS]`.
+⬜**Open**: `swing_sim` has no chain model. Until it does, chains cannot be scored, only played.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

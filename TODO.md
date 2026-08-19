@@ -301,7 +301,12 @@ changes, and document like crazy."* One lever at a time, ≥3 seeds, nothing pro
   median span 1.00 beat, 48/48 anchored on real notes, per-hand 24/24). Installed as `[FULL]`
   (= DENSER + walls + arcs) for Fallen Kingdom and アリスブルー.
   ⇒**Review ladder: `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]`, one change per step.**
-  ⬜**CHAINS still unbuilt, and now with a REASON to build them**: a chain is one swing carrying
+  ✅**CHAINS BUILT 2026-08-19m** (`agent_mapper/chains.py`) — **they ARE additive** (678/678 human
+  chain heads coexist with a note), 16/map, span 0.062, 4-5 slices, notes byte-identical, installed
+  as `[CHAINS]`. 🔴**But `swing_sim` IGNORES `burstSliders`** — it returns 913 swings and 0
+  violations with *and* without them ⇒ **the chains are UNVALIDATED for playability**; only the
+  notes were checked. ⬜**Give `swing_sim` a chain model** before chains can be scored.
+  ⬜Original reason to build them: a chain is one swing carrying
   4 segments — **density with no new distinct time**, which is exactly what we buy with doubles
   (39.6 % vs human 20.7 %, costing 21 % of the vocal budget). ⚠️Chains alter notes, so they must
   clear the swing simulator before shipping.
