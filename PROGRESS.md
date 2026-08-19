@@ -836,6 +836,39 @@ all 23 songs to measure the tail directly: if the note count still does not move
 essentially **no probability mass** below 0.25 and the decode route is closed by measurement
 rather than by inference.
 
+### 2026-08-18z — ★★THE DECODE ROUTE IS CLOSED BY MEASUREMENT: Stage-1's probability field is nearly binary
+
+| threshold | notes | vs 0.40 | vocal coverage |
+|---|---|---|---|
+| 0.40 (production) | 752 | — | 0.420 |
+| **0.25** | **840** | **+11.7 %** | **0.454** |
+| 0.15 | 839 | +11.6 % | 0.462 |
+| **0.05** | **844** | **+12.2 %** | 0.463 |
+| human | **1088** | **+44.7 %** | 0.692 |
+
+★★**Cutting the threshold 5× from 0.25 to 0.05 buys +4 notes (+0.5 %).** Everything the decode
+can give arrives by 0.25; **below that Stage-1 has essentially NO probability mass.** The field is
+close to binary — slots are either confidently on or confidently off.
+★**Even at the floor threshold we are 244 notes (29 %) below the human.** ⇒**No decode setting
+reaches human density. The decode route to D4 is closed by measurement, not by inference.**
+
+**The chain for D4 is now complete, and every link is measured:**
+1. **Confirmed** — we play 0.385 of the sung line, the human 0.743, at **2.5× the human-human
+   spread** (n=144).
+2. **Budget-dominated** — the gap factorises as note count **0.669** × efficiency **0.791**.
+3. **Track B is parity, not a fix** — a model handed the vocal line explicitly scores the same at
+   matched budget.
+4. **The threshold gives +88 notes, then saturates** — and on **9 of 23 songs it gives nothing**,
+   those being the songs furthest below their human.
+5. **The grid is not the constraint** — we fill 26-33 % of the 1/4-beat slots we already have.
+6. **The probability field has no tail** — this entry.
+⇒**The only route left is training-side: make Stage-1 PROPOSE more.** Same principle as W1/W4
+(*you cannot select what the model does not propose*), now established for the note budget by
+elimination of every alternative.
+
+✅**And `--beat-threshold 0.25` is confirmed as THE operating point** — it captures the entire
+available gain, and everything below it is free of both benefit and (mostly) cost.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

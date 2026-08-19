@@ -278,6 +278,15 @@ both lose it to a **9-12 % smaller note budget**. ⬜**Budget-matched arms runni
 `--beat-threshold` 0.34/0.30). ⚠️**Not a clean ablation** — v7/v8 also carry `struct_proj`; a true
 instr-only ablation is a v4-recipe retrain.
 
+## 🔴 P0.8 — D4's ONLY REMAINING ROUTE IS TRAINING-SIDE (chain closed 2026-08-18z)
+Every alternative is now eliminated by measurement: decode saturates at thr 0.25 (**5× lower buys
++4 notes**), the 1/4-beat grid is only **26-33 %** full, Track B at matched budget is **parity**,
+and we sit **244 notes (29 %) below the human even at the floor threshold**. **Stage-1's
+probability field is nearly BINARY — no mass below 0.25.** ⇒**Make Stage-1 propose more notes**
+(loss/target/threshold-during-training), not another decode knob. ⚠️Whatever is built must not
+regress the density Kyle already accepted — he called **6.18 nps unplayable** and the current
+lever sits at 4.06.
+
 ## 🔵 P1 — TRACK B: three defects are one defect
 
 **W1** (can't find the tempo-carrying instrument), **W4** (phrases abandoned mid-vocal, 2.75× the
