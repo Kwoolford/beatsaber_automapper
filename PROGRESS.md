@@ -705,6 +705,35 @@ established**; it needs the third `thr 0.25` seed (generating) before anyone cal
 handrole**. ⇒Still a trade, and still Kyle's call — but now the trade is stated in units that
 survive a re-run.
 
+### 2026-08-18u — FINAL, 3 seeds per arm: one robust gain, one robust cost, everything else is noise
+
+| axis | prod (3 seeds) | thr 0.25 (3 seeds) | delta | in sd | verdict |
+|---|---|---|---|---|---|
+| **vocal coverage** | 0.423 ± 0.002 | **0.452 ± 0.004** | **+0.029** | **8.6×** | ★**BETTER** |
+| **playfeel** | 0.720 ± 0.029 | 0.842 ± 0.029 | +0.122 | **4.2×** | 🔴**WORSE** |
+| rhythm | 0.445 ± 0.039 | 0.319 ± 0.107 | −0.126 | 1.6× | probably better |
+| alignment | 0.326 ± 0.125 | 0.464 ± 0.144 | +0.139 | **1.0×** | **no effect** |
+| flow | 0.414 ± 0.154 | 0.447 ± 0.043 | +0.033 | 0.3× | no effect |
+| idiom | 0.574 ± 0.109 | 0.531 ± 0.124 | −0.043 | 0.4× | no effect |
+| handrole | 1.161 ± 0.087 | 1.128 ± 0.067 | −0.033 | 0.4× | no effect |
+
+🔴🔴**BOTH of my single-seed claims about this lever were wrong, in OPPOSITE directions**, and the
+third seed settles it:
+1. 2026-08-18r: *"zero precision cost"* — a coarse proxy, not the axis.
+2. 2026-08-18s: *"alignment 0.263 PASS → 0.515 FAIL"* — at 3 seeds the difference is **1.0× sd,
+   i.e. NO EFFECT**. The third seed pulled thr25's alignment from 0.546 to a 0.464 mean.
+★**The lesson is not "I was careless twice", it is the project's standing rule earning its keep:
+score every arm at ≥3 seeds and quote the sd.** An axis that swings 0.296-0.588 between seeds of
+one arm cannot adjudicate a 0.14 difference between arms.
+
+✅**THE LEVER, FINAL**: `--beat-threshold 0.25` buys **+0.029 vocal coverage at 8.6× the seed sd**
+for **+0.122 playfeel at 4.2× sd** — and playfeel stays **inside its bar** (0.842 vs 1.00), so
+nothing newly fails. Everything else is noise.
+⚠️**Bar verdicts are separately unstable**: prod's own alignment is 0.326 ± 0.125 and hit 0.470 at
+seed 1, so *neither* arm has a stable alignment PASS/FAIL. Read arm-vs-arm deltas, not bar flags.
+⇒**Ready for Kyle's ear**: `outputs/trackb/v4t0.25__*.zip`, 23 songs. It is the first lever this
+session with a robust gain on the biggest defect and a known, bounded price.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

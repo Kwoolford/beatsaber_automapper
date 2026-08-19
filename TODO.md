@@ -130,7 +130,11 @@ unlocated, which `review.py defects` now prints as a backlog.
 On production v4, threshold 0.40 → **0.25** lifts **vocal coverage 0.420 → 0.454** (paired
 +0.0158, **20/23 songs, p=8e-05**) via **+88 notes at ZERO precision cost**, with **0/23 songs
 above the 6.18 nps Kyle called unplayable** (median 4.06) and no `map_metrics` axis degrading.
-★**SEED-VALIDATED 2026-08-18t**: coverage **+0.031 = 13× the seed sd** (prod 0.423±0.0024 →
+✅**FINAL AT 3 SEEDS (2026-08-18u): +0.029 vocal coverage at 8.6× sd, for +0.122 playfeel at
+4.2× sd (still inside its 1.00 bar). EVERYTHING ELSE — including alignment — IS SEED NOISE.**
+🔴Both my single-seed claims (first "free", then "costs alignment") were wrong in opposite
+directions. ⬜**Next: install for his ear.**
+Earlier reads 2026-08-18t: coverage **+0.031 = 13× the seed sd** (prod 0.423±0.0024 →
 0.454±0.0008); **rhythm better 3.9× sd**; **playfeel worse 3.9× sd**; alignment worse 1.8× sd
 (needs seed 3); **flow/idiom/handrole: no effect** — 🔴**my earlier "flow FAIL→PASS" was SEED
 NOISE** (prod flow ranges 0.296–0.588 across seeds).
