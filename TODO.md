@@ -135,6 +135,16 @@ correct the *definition* — a metric he has endorsed by looking at it is a diff
 one built from first principles, and building those from first principles is exactly what produced
 the anti-correlation.
 
+## 🟢 P0.55 — ★★THE BIGGEST LEVER FOUND: `BEAT_SUBDIV_AUTO=1` (2026-08-19d)
+On the 15 half-tempo songs its trigger fires on: **vocal coverage 0.275 → 0.487 (+0.216, 15/15
+songs, p=6e-05)**, notes 432 → 855, **precision unchanged**. Those songs go from worst-in-cohort to
+better than the correct-tempo group. **alignment 0.589 → 0.237** (crosses its bar), rhythm and flow
+much better. 🔴**But `idiom` collapses 0.663 → 2.955 (4.5×, well beyond its seed spread).**
+⚠️**The lever has been OFF by default the whole time** despite passing its DoD.
+⬜**Do NOT flip it unilaterally — it needs his ear**, and ⬜`idiom`'s collapse needs its own
+investigation (at subdiv 8 the note-type mix changes with the density; the axis may be reading
+that). ⬜The **13 half-tempo songs with bpm ≥ 95 are missed entirely** by the trigger.
+
 ## 🟢 P0.6 — ★THE POSITIVE LEVER, VALIDATED AND AWAITING HIS EAR: `--beat-threshold 0.25`
 Production v4, threshold 0.40 → **0.25**. **At 3 seeds: vocal coverage +0.029 (8.6× the seed sd),
 playfeel +0.122 worse (4.2× sd, still inside its 1.00 bar); everything else — flow, idiom,

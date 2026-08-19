@@ -1052,6 +1052,45 @@ via a note budget that stops being halved. ⚠️Check precision does not pay fo
 subdivision is measured harmful on *correct*-tempo songs (−0.127), which is exactly why the
 trigger's 0 % false-fire rate matters.
 
+### 2026-08-19d — ★★★`BEAT_SUBDIV_AUTO` IS THE BIGGEST MEASURED EFFECT OF THE SESSION — and it breaks `idiom`
+
+15 half-tempo songs the trigger fires on, generated with the lever **off vs on**:
+
+| | OFF | ON | human |
+|---|---|---|---|
+| **vocal coverage** | 0.275 | **0.487** | 0.800 |
+| notes | 432 | **855** | 952 |
+| on-any-onset precision | 0.959 | **0.966** | 0.972 |
+
+★★**+0.216 vocal coverage, better on 15 of 15 songs (p = 6.1e-05), with the note count nearly
+doubling (+381) and precision unchanged (p = 0.978).** ⇒**These songs go from the worst in the
+cohort (0.275) to BETTER than the correct-tempo group (0.410).** For scale, the whole
+`--beat-threshold` lever was +0.029.
+
+**But the six axes say it is a trade, not a free win:**
+
+| axis | OFF | ON | bar | |
+|---|---|---|---|---|
+| **alignment** | 0.589 | **0.237** | 0.39 | ★crosses its bar the RIGHT way |
+| rhythm | 0.594 | **0.247** | 0.70 | ★much better |
+| flow | 1.136 | **0.682** | 0.50 | better (still over bar) |
+| handrole | 1.135 | 1.415 | 2.00 | worse, still under bar |
+| playfeel | 1.147 | 1.454 | 1.00 | worse |
+| **idiom** | 0.663 | **2.955** | 1.00 | 🔴**collapses — 4.5×** |
+
+★**Everything timing-shaped improves dramatically** — which is exactly what should happen when a
+map stops being written on a half-speed grid. 🔴**And `idiom` collapses by 4.5×**, far beyond the
+seed spread measured for that axis elsewhere (sd 0.109-0.124), so it is real, not noise.
+
+⇒**RECOMMENDATION: do NOT flip the default unilaterally.** This is the largest lever found, it
+fixes the *cause* of D4 on 19 % of the corpus, and it wrecks one axis. **It needs his ear** — and
+`idiom`'s collapse needs its own look, because at subdiv 8 the note-type distribution changes
+along with the density and the axis may simply be reading the density change.
+⚠️Single seed, n=15, and all 15 are half-tempo-and-trigger-firing — this says nothing about the
+**13 half-tempo songs the trigger misses** (bpm ≥ 95), which remain broken.
+✅The trigger's precision is what makes this safe to consider at all: **0 false fires in 121
+non-half-tempo songs** (2026-08-19c).
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
