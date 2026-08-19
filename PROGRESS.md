@@ -903,6 +903,48 @@ denser than average" is **across samples, not paired** — plausible, not establ
 ✅Span is **not** part of the gap: we cover 0.988 of the music's extent vs the human's 0.990
 (p = 0.737), with matching lead-in and tail. **The deficit is rate, not coverage.**
 
+### 2026-08-18ab — ★★STAGE-1 DOES NOT MODULATE DENSITY PER SONG AT ALL (r = 0.05), AND THE SIGNAL EXISTS
+
+**Is per-song density predictable from the audio?** 5-fold CV ridge on 8 crude features (per-stem
+onset rates, bpm, duration, onsets-per-beat), n=144, against the trivial baseline:
+
+| predictor | CV MSE |
+|---|---|
+| trivial baseline (predict the mean) | 1.858 |
+| ridge on 8 audio features | **1.515** |
+| **R² over the baseline** | **+0.185** |
+
+Strongest features: **drums/s r = 0.414**, **bpm r = 0.396**, union/s 0.314, vocals/s 0.246.
+
+**Does our model use that signal?**
+
+| | mean nps | sd | p10 | p90 | range |
+|---|---|---|---|---|---|
+| ours | 3.82 | **0.77** | 2.84 | 4.93 | 3.86 |
+| human | 5.22 | **1.34** | 3.75 | 7.00 | 8.94 |
+
+🔴🔴**Our nps correlates with the human's on the same song at r = 0.046** — slope **0.026**, i.e.
+**indistinguishable from zero at n=144.** Our spread is **0.57×** theirs.
+★★**So Stage-1 emits a near-constant density regardless of the song, while a linear model on eight
+hand-made numbers explains 18 % of the human's per-song variance — and Stage-1 has MERT features,
+which are far richer.** ⇒**This is not "density is unpredictable". It is "we are not predicting
+it."**
+
+⚠️Honest bounds: r = 0.046 at n = 144 has a 95 % CI of roughly ±0.16, so the claim is **"no
+measurable tracking"**, not "exactly zero". Part of the human's spread is mapper taste that no
+model can recover, so the ceiling is **not** r = 1 — but R² = 0.185 from crude features is a
+demonstrated floor on what is available, and we are far below it. ⚠️Our note-budget saturation
+(2026-08-18z) mechanically compresses our variance, so some of the 0.57× is a consequence of the
+ceiling rather than an independent defect.
+
+### ⬜PROPOSED EXPERIMENT (not queued — it is a retrain, and the density lever is still unjudged)
+**Give Stage-1 a per-song density target and make it predict this song's rate.** Concretely: an
+auxiliary head (or FiLM conditioning) on the *song's own* label rate, trained alongside the
+existing BCE; at inference, feed the predicted rate. **DoD**: per-song nps correlation with the
+human rises from **r = 0.046** toward the demonstrated **r ≈ 0.43** floor, **and** vocal coverage
+rises from 0.423 without a playfeel regression beyond the +0.122 the threshold lever already
+costs. ⚠️Score at **≥3 seeds** — a single seed cannot see an effect this size (2026-08-18t).
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
