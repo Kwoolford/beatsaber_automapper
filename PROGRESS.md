@@ -283,6 +283,42 @@ being mathematically aligned. **That is a groove hypothesis and nothing here tes
 but across 100 songs we place **fewer** 16ths than humans, so that is a property of that song,
 not of the generator. ★*The cohort inverted the per-song lead; a 4-song pattern is a hypothesis.*
 
+### 2026-08-18h — The groove hypothesis is REFUTED, my measurement domain was the artifact, and a real capability ceiling falls out
+
+**The hypothesis** (from 2026-08-18g): a swung song needs notes at triplet positions and we can only
+place straight ones, which would feel *"slightly off beat"*.
+🔴🔴**REFUTED, and by the better measurement.** In the **raw beat domain**: **0 of 116 human maps
+place >1 % of notes on triplet subdivisions**, and on his four songs the human is on the 1/4-beat
+grid 96-100 % of the time. Humans do not swing these maps.
+
+★★**THE METHOD WAS THE BUG, and it is the lesson worth keeping.** The triplet signal came from a
+phase histogram computed in **seconds** (`beat × 60/bpm`), which smears any map carrying a **BPM
+change** — `_zip_bpm` returns one value for the whole file. Human mass appeared at bins 7, 9, 16,
+19, 21 and looked like swing. ⇒**Measure in the domain the data is AUTHORED in.** Beat values are
+exact; seconds are derived and carry every tempo assumption with them.
+✅**Re-checked 2026-08-18g in the beat domain and its conclusion SURVIVES**: we are more on-beat
+(0.5648 vs 0.5257) and place fewer 16ths (1/4: −0.0161, p = 0.0002; 3/4: −0.0283, p = 0.00034).
+The artifact hit the *fine* bins only, so **D2's refutation stands unchanged**.
+
+★★**AND THE EXACT MEASUREMENT FOUND SOMETHING BETTER — A HARD QUANTISATION CEILING:**
+
+| | share of notes finer than a 1/4 beat |
+|---|---|
+| human maps | median **0.0386**, and **131 of 144 maps use them at all** |
+| **ours** | **0.0000 — on 0 of 144 songs, ever** |
+
+Paired **p = 3e-23**, and it is not a statistical claim so much as a structural one: **`BEAT_SUBDIV
+= 4`** (`data/mert_encoder.py:45`) means Stage-1's slots *are* the 1/4-beat grid, so no finer note
+can be emitted by construction. **91 % of human maps use positions our representation cannot
+express.**
+⚠️Honest reading of the tail: the human p90 of 1.0 means some human maps sit entirely off our grid,
+which is a **bpm-relationship artifact** (a mapper declaring half our bpm puts everything on our
+1/8). The median 3.9 % is the trustworthy central number. What is not an artifact is **our 0.0000
+on every single song**.
+⇒**This converts a "next build" idea into a measured need.** Raising it globally is already
+REFUTED (subdiv 8 wrecks correct-tempo songs, precision −0.127); the open route was, and now has
+evidence for, **picking the subdivision per song AFTER `BEAT_TEMPO_FIT`**.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

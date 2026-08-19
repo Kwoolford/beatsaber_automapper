@@ -223,6 +223,13 @@ density, ACF periodicity, a cross-validated tempogram classifier, and the `fit_t
 (+1 song of 149). ⇒**What remains is a real tempo model**, with free supervision from the declared
 bpm in 5,373 corpus maps.
 
+★★**NEW EVIDENCE 2026-08-18h — the subdivision item now has a measured need behind it.**
+`BEAT_SUBDIV = 4` means our maps are the 1/4-beat grid **by construction**: measured in the exact
+beat domain, **131 of 144 human maps place notes finer than a 1/4 beat (median 3.9 % of their
+notes) and we place ZERO on 0 of 144 songs** (p = 3e-23). Global subdiv 8 stays REFUTED
+(precision −0.127 on correct-tempo songs) ⇒**per-song subdivision chosen AFTER `BEAT_TEMPO_FIT`
+is the build**, and it is no longer speculative.
+
 ## 🔵 P1 — TRACK B: three defects are one defect
 
 **W1** (can't find the tempo-carrying instrument), **W4** (phrases abandoned mid-vocal, 2.75× the
