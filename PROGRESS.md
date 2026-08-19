@@ -984,6 +984,32 @@ read as one instrument. The signature device is a **measurement track per defect
 ours · human band), which is the literal shape of the session's argument.
 ⚠️Source is in the scratchpad, not the repo — republishing the same path keeps the URL.
 
+### 2026-08-19b — V4 completed: one page per song, per arm, with the lever made VISIBLE
+
+Rendered all four standing songs × both arms with every lane the suite now has (score + overlay +
+FLOW + polyphonic LEAD + embedded audio): `outputs/notesheets/{FallenKingdom,Hunger,AliceBlue,
+DigitalLifeHacker}_{BASE,DENSER}.html`.
+
+★**The pages show the density lever working, in the one colour that matters** — amber MISSED marks
+are main events with no note on them:
+
+| song | map notes BASE → DENSER | **MISSED** BASE → DENSER |
+|---|---|---|
+| Fallen Kingdom | 752 → **913** | 567 → **506** |
+| アリスブルー | 824 → **925** | 861 → **837** |
+| Hunger | 1324 → 1380 | 918 → 905 |
+| Digital Life Hacker | 1036 → 1047 | 830 → 820 |
+
+⇒**The gain is legible as amber gaps closing, not as a number** — which is the entire point of the
+visibility suite. Fallen Kingdom is where it is most visible, matching where the lever has the most
+room (2026-08-18v).
+✅**The chords gate is visible too and behaves**: LEAD carries **2188 / 1696** polyphonic notes on
+Fallen Kingdom / アリスブルー (adopted) against **440 / 313** on Hunger / Digital Life Hacker
+(refused, still our salience peak).
+**V4's DoD** — *he reviews a map from the page and never needs a scorecard* — is now buildable
+against; only his looking remains. ⚠️Still unopened in a browser (no browser on this box); both
+Fallen Kingdom pages sent to him directly.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

@@ -97,7 +97,12 @@ so the lane is verified only by element count. ⚠️Open inside it:
   which is D6, and needs his definition of main. **Ask him at a shaded bar: "is this one of the
   random bursts?"** That question is now askable, which it was not yesterday.
 
-### V4 — One page per song
+### V4 ✅BUILT — one page per song, per arm
+`outputs/notesheets/<Song>_{BASE,DENSER}.html` for all four standing songs: score + overlay + FLOW
++ polyphonic LEAD + audio. ★**The density lever is visible as amber MISSED marks closing**
+(Fallen Kingdom 567 → 506). ⬜Only his looking remains; ⬜none are published (needs his approval).
+
+### V4 — original spec
 V1+V2+V3 on a single scrollable page, published so he can open it on any device and
 scrub to a timestamp. This is the surface that replaces metric invention.
 **DoD**: he reviews a map from the page + ArcViewer and never needs a scorecard.
