@@ -253,7 +253,9 @@ on 0 of 144 songs**, while **131 of 144 human maps use them** — but only for a
 their notes, and **96.9 % of a human's notes already fit our grid**. Sized properly (2026-08-18i):
 of the 49 songs whose human map misfits, **subdiv 8 rescues 12, of which 8 are the half-tempo
 group `BEAT_SUBDIV_AUTO` already handles ⇒ a marginal prize of ~4 songs in 144.** 🔴**Do not build
-per-song subdiv-8 selection.** The residue is the tempo model plus **11 songs that fit NO grid
+per-song subdiv-8 selection.** ✅**CONFIRMED 2026-08-18x on the direct test — we use only
+**26-29 %** of the 1/4-beat slots we already have (max 33 %; human 41 %, up to 59.5 %), so we are
+**not slot-limited**; a finer grid adds slots we leave empty.** The residue is the tempo model plus **11 songs that fit NO grid
 even at the right tempo and 1/16** (BPM changes or unquantised placement).
 
 ## 🔴 P0.7 — TRACK B IS ALREADY TRAINED (2026-08-18m) — evaluate, do not build

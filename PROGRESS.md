@@ -789,6 +789,33 @@ duration 0.243, onset density −0.178, our nps −0.184. The direction of the s
 least sensible (saturated songs are slower: median **120 vs 161 bpm**, so fewer 1/4-beat slots per
 second), but r = 0.27 at n = 23 is **not resolvable** and must not be treated as a finding.
 
+### 2026-08-18x — The 1/4-beat grid is NOT the ceiling: subdivision confirmed dead, for the right reason
+
+If saturated songs were running out of slots, the subdivision question (closed 2026-08-18i on a
+*different* test — whether the human's map fits our grid) would deserve reopening. It does not.
+
+**Share of available 1/4-beat slots holding a note:**
+
+| group | thr 0.40 | thr 0.15 | human |
+|---|---|---|---|
+| saturated (n=9) | 0.284 | 0.290 | 0.430 |
+| responsive (n=14) | 0.246 | 0.270 | 0.382 |
+| **all** | **0.268** | 0.277 | **0.411** |
+
+★**We never exceed 33 % occupancy on any song** (max 0.328); the human reaches **0.595** and
+exceeds 50 % on 3 of 23. **0 of 23 of our maps pass 50 %.** ⇒**There is no shortage of slots — we
+leave two thirds of the existing grid empty.** A finer grid would add slots we are not using.
+✅**Subdivision is confirmed dead as a lever, now on the direct test**: 2026-08-18i showed a finer
+grid does not help *represent the human's notes*; this shows we are **not slot-limited at all**.
+Two independent routes, same answer. ⇒**The constraint is Stage-1's probability mass, exactly as
+2026-08-18w concluded.**
+
+⚠️**A correlation to record but not to believe**: growth-vs-occupancy at thr 0.40 is **r = −0.779**
+(denser maps saturate). It is **partly mechanical** — `notes@0.40` sits in the numerator of
+occupancy and the denominator of growth — so it is descriptive, not evidence of a probability-mass
+story. ★It is still a far better *descriptor* of which songs saturate than bpm (r = 0.273), which
+is what 2026-08-18w went looking for and failed to find.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
