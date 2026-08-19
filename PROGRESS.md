@@ -518,6 +518,32 @@ to production**, isolating whether v8's efficiency gain becomes coverage once th
 Log `logs/overnight/trackb2_2026-08-19.log`, arms `outputs/trackb/v8t*__*.zip`.
 **DoD**: at a note count within ~5 % of v4prod's 752, does v8's coverage beat 0.420?
 
+### 2026-08-18o — Budget-matching Track B: the threshold knob CANNOT recover the note count
+
+Ran v8 at `--beat-threshold` 0.34 and 0.30 (default 0.40) to match production's note budget:
+
+| arm | coverage | notes | allocation | efficiency | on-any-onset |
+|---|---|---|---|---|---|
+| **v4prod** | **0.420** | **752** | 0.410 | 0.658 | 0.953 |
+| v8instr (0.40) | 0.373 | 685 | 0.441 | 0.679 | 0.939 |
+| v8t0.34 | 0.396 | 694 | **0.444** | 0.674 | 0.952 |
+| v8t0.30 | 0.405 | 704 | 0.441 | 0.665 | 0.944 |
+| human | 0.692 | — | — | — | 0.979 |
+
+🔴**The knob barely moves the budget: 0.40 → 0.30 buys only +19 notes (685 → 704), against the
+48 still needed.** ⇒**The note-count deficit is a property of v8's probability distribution, not
+of where the cut point sits** — the mass is concentrated, so lowering the threshold admits few new
+slots. *A budget difference you cannot reach with a threshold is not a decode difference.*
+★**Coverage rises monotonically with the recovered budget** (0.373 → 0.396 → 0.405) and the gap to
+production shrinks (−0.046 → −0.031 → −0.023; p 0.002 → 0.033 → **0.052**), so the budget really
+does explain most of the deficit. ⚠️**But the budget was never actually matched, so "v8 would win
+at equal budget" is an EXTRAPOLATION, not a measurement.** At best the trend points at parity, not
+at a win.
+✅**Precision is not being paid**: on-any-onset 0.939-0.953 across all arms (human 0.979), so the
+extra notes land on real events, and **v8's better vocal allocation (0.441-0.444 vs 0.410) holds
+at every threshold.**
+**Running**: thresholds 0.20 and 0.12, to find out whether the budget can be reached at all.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
