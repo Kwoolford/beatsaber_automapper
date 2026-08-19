@@ -945,6 +945,32 @@ human rises from **r = 0.046** toward the demonstrated **r ≈ 0.43** floor, **a
 rises from 0.423 without a playfeel regression beyond the +0.122 the threshold lever already
 costs. ⚠️Score at **≥3 seeds** — a single seed cannot see an effect this size (2026-08-18t).
 
+### 2026-08-18ac — 🔴D3's PROPOSED FIX IS BACKWARDS: `structure.py` knows LESS about where the drops are than our map does
+
+TODO has carried D3 as *"directly actionable now — `structure.py` finds sections and marks
+`DROP`/`build`/`breakdown`, and the generator does not use any of it."* **Tested against the
+human-density-jump oracle (2026-08-18f), that is the wrong way round.**
+
+**Fair comparison — each source commits to exactly 3 candidate times, so the nulls match:**
+
+| source | matched | rate | null | lift |
+|---|---|---|---|---|
+| `structure.py` DROP/peak starts | 14/54 | 0.259 | 0.113 | **+0.146** |
+| **our map's own density jumps** | 24/63 | **0.381** | 0.113 | **+0.268** |
+| two different humans | — | 0.49 | ~0.13 | ≈ +0.36 |
+
+★★**The generator already locates the human's structural moves nearly twice as well as the
+detector it is supposed to be taught by.** ⇒**Wiring `structure.py`'s drops into the generator
+would move D3 in the wrong direction.** The D3 fix is *not* "use the sections we already have".
+
+⚠️**A trap this ran into first**: comparing all section boundaries (not just DROP/peak) gave the
+detector **0.433** against our map's **0.381** — apparently better. But its null was **0.230** vs
+our **0.113**, because more candidate times make hits easier. ★*When two detectors offer different
+numbers of guesses, compare lift over their own nulls, never raw hit rate.*
+⚠️n = 18-21 songs / 54-63 jumps, and `structure.py`'s role labels are coarse by its own docstring
+(*"deliberately coarse"*). This refutes the proposed fix; it does not prove the detector useless
+for other purposes (its section *repeats* passed a held-out test at p = 0.019).
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
