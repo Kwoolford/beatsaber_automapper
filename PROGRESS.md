@@ -578,6 +578,63 @@ vocals"* (D4) plus *"I'd like the general beat parts to be faster and play more 
 thinning costs rhythm, and he called 6.18 nps unplayable — so the target is **more notes on the
 main line, not more notes everywhere.**
 
+### 2026-08-18q — The human has no "vocal strategy" — they simply play MORE, everywhere
+
+If D4 is budget-dominated, where does the human's extra budget go? 144 songs, share of each map's
+notes that land on each stem's onsets (a note can count for more than one stem):
+
+| stem | ours | human | delta | notes ours | human | extra |
+|---|---|---|---|---|---|---|
+| vocals | 0.487 | 0.551 | **−0.065** | 314 | 470 | **+156** |
+| drums | 0.745 | 0.789 | −0.044 | 486 | 658 | +172 |
+| bass | 0.511 | 0.553 | −0.041 | 314 | 430 | +117 |
+| other | 0.570 | 0.605 | −0.036 | 342 | 498 | +157 |
+
+Median note count **ours 651, human 862 (+32 %)**.
+
+★★**The extra notes are spread EVENLY across every stem** (+117 to +172), and our allocation
+shortfall is small and uniform (−0.036 to −0.065, worst on vocals). ⇒**A human mapper is not
+running a vocal-specific strategy that we lack. They are playing a denser map, and vocals come
+along with it.**
+⇒**This sharpens the prescription and contradicts the tempting one.** "Re-point the existing
+budget at the vocal line" is worth only the −0.065 allocation gap — and every Track B arm that
+*did* improve allocation failed to move coverage (2026-08-18p). **The lever is density itself**,
+which is also exactly D1 (*"very slow"*).
+⚠️**Headroom exists but is bounded**: ours 651 → human 862 is +32 %, while Kyle called **6.18 nps
+unplayable** and the human Expert median is 3.91 nps. ⇒**Aim at the human's own note count on the
+same song, not at a global nps target** — the paired human map is the ceiling that is known to be
+acceptable to a player.
+**Running**: production `v4` at `--beat-threshold` 0.25 and 0.15, to find whether the budget is
+reachable by decode at all on the model we actually ship.
+
+### 2026-08-18r — ★★A POSITIVE LEVER, the session's first: `--beat-threshold 0.25` on PRODUCTION
+
+If D4 is budget-dominated (2026-08-18p/q), the cheapest test is to give the **production** model
+more budget. v4 at `--beat-threshold` **0.25** (default 0.40), 23 songs:
+
+| arm | vocal coverage | notes | alloc | on-any-onset | doubled |
+|---|---|---|---|---|---|
+| v4prod (0.40) | 0.420 | 752 | 0.410 | 0.953 | 0.399 |
+| **v4 @0.25** | **0.454** | **840** | 0.414 | **0.954** | 0.401 |
+| human | 0.692 | 1088 | — | 0.979 | 0.207 |
+
+★★**Vocal coverage up, paired +0.0158, better on 20 of 23 songs, p = 8e-05** — and **+88 notes at
+ZERO precision cost** (on-any-onset 0.953 → 0.954) with doubling unchanged.
+✅**It respects Kyle's own playability bound**: median **4.06 nps** (from 3.83), max **5.59**, and
+**0 of 23 songs exceed the 6.18 nps he called unplayable**. The human sits *above* us at 5.10
+median / 7.37 p90, and only 6 of 21 songs pass their own human's nps.
+✅**The `map_metrics` axes do not degrade**: dir_entropy 0.808 → 0.794 (human 0.804), monotony
+0.404 → 0.410 (human 0.431, lower better), row_conc 0.422 → 0.428 (human 0.494), col_conc 0.289 →
+0.293 (human 0.287). nps moves *toward* the human (3.99 → 4.25 vs 5.18).
+
+⚠️**WHAT IS AND IS NOT CHECKED.** Verified: vocal coverage, on-onset precision, doubling, nps,
+and the `map_metrics` axes. **NOT verified: the v2 six-axis scorecard** — `rhythm`/`pulse_stability`
+in particular, which **C3 says is exactly what density changes cost** (thinning moved it −0.06 →
+−1.11). ⇒**This is a CANDIDATE, not a promotion.** Next: score both arms through
+`eval_sweep`/`scorecard` at ≥3 seeds, then Kyle's ear — he is the one who called 6.18 unplayable
+and who asked for *"the general beat parts to be faster"*.
+⚠️n=23 songs, one seed, one decode setting. `v4 @0.15` was still generating at write-up.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

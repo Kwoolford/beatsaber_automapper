@@ -126,6 +126,14 @@ unlocated, which `review.py defects` now prints as a backlog.
 
 ---
 
+## 🟢 P0.6 — ★A POSITIVE LEVER AWAITING VALIDATION: `--beat-threshold 0.25` (2026-08-18r)
+On production v4, threshold 0.40 → **0.25** lifts **vocal coverage 0.420 → 0.454** (paired
++0.0158, **20/23 songs, p=8e-05**) via **+88 notes at ZERO precision cost**, with **0/23 songs
+above the 6.18 nps Kyle called unplayable** (median 4.06) and no `map_metrics` axis degrading.
+⚠️**NOT yet scored on the v2 six-axis scorecard — `rhythm`/`pulse_stability` is precisely what C3
+says density costs.** ⬜**Do that at ≥3 seeds, then give it to his ear** (it serves D1 *"very
+slow"* and D4 together). Maps in `outputs/trackb/v4t0.25__*.zip`.
+
 ## 🔴🔴 P0.5 — THE SIX DEFECTS HE NAMED (2026-08-17)
 
 ★**Unifying hypothesis, and the most valuable thing he has said in weeks:**
