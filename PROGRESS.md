@@ -1010,6 +1010,48 @@ Fallen Kingdom / アリスブルー (adopted) against **440 / 313** on Hunger / 
 against; only his looking remains. ⚠️Still unopened in a browser (no browser on this box); both
 Fallen Kingdom pages sent to him directly.
 
+### 2026-08-19c — Tempo error is a MECHANISM behind D4, and `BEAT_SUBDIV_AUTO` has been OFF the whole time
+
+Splitting the D4 gap by how our detected tempo relates to the human's declared bpm (n=144):
+
+| bpm group | n | ours | human | gap | our notes | human notes |
+|---|---|---|---|---|---|---|
+| **same** | 100 | 0.410 | 0.727 | 0.317 | 698 | 862 |
+| **half-tempo** | **28** | **0.279** | 0.788 | **0.509** | **484** | 956 |
+| 2:3 | 9 | 0.437 | 0.703 | 0.266 | 890 | 712 |
+| other | 5 | 0.290 | 0.753 | 0.463 | 564 | 690 |
+
+★★**Reading half tempo costs the note budget directly**: 484 notes against 698 on correct-tempo
+songs — because at half the bpm the 1/4-beat grid has **half as many slots**. Those 28 songs then
+have the worst vocal coverage in the cohort (**0.279**). ⇒**Tempo error is not a separate defect
+from D4; on 19 % of songs it is a mechanism behind it**, and it also explains the saturation
+finding (2026-08-18w: saturated songs' median bpm 120 vs responsive 161).
+
+🔴**`BEAT_SUBDIV_AUTO` defaults to `"0"` — it has been OFF in production all along**, despite
+passing its DoD (ebpm 0.500 → 1.000 exactly, n=28). The standing habit says *when a lever passes
+its DoD, flip the default or write down why not*; neither happened.
+
+**Its trigger, tested (n=149):**
+
+| threshold | catches half-tempo | false-fires |
+|---|---|---|
+| **bpm < 95** (current) | **15/28 (54 %)** | **0/121 (0 %)** |
+| bpm < 110 | 24/28 (86 %) | 10/121 (8 %) |
+| bpm < 125 | 28/28 (100 %) | 28/121 (23 %) |
+
+⚠️**CORRECTION TO MYSELF MID-ANALYSIS**: on the 23-song eval set the trigger looked *miscalibrated*
+— it would fire on `1f9a0` (93 bpm, tempo **correct**) and miss `1fbda` (116 bpm, genuinely half).
+On the full 149 that reading is **wrong**: at bpm < 95 it false-fires on **zero** of 121
+non-half-tempo songs. ★*A 23-song glance produced the opposite conclusion to the 149-song
+measurement — check the cohort before calling a threshold wrong.*
+
+**Running**: 14 half-tempo songs (audio extracted from their corpus zips) generated with
+`BEAT_SUBDIV_AUTO` **off vs on**, → `outputs/subdivauto/`.
+**DoD**: vocal coverage on these songs rises from ≈0.279 toward the correct-tempo group's 0.410,
+via a note budget that stops being halved. ⚠️Check precision does not pay for it — raising the
+subdivision is measured harmful on *correct*-tempo songs (−0.127), which is exactly why the
+trigger's 0 % false-fire rate matters.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
