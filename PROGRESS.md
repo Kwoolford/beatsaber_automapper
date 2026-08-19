@@ -869,6 +869,40 @@ elimination of every alternative.
 ✅**And `--beat-threshold 0.25` is confirmed as THE operating point** — it captures the entire
 available gain, and everything below it is free of both benefit and (mostly) cost.
 
+### 2026-08-18aa — Scoping the training-side fix: we emit BELOW our own training distribution, and do not modulate per song
+
+Two hypotheses about *why* Stage-1 under-proposes, both checked in code and **both dead**:
+- 🔴*"Training is diluted by easy difficulties."* No — `scripts/train_beats.py` uses
+  `difficulties=[Expert, ExpertPlus]`.
+- 🔴*"A hard-coded NPS table caps it."* No — legacy-only (2026-08-18y).
+
+**Measured, on one basis** (positive rate per `(slot, hand)` over the active span, bpm-matched
+songs only — see the traps below):
+
+| | rate | note ratio |
+|---|---|---|
+| training labels, Expert/E+ corpus (n=74) | **0.245** (p10 0.181, p90 0.318) | — |
+| **we emit** | **0.217** | **0.74** |
+| the humans of the same songs (n=19) | **0.294** | 1.00 |
+
+★**Two effects compound**: we sit **11 % below the corpus label mean** (a calibration gap), *and*
+the eval songs' humans are **denser than corpus average** (0.294 vs 0.245) while we emit roughly
+the average regardless ⇒ **we do not modulate density per song.** Both point at the same
+training-side fix: **predict THIS song's density, not the corpus mean.**
+⚠️The 0.245 comes from a random 74-song sample and 0.294 from the eval songs, so "these songs are
+denser than average" is **across samples, not paired** — plausible, not established.
+
+🔴🔴**TWO MEASUREMENT TRAPS HIT AND FIXED IN THIS ONE ANALYSIS — both are denominator errors:**
+1. **Different spans.** Label rates over the whole song vs emission rates over the note span gave
+   0.119 vs 0.218 and an apparent exact match to the `pos_weight` comment's 0.218. **Coincidence.**
+   On one basis it is 0.245 vs 0.217.
+2. **bpm defines the slots.** Each map's slot count comes from its *own* bpm, so on songs where our
+   tempo disagrees the rates are not comparable: all-songs gave a 0.83 rate ratio against a 0.72
+   note ratio — **incoherent**. bpm-matched gives **0.74 and 0.74**. ★*When a ratio computed two
+   ways disagrees, the denominator is wrong.*
+✅Span is **not** part of the gap: we cover 0.988 of the music's extent vs the human's 0.990
+(p = 0.737), with matching lead-in and tail. **The deficit is rate, not coverage.**
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

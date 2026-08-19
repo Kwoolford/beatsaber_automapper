@@ -283,7 +283,11 @@ Every alternative is now eliminated by measurement: decode saturates at thr 0.25
 +4 notes**), the 1/4-beat grid is only **26-33 %** full, Track B at matched budget is **parity**,
 and we sit **244 notes (29 %) below the human even at the floor threshold**. **Stage-1's
 probability field is nearly BINARY — no mass below 0.25.** ⇒**Make Stage-1 propose more notes**
-(loss/target/threshold-during-training), not another decode knob. ⚠️Whatever is built must not
+(loss/target/threshold-during-training), not another decode knob. ★**SCOPED 2026-08-18aa**: we
+emit **0.217** positives per (slot,hand) against a **corpus label mean of 0.245** and these songs'
+humans at **0.294** ⇒ **we are below our own training distribution AND we do not modulate per
+song.** 🔴Dead ends already checked: training is Expert/E+ only (not diluted), and the `_NPS_RANGES`
+cap is legacy-only. ✅Span is not the gap (0.988 vs 0.990 of the music covered). ⚠️Whatever is built must not
 regress the density Kyle already accepted — he called **6.18 nps unplayable** and the current
 lever sits at 4.06.
 
