@@ -159,7 +159,7 @@ the tally underneath it is a caption, never an axis.
 | **D1** | *"very slow"* | ours ~4.96 nps vs human 8.35 on Hunger — but see the allocation hypothesis before simply raising density | he stops calling it slow **without** a raw nps increase |
 | **D2** | *"slightly off beat"* | 🔴🔴**REFUTED as note placement 2026-08-18g** (`eval_beat_phase_agreement.py`): on all four maps he played the bpm is **exactly** the human's, offset 0, and our note times match the human's **better than two humans match each other** (0.87/0.92/0.73–0.82/0.67–0.71 vs human-human **0.676**). Cohort-wide we are **more** on-beat (0.580 vs 0.515) and place **fewer** 16ths (p=0.0006). ⇒**Stop pointing D2 at tempo for these songs.** ⚠️Live but untested: we may be *too* quantised for a song with groove. | he stops calling it off-beat on a song whose tempo we call correct |
 | **D3** | *"doing drops at the wrong time"* | ★★**CONFIRMED 2026-08-18f at n=144** (`eval_drop_agreement.py`): our biggest density moves coincide with the human's **0.347** [0.302, 0.392] against a null of **0.140** and a human-human band of **0.49**; **43 of 144 songs agree on nothing**. 🔴Both cheaper causes REFUTED — we lift density at drops exactly as much as the human does (1.09/1.21/1.08/0.95 vs 1.11/1.21/1.09/0.99). | agreement reaches the human-human band (0.49) at n≥100, **and** he stops saying it |
-| **D4** | *"not following the main vocals"* | `follow_vocals` ours **0.020** vs human **0.149**; root cause known — Stage-1 carries no melodic instruments (Track B) | `follow_vocals` ≥ 0.10 **and** he agrees the vocal line is being played |
+| **D4** | *"not following the main vocals"* | ★★**CONFIRMED 2026-08-18j at n=144, and it is the BIGGEST measured defect** (`eval_vocal_coverage.py`): we play **0.385** of the sung notes, the human **0.743**, lower on **141/144** songs (p=2.6e-25) — against a human-human spread of only **0.132**. ⚠️**Track B is necessary and NOT sufficient**: we reach only **58 %** of the human even where a drum marks the vocal (vs 46 % where none does). | vocal-onset coverage reaches the human band (≈0.74 ± 0.13) **and** he agrees the vocal line is being played |
 | **D5** | *"random bursts of really fast non flowy notes"* | 🔴**MEASURED 2026-08-18c and the density reading is BACKWARDS** — the human bursts more, and more unmotivated, than we do on every song. What separates ours is **doubling** (36-40 % vs 7-26 %) and **travel**, not burst frequency; **`harsh` is dead**. | he cannot find a burst he calls random |
 | **D6** | ★*"nps wasted on non main notes"* | ⚠️**re-read above** — measured, and it is a *doubles* defect, not an off-music one. Needs the definition of **main** that he endorses | main-line recall up with nps flat, and he agrees |
 
@@ -239,7 +239,11 @@ human at n=123) and **`follow_vocals`** (0.020 vs 0.149, **7×**) are three view
 **Stage-1 carries only `drum_proj` + `mix_proj`** and cannot hear the melodic instruments.
 ★The clincher: redistributing the note budget toward an abandoned phrase **does not fill it**
 (γ 2.5 → 1.0 closes ~17 %, note count unchanged) ⇒**you cannot select what the model does not
-propose.** ⚠️Does *not* revive v8 as built (its `follow_vocals` gain died at n=149) — it says the
+propose.**
+⚠️**BUT SIZED 2026-08-18j: Track B cannot close D4 on its own.** Split by whether a drum marks the
+vocal onset, we reach **0.581** of the human where one does and **0.456** where none does
+(p=0.00034) — so the melodic-blindness story is real, **but the drum-backed 58 % is the larger
+half of the gap and Track B does not explain it.** ⚠️Does *not* revive v8 as built (its `follow_vocals` gain died at n=149) — it says the
 **target** is right. Use W1 + W4 + `follow_vocals` as **one** acceptance target, not three.
 
 ---

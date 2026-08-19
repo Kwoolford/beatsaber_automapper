@@ -353,6 +353,43 @@ map need not reproduce a human's exact positions.
 ⇒**Recommendation: do NOT build per-song subdiv-8 selection.** The half-tempo case is served; what
 is left is the tempo model (2:3 misreads) and the 11 right-tempo songs that fit no grid at all.
 
+### 2026-08-18j — ★★D4 CONFIRMED at n=144 in readable units, and Track B is necessary but NOT sufficient
+
+`scripts/eval_vocal_coverage.py`. D4's existing number is the `follow_vocals` axis (0.020 vs
+0.149) — a 7× ratio in units nobody can picture. This asks it directly: **what share of the sung
+notes does the map play?**, from the cached vocal onsets in `outputs/stem_onset_cache` (274 songs,
+**no GPU**) against the human's own map.
+
+| share of vocal onsets played (±70 ms) | median | p10 | p90 |
+|---|---|---|---|
+| **ours** | **0.385** | 0.274 | 0.502 |
+| **human** | **0.743** | 0.597 | 0.846 |
+
+Paired **−0.327**, lower on **141 of 144 songs**, Wilcoxon **p = 2.6e-25**.
+★★**A human plays about three quarters of the sung line; we play under two fifths.**
+★**And the ceiling settles it**: two DIFFERENT humans on the same song differ by a median of only
+**0.132** (n=12 pairs) ⇒ **our gap is 2.5× the spread between two humans.** Not taste. ⇒**This is
+the biggest confirmed defect measured this session, and it is D4, not D5 or D2.**
+
+**Testing the Track B story** (Stage-1 carries `drum_proj` + `mix_proj` and no melodic
+instruments, so we should only find vocals where a drum marks them). Our coverage **as a fraction
+of the human's**, split by whether a drum sits under the vocal onset:
+
+| vocal onsets… | ours ÷ human |
+|---|---|
+| that a drum **also** hits | **0.581** |
+| with **no** drum under them | **0.456** |
+
+Paired −0.092, relatively worse on vocal-only in **95/144**, **p = 0.00034**.
+⇒**SUPPORTED BUT PARTIAL — and the partial half is the important half.** We are worse where the
+drums do not mark the vocal, **but we reach only 58 % of the human even where they do.**
+★★**Track B is NECESSARY AND NOT SUFFICIENT**: carrying the melodic instruments addresses the
+vocal-only shortfall; something else accounts for the larger drum-backed part of the gap. ⇒**Do
+not expect Track B alone to close D4.**
+⚠️**A trap inside this measurement**: in ABSOLUTE terms our coverage falls *less* than the
+human's when the drum disappears (−0.185 vs −0.238, p = 0.003), which reads as the opposite
+conclusion. That is an artifact of our lower base rate — **the ratio is the fair comparison**.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
