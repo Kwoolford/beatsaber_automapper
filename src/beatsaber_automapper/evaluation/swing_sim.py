@@ -23,6 +23,8 @@ PRE-postprocess V7 output.
 
 from __future__ import annotations
 
+import os
+
 import argparse
 import json
 import logging
@@ -204,6 +206,44 @@ def _swing_from_group(group: list, color: int) -> Swing:
     )
 
 
+def _apply_chains(swings: list[Swing], chains: list, color: int) -> int:
+    """Extend each swing that a chain (`burstSlider`) hangs off, to the chain's TAIL.
+
+    ★**Why this is needed.** Until 2026-08-19n the simulator never referenced
+    `burstSliders` at all: it returned an identical swing count and violation count with
+    and without them, so adding chains to a map "passed" a check that had not looked.
+
+    **The model, deliberately minimal.** A chain's head is always a real note (measured:
+    678 of 678 human chain heads coincide with a `colorNote`), so it does not create a
+    swing — it *lengthens* the swing already there. The hand must carry through to the
+    tail, so the swing's END position and END beat become the chain's tail. That is what
+    the downstream metrics actually consume: `travel` measures from `end_x/end_y` to the
+    next swing's head, and reset timing measures from `end_beat`.
+
+    ⚠️It does **not** model the burst's individual slices, wrist load inside the sweep,
+    or the tighter angle a long chain demands. Those need their own calibration; this
+    only stops the simulator from being blind.
+
+    Returns the number of swings that were extended.
+    """
+    if not chains:
+        return 0
+    mine = [c for c in chains if getattr(c, "color", None) == color]
+    if not mine:
+        return 0
+    n = 0
+    for c in mine:
+        # attach to the swing whose head sits at the chain's head
+        for sw in swings:
+            if abs(sw.beat - c.beat) < 1e-6 and sw.x == c.x and sw.y == c.y:
+                if c.tail_beat > sw.end_beat:
+                    sw.end_beat = c.tail_beat
+                sw.end_x, sw.end_y = c.tail_x, c.tail_y
+                n += 1
+                break
+    return n
+
+
 # --------------------------------------------------------------------------- #
 # Parity state machine
 # --------------------------------------------------------------------------- #
@@ -236,7 +276,8 @@ def _bomb_forces_reset(bombs: list, prev_beat: float, beat: float, color: int) -
     return False
 
 
-def simulate(beatmap, *, bpm: float, section_beats: list[float] | None = None) -> MapScorecard:
+def simulate(beatmap, *, bpm: float, section_beats: list[float] | None = None,
+             model_chains: bool | None = None) -> MapScorecard:
     """Run the parity simulation on a parsed ``DifficultyBeatmap``.
 
     Args:
@@ -251,6 +292,13 @@ def simulate(beatmap, *, bpm: float, section_beats: list[float] | None = None) -
     sec_per_beat = 60.0 / bpm if bpm > 0 else 0.5
     notes = list(beatmap.color_notes)
     bombs = list(getattr(beatmap, "bomb_notes", []) or [])
+    # ⚠️DEFAULT OFF, and that is deliberate. 25 of 51 v3 human maps contain chains, so
+    # switching this on changes the HUMAN reference distributions every axis is scored
+    # against. Turning it on silently would re-baseline the suite in the middle of a
+    # comparison. Opt in with model_chains=True or BEAT_SIM_CHAINS=1.
+    if model_chains is None:
+        model_chains = os.environ.get("BEAT_SIM_CHAINS", "0") == "1"
+    chains = list(getattr(beatmap, "burst_sliders", []) or []) if model_chains else []
 
     per_hand: dict[int, HandReport] = {}
     all_violation_beats: list[float] = []
@@ -258,6 +306,7 @@ def simulate(beatmap, *, bpm: float, section_beats: list[float] | None = None) -
     for color in (0, 1):
         report = HandReport(color=color)
         swings = _extract_swings(notes, color)
+        _apply_chains(swings, chains, color)
 
         prev: Swing | None = None          # previous swing (any kind), for timing
         prev_dir_parity: Parity | None = None  # parity of last DIRECTIONAL swing

@@ -1348,6 +1348,32 @@ unvalidated, and he should be told rather than discovering it in a headset.
 → `[CHAINS]`.
 ⬜**Open**: `swing_sim` has no chain model. Until it does, chains cannot be scored, only played.
 
+### 2026-08-19n — `swing_sim` can finally see chains — behind a flag, because switching it on re-baselines the suite
+
+The simulator never referenced `burstSliders`, so it returned an identical swing count and
+violation count with and without them (2026-08-19m). It now models them:
+
+**The model, deliberately minimal.** A chain's head is always a real note (678/678 measured), so a
+chain does not create a swing — it **lengthens** the one already there: the swing's `end_beat`,
+`end_x`, `end_y` become the chain's tail. That is exactly what the downstream metrics consume
+(`travel` measures from `end_x/end_y`; reset timing from `end_beat`). ⚠️It does **not** model the
+burst's slices, the wrist load inside the sweep, or the tighter angle a long chain demands.
+
+**Verified it actually fires** — mean swing length on our `[CHAINS]` map: **0.0000 → 0.0011 beats**
+with the model on (= 16 chains × 0.0625 ÷ 913 swings, exactly right), and unchanged on a map
+without chains. ✅**And with the model on, our 16 chains produce 0 parity violations** — which is
+the first time that number has meant anything for chains.
+
+🔴**DEFAULT OFF (`model_chains=None` → `BEAT_SIM_CHAINS=0`), and that is the point.** **25 of 51
+v3 human maps contain chains**, so enabling it changes the **human reference distributions every
+axis is scored against**. Turning it on silently would re-baseline the suite in the middle of a
+comparison — the same class of error as scoring two arms against different references.
+**Measured, the shift is small but real**: over 6 human maps with chains, `travel` **4.153 →
+4.239 (+2 %)**; `angle_change` and `ebpm_burst` **unchanged** — only the position-based metric
+moves, as the model predicts.
+⇒**Flip it on when chains are actually adopted, and recalibrate the human reference in the same
+change.** Until then it is opt-in, and chains can be scored without disturbing anything else.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

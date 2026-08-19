@@ -305,7 +305,11 @@ changes, and document like crazy."* One lever at a time, ≥3 seeds, nothing pro
   chain heads coexist with a note), 16/map, span 0.062, 4-5 slices, notes byte-identical, installed
   as `[CHAINS]`. 🔴**But `swing_sim` IGNORES `burstSliders`** — it returns 913 swings and 0
   violations with *and* without them ⇒ **the chains are UNVALIDATED for playability**; only the
-  notes were checked. ⬜**Give `swing_sim` a chain model** before chains can be scored.
+  notes were checked. ✅**DONE 2026-08-19n — `swing_sim` models chains** (a chain lengthens its head swing to the tail;
+  verified firing, and our 16 chains give **0 parity violations** under it). 🔴**DEFAULT OFF**
+  (`BEAT_SIM_CHAINS=1` to opt in) because **25/51 v3 human maps have chains**, so enabling it
+  shifts the human reference — measured at `travel` **+2 %**, other axes unchanged.
+  ⬜**Flip it on and recalibrate the human reference in the SAME change**, when chains are adopted.
   ⬜Original reason to build them: a chain is one swing carrying
   4 segments — **density with no new distinct time**, which is exactly what we buy with doubles
   (39.6 % vs human 20.7 %, costing 21 % of the vocal budget). ⚠️Chains alter notes, so they must
