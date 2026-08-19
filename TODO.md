@@ -287,7 +287,16 @@ probability field is nearly BINARY — no mass below 0.25.** ⇒**Make Stage-1 p
 emit **0.217** positives per (slot,hand) against a **corpus label mean of 0.245** and these songs'
 humans at **0.294** ⇒ **we are below our own training distribution AND we do not modulate per
 song.** 🔴Dead ends already checked: training is Expert/E+ only (not diluted), and the `_NPS_RANGES`
-cap is legacy-only. ✅Span is not the gap (0.988 vs 0.990 of the music covered). ⚠️Whatever is built must not
+cap is legacy-only. ✅Span is not the gap (0.988 vs 0.990 of the music covered).
+★★**MECHANISM NAMED 2026-08-18ab: STAGE-1 DOES NOT MODULATE DENSITY PER SONG.** Our nps vs the
+human's on the same song is **r = 0.046, slope 0.026** (n=144) — no measurable tracking — while
+**crude audio features predict the human's nps at R² = +0.185** (drums/s 0.414, bpm 0.396). We emit
+**3.82 ± 0.77** nps where humans span **3.75-7.00**. ⇒**The signal exists and we are not using it.**
+⬜**PROPOSED RETRAIN, deliberately NOT queued** (it is a retrain, and the density lever is still
+unjudged): an auxiliary per-song **density target** / FiLM conditioning on the song's own label
+rate. **DoD: per-song nps correlation rises from 0.046 toward the demonstrated ≈0.43 floor AND
+vocal coverage rises, at ≥3 seeds.**
+⚠️Whatever is built must not
 regress the density Kyle already accepted — he called **6.18 nps unplayable** and the current
 lever sits at 4.06.
 
