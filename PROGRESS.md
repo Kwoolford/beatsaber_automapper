@@ -1156,6 +1156,27 @@ detected bpm sits in the normal range, which is exactly the **2:3 / odd-ratio mi
 the standing P1 tempo item says needs **a real tempo model**. ★This closes the trigger question:
 do not over-engineer it, and do not widen it.
 
+### 2026-08-19g — `BEAT_SUBDIV_AUTO` seed-validated: +0.220 at **36× the seed noise**
+
+The 2026-08-19d result was single-seed and flagged as such. Re-run at seed 1 (seed 2 still
+generating at write-up):
+
+| seed | OFF | ON | delta | OFF notes | ON notes |
+|---|---|---|---|---|---|
+| 0 | 0.275 | 0.487 | +0.212 | 432 | 855 |
+| 1 | 0.270 | 0.498 | +0.228 | 420 | 869 |
+| **mean** | **0.273 ± 0.0030** | **0.492 ± 0.0080** | **+0.220** | | |
+
+★★**The effect is 36× the seed spread** — by far the most robust result of the session (the
+`--beat-threshold` lever was 8.6×, and that was already strong). ⇒**The single-seed caveat on the
+session's biggest finding is closed.**
+
+**Standing summary of this lever**: +0.220 vocal coverage on the 15 songs its trigger fires on, at
+**no precision cost**, with **alignment crossing its bar the right way**, its one apparent
+regression (`idiom`) shown to be a **measurement artifact of the halved bpm**, and a trigger that
+false-fires on **0 of 121** correct-tempo songs. **It has been switched off in production the
+whole time.** The only thing between it and a default flip is **his ear**.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 
