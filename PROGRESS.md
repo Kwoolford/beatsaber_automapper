@@ -666,6 +666,45 @@ good is exactly what the suite has been wrong about twice** — the maps exist
 ⏳**Seeds 1 and 2 are generating** for both arms; the alignment gap must be read against its own
 seed spread (already 1.14-1.46, i.e. wide) before treating 0.263 → 0.515 as settled.
 
+### 2026-08-18t — ★SEEDS SETTLE THE THRESHOLD LEVER — and kill my "flow improves" claim
+
+Seeds 0/1/2 for production and 0/1 for `thr 0.25`, 23 songs each.
+
+**Vocal coverage replicates almost exactly:**
+
+| arm | seed 0 | seed 1 | seed 2 | mean | sd |
+|---|---|---|---|---|---|
+| prod | 0.420 | 0.425 | 0.422 | **0.423** | 0.0024 |
+| thr 0.25 | 0.454 | 0.455 | — | **0.454** | 0.0008 |
+
+★★**+0.031 coverage = 13× the seed sd. The gain is real and it is the most robust effect measured
+this session.**
+
+**The six axes, with error bars — and they change the story:**
+
+| axis | prod (mean ± sd, 3 seeds) | thr 0.25 | delta | in sd |
+|---|---|---|---|---|
+| flow | 0.414 ± **0.154** | 0.450 | +0.036 | **0.2×** |
+| rhythm | 0.445 ± 0.039 | 0.291 | **−0.154** | **3.9×** ✅better |
+| idiom | 0.574 ± 0.109 | 0.555 | −0.019 | 0.2× |
+| handrole | 1.161 ± 0.087 | 1.097 | −0.065 | 0.7× |
+| playfeel | 0.720 ± 0.029 | 0.831 | **+0.111** | **3.9×** 🔴worse |
+| alignment | 0.326 ± 0.125 | 0.546 | +0.220 | 1.8× 🔴likely worse |
+
+🔴🔴**CORRECTION: "flow 0.588 FAIL → 0.408 PASS" (2026-08-18s) IS SEED NOISE.** Production's flow
+across seeds is **0.588 / 0.359 / 0.296** — the axis moves more between seeds of the SAME arm than
+between arms. At 0.2× the sd there is no flow effect. ⇒*A single-seed axis reading is not a
+result*, and I reported one as if it were.
+✅**Rhythm genuinely improves** (3.9× sd) ⇒**C3's "density costs rhythm" is REFUTED for this lever,
+now properly** — the earlier single-seed hint was right by luck.
+🔴**Playfeel genuinely worsens** (3.9× sd). 🔴**Alignment worsens 1.8× sd** — suggestive, **not
+established**; it needs the third `thr 0.25` seed (generating) before anyone calls it a fail.
+
+**FINAL SHAPE OF THE LEVER**: a **robust +0.031 vocal coverage and better rhythm**, bought with a
+**robust playfeel cost** and a **probable alignment cost**; **no effect on flow, idiom or
+handrole**. ⇒Still a trade, and still Kyle's call — but now the trade is stated in units that
+survive a re-run.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

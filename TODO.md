@@ -130,7 +130,11 @@ unlocated, which `review.py defects` now prints as a backlog.
 On production v4, threshold 0.40 → **0.25** lifts **vocal coverage 0.420 → 0.454** (paired
 +0.0158, **20/23 songs, p=8e-05**) via **+88 notes at ZERO precision cost**, with **0/23 songs
 above the 6.18 nps Kyle called unplayable** (median 4.06) and no `map_metrics` axis degrading.
-🔴**SCORED 2026-08-18s AND IT IS A TRADE, NOT FREE** — my "zero precision cost" was a coarse
+★**SEED-VALIDATED 2026-08-18t**: coverage **+0.031 = 13× the seed sd** (prod 0.423±0.0024 →
+0.454±0.0008); **rhythm better 3.9× sd**; **playfeel worse 3.9× sd**; alignment worse 1.8× sd
+(needs seed 3); **flow/idiom/handrole: no effect** — 🔴**my earlier "flow FAIL→PASS" was SEED
+NOISE** (prod flow ranges 0.296–0.588 across seeds).
+🔴Earlier single-seed read 2026-08-18s — my "zero precision cost" was a coarse
 proxy. **flow 0.588 FAIL → 0.408 PASS** and rhythm 0.425 → 0.385 (⇒C3's density-costs-rhythm fear
 NOT realised), but **alignment 0.263 PASS → 0.515 FAIL** and handrole/playfeel spreads collapse.
 ★**0.25 is the operating point** — 0.15 buys no more notes and costs precision. ⏳Seeds 1-2
