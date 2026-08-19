@@ -1459,6 +1459,39 @@ every axis by exactly 0.000 (2026-08-19p).
 - 🔴**Wrongly blind**: walls, arcs, chains — three of the five elements a map is built from.
 - ⚠️**Barely sensitive**: `playfeel` moves on only 2 of 13 perturbations; `rhythm` on only 1.
 
+### 2026-08-19r — 🔴🔴THE AXIS GAPS ARE COHORT-SIZE DEPENDENT — the same maps score 2.8× differently
+
+Two structural properties of the v2 suite, both found by trying to score a single map:
+
+**1. The suite cannot score one map.** All six axes return **`nan` at n=1 and n=2**, and only
+produce numbers from **n ≥ 5**. They are cohort statistics by construction. ⇒**The suite has no
+per-map opinion at all** — it can never say "this map is good", only "this cohort sits here
+relative to the human distribution". ★That is a *structural* reason behind the session's opening
+lesson, *a passed DoD is evidence about the metric, not about the map*: the suite is not built to
+have an opinion about a map, and Kyle plays maps.
+
+**2. The gaps move enormously with cohort size — on the SAME maps** (each row is a prefix of the
+next, so every map in the n=5 row is also in the n=50 row):
+
+| n | flow | rhythm | idiom | handrole | playfeel | alignment |
+|---|---|---|---|---|---|---|
+| 5 | **1.260** | 0.905 | 0.409 | 1.222 | 0.883 | **1.062** |
+| 10 | 0.994 | 0.637 | 0.519 | 1.338 | 0.940 | 0.973 |
+| 20 | 0.805 | 0.663 | 0.193 | 1.082 | 0.799 | 0.362 |
+| 50 | **0.446** | 0.580 | 0.416 | 1.096 | 0.593 | 0.610 |
+
+★★**flow changes 2.8× and alignment 3× from cohort size alone.** The direction is consistent with
+a **sample-size bias**: a small cohort estimates its own distribution noisily, and noise reads as
+distance from the human reference, so **small cohorts look worse**.
+🔴🔴**CONSEQUENCES.** (a) **Comparisons between differently-sized cohorts are invalid** — a PASS at
+n=50 and a FAIL at n=5 can be the same maps. (b) **The bars** (flow 0.50, alignment 0.39 …) were
+calibrated at some particular n and do not transfer to a cohort of another size. (c) Historical
+numbers in these docs are only comparable where the cohort size matched.
+✅**This session's comparisons are safe**, and it is worth saying so explicitly: `BEAT_SUBDIV_AUTO`
+was 15 maps vs 15, the threshold ladder 23 vs 23, the element ladder 4 vs 4. Every arm was scored
+against an arm of the same size. ⇒The finding invalidates *cross-size* comparisons, not this
+session's.
+
 🔴**THE PUBLISHED PAGES ARE STALE.** Kyle declined the republish, so both live artifacts still carry
 the **old lyrics and no audio**. Local files are current; the URLs are not.
 

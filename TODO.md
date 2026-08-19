@@ -379,6 +379,12 @@ same seed twice is **bit-identical**; seed 0 vs 1 gives max \|Δ\| **0.2049** (m
 decode"* is **wrong at the root**: the draw happens before the model runs.
 ⇒When you want to vary ONLY the decode, you cannot do it with the run seed as things stand.
 
+- 🔴🔴**AXIS GAPS ARE COHORT-SIZE DEPENDENT (2026-08-19r).** The **same maps** score **flow 1.260
+  at n=5 → 0.446 at n=50** and **alignment 1.062 → 0.341**: a small cohort estimates its own
+  distribution noisily and the noise reads as distance, so **small cohorts look worse**.
+  ⇒**NEVER compare cohorts of different sizes**, and the **bars do not transfer across n**.
+  ⚠️Also: **all six axes are `nan` at n=1 and n=2** — the suite is a cohort statistic and **cannot
+  score one map**, which is the structural reason a passed DoD says nothing about a map.
 - 🔴**`alignment` SILENTLY RETURNS `nan` IF THE FILENAME DOES NOT START WITH THE SONG ID.**
   `scorecard.song_id()` parses the id from the filename: `1f8d6_WALLS.zip` → `'1f8d6_WALLS'` → no
   cached onsets → `alignment = nan`, **no error, five axes scored instead of six**.
