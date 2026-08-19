@@ -29,6 +29,9 @@ Usage:
     python scripts/review.py open Hunger AGENT          # launch ArcViewer on matching maps
     python scripts/review.py verdict --set C --song 1f333 --name Hunger \
         --better AGENT --worse BEFORE --quote "his words"
+    python scripts/review.py defect --song 1f8d6 --at 2:10 --kind drop_timing \
+        --quote "the drop lands late" --map for_review/A_.../FallenKingdom_BEFORE.zip
+    python scripts/review.py defects                    # ★the located defect ledger
     python scripts/review.py done C                     # catalog the set into outputs/
 """
 
@@ -329,6 +332,186 @@ def cmd_verdict(a) -> int:
     return 0
 
 
+# ★V5 — DEFECT CAPTURE. The A/B pipeline above collects *preferences between arms*;
+# Kyle produces *defects located in songs* ("the drop is late at 2:10"). On 2026-08-17
+# he reviewed three sets and answered none of them per-arm — he answered with a defect
+# list spanning every song. ⇒**Preference is the second-class record and defects are
+# the first.** A preference says which of two guesses he minded less; a defect says
+# what is wrong, and where.
+#
+# The kinds are the six defects he named, so a captured defect lands on a work item
+# rather than in a free-text pile. `other` is deliberately available — a vocabulary
+# that cannot express his complaint would quietly discard it, which is the failure
+# mode this whole file exists to prevent.
+DEFECT_KINDS = {
+    "slow": "D1 — very slow",
+    "offbeat": "D2 — slightly off beat",
+    "drop_timing": "D3 — drops at the wrong time",
+    "vocals": "D4 — not following the main vocals",
+    "burst": "D5 — random bursts of really fast non flowy notes",
+    "wasted": "D6 — nps wasted on non main notes",
+    "empty": "W2 — this part is really empty",
+    "other": "not one of the named six",
+}
+
+
+def _at_seconds(v: str) -> float:
+    """`2:10`, `2:10.5` or plain seconds -> seconds. His timestamps come as mm:ss."""
+    v = v.strip()
+    if ":" in v:
+        m, sec = v.rsplit(":", 1)
+        return int(m) * 60 + float(sec)
+    return float(v)
+
+
+def _mmss(t: float) -> str:
+    return f"{int(t // 60)}:{t % 60:05.2f}"
+
+
+def _context_at(song: str, t: float, map_zip: pathlib.Path | None) -> dict:
+    """What our tools claim is happening at the moment he is complaining about.
+
+    ★This is the point of the command. A defect recorded as prose is a note to
+    self; a defect recorded **beside what the pipeline believed at that instant** is
+    evidence. If he says the drop is late at 2:10 and `structure.py` puts the DROP at
+    2:04, that is a measured disagreement the same day he reports it.
+
+    ⚠️Best-effort by design: if the perception cache is cold or the map will not load,
+    the defect is still recorded. Losing his words to a traceback is not acceptable.
+    """
+    out: dict = {}
+    audio = REPO / "data" / "eval_songset" / f"{song}.ogg"
+    if not audio.exists():
+        return {"error": f"no audio at {audio.relative_to(REPO)}"}
+    sys.path.insert(0, str(REPO / "agent_mapper"))
+    try:
+        import notesheet as _ns
+        d = _ns.collect(audio, map_zip=map_zip)
+    except Exception as e:  # noqa: BLE001
+        return {"error": f"perception failed: {e}"}
+
+    g = d["grid"]
+    try:
+        import brief as _brief
+        out["bar"] = int((t - _brief.bar_time(g, 0)) // g["bar_s"])
+    except Exception:  # noqa: BLE001
+        pass
+    out["bpm"] = round(g["bpm"], 2)
+    for sec in d["sections"]:
+        if sec["t0"] <= t <= sec["t1"]:
+            out["section"] = f'{sec["label"]} · {sec["role"]}'
+            out["section_span"] = f'{_mmss(sec["t0"])}-{_mmss(sec["t1"])}'
+    # the nearest DROP either side, because "the drop is at the wrong time" is a claim
+    # about a distance, not about a moment
+    drops = [s_ for s_ in d["sections"] if s_["role"] in ("DROP", "peak")]
+    if drops:
+        near = min(drops, key=lambda s_: abs(s_["t0"] - t))
+        out["nearest_drop"] = f'{near["label"]} at {_mmss(near["t0"])} ' \
+                              f'({near["t0"] - t:+.1f}s from you)'
+    ov = d.get("overlay")
+    if ov:
+        w = [v for v in ov["verdicts"] if abs(v["t"] - t) <= 2.0]
+        miss = [m for m in ov["missed"] if abs(m["t"] - t) <= 2.0]
+        hit = sum(1 for v in w if v["v"] == "hit")
+        out["within_2s"] = (f'{len(w)} of our notes ({hit} hit, {len(w) - hit} wasted), '
+                            f'{len(miss)} main events we missed')
+    fl = d.get("flow") or {}
+    for b in fl.get("bursts", []):
+        if b["t0"] - 1.0 <= t <= b["t1"] + 1.0:
+            out["burst_here"] = (f'{b["n"]} notes at {b["nps"]:.1f} nps, music '
+                                 f'{b["motivation"]:.2f}x its median rate '
+                                 f'({b["verdict"]}), travel {b["travel"]:.1f} cells/s')
+    if fl.get("rows") and "burst_here" not in out:
+        out["burst_here"] = "no burst at this moment"
+    return out
+
+
+def cmd_defect(a) -> int:
+    """Record one located defect, with what the pipeline believed at that instant."""
+    if a.kind not in DEFECT_KINDS:
+        print(f"unknown kind {a.kind!r}; known: {', '.join(DEFECT_KINDS)}",
+              file=sys.stderr)
+        return 2
+    t = _at_seconds(a.at)
+    entry = {
+        "id": f"{_dt.date.today().isoformat()}/{a.song}-{a.kind}-{_mmss(t)}",
+        "date": _dt.date.today().isoformat(),
+        "song": a.song, "name": a.name or a.song,
+        "at": round(t, 2), "at_mmss": _mmss(t),
+        "kind": a.kind, "means": DEFECT_KINDS[a.kind],
+        "map": a.map.name if a.map else None,
+        "quote": a.quote, "note": a.note,
+    }
+    # record FIRST, analyse second: his words must survive a broken cache
+    d = _ledger()
+    d.setdefault("defects", []).append(entry)
+    LEDGER.write_text(json.dumps(d, indent=1, ensure_ascii=False) + "\n")
+    print(f"recorded: {entry['id']}")
+    if not a.quote:
+        print("  ⚠️no quote — his exact words are the part that survives")
+
+    if a.no_context:
+        return 0
+    print("\n  what we believed was happening there:")
+    ctx = _context_at(a.song, t, a.map)
+    for k, v in ctx.items():
+        print(f"    {k:<14} {v}")
+    entry["context"] = ctx
+    LEDGER.write_text(json.dumps(d, indent=1, ensure_ascii=False) + "\n")
+    print(f"\nledger: {LEDGER.relative_to(REPO)} (tracked in git)")
+    return 0
+
+
+def cmd_defects(a) -> int:
+    """The defect ledger: the six standing complaints, and every LOCATED instance.
+
+    ⚠️Two schemas live here on purpose. The 2026-08-17 entries are Kyle's original six,
+    recorded **unlocated** ("ALL songs he played") because that is how he gave them —
+    they carry `code`/`phrase` and no timestamp. Located instances carry `song`/`at`.
+    ★**Converting the first kind into the second is the whole job of this command**, so
+    it prints the standing six as an explicit backlog rather than dropping them for
+    lacking a field.
+    """
+    ds = _ledger().get("defects", [])
+    standing = [x for x in ds if "at" not in x]
+    located = [x for x in ds if "at" in x]
+    if a.song:
+        located = [x for x in located
+                   if x["song"] == a.song or x.get("name") == a.song]
+
+    if standing and not a.song:
+        # P1 is a POSITIVE ("that half works"), recorded deliberately so it is not
+        # regressed while chasing the six. Counting it as a complaint would misreport
+        # the one thing he said was right.
+        n_bad = sum(1 for x in standing if not str(x.get("code", "")).startswith("P"))
+        print(f"■ STANDING, UNLOCATED — his {n_bad} original complaints "
+              f"(+{len(standing) - n_bad} thing he said WORKS, {standing[0]['date']})\n")
+        for x in sorted(standing, key=lambda r: r.get("code", "")):
+            print(f"   {x.get('code', '?'):<4} {x.get('phrase', x.get('kind', ''))}")
+        print("\n   ★These have no timestamp. A located instance of any of them is worth "
+              "more\n   than another metric — `review.py defect --song X --at m:ss "
+              "--kind ...`\n")
+
+    if not located:
+        print("No LOCATED defects yet. That is the gap this command exists to close.")
+        return 0
+
+    print(f"■ LOCATED — {len(located)} instances\n")
+    for kind, means in DEFECT_KINDS.items():
+        rows = [x for x in located if x.get("kind") == kind]
+        if not rows:
+            continue
+        print(f"  {means}   ({len(rows)})")
+        for x in sorted(rows, key=lambda r: (r.get("song", ""), r["at"])):
+            bar = (x.get("context") or {}).get("bar")
+            print(f"   {x.get('name', x.get('song', '?')):<20} {x['at_mmss']:>8}"
+                  f"{f'  bar {bar}' if bar is not None else '':<9}  {x['date']}")
+            if x.get("quote"):
+                print(f"      \u201c{x['quote']}\u201d")
+        print()
+    return 0
+
+
 def cmd_done(a) -> int:
     """Catalog a reviewed set: move it out of staging into `outputs/reviewed/`."""
     sid = a.set.upper()
@@ -409,6 +592,24 @@ def main() -> int:
     p.add_argument("--quote", default="")
     p.add_argument("--note", default="")
     p.set_defaults(fn=cmd_verdict)
+
+    p = sub.add_parser("defect", help="★record a LOCATED defect in his words")
+    p.add_argument("--song", required=True, help="corpus id, e.g. 1f333")
+    p.add_argument("--at", required=True, help="when, as mm:ss or seconds")
+    p.add_argument("--kind", required=True,
+                   help="one of: " + ", ".join(DEFECT_KINDS))
+    p.add_argument("--quote", default="", help="★his exact words")
+    p.add_argument("--name", default=None)
+    p.add_argument("--note", default="")
+    p.add_argument("--map", type=pathlib.Path, default=None,
+                   help="the map he was playing, so the context includes our notes")
+    p.add_argument("--no-context", action="store_true",
+                   help="skip the analysis and just record it")
+    p.set_defaults(fn=cmd_defect)
+
+    p = sub.add_parser("defects", help="the defect ledger, grouped by kind")
+    p.add_argument("--song", default=None)
+    p.set_defaults(fn=cmd_defects)
 
     p = sub.add_parser("done", help="catalog a reviewed set into outputs/reviewed/")
     p.add_argument("set")
