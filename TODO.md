@@ -11,71 +11,66 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 📍 CURRENT STATE (2026-08-19, end of session)
+## 📍 CURRENT STATE (2026-08-20)
 
-★★**Kyle's standing verdict is a DEFECT LIST, not a preference** (2026-08-17, every song):
-*"very slow, slightly off beat, doing drops at the wrong time, not following the main vocals,
-random bursts of really fast non flowy notes… the nps is generally wasted on every few non main
-notes."* His directive: *"make the visibility suite the top priority… so visibly great that you can
-evaluate through me instead of making another evaluation metric."*
+★★**Kyle's brief this session, two messages:** *"keep working on the agentic building suite until
+you are confident the maps are good. **You should not need to rely on human review.** Get to a
+point where **no matter what song is sent your way, you have visibility as good as a human and can
+map to whatever style you want**."* Then: *"build the agent framework **so visibly that you can
+confidently validate and create any map from any song**. The current note sheet looks like it could
+use much more data… these **electric songs have LOTS of different note types**."*
 
-### The six defects, all measured against human-to-human ceilings (numbers in PROGRESS)
-| defect | status |
+⇒**This reorders the board.** The six defects D1–D6 and the ML levers are not the work; the work
+is a build/validate loop the agent can run alone. Three legs, two now standing:
+
+| leg | state |
 |---|---|
-| **D4** *not following vocals* | ★**BIGGEST, CONFIRMED** — we play **0.385** of the sung line, human **0.743**, at **2.5× the human-human spread** (n=144) |
-| **D1** *very slow* | **same lever as D4** — budget, not allocation |
-| **D3** *drops at wrong time* | **CONFIRMED** — 0.347 vs null 0.140, human-human 0.49. 🔴Its obvious fix (use `structure.py`) is **backwards** |
-| **D6** *nps wasted* | = **C5 doubles**, priced at **21 % of the vocal budget** |
-| **D2** *slightly off beat* | 🔴**REFUTED** — his four maps have exact bpm and beat human-human timing agreement |
-| **D5** *random bursts* | 🔴**REFUTED/INVERTED** — the human bursts more, and more unmotivated (⚠️n=4 songs) |
+| **1. Judge one map without him** | ✅**BUILT** — `mapjudge`, conformal, n=1, **8/8 controls rejected at 0.000**, human 0.896 |
+| **2. See any song as well as a human** | 🟡**HALF** — `events.py` gives **14–20 typed note types** per song (was 4) with a per-stem trust verdict; the **alignment/audio axis is still missing from the judge** |
+| **3. Map to any style** | ⬜**NOT STARTED** — `idiomize` proves the *mechanism* (hit a target profile on 6 metrics at once); a named style target does not exist yet |
 
-### Two levers, both validated at 3 seeds, both still OFF in production
-- ★★**`BEAT_SUBDIV_AUTO=1`** — **+0.222 vocal coverage at 49× the seed sd** on the 15 half-tempo
-  songs its trigger fires on, notes 432→855, **no precision cost**, alignment crosses its bar the
-  right way, trigger false-fires on **0/121** correct-tempo songs. Worth **+0.030 cohort-wide**.
-- ★**`--beat-threshold 0.25`** — +0.029 coverage at 8.6× sd, costing +0.122 playfeel (inside bar).
-**Neither is promoted. The only thing left for both is his ear.**
+### What is now true that was not yesterday
+- ★**The suite can score ONE map.** `python -m beatsaber_automapper.evaluation.mapjudge <zip>`
+  gives PASS/FAIL, a conformal p, and a **ranked list of what is furthest from human, in
+  percentiles**. `scorecard.py` remains the cohort tool; they answer different questions.
+- ★**It reproduces the one Kyle ordering the old suite got wrong** (BEFORE > AGENT on Hunger) and
+  names his stated reason (`idiom_coverage` 0.4th pct, `angle_change` 95.8th).
+- ★**The judge's density ceiling (6.10 nps rejected) lands on the 6.18 he called unplayable**,
+  un-fitted. PARTLY CONFIRMED.
+- ★**`idiomize` fixes the agent map's flow defect**: FAIL→PASS, 6 metrics onto the human median,
+  **notes/times/hands byte-identical**, 0 parity violations across 33 maps.
+- ★**`events.py` + the notesheet TYPES block** — the song as 14–20 typed events, accent in dB,
+  ring time, register; untrusted stems collapse to one lane.
 
-### D4's chain is closed by measurement — the one route left is training-side
-Decode saturates (5× lower threshold buys **+4 notes**), the 1/4-beat grid is only **26–33 %**
-full, Track B at matched budget is **parity**, and **Stage-1 does not modulate density per song at
-all (r = 0.046)** while crude audio features reach **R² = 0.185**. ⇒**Make Stage-1 propose more.**
-
-### An entire layer we never emitted — now built
-Human maps use five elements; ours used one. **Walls 93 % of human maps (median 86) — we emitted
-0. Arcs 88 % of maps that can have them. Chains 49 %.** All three now exist as **post-processors**
-(`walls.py`, `arcs.py`, `chains.py`), notes byte-identical, installed as a ladder.
-★**This gives W2 (*"Fallen Kingdom is really empty"*) its first untested candidate cause** — five
-instruments failed to explain it and every one looked at notes.
-
-### 🔴 What the evaluation suite cannot do (found 2026-08-19)
-- **It cannot score one map** — all six axes are `nan` below n=5. It is a cohort statistic.
-- **Its gaps depend on cohort size**: the same maps score `flow` **1.260 at n=5 → 0.446 at n=50**.
-  ⇒**Never compare cohorts of different sizes; the bars do not transfer across n.**
-- **It is blind to walls, arcs and chains** — adding 84+48+16 moves every axis by **0.000**.
-  ⇒**No axis can justify or reject the element work; only his ear can.**
+### 🔴 The three limits that bound all of it
+1. 🔴🔴**THE JUDGE HAS NO AUDIO AXIS.** `alignment` is calibrated but not wired in, so the judge is
+   note-attributes-only and **structurally cannot see D2/D3/D4** (anything music-relative). This
+   killed a finding mid-session: `[PHASE]` ranked worse on 6/6 songs, and the control showed the
+   two arms are **identical on 5/6 once `offgrid_frac` is excluded** — a global phase shift moves
+   every note off a beat-0-anchored grid **by construction**. ⇒**Top open item.** The onset cache
+   is being expanded (254 → ~1150) to calibrate it.
+2. ⚠️⚠️**`idiomize` was tuned against the judge** — "the judge scores it higher" is **circular** and
+   must not be quoted as a win. Non-circular: the isolation invariant, parity, and that the defect
+   named matches his words.
+3. 🔴**The judge certifies NOT DEFECTIVE, not GOOD.** It gates against the human corpus *median*,
+   and his standing instruction is *"my target is the best mappers"* ⇒ a corpus median is a
+   **floor**. `rank_score` is a distance-from-typical and **minimising it Goodharts toward the
+   average map** — it is a defect detector, never an optimisation target. Leg 3 is what closes this.
 
 ---
 
 ### ▶️ START THE NEXT SESSION HERE
-1. ★★**ASK HIM TO PLAY THE LADDER** — `[BASE]` → `[DENSER]` → `[WALLS]` → `[FULL]` → `[CHAINS]`,
-   installed on **all four standing songs**, one change per rung, notes byte-identical, 0 parity
-   violations. ⚠️**Ignore anything called `[BEFORE]`** (stale 2026-08-11 maps).
-   **Two questions: does it still feel SLOW, and does it still feel EMPTY?**
-   ★**If `[DENSER]` is inaudible on Fallen Kingdom, vocal coverage joins `BEAT_GRID_PHASE` as a
-   number that does not reach his ear** — worth knowing precisely.
-2. 🔴🔴**The page player has still never run in a browser.** Open one `outputs/notesheets/*.html`.
-3. ★**The gate on D6 is his correction of "main"** — change `overlay.MAIN_DEFAULT`, not the map.
-4. ⬜**Ask**: are roughly-right landmark words enough in the lyrics? If not he can paste the real
-   lyrics and a true WER comes free.
-5. ⬜**`[CROSSOVER]` is still unjudged** — the oldest open question on the board.
-6. ⬜**Session summary page (share with him):**
-   `https://claude.ai/code/artifact/13d35dcc-02b3-4ac1-8b9a-800030fefd5f`
-
-⚠️**Nothing is running.** No GPU job; the autonomous loop was stopped by `/close`. Re-run `/todo`
-to restart research.
-
----
+1. 🔴🔴**Wire `alignment` into `mapjudge`** once the onset cache finishes. Needs its own
+   calibration slice + a SEPARATE conformal calibration set (23 metrics vs 21 breaks the
+   guarantee). Without it the judge cannot see the music.
+2. ⬜**Leg 3 — style targets.** `idiomize` already demonstrates hitting a 6-metric profile; give it
+   a *named* target (not the corpus median) and let a style be selected. ★Ties to the standing
+   memory that **levers are user-facing**.
+3. ⬜**Ask him for the best-mapper list** — blocked by his choice, and it is what leg 3 needs.
+4. ⬜**`[CROSSOVER]` is still unjudged** and the judge now independently ranks the CROSSOVER arms
+   **top of 34**. Strongest unjudged candidate, unchanged.
+5. ⬜The notesheet was sent to him for the first browser render — **the audio player has still
+   never been confirmed working**.
 
 ## ✅ P0 — THE VISIBILITY SUITE: BUILT (V1–V5). Only his looking remains
 `notesheet.py` (score) · `overlay.py` (HIT/MISSED/WASTED) · `flowview.py` (hand paths + located

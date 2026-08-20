@@ -12199,3 +12199,134 @@ Retired item:
 All calibration references are snapshotted to tracked `docs/eval_references/`. ⚠️It is a **copy**,
 so re-copy whenever a reference changes. **Decision owed**: move the live path into version
 control, or keep copy-and-remember.
+
+---
+
+## 2026-08-20 — the suite can score ONE map, and the song has 20 note types instead of 4
+
+**Kyle's brief, two messages:** *"keep working on the agentic building suite until you are
+confident the maps are good. You should not need to rely on human review… no matter what song
+is sent your way, you have visibility as good as a human and can map to whatever style you
+want."* Then: *"build the agent framework so visibly that you can confidently validate and
+create any map from any song. The current note sheet looks like it could use much more data…
+these electric songs have LOTS of different note types."*
+
+### 1. `mapjudge` — a per-map verdict at n=1 (`evaluation/mapjudge.py`)
+
+The blocker was structural: `scorecard.py` is a **cohort** statistic. All six axes return `nan`
+below n=5, and the same maps score `flow` 1.260 at n=5 and 0.446 at n=50, so an agent authoring
+one map had nothing it could ask.
+
+`mapjudge` asks a **different question** — *is this map inside the human distribution?* rather
+than *is this generator human-like?* — which is why it does not re-create the `h_dist`
+saturation. Each metric becomes its empirical percentile in a 1 100-map human slice; percentile
+becomes a two-sided nonconformity `u = 2|p−0.5|`; the map gets a **conformal p-value** against a
+second, disjoint 1 100-map slice. **Sitting at the human median is a PASS**, which is right for a
+defect detector and is exactly what was wrong with ranking by distance-to-median.
+
+**Control battery at n=1** (`scripts/audit_mapjudge.py`), 250 held-out human maps × 9 variants:
+
+| cohort | accept | | cohort | accept |
+|---|---|---|---|---|
+| **human** | **0.896** | | zigzag | 0.000 |
+| random | 0.000 | | timing_random | 0.000 |
+| shuffled | 0.000 | | timing_jitter | 0.000 |
+| metronome | 0.000 | | too_dense / too_sparse | 0.000 / 0.000 |
+
+⚠️**The human accept rate is NOT evidence** — conformal calibration guarantees ~1−α. The evidence
+is the control column.
+
+**Three design corrections, each forced by a measurement:**
+- 🔴`min(p_mean, p_max)` is an **uncorrected multiple test** — it accepted **0.844** of held-out
+  humans against a guaranteed 0.90. The minimum is re-conformalised against the same statistic on
+  the calibration humans.
+- ★**GATING and RANKING need different statistics.** With `max` in the gate every map we generate
+  ties at **p = 0.127** (all have `crossover` fully outside the human range, so the max pins at
+  1.0); with `topk` instead, `timing_jitter` acceptance jumps to **0.204**. ⇒Gate on all three
+  (mean/topk/max), **rank on `s_mean` alone** (`rank_score`).
+- 🔴**Pooling controls called five metrics dead.** Per-control AUC shows **none** are: `nps` and
+  `peak_nps` were **blind by construction** because every pre-existing control preserves note
+  count. Two density controls were added; they separate at 0.903/0.958. ★*Axis-aware auditing
+  applies to the CONTROLS as much as to the metrics.*
+
+**Density resolution** (`--density-sweep`): accepts **2.7–5.1 nps**, rejects at **6.10** (accept
+0.125). ★Kyle independently called **6.18 nps** unplayable and nothing in the calibration was
+told that. **PARTLY CONFIRMED** — one coincidence on one number, but it was not fitted.
+
+**It reproduces the one Kyle ordering the old suite got wrong.** He preferred `BEFORE` over
+`AGENT` on Hunger (*"the notes flow in a really odd way"*). Judge: AGENT `rank 0.555 FAIL`,
+BEFORE `rank 0.305 PASS` — and the reason it gives is `idiom_coverage` at the **0.4th** human
+percentile and `angle_change` at the **95.8th**, i.e. the transitions, which is what he said.
+
+🔴**What it CANNOT do — and this killed a finding mid-session.** `[PHASE]` ranked worse than
+`[BEFORE]` on **6/6** songs, which looked like the judge explaining why the phase lever failed his
+ear. The control refutes it: with `offgrid_frac` excluded the two arms are **identical on 5 of 6
+songs** (delta exactly 0.000). A global phase shift puts every note off a grid anchored at beat 0
+**by construction**, and that one metric was the whole signal. ⇒**The judge has no audio axis and
+cannot adjudicate anything music-relative.** Wiring `alignment` in is the top open item.
+
+### 2. `idiomize` — the agent map's flow defect, fixed by using the vocabulary we already mined
+
+`mapctl auto` chose cells from a geometric rule of its own and never knew that 130 395 human
+transitions collapse to 2 510 idioms. The pass redraws **only x/y/direction**; times, hands,
+colours and count come out byte-identical, so `ebpm_burst`, `nps` and every rhythm/hand-role
+metric **cannot move** and the A/B isolates one thing.
+
+🔴**That constraint was not an aesthetic choice.** Generating the whole map with
+`rule_mapper.build_map` was tried first: idiom coverage 0.503 → 0.901 as intended, but
+**`ebpm_burst` 376 → 752** against a human 376 — re-deriving the exact regression already in
+`agent_mapper/PROGRESS.md`, because `rule_mapper` has never heard of the **150 ms per-hand floor**
+measured over 31 723 human gaps.
+
+| | crossover | idiom_cov | idiom_top50 | idiom_jsd | angle_change | travel |
+|---|---|---|---|---|---|---|
+| AGENT as built | 0.000 | 0.503 | 0.308 | 0.731 | 37.56 | 4.60 |
+| **+ idiomize** | **0.196** | **0.903** | **0.375** | **0.250** | **17.9** | **4.18** |
+| human median | 0.208 | 0.909 | 0.404 | 0.430 | 19.49 | 4.17 |
+
+Cohort: **33 maps, p improved on 31/33, FAIL→PASS on 3, PASS→FAIL on 0**, median p 0.151 → 0.851,
+**0 parity violations before and after on all 33**.
+
+⚠️⚠️**CIRCULAR AND MUST NOT BE QUOTED AS A WIN**: `idiomize` was tuned against the judge, so the
+judge scoring it higher is guaranteed — the same circularity flagged for onset precision under
+`auto`. What is *not* circular: the isolation invariant, the parity result, and that the defect
+the judge named matches the words Kyle used. **Whether it plays better is unproven.**
+
+Two sub-findings worth keeping:
+- Sampling by **flow rank** gave `idiom_coverage` 0.996 (human 0.909) and `idiom_top50` 0.207
+  (human 0.404) — it drew from the **long tail**. Coverage overshooting the human value is the
+  "more human than human" tell on a new axis, not a win. The vocabulary ships **counts**; use them.
+- ★**A crossover knob that only PERMITS crossing does not produce it** — set to the human 0.208 it
+  realised **0.063**.
+- Depth 500 forces coverage to ~1.0 *because* the top 500 IS ~90 % of human usage. Swept:
+  500→0.995, **1000→0.903**, 2000→0.883, 4000→0.887.
+
+### 3. `events.py` — the song as 14–20 typed note events (Kyle's "lots of different note types")
+
+Four stems meant every synth, lead, pluck, pad, stab and riser collapsed into `other`. Two
+independent widenings: **`htdemucs_6s`** splits `guitar` and `piano` out (cached separately — the
+6-source `other` is not the 4-source one), and each stem is then **clustered against itself** and
+named, which is `percussion.py`'s method generalised off the drum kit. Each event carries
+`t / bar.slot / stem / class / midi / accent dB relative to that stem's own median / ring time`.
+
+**Three measurement-forced fixes:**
+- 🔴**Outliers owned the clustering.** On 1f8d6's drums `k=2` split 441 hits into **438 + 3** at
+  silhouette **0.94** — a perfect score for isolating three freak onsets — and the real split
+  (223/211) only appeared at k=5 where 2-point clusters vetoed it. **Winsorise to the 1st–99th
+  percentile and MERGE tiny clusters** into their nearest centroid: recovers hat 232 / kick 194 /
+  crash 15 at z = 4.0.
+- Unmeasurable `decay` was dropping **a third of a busy stem** into an untyped bucket (476 of
+  piano's 1020). Impute low — *no room to ring IS evidence*.
+- 🔴**The names overclaimed**: the first version produced `guitar/fx` for 328 hits at +2.2 dB,
+  plainly the main guitar. Nothing in a self-relative clustering licenses "this is a pad", so names
+  now state only **register + envelope** (`hi-stab`, `sub-ring`, `~` = noisy). More useful anyway.
+
+**The control returns three verdicts, not two.** `vocals` is **n/a** — a vocal line is not supposed
+to repeat bar-to-bar, and the control called a working stem NOT TRUSTED on **4 of the first 6
+songs**. Where one class holds >90 % of a stem, agreement is at its **ceiling in both arms**
+(1f333 bass 0.953 real vs 0.950 null) ⇒ **"not resolvable"**, not "refuted". ★Same rule that
+retired the backbeat control and the first `too_sparse` control: **a control the ground truth
+fails is not a control.**
+
+The verdict is cached **with** the events, and `notesheet.py` collapses an untrusted stem to one
+lane rather than drawing a distinction the null does not support.
