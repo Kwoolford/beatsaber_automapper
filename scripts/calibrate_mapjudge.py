@@ -40,6 +40,7 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 from audit_eval_suite import _load_human  # noqa: E402
 from beatsaber_automapper.evaluation import mapjudge as mj  # noqa: E402
+from beatsaber_automapper.evaluation import scorecard  # noqa: E402
 
 RAW = REPO / "data" / "raw"
 # Existing references occupy 32..432 of the canonical ordering; the idiom vocab
@@ -51,6 +52,28 @@ def corpus(seed: int = 0) -> list[pathlib.Path]:
     raws = sorted(RAW.glob("*.zip"))
     random.Random(seed).shuffle(raws)
     return raws
+
+
+ONSET_CACHE = REPO / "outputs" / "onset_cache"
+
+
+def onsets_for(zp: pathlib.Path):
+    """Cached audio onsets for a corpus map, or None.
+
+    ★The alignment axis is the only one that loads the AUDIO, and it is the axis that
+    caught the defect five others were blind to: a map can have human intervals, human
+    hand roles, human flow and human difficulty *while sitting off the song's beat*.
+    Without it `mapjudge` scores note attributes and their sequencing only, and is
+    structurally unable to see anything music-relative -- which is D2, D3 and D4.
+    """
+    f = ONSET_CACHE / f"{zp.stem}.npz"
+    if not f.exists():
+        return None
+    try:
+        import numpy as _np
+        return _np.load(f)["onsets"]
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def records_for(paths: list[pathlib.Path], want: int, label: str) -> list[dict]:
@@ -69,11 +92,50 @@ def records_for(paths: list[pathlib.Path], want: int, label: str) -> list[dict]:
         if len(notes) < 50 or not (30.0 < bpm < 400.0):
             skipped += 1
             continue
-        rec = mj.map_record(notes, bpm)
+        rec = mj.map_record(notes, bpm, onsets=onsets_for(zp))
         rec["_src"] = zp.name
         out.append(rec)
-    print(f"  {label}: {len(out)} maps ({skipped} skipped of {tried} tried)")
+    n_audio = sum(1 for r in out if "onset_precision" in r)
+    print(f"  {label}: {len(out)} maps ({skipped} skipped of {tried} tried), "
+          f"{n_audio} with audio")
     return out
+
+
+def _score_set(recs: list[dict], dists: dict, audio: bool) -> dict:
+    """Conformal score quantiles for one scoring mode.
+
+    ★**Two calibration sets, not one.** A map scored WITH the alignment axis is
+    scored on 23 metrics; without it, 21. The conformal p-value compares a map's
+    aggregate against calibration maps scored the same way, and a mean over 23
+    metrics is simply not comparable to a mean over 21 -- reusing one set for both
+    silently voids the guarantee that makes the verdict mean anything. So the
+    audio set is calibrated on human maps that HAVE cached onsets, and the no-audio
+    set on all of them.
+    """
+    ex = None if audio else {"alignment"}
+    prov = {"distributions": dists,
+            "calib_scores": {"mean": [], "topk": [], "max": []}}
+    means, topks, maxes = [], [], []
+    for r in recs:
+        if audio and "onset_precision" not in r:
+            continue
+        res = mj.judge(r, prov, label=r.get("_src", "?"), exclude_axes=ex)
+        if res.n_scored:
+            means.append(res.s_mean)
+            topks.append(res.s_topk)
+            maxes.append(res.s_max)
+    stage2 = {"distributions": dists,
+              "calib_scores": {"mean": sorted(means), "topk": sorted(topks),
+                               "max": sorted(maxes)}}
+    pmins = []
+    for r in recs:
+        if audio and "onset_precision" not in r:
+            continue
+        res = mj.judge(r, stage2, label=r.get("_src", "?"), exclude_axes=ex)
+        if res.n_scored and res.p_min == res.p_min:
+            pmins.append(res.p_min)
+    return {"mean": sorted(means), "topk": sorted(topks), "max": sorted(maxes),
+            "pmin": sorted(pmins), "n": len(means)}
 
 
 def build_reference(dist_recs: list[dict], calib_recs: list[dict]) -> dict:
@@ -87,32 +149,15 @@ def build_reference(dist_recs: list[dict], calib_recs: list[dict]) -> dict:
         else:
             print(f"  ⚠️ {name}: only {len(vals)} human values - NOT included")
 
-    # Conformal scores need a reference to score against, so build a provisional
-    # one with empty calib scores, score CALIB through it, then fill them in.
-    provisional = {"distributions": dists,
-                   "calib_scores": {"mean": [], "topk": [], "max": []}}
-    means, topks, maxes = [], [], []
-    for r in calib_recs:
-        res = mj.judge(r, provisional, label=r.get("_src", "?"))
-        if res.n_scored:
-            means.append(res.s_mean)
-            topks.append(res.s_topk)
-            maxes.append(res.s_max)
-
-    # Second pass: the overall verdict fires on the MINIMUM of the two aggregate
-    # p-values, and a minimum of two p-values is not itself a p-value -- it rejects
-    # at up to 2*alpha. So score the calibration humans through the finished
-    # mean/max reference and keep the distribution of that minimum, which is what
-    # the overall bar is then read against. Without this the held-out human accept
-    # rate came out at 0.844 against a guaranteed 0.90.
-    stage2 = {"distributions": dists,
-              "calib_scores": {"mean": sorted(means), "topk": sorted(topks),
-                               "max": sorted(maxes)}}
-    pmins = []
-    for r in calib_recs:
-        res = mj.judge(r, stage2, label=r.get("_src", "?"))
-        if res.n_scored and res.p_min == res.p_min:
-            pmins.append(res.p_min)
+    # Conformal scores, one set per scoring mode -- see `_score_set`.
+    no_audio = _score_set(calib_recs, dists, audio=False)
+    with_audio = _score_set(calib_recs, dists, audio=True)
+    print(f"  calibration: {no_audio['n']} maps without the audio axis, "
+          f"{with_audio['n']} with it")
+    if with_audio["n"] < 100:
+        print(f"  ⚠️ only {with_audio['n']} calibration maps carry cached onsets -- "
+              f"the audio-mode p-value is coarse. Run "
+              f"scripts/build_onset_cache.py over the CALIB span.")
 
     return {
         "_README": (
@@ -124,8 +169,8 @@ def build_reference(dist_recs: list[dict], calib_recs: list[dict]) -> dict:
         "n_dist": len(dist_recs),
         "n_calib": len(calib_recs),
         "distributions": dists,
-        "calib_scores": {"mean": sorted(means), "topk": sorted(topks),
-                         "max": sorted(maxes), "pmin": sorted(pmins)},
+        "calib_scores": no_audio,
+        "calib_scores_audio": with_audio,
     }
 
 

@@ -246,6 +246,7 @@ class JudgeResult:
     viol: float | None = None
     n_notes: float = 0.0
     n_scored: int = 0
+    scored_audio: bool = False
     missing: list[str] = field(default_factory=list)
 
     p_combined: float = float("nan")
@@ -307,17 +308,35 @@ def judge(record: dict[str, float], reference: dict, *, label: str = "map",
           exclude_axes: set[str] | None = None) -> JudgeResult:
     """Score one map's raw metrics against the human reference."""
     dists: dict[str, list[float]] = reference["distributions"]
-    calib_mean: list[float] = sorted(reference["calib_scores"]["mean"])
-    calib_topk: list[float] = sorted(reference["calib_scores"]["topk"])
-    calib_max: list[float] = sorted(reference["calib_scores"]["max"])
-    calib_pmin: list[float] = sorted(reference["calib_scores"].get("pmin", []))
+
+    # ★Pick the calibration set that MATCHES how this map is being scored. A map
+    # scored with the audio axis has 23 metrics and one scored without has 21, and a
+    # mean over 23 is not comparable to a mean over 21 -- sharing one calibration set
+    # between the two silently voids the conformal guarantee. Which set applies is
+    # decided by whether the alignment metrics are actually present, not by what the
+    # caller intended: a missing onset cache must degrade to the 21-metric verdict
+    # loudly rather than score a map against the wrong reference.
+    ex = exclude_axes or set()
+    scoring_audio = ("alignment" not in ex
+                     and any(n in record for n, ax, _t, _n2 in CANDIDATES
+                             if ax == "alignment"))
+    cs = reference.get("calib_scores_audio") if scoring_audio else None
+    if not cs or not cs.get("mean"):
+        scoring_audio = False
+        cs = reference["calib_scores"]
+        ex = set(ex) | {"alignment"}
+    calib_mean: list[float] = sorted(cs["mean"])
+    calib_topk: list[float] = sorted(cs["topk"])
+    calib_max: list[float] = sorted(cs["max"])
+    calib_pmin: list[float] = sorted(cs.get("pmin", []))
 
     res = JudgeResult(label=label)
+    res.scored_audio = scoring_audio
     res.viol = record.get("viol")
     res.n_notes = record.get("n_notes", 0.0)
 
     us: list[float] = []
-    for name, axis, tail, note in active_metrics(exclude_axes):
+    for name, axis, tail, note in active_metrics(ex):
         if name not in dists:
             continue
         if name not in record:
@@ -369,7 +388,8 @@ def report(res: JudgeResult, *, alpha: float = 0.10, top: int = 8) -> str:
     v = res.verdict(alpha)
     out = [
         f"{res.label}: {v}   p={res.p_value:.3f} (bar {alpha:.2f})   "
-        f"notes={int(res.n_notes)}  scored {res.n_scored} metrics",
+        f"notes={int(res.n_notes)}  scored {res.n_scored} metrics"
+        f"{'' if res.scored_audio else '  ⚠️NO AUDIO AXIS'}",
         f"  rank score (mean extremeness) {res.s_mean:.3f}  p={res.p_mean:.3f}"
         f"   | worst-{TOPK} {res.s_topk:.3f} p={res.p_topk:.3f}"
         f"   | worst {res.s_max:.3f} p={res.p_max:.3f}",
