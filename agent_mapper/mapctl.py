@@ -433,6 +433,78 @@ def _level_at(levels: list[tuple[float, int]], t: float, tol: float = 0.12) -> i
     return best
 
 
+def _follow_times(audio: pathlib.Path, an: dict, follow: str,
+                  min_accent: float | None = None,
+                  accent_pct: float | None = None):
+    """Onset times for `--follow`, from a stem OR from a typed event class.
+
+    Three forms, in increasing specificity:
+
+        --follow drums              one of the four brief stems  (UNCHANGED PATH)
+        --follow piano              any of the six `events.py` stems
+        --follow other/hi-stab      one class within a stem
+
+    ★**The four-stem path is deliberately left byte-identical.** It reads
+    `brief.analyse`'s cached onsets exactly as before, because every number recorded
+    for `auto` in this repo was measured on those onsets and rerouting them through a
+    second detector would silently move all of them. The new forms are additive.
+
+    ★**Why class-level following is the point.** `events.py` finds 14-20 distinct note
+    types in a song where the old view had four. "Follow the lead" and "accent the
+    crashes" are the decisions a human mapper actually makes, and they were not
+    expressible until the classes existed. `--min-accent` is the other half: play only
+    the hits above a loudness, in dB relative to that stem's own median.
+
+    ⚠️A class inside a stem the control does NOT trust is refused, not silently used.
+    `events.py` reports that verdict per stem; drawing a distinction the shuffled-label
+    null does not support would be inventing structure.
+    """
+    import brief as B
+
+    if ("/" not in follow and follow in B.STEMS
+            and min_accent is None and accent_pct is None):
+        return list(an["onsets"][follow])
+
+    import events as E
+    d = E.analyse(audio)
+    stem, _, cls = follow.partition("/")
+    if stem not in d["stems"]:
+        raise ValueError(f"--follow: no stem `{stem}`; have {sorted(d['stems'])} "
+                         f"or one of {B.STEMS}")
+    if cls:
+        trust = (d.get("trust") or {}).get(stem)
+        if trust is False:
+            have = sorted(d["stems"][stem].get("classes", {}))
+            raise ValueError(
+                f"--follow {follow}: the class labelling of `{stem}` FAILED its "
+                f"control on this song (labels repeat no better than shuffled), so "
+                f"its classes are not real here. Follow `{stem}` as one lane instead. "
+                f"(classes it would have offered: {have})")
+        avail = set(d["stems"][stem].get("classes", {}))
+        if cls not in avail:
+            raise ValueError(f"--follow {follow}: `{stem}` has {sorted(avail)}")
+
+    sel = [e for e in d["events"] if e["stem"] == stem
+           and (not cls or e.get("cls") == cls)]
+
+    # ★**Accent as a PERCENTILE of this stem's own events, not as absolute dB.**
+    # Measured on 1f767: the drums span p90 = +1.2 dB and max +2.8 -- a compressed
+    # electronic drum bus -- while `other` spans +20.3. So `--min-accent 2` keeps 178
+    # of 422 `other` events and **8 of 637** drum events, i.e. the same number means
+    # something different on every stem and every song. This is the same lesson the
+    # perception scorecard records for spectral thresholds: **absolute levels do not
+    # transfer between mixes.** `--accent-pct 0.25` ("the loudest quarter of this
+    # stem") does transfer, and is what a mapper actually means by "the accents".
+    if accent_pct is not None and sel:
+        import numpy as _np
+        loud = _np.array([e.get("loud", 0.0) for e in sel])
+        thr = float(_np.quantile(loud, 1.0 - max(min(accent_pct, 1.0), 0.0)))
+        sel = [e for e in sel if e.get("loud", 0.0) >= thr]
+    if min_accent is not None:
+        sel = [e for e in sel if e.get("loud", 0.0) >= min_accent]
+    return sorted(e["t"] for e in sel)
+
+
 def cmd_auto(a) -> int:
     """Follow a stem over a bar range: the bulk-placement primitive.
 
@@ -462,8 +534,12 @@ def cmd_auto(a) -> int:
     import brief as B
     s = load_session(a.name)
     an = B.analyse(pathlib.Path(s["audio"]))
-    if a.follow not in B.STEMS:
-        print(f"--follow must be one of {B.STEMS}", file=sys.stderr)
+    try:
+        follow_times = _follow_times(pathlib.Path(s["audio"]), an, a.follow,
+                                     getattr(a, "min_accent", None),
+                                     getattr(a, "accent_pct", None))
+    except ValueError as exc:
+        print(exc, file=sys.stderr)
         return 2
     b0, b1 = (int(x) for x in a.bars.split("-"))
     a.double_slots = {int(x) for x in str(a.accent_slots).split(",")}
@@ -484,7 +560,7 @@ def cmd_auto(a) -> int:
         t0 = s["phase"] + (bar - 1) * s["bar_s"]
         t1 = t0 + s["bar_s"]
         seen = set()
-        for t in an["onsets"][a.follow]:
+        for t in follow_times:
             if not (t0 <= t < t1):
                 continue
             i = int(round((t - t0) / s["slot_s"]))
@@ -718,6 +794,49 @@ def cmd_check(a) -> int:
     return 0 if card.violations == 0 else 1
 
 
+def cmd_judge(a) -> int:
+    """Score the working map against the human corpus AT n=1, mid-authoring.
+
+    ★**This is the step that lets the agent stop asking Kyle.** `check` answers "is
+    this legal?" -- parity, reachability -- which a map can pass while still being
+    nothing a human would write. `judge` answers "is this INSIDE the human
+    distribution?", per metric, as a percentile, with a conformal p-value calibrated
+    on 1 100 human maps and validated by rejecting all eight degenerate controls at
+    n=1 (`scripts/audit_mapjudge.py`).
+
+    ⚠️**Read it as a DEFECT DETECTOR, never as a score to maximise.** It gates against
+    the human corpus MEDIAN, and Kyle's standing instruction is *"my target is the
+    best mappers"* -- so a corpus median is a **floor, not a target**. `rank_score` is
+    a distance-from-typical: driving it to zero produces the *average* map, which is
+    precisely the `h_dist` failure in a new costume. Use the per-metric percentiles as
+    a to-do list, and stop when nothing is flagged.
+
+    ⚠️**No audio axis yet.** The judge scores note attributes and their sequencing; it
+    is structurally blind to whether the notes sit on the MUSIC. `alignment` is the
+    missing axis and until it is wired in, `judge` passing does not mean the map is on
+    the beat.
+    """
+    s = load_session(a.name)
+    notes = read_notes(a.name)
+    if not notes:
+        print("no notes to judge")
+        return 0
+    sys.path.insert(0, str(REPO / "src"))
+    from beatsaber_automapper.evaluation import mapjudge as mj
+
+    bm = _fix_parity(_bm_from_notes(s, notes))
+    rec = mj.map_record(list(bm.color_notes), s["bpm"])
+    res = mj.judge(rec, mj.load_reference(), label=a.name)
+    print(mj.report(res, alpha=a.alpha, top=a.top))
+    if res.verdict(a.alpha) == "PASS":
+        print("\n  Inside the human distribution. ⚠️That means NOT DEFECTIVE, not good "
+              "-- the bar is the corpus median and his target is the best mappers.")
+    else:
+        print("\n  Outside it. The flagged rows above are the to-do list; fix the "
+              "highest percentile first and re-run.")
+    return 0
+
+
 def cmd_export(a) -> int:
     s = load_session(a.name)
     notes = read_notes(a.name)
@@ -775,11 +894,22 @@ def main() -> int:
 
     p = sub.add_parser("auto"); p.add_argument("name")
     p.add_argument("--bars", required=True)
-    p.add_argument("--follow", default="drums", help="drums|bass|other|vocals")
+    p.add_argument("--follow", default="drums",
+                   help="a stem (drums|bass|other|vocals|guitar|piano) or a typed "
+                        "class within one (e.g. other/hi-stab). "
+                        "`events.py <audio>` lists a song's classes.")
     p.add_argument("--lead", default="L", help="which hand starts")
     p.add_argument("--hands", default="alternate", help="alternate|L|R")
     p.add_argument("--every", type=int, default=1, help="thin: keep every Nth onset")
     p.add_argument("--max-per-bar", type=int, default=0, help="cap notes per bar")
+    p.add_argument("--accent-pct", type=float, default=None,
+                   help="follow only the loudest FRACTION of that stem's events "
+                        "(0.25 = the loudest quarter). Self-relative, so it means "
+                        "the same thing on every stem and song -- prefer this to "
+                        "--min-accent.")
+    p.add_argument("--min-accent", type=float, default=None,
+                   help="only follow events at least this loud, in dB relative to "
+                        "that stem's own median hit (a style knob: play the accents)")
     p.add_argument("--wide", action="store_true", help="use both columns per hand")
     p.add_argument("--pitch-span", default="hand", choices=("hand", "full"),
                    help="hand = pitch picks the column inside the hand's own two; "
@@ -807,6 +937,11 @@ def main() -> int:
 
     p = sub.add_parser("check"); p.add_argument("name"); p.set_defaults(fn=cmd_check)
 
+    p = sub.add_parser("judge", help="score the map against the human corpus at n=1")
+    p.add_argument("name")
+    p.add_argument("--alpha", type=float, default=0.10)
+    p.add_argument("--top", type=int, default=8)
+    p.set_defaults(fn=cmd_judge)
     p = sub.add_parser("export"); p.add_argument("name")
     p.add_argument("--out", required=True); p.add_argument("--difficulty", default="Expert")
     p.add_argument("--song-name", default=None); p.set_defaults(fn=cmd_export)

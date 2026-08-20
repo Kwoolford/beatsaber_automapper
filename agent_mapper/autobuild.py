@@ -1,0 +1,199 @@
+#!/usr/bin/env python
+"""Build a complete map of ANY song, end to end, and judge it — no human in the loop.
+
+**Kyle, 2026-08-20:** *"build the agent framework so visibly that you can confidently
+validate and create any map from any song."* This is that loop, run as one command:
+
+    SEE      events.py      the song as 14-20 typed note classes, with a trust
+                            verdict per stem
+             structure.py   where the sections are, which repeat, and their energy
+    PLAN     here           per section: who carries it, and how dense it should be
+    BUILD    mapctl auto    hand assignment, the 150 ms per-hand floor, parity
+    DRESS    idiomize       note cells redrawn from the mined human vocabulary
+    JUDGE    mapjudge       PASS/FAIL at n=1 against 1 100 human maps
+
+★**Density is hit by keeping the LOUDEST events, not by thinning arbitrarily.**
+`--every 3` drops every third onset regardless of what it is; this picks an accent
+percentile per section so the surviving events are the ones the song emphasises.
+When a budget forces notes to be dropped, dropping the quiet ones is the musical
+choice, and `events.py` measures loudness relative to each stem's own median so the
+same percentile means the same thing on every stem and every song.
+
+★**Section energy sets the budget, so the map breathes.** Kyle named this himself as
+something to protect: *"when there is a slow spot we let the player breathe."* An
+intro at energy 0.41 and a drop at 1.00 get different note budgets from the same
+target, rather than the flat ~8 nps the ML pipeline used to emit everywhere.
+
+⚠️**A PASS here means NOT DEFECTIVE, not good.** The judge gates against the human
+corpus median and his standing target is the best mappers, so this is a floor. It
+also has no audio axis yet, so it cannot tell you the notes are on the beat.
+
+Usage:
+    python agent_mapper/autobuild.py data/eval_songset/1f767.ogg --name auto767
+    python agent_mapper/autobuild.py <audio> --name X --nps 4.5 --no-idiomize
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import pathlib
+import subprocess
+import sys
+
+REPO = pathlib.Path(__file__).resolve().parents[1]
+AM = REPO / "agent_mapper"
+sys.path.insert(0, str(REPO / "src"))
+sys.path.insert(0, str(AM))
+
+# Human Expert median, from the mapjudge reference over 1100 maps. A TARGET, not a
+# ceiling -- Kyle called 6.18 nps unplayable and the judge independently rejects at
+# 6.10, so the usable band is roughly 2.7-5.1.
+HUMAN_NPS = 4.17
+# Melodic stems, in the order they are preferred as a section's carrier. Drums are
+# the backbone and are handled separately.
+MELODIC = ("vocals", "other", "guitar", "piano", "bass")
+
+
+def run(args: list[str], quiet: bool = True) -> str:
+    r = subprocess.run([sys.executable, *args], capture_output=True, text=True,
+                       cwd=REPO)
+    if r.returncode not in (0, 1):
+        raise RuntimeError(f"{' '.join(args[-4:])}\n{r.stdout}\n{r.stderr}")
+    if not quiet:
+        print(r.stdout.rstrip())
+    return r.stdout
+
+
+def plan(audio: pathlib.Path, nps: float) -> list[dict]:
+    """Per section: the carrier class, the backbone, and each one's accent budget."""
+    import brief as B
+    import events as E
+    import structure as S
+
+    a = B.analyse(audio)
+    d = E.analyse(audio)
+    sec = S.analyse(audio)
+    S.roles(sec["sections"], a)
+    trust = d.get("trust") or {}
+
+    # Only offer classes from a stem whose labelling survived its control. An
+    # untrusted stem is still usable -- as ONE lane, which is what `stem` alone means.
+    def classes_in(stem: str, b0: int, b1: int) -> dict[str, int]:
+        if trust.get(stem) is False:
+            return {}
+        out: dict[str, int] = {}
+        for e in d["events"]:
+            if e["stem"] == stem and b0 <= e["bar"] <= b1:
+                out[e["cls"]] = out.get(e["cls"], 0) + 1
+        return out
+
+    rows = []
+    for s in sec["sections"]:
+        b0, b1 = s["bar0"], s["bar0"] + s["bars"] - 1
+        dur = max(s["t1"] - s["t0"], 0.1)
+        # Energy scales the budget between a breathing 55 % and a full 115 % of target.
+        budget = nps * dur * (0.55 + 0.60 * float(s.get("energy") or 0.5))
+
+        best = (None, 0)
+        for stem in MELODIC:
+            for cls, n in classes_in(stem, b0, b1).items():
+                if n > best[1]:
+                    best = (f"{stem}/{cls}", n)
+        carrier, n_carrier = best
+
+        drums = sum(1 for e in d["events"]
+                    if e["stem"] == "drums" and b0 <= e["bar"] <= b1)
+        # Split the budget: the carrier takes the larger share in a loud section,
+        # the drums carry a quiet one where a melodic line is sparse anyway.
+        share = 0.55 if float(s.get("energy") or 0.5) >= 0.5 else 0.35
+        rows.append({
+            "bar0": b0, "bar1": b1, "role": s.get("role"), "label": s["label"],
+            "energy": round(float(s.get("energy") or 0), 2), "dur": round(dur, 1),
+            "budget": int(budget),
+            "carrier": carrier, "carrier_n": n_carrier,
+            "carrier_pct": _pct(budget * share, n_carrier),
+            "drums_n": drums,
+            "drums_pct": _pct(budget * (1 - share), drums),
+        })
+    return rows
+
+
+def _pct(want: float, have: int) -> float | None:
+    """Accent percentile that keeps ~`want` of `have` events (None = keep all)."""
+    if not have:
+        return None
+    return None if want >= have else round(max(want / have, 0.02), 3)
+
+
+def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool) -> None:
+    run([str(AM / "mapctl.py"), "init", str(audio), "--name", name])
+    for r in rows:
+        bars = f"{r['bar0']}-{r['bar1']}"
+        # Drums first: the backbone defines the pulse, and `auto` assigns hands over
+        # the MERGED timeline, so a later pass cannot hand one hand two fast swings.
+        if r["drums_n"]:
+            cmd = [str(AM / "mapctl.py"), "auto", name, "--bars", bars,
+                   "--follow", "drums", "--wide"]
+            if r["drums_pct"]:
+                cmd += ["--accent-pct", str(r["drums_pct"])]
+            run(cmd, quiet=not verbose)
+        if r["carrier"]:
+            cmd = [str(AM / "mapctl.py"), "auto", name, "--bars", bars,
+                   "--follow", r["carrier"], "--wide"]
+            if r["carrier_pct"]:
+                cmd += ["--accent-pct", str(r["carrier_pct"])]
+            run(cmd, quiet=not verbose)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("audio", type=pathlib.Path)
+    ap.add_argument("--name", required=True)
+    ap.add_argument("--nps", type=float, default=HUMAN_NPS)
+    ap.add_argument("--no-idiomize", action="store_true")
+    ap.add_argument("--out", type=pathlib.Path, default=None)
+    ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--json", type=pathlib.Path)
+    a = ap.parse_args()
+
+    print(f"=== SEE: {a.audio.name}")
+    rows = plan(a.audio, a.nps)
+    print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
+          f"(events -> accent pct)")
+    print("-" * 78)
+    for r in rows:
+        cp = f"{r['carrier_pct']}" if r["carrier_pct"] else "all"
+        dp = f"{r['drums_pct']}" if r["drums_pct"] else "all"
+        print(f"{r['bar0']:>4}-{r['bar1']:<7} {str(r['role']):<10} {r['energy']:>5.2f} "
+              f"{r['budget']:>7}  {str(r['carrier']):<18} "
+              f"({r['carrier_n']}->{cp})  drums({r['drums_n']}->{dp})")
+
+    print(f"\n=== BUILD")
+    build(a.audio, a.name, rows, a.verbose)
+    out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
+    run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
+
+    if not a.no_idiomize:
+        print(f"\n=== DRESS (idiomize)")
+        import idiomize as I
+        n, nfb = I.idiomize_zip(out, out, seed=a.seed)
+        print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
+
+    print(f"\n=== JUDGE")
+    from beatsaber_automapper.evaluation import mapjudge as mj
+    res = mj.judge_zip(out, reference=mj.load_reference())
+    print(mj.report(res))
+    if a.json:
+        a.json.write_text(json.dumps(
+            {"song": a.audio.stem, "plan": rows, "map": str(out),
+             "verdict": res.verdict(), "p": res.p_value,
+             "rank": res.rank_score, "n_notes": res.n_notes,
+             "worst": [{"metric": m.name, "value": m.value, "pct": m.pct}
+                       for m in res.worst(8)]}, indent=1) + "\n")
+    return 0 if res.verdict() == "PASS" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
