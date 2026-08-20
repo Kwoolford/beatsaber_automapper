@@ -416,6 +416,23 @@ def analyse(audio: pathlib.Path, force: bool = False, six: bool = True,
     out = {"song": audio.stem, "model": tag, "bpm": g["bpm"], "phase": g["phase"],
            "bar_s": g["bar_s"], "n_bars": g["n_bars"], "grid_r": float(a["r"]),
            "stems": per_stem, "events": events}
+
+    # ★The trust verdict travels WITH the data, not alongside it. Anything drawing
+    # these classes has to know which of them the null actually supports -- the
+    # notesheet collapses an untrusted stem to a single lane rather than drawing a
+    # distinction the control says is not there. Keeping the verdict in a separate
+    # report is how a caveat gets lost.
+    #   True  = the labelling repeats bar-to-bar above the shuffled null (z >= 3)
+    #   False = it does not; read the stem as ONE lane
+    #   None  = not applicable or not resolvable (see `detail` for which)
+    trust, detail = {}, {}
+    for stem in per_stem:
+        r = repetition_z(out, stem)
+        detail[stem] = r
+        trust[stem] = None if r.get("z") is None else bool(r["z"] >= 3)
+    out["trust"] = trust
+    out["trust_detail"] = detail
+
     f.write_text(json.dumps(out))
     return out
 

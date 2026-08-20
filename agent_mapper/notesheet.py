@@ -67,6 +67,11 @@ PAD_R = 12
 LANE_H = 52              # a melodic lane
 LYRIC_H = 15
 KIT_ROW = 11
+EVT_ROW = 10             # ★V6: one row per typed note event class (events.py)
+# How many event classes to draw. A song yields 14-20; drawing all of them would
+# push the kit and melody lanes off the top of the system. The busiest classes are
+# the ones a mapper is choosing between, so the rows are ranked by event count.
+MAX_EVT_ROWS = 12
 BANNER_H = 20
 RULER_H = 16
 MAP_H = 24               # the map lane, drawn only with --map
@@ -164,6 +169,16 @@ def collect(audio: pathlib.Path, force: bool = False,
         except Exception as e:  # noqa: BLE001
             d["chords_info"] = {"error": str(e)}
 
+    # ★V6 -- the typed-event layer. Kyle: "these electric songs have LOTS of
+    # different note types." Guarded: it needs the 6-source separation, and a song
+    # that cannot be separated must not take the whole page down. The song lanes
+    # above are still worth having (same rule as the flow lane below).
+    try:
+        import events as _ev
+        d["events"] = _ev.analyse(audio, force)
+    except Exception as e:  # noqa: BLE001
+        d["events"] = {"error": str(e)}
+
     if map_zip is not None:
         import overlay as _ov
         notes, map_bpm = _ov.load_map(map_zip)
@@ -235,6 +250,58 @@ def _kit(d: dict, t0: float, t1: float, top: float) -> list[str]:
     return out
 
 
+def _evt_rows(d: dict) -> list[tuple[str, str, int]]:
+    """The (stem, class, n) rows to draw, busiest first, capped at MAX_EVT_ROWS.
+
+    ★A stem the control could not trust is collapsed to ONE row rather than shown as
+    its classes -- `events.py` reports that verdict per stem and it would be
+    dishonest to draw a distinction the null says is not there.
+    """
+    ev = d.get("events") or {}
+    if not ev or ev.get("error"):
+        return []
+    trust = ev.get("trust") or {}
+    counts: dict[tuple[str, str], int] = {}
+    for e in ev.get("events", []):
+        stem = e["stem"]
+        cls = e.get("cls", stem)
+        if trust.get(stem) is False:
+            cls = f"{stem}-all"
+        counts[(stem, cls)] = counts.get((stem, cls), 0) + 1
+    rows = sorted(counts.items(), key=lambda kv: -kv[1])[:MAX_EVT_ROWS]
+    return [(k[0], k[1], v) for k, v in sorted(rows, key=lambda kv: (kv[0][0], -kv[1]))]
+
+
+def _events(d: dict, rows: list, t0: float, t1: float, top: float) -> list[str]:
+    """One mark per typed event, radius scaled by its accent in dB."""
+    ev = d.get("events") or {}
+    trust = ev.get("trust") or {}
+    idx = {(st, cl): i for i, (st, cl, _n) in enumerate(rows)}
+    out = []
+    for e in ev.get("events", []):
+        if not (t0 <= e["t"] < t1):
+            continue
+        stem = e["stem"]
+        cls = e.get("cls", stem)
+        if trust.get(stem) is False:
+            cls = f"{stem}-all"
+        i = idx.get((stem, cls))
+        if i is None:
+            continue
+        y = top + i * EVT_ROW + EVT_ROW / 2
+        x = _x(e["t"], t0, t1)
+        r = float(np.clip(1.4 + 0.18 * (e.get("loud", 0.0) + 6.0), 1.2, 4.2))
+        out.append(f'<circle class="ev {_evt_cls(stem)}" cx="{x:.1f}" cy="{y:.1f}" '
+                   f'r="{r:.1f}"><title>{stem}/{cls} {_mmss(e["t"])} '
+                   f'{e.get("loud", 0):+.1f} dB</title></circle>')
+    return out
+
+
+def _evt_cls(stem: str) -> str:
+    return {"vocals": "vox", "other": "lead", "bass": "bass", "drums": "kitc",
+            "guitar": "gtr", "piano": "pno"}.get(stem, "kitc")
+
+
 def _flow(d: dict, t0: float, t1: float, top: float) -> list[str]:
     """★V3 — the FLOW lane: what each HAND does, and where the bursts are.
 
@@ -304,7 +371,9 @@ def _system(d: dict, b0: int, nbars: int) -> str:
         lanes.append((label, cls, top))
         top += LANE_H + (LYRIC_H if stem == "vocals" else 0) + 6
     kit_top = top
-    height = kit_top + len(KIT_ROWS) * KIT_ROW + 8
+    evt_rows = _evt_rows(d)
+    evt_top = kit_top + len(KIT_ROWS) * KIT_ROW + (10 if evt_rows else 0)
+    height = evt_top + len(evt_rows) * EVT_ROW + 8
 
     s: list[str] = []
 
@@ -406,6 +475,15 @@ def _system(d: dict, b0: int, nbars: int) -> str:
                  f'y="{kit_top + row * KIT_ROW + KIT_ROW - 2:.1f}">{piece}</text>')
     s.extend(_kit(d, t0, t1, kit_top))
 
+    if evt_rows:
+        s.append(f'<text class="ll evtl" x="{GUT - 8}" '
+                 f'y="{evt_top + len(evt_rows) * EVT_ROW / 2 + 3:.1f}">TYPES</text>')
+        for i, (stem, cls, n) in enumerate(evt_rows):
+            s.append(f'<text class="kr" x="{GUT - 8}" '
+                     f'y="{evt_top + i * EVT_ROW + EVT_ROW - 2:.1f}">'
+                     f'{stem[:3]}/{cls} ({n})</text>')
+        s.extend(_events(d, evt_rows, t0, t1, evt_top))
+
     s.append(f'<line class="ph" x1="-99" y1="{BANNER_H}" x2="-99" y2="{height - 6}" />')
     return (f'<div class="sys" data-t0="{t0:.4f}" data-t1="{t1:.4f}">'
             f'<svg viewBox="0 0 {W} {height}" width="{W}" height="{height}" '
@@ -485,6 +563,7 @@ CSS = """
   --ground:#F6F6F9; --surface:#FFFFFF; --bed:#EEEEF4; --rule:#D9D9E4;
   --ink:#181A21; --ink-2:#5A5F70; --ink-3:#8B90A2;
   --vox:#1E9E99; --lead:#4B6FD0; --bass:#7A5FC4; --kit:#6B7285;
+  --gtr:#C2683A; --pno:#3F8E56;
   --hot:#C2410C; --hot-bed:#FBE6DA;
   --hit:#2E8B57; --missed:#C98A0B; --wasted:#C0392B;
   --hand-l:#D2352E; --hand-r:#2D63C8;
@@ -494,6 +573,7 @@ CSS = """
     --ground:#101219; --surface:#171A22; --bed:#1D212B; --rule:#2C313E;
     --ink:#E8E9EF; --ink-2:#9AA0B2; --ink-3:#6C7285;
     --vox:#5BC8C4; --lead:#8AA6F0; --bass:#B49BEE; --kit:#7A8194;
+  --gtr:#E0946A; --pno:#6FBF86;
     --hot:#F2884B; --hot-bed:#3A2417;
     --hit:#5FCB8C; --missed:#F0B429; --wasted:#F2685A;
     --hand-l:#F0645C; --hand-r:#6E9BF5;
@@ -503,6 +583,7 @@ CSS = """
   --ground:#101219; --surface:#171A22; --bed:#1D212B; --rule:#2C313E;
   --ink:#E8E9EF; --ink-2:#9AA0B2; --ink-3:#6C7285;
   --vox:#5BC8C4; --lead:#8AA6F0; --bass:#B49BEE; --kit:#7A8194;
+  --gtr:#E0946A; --pno:#6FBF86;
   --hot:#F2884B; --hot-bed:#3A2417;
   --hit:#5FCB8C; --missed:#F0B429; --wasted:#F2685A;
   --hand-l:#F0645C; --hand-r:#6E9BF5;
@@ -548,6 +629,9 @@ h1{
 .n{opacity:.95}
 .n.vox{fill:var(--vox)} .n.lead{fill:var(--lead)} .n.bass{fill:var(--bass)}
 .k{fill:var(--kit)}
+.ev{opacity:.85}
+.ev.vox{fill:var(--vox)} .ev.lead{fill:var(--lead)} .ev.bass{fill:var(--bass)}
+.ev.kitc{fill:var(--kit)} .ev.gtr{fill:var(--gtr)} .ev.pno{fill:var(--pno)}
 /* A crash is the most reliable "something new starts here" marker in recorded music,
    so it reads as a ring rather than a dot — visible without borrowing a lane's hue. */
 .k.crash{fill:none; stroke:var(--kit); stroke-width:1.2}
@@ -562,6 +646,7 @@ text{font-family:"IBM Plex Mono",ui-monospace,monospace; font-variant-numeric:ta
   letter-spacing:.1em; text-anchor:end}
 .ll.vox{fill:var(--vox)} .ll.lead{fill:var(--lead)} .ll.bass{fill:var(--bass)}
 .ll.kitl{fill:var(--kit)}
+.ll.evtl{fill:var(--ink-3)}
 .ll.mapl{fill:var(--ink)}
 .mn.hit{fill:var(--hit)}
 .mn.wasted{fill:var(--wasted)}
