@@ -125,10 +125,30 @@ def _pct(want: float, have: int) -> float | None:
     return None if want >= have else round(max(want / have, 0.02), 3)
 
 
-def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool) -> None:
+def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
+          pulse: bool = False, phrase_bars: int = 4) -> None:
     run([str(AM / "mapctl.py"), "init", str(audio), "--name", name])
     for r in rows:
         bars = f"{r['bar0']}-{r['bar1']}"
+        if pulse:
+            # ★ONE pass over BOTH streams, then hold one interval per phrase.
+            # Two passes is what P0.5 measured as the merge cost (drums alone
+            # `pulse_stability` 0.387, the union 0.329, human 0.514), and a pulse
+            # grid chosen twice independently is not a pulse.
+            follow = ",".join(x for x in (("drums" if r["drums_n"] else None),
+                                          r["carrier"]) if x)
+            if not follow:
+                continue
+            cmd = [str(AM / "mapctl.py"), "auto", name, "--bars", bars,
+                   "--follow", follow, "--wide", "--pulse",
+                   "--phrase-bars", str(phrase_bars)]
+            # One budget for the merged stream: the section's whole accent budget,
+            # not the drums/carrier split, which only existed to feed two passes.
+            pct = _pct(r["budget"], (r["drums_n"] or 0) + (r["carrier_n"] or 0))
+            if pct:
+                cmd += ["--accent-pct", str(pct)]
+            run(cmd, quiet=not verbose)
+            continue
         # Drums first: the backbone defines the pulse, and `auto` assigns hands over
         # the MERGED timeline, so a later pass cannot hand one hand two fast swings.
         if r["drums_n"]:
@@ -158,6 +178,10 @@ def main() -> int:
     ap.add_argument("--out", type=pathlib.Path, default=None)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--pulse", action="store_true",
+                    help="hold one interval per phrase, from a single merged pass "
+                         "over drums+carrier (P0.5)")
+    ap.add_argument("--phrase-bars", type=int, default=4)
     ap.add_argument("--json", type=pathlib.Path)
     a = ap.parse_args()
 
@@ -186,7 +210,8 @@ def main() -> int:
               f"({r['carrier_n']}->{cp})  drums({r['drums_n']}->{dp})")
 
     print(f"\n=== BUILD")
-    build(a.audio, a.name, rows, a.verbose)
+    build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
+          phrase_bars=a.phrase_bars)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

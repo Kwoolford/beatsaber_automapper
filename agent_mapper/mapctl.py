@@ -535,9 +535,16 @@ def cmd_auto(a) -> int:
     s = load_session(a.name)
     an = B.analyse(pathlib.Path(s["audio"]))
     try:
-        follow_times = _follow_times(pathlib.Path(s["audio"]), an, a.follow,
-                                     getattr(a, "min_accent", None),
-                                     getattr(a, "accent_pct", None))
+        # ★A comma-separated `--follow` unions the streams into ONE pass. Layering two
+        # passes is measurably what costs the pulse: drums alone scores
+        # `pulse_stability` 0.387 and the union of drums+carrier 0.329 (n=23), because
+        # each pass picks its own times and the interleaving is nobody's rhythm.
+        follow_times = []
+        for spec in str(a.follow).split(","):
+            follow_times.extend(_follow_times(pathlib.Path(s["audio"]), an, spec.strip(),
+                                              getattr(a, "min_accent", None),
+                                              getattr(a, "accent_pct", None)))
+        follow_times = sorted(set(follow_times))
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -579,6 +586,13 @@ def cmd_auto(a) -> int:
                 got.append(sl)
                 keep.append((bar, sl))
         picks = keep
+    if getattr(a, "pulse", False):
+        import pulse as PU
+        before = len(picks)
+        picks = PU.quantise(picks, n_cells, b0,
+                            phrase_bars=getattr(a, "phrase_bars", 4))
+        print(f"pulse: {before} -> {len(picks)} cells, one interval held per "
+              f"{getattr(a, 'phrase_bars', 4)}-bar phrase")
     picks = [p for p in picks if p not in occupied]
     if not picks:
         print("nothing to place (no onsets in range, or all slots already taken)")
@@ -911,6 +925,12 @@ def main() -> int:
                    help="only follow events at least this loud, in dB relative to "
                         "that stem's own median hit (a style knob: play the accents)")
     p.add_argument("--wide", action="store_true", help="use both columns per hand")
+    p.add_argument("--pulse", action="store_true",
+                   help="hold ONE interval per phrase instead of playing every onset "
+                        "(P0.5: our pulse_stability 0.329 vs human 0.514)")
+    p.add_argument("--phrase-bars", type=int, default=4,
+                   help="bars per phrase for --pulse; the interval may change at each "
+                        "boundary and not within (default 4)")
     p.add_argument("--pitch-span", default="hand", choices=("hand", "full"),
                    help="hand = pitch picks the column inside the hand's own two; "
                         "full = the pitch INTERVAL picks how far to jump, across all "
