@@ -65,6 +65,18 @@ TRAVEL_TARGET = 4.167      # grid-units per second, same source
 # 1000 reproduces the human's own top-500 coverage, so that is the default.
 VOCAB_DEPTH = 1000
 
+# ★**How often a hand REPEATS a figure it just played.** Measured need: with
+# independent sampling at every note, `idiom_local` (distinct idioms inside a
+# 16-note window) sat at the **98.2nd human percentile on 23 of 23** autobuilt maps
+# -- our maps were *more varied* locally than almost every human map. That is the
+# same "globally right, locally wrong" shape the suite already records for hand
+# roles, arriving on the vocabulary axis: A3's founding result is that human mapping
+# is **a small vocabulary deployed deliberately**, and deliberate means a figure gets
+# repeated for a few beats before it changes. Sampling fresh every time is maximum
+# entropy, which docs/eval_suite_v2.md Finding 3 already established is NOT human.
+REPEAT_P = 0.55
+REPEAT_WINDOW = 6
+
 DOWN_DIRS = (1, 6, 7)
 UP_DIRS = (0, 4, 5)
 HOME = {0: (0, 1), 1: (2, 3)}   # red left, blue right
@@ -151,7 +163,8 @@ def _pick(cands, rng: random.Random, prefer_cross: bool):
 
 
 def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
-             width: int = 6, crossover: float = CROSSOVER_TARGET):
+             width: int = 6, crossover: float = CROSSOVER_TARGET,
+             repeat_p: float = REPEAT_P):
     """Redraw (x, y, direction) for every note from the human vocabulary.
 
     `records` is a list of dicts with keys b/x/y/c/d (the v3 `colorNotes` shape).
@@ -166,6 +179,7 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
     spb = 60.0 / bpm if bpm > 0 else 0.5
 
     hands = {0: _Hand(0), 1: _Hand(1)}
+    recent: dict[int, list] = {0: [], 1: []}
     order = sorted(range(len(records)),
                    key=lambda i: (float(records[i].get("b", 0.0)),
                                   int(records[i].get("c", 0))))
@@ -189,6 +203,13 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # of every map we ship (crossover 0.000, human percentile 0.4).
         cross_ok = rng.random() < crossover
         cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, cross_ok)
+        # Prefer a figure this hand has just played, when one still fits from its
+        # current state. This is what makes the local vocabulary small.
+        if cands and recent[color] and rng.random() < repeat_p:
+            legal = {c[0] for c in cands}
+            again = [e for e in recent[color] if e in legal]
+            if again:
+                cands = [c for c in cands if c[0] in set(again)]
         # ★A crossover knob that only PERMITS crossing does not produce crossing.
         # Set to the human 0.208 it realised 0.063, because most legal candidates
         # stay on-side and a permissive filter never changes the odds. When the
@@ -207,6 +228,9 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
             nx, ny, d_to = int(r.get("x", 0)), int(r.get("y", 0)), int(r.get("d", 8))
 
         out[i] = (nx, ny, d_to)
+        if pick is not None:
+            recent[color].append(pick)
+            del recent[color][:-REPEAT_WINDOW]
         h.x, h.y, h.direction, h.beat = nx, ny, d_to, beat
         p = _parity_of(d_to)
         h.parity = p if p is not None else (h.parity ^ 1)
@@ -221,7 +245,8 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
 
 def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
                  top_k: int = VOCAB_DEPTH, width: int = 6,
-                 crossover: float = CROSSOVER_TARGET) -> tuple[int, int]:
+                 crossover: float = CROSSOVER_TARGET,
+                 repeat_p: float = REPEAT_P) -> tuple[int, int]:
     """Copy `src` to `dst` with only note cells redrawn. Returns (n_notes, n_fallback)."""
     import json
     import shutil
@@ -268,7 +293,7 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
             raise ValueError("too few notes to re-place")
 
         new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
-                            width=width, crossover=crossover)
+                            width=width, crossover=crossover, repeat_p=repeat_p)
         # The invariant the whole design rests on: this pass moves cells and
         # nothing else. If it ever changes a time, a colour or the count, the A/B
         # stops isolating one thing and the comparison is worthless.
@@ -299,10 +324,15 @@ def main() -> int:
     ap.add_argument("--top-k", type=int, default=VOCAB_DEPTH,
                     help="vocabulary depth (default %(default)s; see VOCAB_DEPTH)")
     ap.add_argument("--crossover", type=float, default=CROSSOVER_TARGET)
+    ap.add_argument("--repeat-p", type=float, default=REPEAT_P,
+                    help="chance a hand repeats a figure it just played "
+                         "(0 = resample independently, which is what put "
+                         "idiom_local at the 98th human percentile)")
     a = ap.parse_args()
 
     n, nfb = idiomize_zip(a.zip_in, a.out, seed=a.seed, top_k=a.top_k,
-                          width=a.width, crossover=a.crossover)
+                          width=a.width, crossover=a.crossover,
+                          repeat_p=a.repeat_p)
     print(f"{a.zip_in.name}: re-placed {n - nfb}/{n} notes from the human vocabulary "
           f"({nfb} kept their original cell: no idiom fit)")
     print(f"wrote {a.out}")

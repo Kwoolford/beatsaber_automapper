@@ -150,7 +150,10 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("audio", type=pathlib.Path)
     ap.add_argument("--name", required=True)
-    ap.add_argument("--nps", type=float, default=HUMAN_NPS)
+    ap.add_argument("--style", default=None,
+                    help="a style name from style.py --list. Sets the density and "
+                         "vocabulary targets; --nps overrides its density.")
+    ap.add_argument("--nps", type=float, default=None)
     ap.add_argument("--no-idiomize", action="store_true")
     ap.add_argument("--out", type=pathlib.Path, default=None)
     ap.add_argument("--seed", type=int, default=0)
@@ -158,8 +161,20 @@ def main() -> int:
     ap.add_argument("--json", type=pathlib.Path)
     a = ap.parse_args()
 
+    from beatsaber_automapper.evaluation import mapjudge as mj
+    ref = mj.load_reference()
+
+    # A style sets the targets; an explicit --nps still wins, because the density is
+    # the one knob Kyle has already given a verdict on (6.18 unplayable).
+    sargs = {}
+    if a.style:
+        import style as ST
+        sargs = ST.build_args(a.style, ref)
+        print(f"=== STYLE `{a.style}` -> {sargs}")
+    nps = a.nps if a.nps is not None else sargs.get("nps", HUMAN_NPS)
+
     print(f"=== SEE: {a.audio.name}")
-    rows = plan(a.audio, a.nps)
+    rows = plan(a.audio, nps)
     print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
           f"(events -> accent pct)")
     print("-" * 78)
@@ -178,13 +193,21 @@ def main() -> int:
     if not a.no_idiomize:
         print(f"\n=== DRESS (idiomize)")
         import idiomize as I
-        n, nfb = I.idiomize_zip(out, out, seed=a.seed)
+        kw = {}
+        if "crossover" in sargs:
+            kw["crossover"] = sargs["crossover"]
+        if "top_k" in sargs:
+            kw["top_k"] = sargs["top_k"]
+        n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
 
     print(f"\n=== JUDGE")
-    from beatsaber_automapper.evaluation import mapjudge as mj
-    res = mj.judge_zip(out, reference=mj.load_reference())
+    res = mj.judge_zip(out, reference=ref)
     print(mj.report(res))
+    if a.style:
+        import style as ST
+        print()
+        print(ST.report(ST.check(res, a.style), a.style))
     if a.json:
         a.json.write_text(json.dumps(
             {"song": a.audio.stem, "plan": rows, "map": str(out),

@@ -66,42 +66,61 @@ QUANTILE_PATH = (
 # prescriptive report -- the judge has to say WHAT IS WRONG, not just that
 # something is (docs/eval_suite_v2.md design principle 3).
 #
-# `tail` says which side is a defect:
-#   "both" - either extreme is wrong (travel: static hands OR flailing)
-#   "high" - only the upper tail is a defect
-#   "low"  - only the lower tail is a defect
-# A one-sided metric contributes u = 0 on its safe side. Being one-sided is a
-# CLAIM about the metric and every one of them is checked by the control battery.
+# `tail` says which side is a defect. The machinery supports "high" and "low", but
+# ★**every metric is "both", and that is a measured correction, not a default.**
+#
+# The first version made nine of them one-sided, on the reasoning that (say) timing
+# scatter LOWER than human is not a defect. That reasoning is wrong for this
+# question. A one-sided metric contributes u = 0 across its whole "safe" side, so a
+# map can sit further from human than ANY human map and pay nothing -- and that is
+# exactly what happened. Across 23 maps built by `autobuild`:
+#
+#     idiom_local   median human percentile 98.2 %, extreme on 23 of 23
+#     idiom_jsd     median human percentile  9.2 %, extreme on 12 of 23
+#
+# Both pinned at an extreme, both on the side the judge had been told to ignore, and
+# both are metrics `idiomize` was tuned against -- the Goodhart fingerprint, showing
+# up in the flattering direction where a one-sided rule could not see it.
+#
+# Measured before switching, on held-out humans and on our own maps:
+#     mixed one/two-sided   human accept 0.902   our maps 23/23   median p 0.544
+#     ALL two-sided         human accept 0.916   our maps 22/23   median p 0.314
+#
+# Two-sided costs the human cohort NOTHING and is strictly more discriminating on
+# ours. The question this module asks is "is this map inside the human
+# distribution", and two-sided is the faithful implementation of that question:
+# being more extreme than any human, in any direction, is evidence of a non-human
+# process even when the direction sounds flattering.
 CANDIDATES: list[tuple[str, str, str, str]] = [
     # --- A1 flow / ergonomics -------------------------------------------------
     ("angle_change",     "flow",     "both", "wrist rotation between swings"),
-    ("angle_harsh_frac", "flow",     "high", "share of >90 degree transitions"),
+    ("angle_harsh_frac", "flow",     "both", "share of >90 degree transitions"),
     ("travel",           "flow",     "both", "how far a hand moves per second"),
-    ("ebpm_burst",       "flow",     "high", "peak per-hand swing rate"),
+    ("ebpm_burst",       "flow",     "both", "peak per-hand swing rate"),
     ("crossover",        "flow",     "both", "share of notes played across the body"),
     ("handedness",       "flow",     "both", "left/right note imbalance"),
     # --- A2 rhythm ------------------------------------------------------------
     ("pulse_stability",  "rhythm",   "both", "how steadily the map holds a pulse"),
     ("ioi_cond_entropy", "rhythm",   "both", "how predictable the next gap is"),
     ("ioi_switch_rate",  "rhythm",   "both", "how often the map changes rhythmic gear"),
-    ("dominant_share",   "rhythm",   "high", "share of gaps at the single commonest value"),
-    ("offgrid_frac",     "rhythm",   "high", "share of notes off the 1/16 grid"),
+    ("dominant_share",   "rhythm",   "both", "share of gaps at the single commonest value"),
+    ("offgrid_frac",     "rhythm",   "both", "share of notes off the 1/16 grid"),
     # --- A3 idiom vocabulary --------------------------------------------------
-    ("idiom_coverage",   "idiom",    "low",  "share of moves drawn from the human top-500"),
+    ("idiom_coverage",   "idiom",    "both", "share of moves drawn from the human top-500"),
     ("idiom_top50",      "idiom",    "both", "share drawn from the 50-idiom core"),
-    ("idiom_jsd",        "idiom",    "high", "how different the idiom MIX is from human"),
-    ("idiom_local",      "idiom",    "low",  "idiom variety inside a 16-note window"),
+    ("idiom_jsd",        "idiom",    "both", "how different the idiom MIX is from human"),
+    ("idiom_local",      "idiom",    "both", "idiom variety inside a 16-note window"),
     # --- A6 hand role ---------------------------------------------------------
     ("role_asymmetry",   "handrole", "both", "how lopsided the hands are within a passage"),
     ("role_swap_rate",   "handrole", "both", "how often the lead hand changes"),
     # --- A7 playfeel ----------------------------------------------------------
     ("nps",              "playfeel", "both", "notes per second"),
-    ("peak_nps",         "playfeel", "high", "densest stretch"),
+    ("peak_nps",         "playfeel", "both", "densest stretch"),
     ("vertical_share",   "playfeel", "both", "share of up/down swings"),
     ("diagonal_share",   "playfeel", "both", "share of diagonal swings"),
     # --- A8 alignment (needs audio; skipped when onsets are unavailable) -------
-    ("onset_precision",  "alignment", "low",  "share of notes on something audible"),
-    ("offset_mad_ms",    "alignment", "high", "timing scatter against the music"),
+    ("onset_precision",  "alignment", "both", "share of notes on something audible"),
+    ("offset_mad_ms",    "alignment", "both", "timing scatter against the music"),
 ]
 
 # How many of the most extreme metrics the second aggregate averages. 3 was chosen
