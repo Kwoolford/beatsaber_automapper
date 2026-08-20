@@ -12330,3 +12330,116 @@ fails is not a control.**
 
 The verdict is cached **with** the events, and `notesheet.py` collapses an untrusted stem to one
 lane rather than drawing a distinction the null does not support.
+
+### 4. `autobuild.py` — audio to a judged map in one command, and 23/23 on the songset
+
+    SEE    events.py + structure.py     PLAN  per section: carrier + budget
+    BUILD  mapctl auto                  DRESS idiomize        JUDGE mapjudge
+
+Two enabling changes to `mapctl`:
+- **`--follow` takes a typed CLASS**, not only a stem (`--follow other/hi-stab`). "Follow the lead"
+  and "accent the crashes" are the decisions a human mapper makes and were not expressible while
+  the song was four buckets. ★**The four-stem path is left byte-identical** — it still reads
+  `brief.analyse`'s cached onsets, because every recorded `auto` number was measured on those.
+  A class inside a stem whose labelling **failed** its control is refused with the reason.
+- **`--accent-pct` is self-relative.** `--min-accent 2` (dB) keeps 178 of 422 `other` events on
+  1f767 and **8 of 637** drum events, because that song's drums span p90 **+1.2 dB** (a compressed
+  electronic drum bus) while `other` spans **+20.3**. ⇒**Absolute levels do not transfer between
+  mixes** — the same lesson already recorded for spectral thresholds. A percentile does.
+
+★**Section energy sets each section's budget** (the map breathes — Kyle named this as worth
+protecting), and the budget is met by keeping the **LOUDEST** events rather than dropping every
+Nth: when notes must be cut, the quiet ones are the musical thing to cut.
+
+### 5. 🔴 Every metric must be TWO-SIDED — and it caught `idiomize` Goodharting
+
+Nine metrics were one-sided ("scatter *lower* than human is not a defect"). That reasoning is
+wrong for this question: a one-sided metric scores **zero across its whole safe side**, so a map
+can sit further from human than *any* human map and pay nothing. Across the 23 autobuilt maps:
+
+| metric | median human pct | extreme on |
+|---|---|---|
+| `idiom_local` | **98.2 %** | **23 of 23** |
+| `idiom_jsd` | **9.2 %** | 12 of 23 |
+
+Both pinned at an extreme, both on the ignored side, **both metrics `idiomize` was tuned against**
+— the Goodhart fingerprint appearing in the flattering direction, exactly where a one-sided rule
+was structurally unable to see it. Measured before switching:
+
+| | human accept | our maps | median p |
+|---|---|---|---|
+| mixed one/two-sided | 0.902 | 23/23 | 0.544 |
+| **ALL two-sided** | **0.916** | **22/23** | **0.314** |
+
+⇒Two-sided costs the human cohort **nothing** and is strictly more discriminating on ours.
+Recalibrated: **human 0.884, all eight controls still 0.000.** **CONFIRMED.**
+
+### 6. `idiom_local` was a real defect, not just a scoring artifact — `REPEAT_P`
+
+Ours sat above **98 %** of human maps on *distinct idioms inside a 16-note window*: `idiomize`
+resampled the vocabulary **independently at every note**. A3's founding result is that human
+mapping is a small vocabulary deployed **deliberately**, and deliberate means a figure is repeated
+for a few beats before it changes; independent sampling is maximum entropy, which
+`eval_suite_v2.md` Finding 3 already established is not human. Same **"globally right, locally
+wrong"** shape the suite records for hand roles.
+
+Swept on **one** song: `repeat_p` 0.00 → local pct 99.3 %, 0.45 → 61.8 %, 0.65 → 38.8 %. Set to
+**0.55**, and it **generalises across all 23** — `idiom_local` median percentile **98.2 % → 45.4 %**
+(human 50 %), **p improved on 18/23, none regressed, PASS 21/23 → 23/23**. ★Tuned on one song and
+held on 22 unseen ones ⇒ **CONFIRMED** as a mechanism, not a fit.
+
+### 7. 🔴 Named style CLUSTERS are REFUTED — style is a continuum
+
+The natural design is to mine style clusters from the corpus and aim at one. Over **1 098 human
+maps × 21 metrics**, robust-scaled, k-means silhouette:
+
+    k       2      3      4      5      6      7      8
+    sil   0.153  0.143  0.130  0.125  0.112  0.108  0.109
+    null  0.105  0.092  0.097          (each metric shuffled independently)
+
+**0.153 against a null of 0.105, falling with k, is not a clustered space.** Naming clusters in it
+would invent a taxonomy the data does not contain — the mistake the downbeat detector and the
+backbeat control would have been. ⇒`style.py` defines a style as **target PERCENTILES**, which
+matches the data's shape, is checkable on the judge's own ruler, and is intelligible as the
+user-facing knob the standing memory requires. Ordering checks on 1f767 **all hold**: calm <
+human < dense on nps; flowing < technical on `angle_change` and on `crossover`; calm < technical on
+`travel`. ⚠️Magnitudes are modest (dense reaches 4.10 nps, *below* the human 4.17) and this is
+**n = 1 song, 1 seed** ⇒ **PARTLY CONFIRMED**.
+
+### 8. ★★The standing defect, corroborated by a mechanism unrelated to the ML decoder
+
+Across all 23 autobuilt maps the **same four rhythm metrics** are systematically off, and they all
+say one thing — **the map never settles into a rhythm**:
+
+| metric | ours | human | median pct |
+|---|---|---|---|
+| `pulse_stability` | 0.329 | 0.560 | 6.3 % |
+| `dominant_share` | 0.362 | 0.512 | 9.9 % |
+| `ioi_switch_rate` | 25.9 | 13.5 | 91.3 % |
+| `ioi_cond_entropy` | 0.680 | 0.536 | 92.8 % |
+
+⇒**This is TODO C3** (*"you cannot thin your way to human density — humans at 3.9 nps have a
+pulse, we at 3.9 do not"*) **arriving from a completely different direction**: no Stage-1, no
+decoder, note times chosen by merging two accent-filtered event streams. **The union of two
+rhythms is not a rhythm.** ★That makes C3 a **deep property of how we choose note TIMES**, not a
+decoder artifact — the single clearest next target. **CONFIRMED** (n = 23 songs).
+
+### Landmine paid for this session
+🔴**A chained shell script must be tested by RUNNING it.** `chain_onsets_calib_2026-08-20.sh`
+waited on an explicit PID (correctly avoiding the `pgrep -f` trap) and then died on the very next
+line: `set -u` plus an escaped `\$PID` in an `echo` wrote a **literal `$PID`** into the file. The
+wait loop worked perfectly and the run ended one line later, silently. **The CALIB/HELDOUT onset
+spans were never cached** and this was invisible until the log was read at close. Replaced by
+`scripts/build_onsets_calib_spans.sh`, which takes no PID at all.
+
+### Validation at close — the 23/23 reproduces from a CLEAN run
+The mid-session 23/23 was obtained by **re-dressing maps that had already been dressed** at
+`repeat_p = 0`, which is a second pass and not the shipped path. Re-run from scratch with the
+committed defaults (two-sided judge + `REPEAT_P = 0.55`), `scripts/verify_autobuild_2026-08-20.sh`:
+**23/23 songs completed, PASS 23/23, median p 0.502, `idiom_local` median human percentile 45.4 %**
+(human 50 %). ⇒**CONFIRMED on the shipped path.**
+
+⚠️**What 23/23 does NOT mean.** The judge accepts ~89 % of *human* maps, so a PASS says "not
+statistically distinguishable from a human map **on 21 note-attribute metrics**". It has **no audio
+axis**, so it cannot see whether the notes are on the music; and `idiomize` was tuned against the
+geometry metrics, so those are partly fitted. **The maps remain unheard.**
