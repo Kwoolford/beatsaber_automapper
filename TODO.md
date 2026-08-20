@@ -13,6 +13,15 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ## 📍 CURRENT STATE (2026-08-20, close)
 
+> ★★**FOCUS, set by Kyle 2026-08-20 (mid-session):** *"I want to focus solely on building an
+> agentic map building suite. The objective is to build a suite so good you are highly confident
+> and can manually map any song you'd like and even customize them to whatever style you want."*
+> ⇒**Everything above the backlog is agent-path work.** ML-pipeline work (retraining Stage-1, tempo
+> detection, decode levers) is **BACKLOGGED** at the bottom of this file — do not pick it up, and do
+> not let a shared metric pull the loop back into it. ★The test of an item is: *does it make the
+> AGENT build or validate a map better?*
+
+
 ★★**Kyle's brief redefined the work this session:** *"keep working on the agentic building suite
 until you are confident the maps are good. **You should not need to rely on human review.** Get to a
 point where **no matter what song is sent your way, you have visibility as good as a human and can
@@ -48,21 +57,27 @@ secondary. Full numbers for everything here are in PROGRESS.md (2026-08-20).
 ---
 
 ### ▶️ START THE NEXT SESSION HERE
-1. 🔴🔴**Wire `alignment` into `mapjudge`.** Run **`bash scripts/build_onsets_calib_spans.sh`**
-   (~55 min GPU), then `python scripts/calibrate_mapjudge.py --n 1100`, then
+★**Kyle's mid-session redirect (2026-08-20) makes this list agent-only.** ML items are in the
+BACKLOG section near the bottom; do not start one.
+1. 🔴🔴**Give the agent's validator ears — wire `alignment` into `mapjudge`.** Without it the agent
+   can build a map and has **no way to check the notes are on the music**, which is the one thing
+   Kyle asked for ("visibility as good as a human"). Run
+   **`bash scripts/build_onsets_calib_spans.sh`** (~55 min GPU — Demucs onset extraction, **not**
+   model training), then `python scripts/calibrate_mapjudge.py --n 1100`, then
    `python scripts/audit_mapjudge.py --n 250`. Dual calibration sets are **already plumbed** (21 vs
-   23 metrics must not share one). **State: DIST 907/1415 cached, CALIB 10, HELDOUT 6.**
-2. ★★**Attack the pulse defect (P0.5)** — the biggest measured defect the agent path has.
-3. ⬜**Ask him to play an autobuilt map.** They are unheard. Suggest 1f767 or 1f8d6 against the
-   human map. Record with `scripts/record_verdict.py`.
+   23 metrics must not share one).
+2. ★★**Attack the pulse defect (P0.5)** — the biggest measured defect the agent path has, and it is
+   purely agent-side (no model in the path). `scripts/diag_pulse_union.py` has already split it.
+3. ⬜**Get an autobuilt map in front of his ear.** They are unheard. Suggest 1f767 or 1f8d6 against
+   the human map. Record with `scripts/record_verdict.py`.
 4. ⬜**`[CROSSOVER]` is still unjudged** — and `mapjudge` independently ranks the CROSSOVER arms
    **top of 34**. Oldest open question on the board, now with a second line of evidence.
-5. ⬜**Ask him for the best-mapper list** — blocked by his choice, and leg 3 needs it to aim at
-   anything above the corpus median.
+5. ⬜**The best-mapper list** — leg 3 needs it to aim above the corpus median. ⚠️Ask only when he is
+   AT the machine; never block an overnight run on it.
 
 ---
 
-## 🔴🔴 P0 — THE AUDIO AXIS (blocking everything music-relative)
+## 🔴🔴 P0 — THE AGENT'S VALIDATOR IS DEAF (`mapjudge` has no audio axis)
 **Evidence**: five of six axes were once blind to a map sitting off the beat, and A8 was added the
 day he said *"it's painfully obvious the notes are off beat"*. `mapjudge` currently repeats that
 hole: 21 metrics, none of which load the audio.
@@ -115,26 +130,6 @@ it is set by the 150 ms per-hand floor and **no style knob moves it**.
 | **D4** | *"not following the main vocals"* | ★**Biggest ML-side defect**: we play **0.385** of the sung line vs human **0.743**. Route is training-side (P1 below) |
 | **D5** | *"random bursts"* | 🔴Refuted/inverted — the human bursts *more*. **Do not build a burst-suppressor** |
 | **D6** | *"nps wasted on non main notes"* | = **C5 doubles**, priced at **21 %** of the vocal budget. ★Gated on **his** definition of "main" — change `overlay.MAIN_DEFAULT`, not the map |
-
-## 🔴 P1 — D4's ONLY REMAINING ROUTE IS TRAINING-SIDE
-Every alternative is eliminated by measurement: decode saturates (5× lower threshold buys **+4
-notes**), the 1/4-beat grid is only **26–33 %** full, Track B at matched budget is **parity**, and
-**Stage-1 does not modulate density per song at all (r = 0.046)** while crude audio features reach
-**R² = 0.185**. We emit **0.217** positives per (slot,hand) against a corpus label mean of **0.245**
-and these songs' humans at **0.294**.
-⬜**PROPOSED RETRAIN, deliberately NOT queued**: an auxiliary per-song **density target** / FiLM
-conditioning on the song's own label rate.
-**DoD**: per-song nps correlation rises from 0.046 toward the demonstrated ≈0.43 floor **AND**
-vocal coverage rises, at ≥3 seeds. ⚠️Must not regress the density he accepted (6.18 = unplayable;
-current lever sits at 4.06).
-
-## 🔵 P1 — TEMPO: priced, and smaller than its reputation
-Right on **70.5 %** of songs (n=149). `BEAT_SUBDIV_AUTO` already recovers 16 of the 28 half-tempo
-songs and is worth **+0.030 cohort-wide**; the remaining 12 are worth a further **+0.025** — about
-**a fortieth of the human gap**. 🔴**Cheap detection is exhausted** (raw bpm AUC 0.978, 16/28 at
-zero false fires; widening to bpm<110 costs 10 false fires for 8 songs). ⇒**Do not widen the
-trigger.** ⚠️`notes per second` scores AUC 0.903 and catches **zero** at an affordable FP rate —
-★*AUC is not an operating point.*
 
 ## 🔵 P1 — W2 / W6, still open and NOT covered by D1–D6
 - **W2** — Fallen Kingdom *"really empty"*. 🔴Cause unidentified; five instruments failed, and every
@@ -191,6 +186,42 @@ rhythm 6× ⇒ **not reachable by decode**; cost a **representational** fix inst
 ★A **chain** is the human's alternative — one swing carrying 4–5 segments, *density with no new
 distinct time*. `chains.py` builds them; they are installed and unjudged.
 
+
+
+---
+
+## 🧊 BACKLOGGED — ML PIPELINE (deprioritised by Kyle, 2026-08-20)
+**Not dead, not being worked.** These are the model-training items; Kyle redirected the loop to the
+agentic suite mid-session. Each keeps its measured evidence so it can be resumed without re-deriving
+anything. ⚠️**Do not queue any of these from `/todo`.** If an agent-path item needs one of these to
+progress, say so and stop — that is a decision for Kyle, not a silent re-prioritisation.
+
+### 🧊 D4 — the ML generator does not follow the vocal line (training-side only)
+Every alternative is eliminated by measurement: decode saturates (5× lower threshold buys **+4
+notes**), the 1/4-beat grid is only **26–33 %** full, Track B at matched budget is **parity**, and
+**Stage-1 does not modulate density per song at all (r = 0.046)** while crude audio features reach
+**R² = 0.185**. We emit **0.217** positives per (slot,hand) against a corpus label mean of **0.245**
+and these songs' humans at **0.294**.
+⬜**PROPOSED RETRAIN, deliberately NOT queued**: an auxiliary per-song **density target** / FiLM
+conditioning on the song's own label rate.
+**DoD**: per-song nps correlation rises from 0.046 toward the demonstrated ≈0.43 floor **AND**
+vocal coverage rises, at ≥3 seeds. ⚠️Must not regress the density he accepted (6.18 = unplayable;
+current lever sits at 4.06).
+
+### 🧊 TEMPO — priced, and smaller than its reputation
+Right on **70.5 %** of songs (n=149). `BEAT_SUBDIV_AUTO` already recovers 16 of the 28 half-tempo
+songs and is worth **+0.030 cohort-wide**; the remaining 12 are worth a further **+0.025** — about
+**a fortieth of the human gap**. 🔴**Cheap detection is exhausted** (raw bpm AUC 0.978, 16/28 at
+zero false fires; widening to bpm<110 costs 10 false fires for 8 songs). ⇒**Do not widen the
+trigger.** ⚠️`notes per second` scores AUC 0.903 and catches **zero** at an affordable FP rate —
+★*AUC is not an operating point.*
+
+### Also backlogged
+- **The two validated-but-unflipped ML levers** — `BEAT_SUBDIV_AUTO=1` (+0.222 vocal coverage at
+  49x the seed sd on the 15 half-tempo songs it fires on) and `--beat-threshold 0.25` (+0.029 at
+  8.6x sd). Both passed their DoDs; both change the **ML generator**, not the agent, so they wait.
+- **C1 / C2 / C4 / C5 below** are ML-pipeline diagnoses, kept for their landmines only. C3 is the
+  exception: it reproduced with **no ML in the path at all** and is live as **P0.5**.
 
 ## 🧭 REFERENCE
 ### 🔴 Landmines — a seed re-draws the AUDIO, not just the decode
