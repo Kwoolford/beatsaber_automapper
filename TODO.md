@@ -87,17 +87,43 @@ p-value is not coarse (needs ≥100 calibration maps with onsets; it warns if no
 ≥0.85, all eight controls stay ≤0.10, **and the two timing controls are still rejected**.
 
 ## ★★ P0.5 — OUR MAPS DO NOT HOLD A PULSE (the biggest agent-path defect)
-**Evidence (n=23 autobuilt songs, PROGRESS 2026-08-20 §8)** — four metrics, one story:
-`pulse_stability` **0.329 vs human 0.560** · `dominant_share` **0.362 vs 0.512** ·
-`ioi_switch_rate` **25.9 vs 13.5** · `ioi_cond_entropy` **0.680 vs 0.536**.
-★**This is C3 arriving from a completely different direction** — no Stage-1, no decoder; note times
-come from **merging two accent-filtered event streams**, and **the union of two rhythms is not a
-rhythm**. ⇒C3 is a deep property of how we choose note TIMES.
-**Tasks**: pick a subdivision per section and *hold* it, breaking it deliberately, instead of taking
-the union of two independent streams. The typed events now make "which stream defines the pulse" a
-choosable thing.
+**DIAGNOSED 2026-08-20 (evening), n=23 songs, no model in the path.** Full numbers in PROGRESS.md.
+
+    pulse gap +0.186  =  vocabulary +0.077  +  ordering +0.096      (ordering = 52 %)
+
+**How it was split**: `scripts/diag_pulse_union.py` builds three arms from ONE plan (drums only /
+carrier only / the union we ship) and scores them against the human map; `scripts/diag_pulse_ordering.py`
+then **shuffles each map's own IOI sequence**, which preserves the histogram exactly and destroys
+only the ordering, so the gap decomposes additively.
+
+| | DRUMS | CARRIER | UNION | HUMAN |
+|---|---|---|---|---|
+| `pulse_stability` | 0.387 | 0.239 | **0.329** | **0.514** |
+| own-shuffle null | 0.256 | 0.191 | 0.257 | 0.334 |
+| lift over null | +0.092 | +0.059 | **+0.072** | **+0.168** |
+| `n_notes` | 378 | 387 | 641 | **980** |
+
+★**A human map with its rhythm RANDOMLY SHUFFLED (0.334) holds a pulse as well as ours does in its
+intended order (0.329).**
+★★**The human is denser AND more pulsed (980 notes at 0.514 vs our 641 at 0.329)** ⇒ density and
+pulse are not in tension; **do not thin the map to buy a pulse.**
+🔴🔴**REFUTED — "our intervals are smeared, quantise them":** we use **16 distinct IOIs to the
+human's 347**, top-3 covering 0.756 vs their 0.732. **We are more quantised than they are.** The one
+real excess is the **0.75-beat gap at 5.4× the human rate**, which is the fingerprint of two streams
+interleaving off-phase.
+⚠️**The merge is real but the smaller half** — drums alone 0.387 vs the union's 0.329, so merging
+costs 0.058 of the 0.186.
+
+**Tasks** (both are needed; either alone closes about half):
+1. **Commit to fewer intervals within a section** — raise per-song `dominant_share` 0.362 → ≈0.469.
+   ⚠️This is a PER-SONG statistic; pooling it across songs inverts the comparison (see PROGRESS).
+2. **Hold an interval across consecutive notes and break it at a musical boundary** — raise the
+   lift over the map's own shuffle 0.072 → ≈0.168. The typed events make "which stream defines the
+   pulse here" a choosable thing; the union of two independently accent-filtered streams cannot
+   hold one by construction.
 **DoD**: `pulse_stability` and `dominant_share` medians move inside the human interquartile range
-across ≥20 songs **without** `nps` falling below the p20 the judge accepts.
+across ≥20 songs, **the lift over each map's own shuffle at least doubles**, and `n_notes` does NOT
+fall (the human reaches its pulse at 1.5× our density, so a pulse bought by thinning is a fail).
 
 ## 🟡 P1 — LEG 3: style is real but weak
 **Evidence**: all four ordering checks hold, but **n=1 song, 1 seed**, and `dense` reaches only

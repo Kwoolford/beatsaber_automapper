@@ -7,6 +7,79 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-20 (evening /todo) — THE LOOP IS AGENT-ONLY NOW, AND P0.5 IS DIAGNOSED
+
+### Kyle redirected the session mid-run
+*"I want to focus solely on building an agentic map building suite. The objective is to build a
+suite so good you are highly confident and can manually map any song you'd like and even customize
+them to whatever style you want."* ⇒`TODO.md` was restructured into two tracks: everything above
+the new `🧊 BACKLOGGED — ML PIPELINE` section is agent-path, and the model-training items (D4's
+training route, tempo detection, the two validated-but-unflipped decode levers) sit below it with
+their evidence intact and an explicit *do not queue these* note. **The test for an item is now:
+does it make the AGENT build or validate a map better?**
+⚠️He asked whether the running GPU job was ML work. It was not — it is Demucs **onset extraction**
+feeding `mapjudge`'s alignment axis, i.e. the agent's own validator. TODO now says so at the point
+of use, because "GPU is busy" reads as "model training" and will be misread again.
+
+### ★★P0.5 SPLIT INTO ITS TWO CAUSES, AND THE OBVIOUS FIX IS REFUTED
+`scripts/diag_pulse_union.py` builds three arms from ONE plan — drums only, carrier only, and the
+union `autobuild` ships — and scores each against the human map for the same song, n=23.
+
+| | DRUMS | CARRIER | UNION (shipped) | HUMAN |
+|---|---|---|---|---|
+| `pulse_stability` | 0.387 | 0.239 | 0.329 | **0.514** |
+| `dominant_share` | 0.390 | 0.312 | 0.362 | 0.469 |
+| `ioi_switch_rate` | 19.2 | 28.0 | 25.9 | 14.8 |
+| `n_notes` (median) | 378 | 387 | 641 | **980** |
+
+★★**THE HUMAN IS DENSER *AND* MORE PULSED — 980 notes to our 641 at 0.514 against our 0.329.**
+⇒Density and pulse are not in tension, and **we cannot thin our way to a pulse.** (C3 again, from
+the agent side.)
+🔴**"OUR INTERVALS ARE SMEARED AND NEED QUANTISING" IS REFUTED.** Pooled over 23 songs our maps use
+**16 distinct IOIs to the human's 347**, and our top-3 intervals cover **0.756** of all gaps against
+their 0.732. **We are more quantised than the human, not less.** The one real excess is the
+**0.75-beat gap at 5.4× the human rate** (0.134 vs 0.025) — the signature of two streams
+interleaving off-phase.
+★★**THE DECISIVE CONTROL — SHUFFLE EACH MAP'S OWN IOI SEQUENCE** (`scripts/diag_pulse_ordering.py`).
+A shuffle preserves the histogram exactly and destroys only the ordering, so it gives every map a
+null built from its own vocabulary and splits the gap additively:
+
+    pulse gap +0.186  =  vocabulary +0.077  +  ordering +0.096
+
+| arm | observed | own shuffle | lift | songs > null |
+|---|---|---|---|---|
+| UNION | 0.329 | 0.257 | **+0.072** | 21/23 |
+| HUMAN | 0.514 | 0.334 | **+0.168** | 22/23 |
+
+★**A human map with its rhythm RANDOMLY SHUFFLED (0.334) still holds a pulse as well as our map
+does in its intended order (0.329).**
+⇒**BOTH causes, roughly evenly — ordering is 52 % of the gap.** A fix must commit to fewer
+intervals *within a section* AND hold each one across consecutive notes; either alone closes about
+half. **TODO's proposed fix ("pick a subdivision per section and hold it") is aimed correctly, but
+its stated reason — the union smearing the grid — is the wrong mechanism.**
+⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
+costs 0.058 of the 0.186.
+
+### 🔴 Measurement lessons this cost
+1. 🔴🔴**POOLING THE IOI HISTOGRAM ACROSS SONGS INVERTED THE COMPARISON.** Pooled, we look *more*
+   concentrated than the human (top-3 0.756 vs 0.732); per song, the human is more concentrated
+   (`dominant_share` 0.469 vs 0.362). Humans concentrate on a **different** interval in each song,
+   so pooling smears them and flatters us. ★**Concentration is a per-song statistic; never pool it.**
+2. 🔴**AN n=2 READING DID NOT REPRODUCE AT n=23, AND IT POINTED THE OPPOSITE WAY.** On 1f767+1f8d6
+   the drums stream looked like a **metronome** (0.624, *above* the human 0.527) and the story was
+   "drums too rigid, carrier too loose, human between". At n=23 the drums median is **0.387, below**
+   the human, and it is rigid on only **8 of 23** songs. ★The project's own rule — *a single-seed /
+   tiny-cohort axis reading is not a result* — now has a cohort-size instance too.
+3. 🔴**MY FIRST VERDICT RULE WAS ONE-SIDED.** It scored `human − arm` and took the `max`, which
+   *rewards* an arm for overshooting a metric that has a human **value**, not a human ceiling — the
+   same shape as `idiom_local` sitting at the 98th percentile on 23/23. Two-sided `|arm − human|`
+   reversed which arm it named. ★★**The 2026-08-20 two-sided rule applies to ad-hoc diagnostics, not
+   just to the judge.**
+4. ⚠️**`scorecard._load_any` returns ZERO notes for a `mapctl export` zip, silently** — the first
+   run scored nothing and printed a clean table of dashes. Use the `_load_human`/`_load_generated`
+   pair that `mapjudge.judge_zip` uses; it is the only loader verified on both sides.
+
+
 ## 2026-08-18 — THE VISIBILITY SUITE V1+V2, AND THE ALLOCATION HYPOTHESIS IS NOT SUPPORTED
 
 ### Later the same day — Kyle read the page, and named two defects in it
