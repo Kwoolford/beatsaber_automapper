@@ -60,6 +60,52 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅ THE FIX IS BUILT AND VALIDATED — `agent_mapper/pulse.py`, n=23
+`--pulse` on `mapctl auto` / `autobuild`. Two changes, one per half of the split:
+**ONE merged pass over drums+carrier** (`--follow` now takes a comma-separated list) instead of two
+layered passes, and **each phrase picks one interval and runs it**.
+
+| | CONTROL | `--pulse` (phrase = 1 bar) | HUMAN |
+|---|---|---|---|
+| `pulse_stability` | 0.329 (6th pct) | **0.637 (71st)** | 0.514 |
+| `dominant_share` | 0.362 (10th) | **0.495 (45th)** | 0.469 |
+| `ioi_switch_rate` | 25.9 (91st) | **12.5 (44th)** | 14.8 |
+| `ioi_cond_entropy` | 0.680 (93rd) | **0.505 (39th)** | 0.548 |
+| lift over own shuffle | 0.074 | **0.273** | 0.167 |
+| `n_notes` | 641 | **711** | 980 |
+
+**All four metrics out of their tails and into the human body; the ordering term more than tripled;
+density ROSE.** ⇒the DoD's three terms are met. **23/23 songset maps still PASS** the judge
+(p median 0.242, min 0.153), so the rhythm fix cost no other axis.
+⚠️**We now overshoot to the RIGID side** — lift 0.273 vs the human's 0.167, `pulse_stability` at the
+71st pct and beyond the 95th on 5/23 songs. Inside the human range, no longer centred.
+⬜**DEFAULT LEFT OFF, deliberately.** It has not been heard, and the project's standing rule is that
+a lever waits for his ear. Installed as **`AUTO <song> [AUTOBASE]` vs `[AUTOPULSE]`** on all four
+standing songs. ⚠️Named `AUTOBASE`/`AUTOPULSE`, **not** `AGENT` — `AUTO Hunger [AGENT]` already
+exists from 2026-08-14 (the hand-built map) and would have been overwritten.
+
+### ★ TWO BUILD MISSTEPS, both caught only by reading two-sided
+1. **The first `--pulse` build was a METRONOME**: `pulse_stability` 0.848 at the **98th** human
+   percentile, `ioi_switch_rate` at the **0.5th**. **Further from human than the 0.329 it replaced,
+   on the other side.** The break is now taken from the SONG — an event sitting half a period from
+   every lattice point is a syncopation — rather than from a tuned probability.
+2. **Density overshot 38 %** (1031 notes vs a control's 748 and a human's 746), because holding the
+   pulse across quiet slots and restoring syncopations both ADD notes and the period was chosen
+   before either ran. ★**Fixed exactly, with no correction factor: each phrase now scores a period
+   by the note count that period actually emits.**
+⚠️**`scripts/deploy_maps.py` parses `<songid>_<arm>.zip`, the OPPOSITE of the `<arm>__<songid>.zip`
+the alignment axis requires.** Deploying under the scoring convention silently named every map after
+its ARM (`_songName: "PULSE"`). ★**Two tools in this repo want opposite filename orders — convert at
+the boundary, and check the installed `Info.dat`, not the deploy script's own "OK".**
+
+### ⏭️ WHAT THIS PROMOTES: hand-role asymmetry is now the top agent-path defect
+Aggregating the 23 pulse maps' worst metrics, the tails are no longer rhythmic:
+**`role_asymmetry` in a tail on 21/23 maps (median 1.1st pct)** and **`handedness` on 13/23 (1.5th)**
+— our hands are far too EQUAL; a human leans on one hand within a passage. ★**`ebpm_burst` sits at
+the 4.7th pct on 9/23 — we are SLOWER per hand than humans, so there is headroom** to let a hand take
+consecutive swings. `mapctl --runs` is the existing knob (default 1, chosen in 2026-08-14 because
+`runs>=2` doubled `ebpm_burst` — but that was measured against a much denser build).
+
 ### 🔴 Measurement lessons this cost
 1. 🔴🔴**POOLING THE IOI HISTOGRAM ACROSS SONGS INVERTED THE COMPARISON.** Pooled, we look *more*
    concentrated than the human (top-3 0.756 vs 0.732); per song, the human is more concentrated

@@ -86,44 +86,34 @@ p-value is not coarse (needs ≥100 calibration maps with onsets; it warns if no
 **DoD**: `mapjudge` reports 23 metrics without the `⚠️NO AUDIO AXIS` banner, human accept stays
 ≥0.85, all eight controls stay ≤0.10, **and the two timing controls are still rejected**.
 
-## ★★ P0.5 — OUR MAPS DO NOT HOLD A PULSE (the biggest agent-path defect)
-**DIAGNOSED 2026-08-20 (evening), n=23 songs, no model in the path.** Full numbers in PROGRESS.md.
+## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
+**Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**
+Full numbers in PROGRESS.md. n=23: `pulse_stability` 0.329 (6th pct) → **0.637 (71st)**,
+`dominant_share` 0.362 → **0.495**, `ioi_switch_rate` 25.9 → **12.5**, `ioi_cond_entropy` 0.680 →
+**0.505**, lift over each map's own shuffle 0.074 → **0.273**, `n_notes` 641 → **711** (rose).
+**23/23 still PASS.** All three DoD terms met.
+⬜**THE ONLY THING LEFT IS HIS EAR.** Installed as **`AUTO <song> [AUTOBASE]` vs `[AUTOPULSE]`** on
+all four standing songs. Record with `scripts/record_verdict.py`.
+⬜**Then decide the default.** Left OFF deliberately — it has not been heard.
+⚠️**It overshoots to the RIGID side**: lift 0.273 vs the human 0.167, `pulse_stability` past the
+95th pct on 5/23 songs. If he says "too mechanical", that is the knob — `MAX_EMPTY_RUN` and the
+syncopation-restore threshold in `pulse.py`, not the phrase length.
 
-    pulse gap +0.186  =  vocabulary +0.077  +  ordering +0.096      (ordering = 52 %)
-
-**How it was split**: `scripts/diag_pulse_union.py` builds three arms from ONE plan (drums only /
-carrier only / the union we ship) and scores them against the human map; `scripts/diag_pulse_ordering.py`
-then **shuffles each map's own IOI sequence**, which preserves the histogram exactly and destroys
-only the ordering, so the gap decomposes additively.
-
-| | DRUMS | CARRIER | UNION | HUMAN |
-|---|---|---|---|---|
-| `pulse_stability` | 0.387 | 0.239 | **0.329** | **0.514** |
-| own-shuffle null | 0.256 | 0.191 | 0.257 | 0.334 |
-| lift over null | +0.092 | +0.059 | **+0.072** | **+0.168** |
-| `n_notes` | 378 | 387 | 641 | **980** |
-
-★**A human map with its rhythm RANDOMLY SHUFFLED (0.334) holds a pulse as well as ours does in its
-intended order (0.329).**
-★★**The human is denser AND more pulsed (980 notes at 0.514 vs our 641 at 0.329)** ⇒ density and
-pulse are not in tension; **do not thin the map to buy a pulse.**
-🔴🔴**REFUTED — "our intervals are smeared, quantise them":** we use **16 distinct IOIs to the
-human's 347**, top-3 covering 0.756 vs their 0.732. **We are more quantised than they are.** The one
-real excess is the **0.75-beat gap at 5.4× the human rate**, which is the fingerprint of two streams
-interleaving off-phase.
-⚠️**The merge is real but the smaller half** — drums alone 0.387 vs the union's 0.329, so merging
-costs 0.058 of the 0.186.
-
-**Tasks** (both are needed; either alone closes about half):
-1. **Commit to fewer intervals within a section** — raise per-song `dominant_share` 0.362 → ≈0.469.
-   ⚠️This is a PER-SONG statistic; pooling it across songs inverts the comparison (see PROGRESS).
-2. **Hold an interval across consecutive notes and break it at a musical boundary** — raise the
-   lift over the map's own shuffle 0.072 → ≈0.168. The typed events make "which stream defines the
-   pulse here" a choosable thing; the union of two independently accent-filtered streams cannot
-   hold one by construction.
-**DoD**: `pulse_stability` and `dominant_share` medians move inside the human interquartile range
-across ≥20 songs, **the lift over each map's own shuffle at least doubles**, and `n_notes` does NOT
-fall (the human reaches its pulse at 1.5× our density, so a pulse bought by thinning is a fail).
+## 🔴 P0.6 — OUR HANDS ARE TOO EQUAL (the new top agent-path defect)
+**Evidence (the 23 pulse maps' worst metrics, 2026-08-20)**: with rhythm fixed, the tails are all
+hand-role. **`role_asymmetry` in a tail on 21/23 maps, median 1.1st percentile**; **`handedness` on
+13/23, median 1.5th**. A human leans on one hand within a passage and we split every passage evenly.
+★**There is headroom to pay for it**: `ebpm_burst` sits at the **4.7th pct on 9/23** — we are
+*slower* per hand than a human, so letting one hand take consecutive swings is affordable.
+⚠️**`mapctl --runs` already exists** (default 1). It was set to 1 on 2026-08-14 because `runs>=2`
+took `ebpm_burst` 376 → 752 — but that was measured on a **much denser** build, before the budget
+and pulse work. **Re-measure before assuming the trade still holds.**
+⚠️**Kyle named A6 hand-role division BY EAR as something that works** ⇒ this is a two-sided target:
+move toward the human median, do not maximise asymmetry.
+**Tasks**: re-price `--runs` 1 vs 2 vs 3 on the current build; if `ebpm_burst` stays inside its
+human band, find the runs policy that moves `role_asymmetry` and `handedness` toward the median.
+**DoD**: `role_asymmetry` and `handedness` medians inside the human interquartile range across ≥20
+songs, `ebpm_burst` still inside its human band, and the songset PASS rate still 23/23.
 
 ## 🟡 P1 — LEG 3: style is real but weak
 **Evidence**: all four ordering checks hold, but **n=1 song, 1 seed**, and `dense` reaches only
