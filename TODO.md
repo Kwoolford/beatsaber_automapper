@@ -117,18 +117,23 @@ it back at the price of asymmetry. ⬜If his ear says the hands feel jumpy, try 
 four arms — the lead hand changes who plays a note, never when.
 ⬜**Installed as `AUTO <song> [AUTOLEAD]`** (pulse + lead 0.3) on the four standing songs.
 
-## 🔴 P0.7 — OUR NOTES ARE OFF THE MUSIC (`onset_precision` 10.5th percentile)
-**The first defect the new audio axis found, and no agent-path instrument could see it before.**
-Median over 23 songs: our notes sit on an audible event **less often than ~90 % of human maps**.
-★This is **D2 ("slightly off beat") and D4 ("not following the main vocals") reaching the AGENT
-path** — where, unlike the ML pipeline, we control exactly which onsets become notes.
-⚠️**Do not assume it is a global offset.** That is the `h_dist` failure, and the standing landmine
-says a blanket shift is an onset-detector artifact. Measure `offset_mad_ms` (now in the reference)
-before touching anything.
-**Tasks**: split the shortfall — are we placing notes where there is no onset, or missing the loud
-ones? `events.py` already has accent per event; cross it with `onset_precision` per section.
-**DoD**: `onset_precision` median moves inside the human interquartile range across ≥20 songs
-without `nps` leaving its band.
+## 🔴 P0.7 — WE PLACE NOTES WITH ONE ONSET DETECTOR AND SCORE THEM WITH ANOTHER
+**Reframed 2026-08-20 — the defect is mostly INSTRUMENT DISAGREEMENT, not note selection.**
+`events.py` places from `htdemucs_6s` per-stem detection; the alignment axis scores against the
+**4-stem** union in `outputs/onset_cache`. Only **83–91 %** of the events we place from sit within
+50 ms of an onset we are scored against (median disagreement **23–35 ms**).
+★★**A perfect map would score ~0.83–0.91; we score 0.856** ⇒ we are AT that ceiling.
+★**88 % of missed notes are 50–120 ms out** (median 70 ms) — near misses. ~23 ms of detector
+disagreement + up to ±47 ms of grid snap at 160 bpm overruns the 50 ms tolerance.
+★**Ours FAST 0.793 (human 0.946) vs SLOW 0.892 (human 0.932)** — the deficit is on FAST songs,
+where onsets are denser (11.9/s vs 10.0/s), **not** on the slow songs the grid story predicted.
+**Tasks**: reconcile the two detectors — snap each chosen event to the nearest onset from the
+SCORED path before it becomes a note, or build both from one detection path.
+🔴**Do NOT score against the events we chose** — that is circular and voids the axis.
+⚠️**`build_onset_cache.py` warns that changing the detection path moves the human baseline.** Any
+reconciliation must keep the scored path fixed and move the PLACING path onto it, never the reverse.
+**DoD**: the share of placed events within 50 ms of a scored onset rises above 0.97, and
+`onset_precision` moves with it — if it does not, the remaining gap is genuine selection.
 
 ## ✅ P0.8 — PULSE OVERSHOOT: FIXED by `SYNC_FRAC = 0.3`
 `pulse_stability` **88.1st → 37.2nd percentile** (human 0.514, ours 0.515) and `onset_precision`

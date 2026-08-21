@@ -60,6 +60,45 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔴🔴 P0.7 LARGELY DISSOLVES: `onset_precision` IS SUBSTANTIALLY A DETECTOR MISMATCH
+**We place notes with one onset detector and score them with another.** `events.py` uses
+`htdemucs_6s` with per-stem detection; `outputs/onset_cache` (what the alignment axis scores
+against) is the **4-stem** union from `build_onset_cache.py`. Measured directly:
+
+| song | events we place from, within 50 ms of a scored onset | median disagreement |
+|---|---|---|
+| 1f333 | 0.906 | 23.2 ms |
+| 1f767 | 0.852 | 23.3 ms |
+| 1f335 | 0.830 | 34.8 ms |
+| 1fa32 | 0.832 | 23.3 ms |
+
+★★**A PERFECT MAP — one note on every event we can see — WOULD SCORE ~0.83–0.91. We score
+0.856.** ⇒We are at the ceiling the instrument disagreement imposes, and **P0.7's severity was
+overstated**; a large part of the 14th-percentile reading is two components disagreeing about what
+an onset is, not a defect in note selection.
+★**It composes with the grid to explain the near misses exactly**: ~23 ms of detector disagreement
+plus up to ±47 ms of grid snap at 160 bpm overruns the 50 ms budget. **88 % of our missed notes are
+only 50–120 ms out (median 70 ms)** — near misses, not notes placed in silence.
+★**And it explains the tempo split**: fast songs carry denser onsets (11.9/s vs 10.0/s), so the same
+absolute error lands between two onsets more often. **Ours on FAST 0.793 vs human 0.946; on SLOW
+0.892 vs 0.932.**
+⚠️**Humans have no such handicap** — authored by ear, their notes sit on real musical events that
+BOTH detectors mostly find. That asymmetry is what made 0.919 look reachable.
+⬜**The fix is reconciliation, not re-scoring**: place notes on the same onset definition the judge
+scores against. 🔴**Scoring against the events we chose would be circular** and must not be done.
+
+### 🔴 THREE HYPOTHESES REFUTED ON THE WAY, in order
+1. **"The grid snap is the constraint"** — REFUTED. The grid represents 0.962 of onsets at
+   SUBDIV 4 (median), above the human 0.919. ⚠️**And my "ceiling" was MISNAMED**: it measures
+   onset representability, not a precision bound. **Three songs scored ABOVE it**, which is
+   impossible for a real bound — that is what caught the error. ★*A metric that can be exceeded is
+   not the bound you named it.*
+2. **"The lattice fill invents notes off the music"** — REFUTED at `SYNC_FRAC` 0.3: fill 0/1/2 give
+   `onset_precision` 0.854 / 0.856 / 0.856. Fill is not the lever. (Earlier, at sync 0.5, fill 2
+   beat fill 1 — already non-monotonic, already a warning.)
+3. **"It is worst on SLOW songs, where the slot is 115–161 ms"** — REFUTED, and **backwards**: slow
+   songs are our BEST (0.892, within 0.04 of their humans); the deficit is entirely on FAST songs.
+
 ### 🔴🔴 A PASS-RATE "REGRESSION" THAT WAS MY OWN MEASUREMENT BUG — `init` MERGES SESSIONS
 `mapctl init` wrote an empty note list **only `if not notes_path(name).exists()`** — right for a
 human resuming a hand-built map, silently wrong for a sweep. **Re-running an arm under the same
