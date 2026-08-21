@@ -7,6 +7,54 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-21 (reading, not measuring) — ★★★KYLE WAS RIGHT: READING THE SCORE FOUND A UNANIMOUS
+DEFECT NO METRIC SEES, AND THE JUDGE PREFERS OUR MAP TO THE HUMAN'S
+
+★**His instruction**: *"I believe you should be able to piece together enough note sheets, compare
+them side by side in a text format to the map and evaluate by yourself, not using a metric that's
+computed if the map is fun to play or not."* ⇒I had been quoting percentiles all session. This is
+what reading produced in one hour.
+
+### 🔴🔴🔴 THE JUDGE SCORES OUR MAP 3× HIGHER THAN THE HUMAN'S MAP OF THE SAME SONG
+`1ddd1`: **ours p=0.878, the human's own map p=0.274.** On `idiom_local`, the human scores **0.752
+(8.7th pct)** and our default scores 0.840 (33rd). ⇒**The metric rates us "more human" than the
+human, on the song the human actually wrote.** This is `h_dist` all over again in a new axis, and it
+is the single clearest argument for not using computed scores to decide whether a map is fun.
+
+### ★★ THE DEFECT READING FOUND: OUR MAPS ARE NOT LEGIBLE — 23/23, cohort-wide
+Read side by side, the human plays a small recurring vocabulary; ours plays a scatter. Quantified
+**after** reading it (the reading came first):
+
+| | top-5 cell share | recurs within 8 notes | distinct cells/hand |
+|---|---|---|---|
+| OURS | **0.342** | **0.319** | **64.5** |
+| HUMAN | 0.577 | 0.496 | 31.0 |
+
+**Half the notes a human plays, they played recently. Only a third of ours do.** We use **twice the
+vocabulary**. ⇒*"I can see it coming and lock in"* is a property we do not have, and **nothing in
+the 23-metric judge measures it.**
+🔴**23 of 23 maps are below the human median.** Unanimous.
+⚠️**My first read was too strong and the numbers corrected it**: I claimed the human "repeats a
+4-note figure"; the ABAB repeat rate is actually the SAME (ours 0.023/0.059, human 0.039/0.063).
+The difference is **vocabulary size and recurrence**, not literal repetition. ★*Read, then measure
+what you read — the reading proposes, the measurement disciplines.*
+
+### ✅ `idiomize --width` FIXES IT, AND THE METRIC CALLS THE FIX A REGRESSION
+`--width 3` (restrict the draw to the 3 commonest cells — the knob that was **dead** until today):
+top-5 **0.533** and recurrence **0.478** against this song's human 0.600/0.516, and `travel`
+15th→35th pct. **`idiom_local` falls to the 15th pct — and the HUMAN is at the 8.7th.** ⇒**the
+"regression" is convergence.** ★**When the metric and the same song's human disagree, the human wins.**
+
+### ⬜ STILL OPEN, from the same read
+1. **The climax is in the wrong place.** Ours peaks at bars 17-24 (79 notes); the human peaks at
+   9-16 (66) then declines. Ours is also spikier (2.63× max/min vs 1.83×). `nps`/`peak_nps` both
+   said "human median" — **the SHAPE is wrong, not the level.**
+2. **Our left hand crosses into the right half 17.6 % of the time vs the human's 11.5 %** — and it
+   reads far worse than that gap sounds, because crossovers cluster.
+3. **We place ZERO doubles**; the human uses them (`1,2 ↑ | 2,2 ↑` at beat 77). `double_share`
+   0.000 vs 0.137 has been on the board since 2026-08-14 and is visible immediately on the page.
+
+
 ## 2026-08-20 (evening /todo) — THE LOOP IS AGENT-ONLY NOW, AND P0.5 IS DIAGNOSED
 
 ### Kyle redirected the session mid-run
