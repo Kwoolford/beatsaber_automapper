@@ -70,6 +70,10 @@ aggregate. ⚠️**GATING and RANKING need different statistics.**
 and is `h_dist` in a new costume.
 **DoD**: `offbeat` accept ≤0.10, human accept stays ≥0.85, and the other eight controls stay ≤0.10.
 
+> ✅**Finished this session and moved to PROGRESS.md** (a completed item is history, not work):
+> the pulse overshoot fix (`SYNC_FRAC 0.3`), the density fixes (energy-curve normalisation +
+> slot-aware `--target-notes`), the `idiomize`/`fix_parity` playability bug, and P0's audio axis.
+
 ## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
 **Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**
 Full numbers in PROGRESS.md. n=23: `pulse_stability` 0.329 (6th pct) → **0.637 (71st)**,
@@ -83,29 +87,19 @@ all four standing songs. Record with `scripts/record_verdict.py`.
 95th pct on 5/23 songs. If he says "too mechanical", that is the knob — `MAX_EMPTY_RUN` and the
 syncopation-restore threshold in `pulse.py`, not the phrase length.
 
-## ✅ P1.1 — RESOLVED: `idiomize` WAS UNDOING `fix_parity`
-The composed config is **23/23 PASS, p median 0.753, 0/23 maps with violations**.
-🔴**The bug**: `mapctl export` fixes parity, then `idiomize` rewrites every direction and nothing
-re-checks (1fb3f: 0 violations → 1 violation + 30 resets). **`mapjudge` FAILs on `viol > 0`
-regardless of `p`** — correctly. ✅`idiomize_zip` now re-runs `fix_parity`.
-★★**Side effect worth keeping**: `idiom_local` **51.0 %** (the human median) against the **98th
-percentile** Goodhart fingerprint, `idiom_jsd` 20.9 % against ~5 %. The parity fixer overrides some
-vocabulary-drawn directions, loosening `idiomize`'s coupling to the metrics it was tuned on.
-⚠️**Any future pass that rewrites directions must re-check parity** — that is the general lesson.
-
-⚠️**AGGREGATION LANDMINE (cost a false alarm tonight)**: counting "metrics in a tail" over
-`res.worst(8)` and over `res.metrics` g`). ★**An operating point is not portable across a change in how the
+## 🟡➡️ P0.6 — HAND ROLE: LEVER CONFIRMED, OPERATING POINT UNDER-CONSTRAINED
+✅**The lever is real at 3 seeds**: `role_asymmetry` arm gap 60.8 pts vs a 47.5-pt seed spread;
+`handedness` 3.1 → ~32 (gap 2.7× spread). `mapctl auto --lead-bias 0.3`, default 0.
+⚠️**But the OPERATING POINT is not reliable**: at bias 0.3 `role_asymmetry` lands between the **37th
+and 85th percentile** depending on seed. The "39.6 %, human median exactly" I reported was **seed 0,
+the lowest of three**. Honest claim: *moves it into the human body*, not *onto the median*.
+🔴**A cost I reported is REFUTED**: `role_swap_rate` 58 → 81 % is **inside the seed spread**
+(gap 8.8, spread 10.1) ⇒ not a result. Do not treat it as a trade.
+✅**DONE — `--lead-mode cyclic` is the default and the seed spread is 0.0.** Re-tuned:
+**`--lead-bias 0.20`** (not 0.30 — that was tuned against the sampled lead and overshoots to the
+77.9th percentile under `cyclic`). ★**An operating point is not portable across a change in how the
 knob works.** 🔴0.30 has the higher `p` median and is still the wrong choice: `p` is a
 distance-from-typical and ranking by it Goodharts toward the average map.
-
-## ✅ P0.9 — DENSITY: TWO ARITHMETIC BUGS OF OURS, FIXED
-`nps` **3.43 (19th pct) → 4.02 (44th)**, human median 4.17, 23/23 PASS. (1) the energy curve was
-never normalised — its duration-weighted mean was 0.919, so 4.17 silently delivered 3.83; (2) the
-accent filter counted EVENTS while the budget is spent in DISTINCT SLOTS, so a plan budgeting 840
-delivered ~604. `--target-notes` now searches the accent percentile for surviving slots.
-⚠️**4.17 is the TARGET, not a floor** — 6.18 is unplayable per Kyle and the judge rejects near 6.10.
-★**Attribution first saved tuning the wrong stage**: the pulse quantiser and the per-hand floor were
-both innocent (pulse is note-neutral; nothing is skipped at placement).
 
 ## 🔴 P1.0 — `1f9a0` STILL FAILS, AND THE OBVIOUS REMEDY IS REFUTED
 **The constraint is real**: below 150 bpm a 1/4-beat slot is `15000/bpm` ms, so the grid snap alone
@@ -127,17 +121,6 @@ alone; or let the pulse lattice prefer phases whose points carry onsets.
 ⬜**Generalise `--snap-onsets` to any song** — it needs cached reference onsets, which exist only for
 corpus songs, so it cannot be the default while "map any song" is the goal.
 ⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
-
-## ✅ P0.8 — PULSE OVERSHOOT: FIXED by `SYNC_FRAC = 0.3`
-`pulse_stability` **88.1st → 37.2nd percentile** (human 0.514, ours 0.515) and `onset_precision`
-0.829 → 0.856 **at the same time** — not a trade, because everything the syncopation-restore puts
-back is a REAL detected onset, so it breaks the lattice and lands on audible events together.
-🔴**The fill knob (`MAX_EMPTY_RUN`) was the WRONG lever and the sweep refuted my mechanism**: fill 2
-scored BETTER `onset_precision` than fill 1 (0.842 vs 0.829), so "more fill = more invented notes =
-worse precision" is false — the count-matched period search reacts to the fill, and WHICH PERIOD is
-chosen matters more than how many gaps are bridged.
-⚠️`--pulse-sync` 0.5 and 0.4 are **identical**: the period is an integer number of slots, so both
-round to the same "≥1 slot off" test at the common period of 2. 0.2 overshoots the other way.
 
 ## 🟢➡️ P1 — LEG 3: 5 OF 6 ORDERINGS HOLD, AWAITING HIS EAR ON THE NAMES
 n=10 songs (× 3 seeds where the seed can matter): `nps` 10/10, `crossover` 18/18, `angle_change`
@@ -164,6 +147,16 @@ always ran at seed 0. Hand-role numbers recorded before this are single-seed.
 - ★⚠️**`[CROSSOVER]` HAS NEVER BEEN PLAYED** — crossover 0.000 → 0.112 vs a human 0.183, `flow`
   0.37 → 0.23, and **`mapjudge` now ranks the CROSSOVER arms top of 34 independently.**
 - ⬜**The autobuilt maps** (`outputs/autobuild_*.zip`, and the song (our times match a human's better than two humans match each other). ⚠️**Untested**: we may be *too* quantised for a song with groove |
+| **D3** | *"drops at wrong time"* | Confirmed (0.347 vs human-human 0.49). 🔴Its obvious fix is refuted — `structure.py` locates his moves *worse* than our map does |
+| **D4** | *"not following the main vocals"* | ★**Biggest ML-side defect**: we play **0.385** of the sung line vs human **0.743**. Route is training-side (P1 below) |
+| **D5** | *"random bursts"* | 🔴Refuted/inverted — the human bursts *more*. **Do not build a burst-suppressor** |
+| **D6** | *"nps wasted on non main notes"* | = **C5 doubles**, priced at **21 %** of the vocal budget. ★Gated on **his** definition of "main" — change `overlay.MAIN_DEFAULT`, not the map |
+
+## 🔴 P1 — THE SIX DEFECTS HE NAMED (2026-08-17): what is still open
+| # | his words | still open |
+|---|---|---|
+| **D1** | *"very slow"* | = D4's budget lever. ⇒P0.5 + `--beat-threshold 0.25` |
+| **D2** | *"slightly off beat"* | 🔴Refuted as note placement (our times match a human's better than two humans match each other). ⚠️**Untested**: we may be *too* quantised for a song with groove |
 | **D3** | *"drops at wrong time"* | Confirmed (0.347 vs human-human 0.49). 🔴Its obvious fix is refuted — `structure.py` locates his moves *worse* than our map does |
 | **D4** | *"not following the main vocals"* | ★**Biggest ML-side defect**: we play **0.385** of the sung line vs human **0.743**. Route is training-side (P1 below) |
 | **D5** | *"random bursts"* | 🔴Refuted/inverted — the human bursts *more*. **Do not build a burst-suppressor** |
