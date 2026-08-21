@@ -60,6 +60,41 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔴 A PER-AXIS GATE IS ALSO REFUTED — AND IT EXPLAINS WHY THE AGGREGATE IS STRONG
+`scripts/probe_per_axis_gate.py`: group the 23 metrics into their six axes, calibrate each axis'
+score on a **held-out half** of the human maps (the other half measures human accept), reject if any
+axis is extreme at a **Bonferroni-corrected** bar. Both within-axis aggregations tested.
+
+| cohort | per-axis `mean` | per-axis `max` | **current gate** |
+|---|---|---|---|
+| human | 0.940 | 0.930 | 0.870 |
+| `offbeat` | 0.800 | 0.775 | **0.650** |
+| `timing_jitter` | 0.180 | **0.955** | **0.000** |
+| `timing_random` | 0.000 | 0.480 | **0.000** |
+| `shuffled` | 0.595 | 0.480 | **0.205** |
+| `too_dense` | 0.500 | 0.030 | **0.000** |
+
+🔴🔴**BOTH ARE WORSE THAN THE GATE THEY WOULD REPLACE, on `offbeat` AND on almost every other
+control.** `max` fixed the density controls and then let **95.5 %** of `timing_jitter` through.
+★★**AND THE FAILURE EXPLAINS WHY THE CURRENT GATE WORKS: its strength IS the pooling.** Rejection
+comes from many mildly-extreme metrics adding up. Splitting into six axes and asking whether any ONE
+is extreme *alone* **throws that pooled evidence away**, and dividing alpha by six raises each axis'
+bar to the 98.3rd percentile, making every individual test weak. ⇒**a per-axis minimum is a strictly
+weaker test than the aggregate, which is why humans pass MORE (0.93 vs 0.87) and so does everything
+else.**
+⇒**The real problem is narrower than "the gate pools":** pooling is right; **pooling 2 signals among
+21 nulls dilutes.** The fix is a pooling statistic that resists dilution — **Fisher's method or
+higher criticism** over the per-metric p-values — **not** a per-axis minimum and **not** a hand
+weight.
+⚠️**Worth checking first**: the gate already HAS a `max` term, and the reference notes it **saturates
+on `crossover`=0** for our maps. A max term that is always pinned by one metric cannot respond to
+alignment. **That may be the narrowest real bug here.**
+✅**Two candidates eliminated with data, the mechanism named, and the next shape identified.** ⚠️The
+gate was **not changed** — this is Kyle's design decision.
+★**Method note**: the second candidate was a structural retry (`mean`→`max`), not a per-metric tune,
+and the check that kept it honest was requiring improvement on **every** control. It failed that
+check loudly, which is the point of having it.
+
 ### 🔴 THE SIMPLE FIX FOR P0.2 IS RULED OUT BY MEASUREMENT — IT MUST BE PER-AXIS, NOT PER-METRIC
 `scripts/probe_axis_gate.py` tests a deliberately **metric-agnostic** candidate — *reject if ANY
 single metric sits beyond the q-th human percentile, two-sided* — swept across q. ★Metric-agnostic

@@ -69,10 +69,16 @@ metric is beyond the q-th human percentile, two-sided* — **cannot work at any 
 clears 0.10 at q=0.92, where **68 % of HUMAN maps are rejected**. ★Cause: with 23 metrics almost
 every human map has SOME metric in a tail, so a per-metric bound is an **uncorrected multiple test
 over 23 hypotheses** — the same defect already logged for `min(p_a,p_b)`.
-**Task**: a **PER-AXIS** conformal score — group the 23 metrics into their ~6 axes, calibrate each
-axis on the human CALIB slice, combine with a correction. That gives alignment a voice the other 21
-cannot drown **without privileging any metric by hand**. ⚠️**GATING and RANKING need different
-statistics.**
+🔴**PER-AXIS IS ALSO REFUTED** (`scripts/probe_per_axis_gate.py`, both `mean` and `max` within-axis):
+both are **worse than the current gate on `offbeat` AND on nearly every other control** — `max` let
+**95.5 %** of `timing_jitter` through. ★**The failure explains the gate: its strength IS the pooling**
+(many mildly-extreme metrics adding up), and a Bonferroni-corrected per-axis minimum throws that away
+while raising each axis' bar to the 98.3rd percentile.
+⇒**The problem is not that the gate pools — it is that pooling 2 signals among 21 nulls dilutes.**
+**Task**: a dilution-resistant pooling statistic — **Fisher's method or higher criticism** over the
+per-metric p-values. ⚠️**Check first**: the gate's existing `max` term **saturates on `crossover`=0**
+for our maps, and a max term pinned by one metric cannot respond to alignment. **That may be the
+narrowest real bug.**
 🔴**Do NOT reweight `onset_precision` until this control fails** — that fits the gate to one control
 and is `h_dist` in a new costume.
 **DoD**: `offbeat` accept ≤0.10, human accept stays ≥0.85, and the other eight controls stay ≤0.10.
