@@ -197,6 +197,13 @@ Whether a human map achieves both, or trades the same way, is unmeasured.
 
 ---
 
+## 5c. READ THE MAP — `agent_mapper/READING.md`
+📖**The metrics cannot tell you if it is fun. Reading can.** `READING.md` is the process: what to
+look at on the page and in what order, the habits to watch for in yourself, and the human-human
+spread that tells a real defect apart from a valid interpretation.
+★**Headline**: the legibility defect (23/23 maps) was invisible to all 23 metrics and obvious on
+the page in one passage.
+
 ## 6. WHAT TO DISTRUST IN YOUR OWN MAP
 
 🔴🔴**A PASS DOES NOT MEAN THE NOTES ARE ON THE MUSIC.** Measured 2026-08-21: the judge
