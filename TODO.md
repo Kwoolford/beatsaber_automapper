@@ -117,23 +117,21 @@ it back at the price of asymmetry. ⬜If his ear says the hands feel jumpy, try 
 four arms — the lead hand changes who plays a note, never when.
 ⬜**Installed as `AUTO <song> [AUTOLEAD]`** (pulse + lead 0.3) on the four standing songs.
 
-## 🔴 P0.7 — WE PLACE NOTES WITH ONE ONSET DETECTOR AND SCORE THEM WITH ANOTHER
-**Reframed 2026-08-20 — the defect is mostly INSTRUMENT DISAGREEMENT, not note selection.**
-`events.py` places from `htdemucs_6s` per-stem detection; the alignment axis scores against the
-**4-stem** union in `outputs/onset_cache`. Only **83–91 %** of the events we place from sit within
-50 ms of an onset we are scored against (median disagreement **23–35 ms**).
-★★**A perfect map would score ~0.83–0.91; we score 0.856** ⇒ we are AT that ceiling.
-★**88 % of missed notes are 50–120 ms out** (median 70 ms) — near misses. ~23 ms of detector
-disagreement + up to ±47 ms of grid snap at 160 bpm overruns the 50 ms tolerance.
-★**Ours FAST 0.793 (human 0.946) vs SLOW 0.892 (human 0.932)** — the deficit is on FAST songs,
-where onsets are denser (11.9/s vs 10.0/s), **not** on the slow songs the grid story predicted.
-**Tasks**: reconcile the two detectors — snap each chosen event to the nearest onset from the
-SCORED path before it becomes a note, or build both from one detection path.
-🔴**Do NOT score against the events we chose** — that is circular and voids the axis.
-⚠️**`build_onset_cache.py` warns that changing the detection path moves the human baseline.** Any
-reconciliation must keep the scored path fixed and move the PLACING path onto it, never the reverse.
-**DoD**: the share of placed events within 50 ms of a scored onset rises above 0.97, and
-`onset_precision` moves with it — if it does not, the remaining gap is genuine selection.
+## 🟡 P0.7 — DETECTOR MISMATCH: HALF FIXED, RESIDUAL IS A COVERAGE BIAS IN THE AXIS
+✅**Built**: `agent_mapper/refonsets.py` + `--snap-onsets` (opt-in). `onset_precision`
+**0.856 → 0.890** (human 0.919), p median 0.655 → 0.680, 23/23 PASS, nothing else regressed.
+🔴**DoD term 1 FAILED**: placed events within 50 ms of a scored onset **0.832 → 0.867**, target 0.97
+— because **13.3 % of our events have no scored onset within 60 ms at all**. A snap fixes TIMING
+disagreement, not COVERAGE.
+★★**`events.py` uses `htdemucs_6s` (guitar + piano stems); the scoring cache is the 4-stem union.**
+⇒**Part of this metric may be the AXIS being blind rather than the map being wrong** — a guitar note
+we can see and the scorer cannot is scored as a miss.
+⬜**The principled fix — rebuild the onset cache from the 6-stem separation.** ⚠️**This moves the
+human baseline** (`build_onset_cache.py` says so) ⇒ it means recalibrating `mapjudge` and
+re-measuring every alignment number recorded so far. **A deliberate decision, not a chore.**
+⬜**Generalise `--snap-onsets` to any song** — it needs cached reference onsets, which exist only for
+corpus songs, so it cannot be the default while "map any song" is the goal.
+⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
 
 ## ✅ P0.8 — PULSE OVERSHOOT: FIXED by `SYNC_FRAC = 0.3`
 `pulse_stability` **88.1st → 37.2nd percentile** (human 0.514, ours 0.515) and `onset_precision`

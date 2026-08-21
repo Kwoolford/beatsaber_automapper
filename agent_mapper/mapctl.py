@@ -558,6 +558,19 @@ def cmd_auto(a) -> int:
                                               getattr(a, "min_accent", None),
                                               getattr(a, "accent_pct", None)))
         follow_times = sorted(set(follow_times))
+        # ★Reconcile the PLACING detector with the SCORED one before anything is
+        # placed. `events.py` and the alignment axis disagree by a median 23-35 ms,
+        # which eats most of the axis' 50 ms budget once the grid snap is added.
+        if getattr(a, "snap_onsets", False):
+            import refonsets as RO
+            follow_times, moved, n_in = RO.snap(follow_times, s.get("song", ""))
+            if moved:
+                print(f"snap-onsets: moved {moved}/{n_in} events onto the judge's "
+                      f"own onsets ({n_in - len(follow_times)} collapsed onto a "
+                      f"shared onset)")
+            else:
+                print(f"⚠️snap-onsets: no cached reference onsets for "
+                      f"'{s.get('song', '')}' — times UNCHANGED")
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -974,6 +987,9 @@ def main() -> int:
     p.add_argument("--pulse", action="store_true",
                    help="hold ONE interval per phrase instead of playing every onset "
                         "(P0.5: our pulse_stability 0.329 vs human 0.514)")
+    p.add_argument("--snap-onsets", action="store_true",
+                   help="move each event onto the nearest onset the JUDGE recognises "
+                        "(within 60ms) before placing (P0.7 detector reconciliation)")
     p.add_argument("--pulse-sync", type=float, default=0.3,
                    help="how far off the lattice (as a fraction of the period) an "
                         "event must sit to be restored as a syncopation; LOWER "

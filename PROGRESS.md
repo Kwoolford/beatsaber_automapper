@@ -60,6 +60,38 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🟡 P0.7 RECONCILIATION BUILT — HALF THE GAP CLOSES, AND THE RESIDUAL IS A COVERAGE BIAS
+`agent_mapper/refonsets.py` + `--snap-onsets`: each chosen event is moved onto the nearest onset the
+JUDGE recognises, within 60 ms (just outside the axis' own 50 ms tolerance, so near misses are
+corrected and events that are genuinely elsewhere are left alone). ★**It snaps, never filters** — an
+event with no reference onset keeps its own time, so the note budget is not silently changed.
+
+| arm | PASS | p med | `onset_precision` | `offset_mad_ms` | `pulse_stability` | `nps` |
+|---|---|---|---|---|---|---|
+| BASE | 23/23 | 0.655 | 0.856 (14 %) | 10.80 (66 %) | 0.515 (37 %) | 3.43 (19 %) |
+| **SNAP** | 23/23 | **0.680** | **0.890 (22 %)** | 10.50 (61 %) | 0.492 (33 %) | 3.29 (15 %) |
+| HUMAN | | | 0.919 | | 0.514 | |
+
+⇒**About half the remaining gap closes** (0.856 → 0.890 against 0.919) with nothing else regressing.
+🔴🔴**BUT THE DoD's FIRST TERM FAILS, AND THAT IS THE REAL FINDING.** Share of placed events within
+50 ms of a scored onset: **0.832 → 0.867, against a target of 0.97.**
+★★**Because 13.3 % of our events have NO scored onset within 60 ms at all.** The snap can fix a
+TIMING disagreement; it cannot fix *"the scorer never detected this event"*. **The two detectors
+differ in COVERAGE, not just alignment** — `events.py` runs `htdemucs_6s`, which has **guitar and
+piano** stems that the 4-stem scoring union does not.
+⚠️⚠️**SO PART OF `onset_precision` MAY BE THE AXIS BEING BLIND, NOT THE MAP BEING WRONG.** A guitar
+note our builder can see and the scorer cannot is a real musical event scored as a miss. And the
+human's 0.919 is measured on a detector whose four stems happen to match what humans mostly map.
+⬜**The principled fix is to rebuild the onset cache from the 6-stem separation** — but
+`build_onset_cache.py` warns that changing the detection path **moves the human baseline**, so that
+means recalibrating the axis and re-measuring every alignment number in this file. **Not done
+tonight; recorded as a decision, not a chore.**
+⬜`--snap-onsets` stays **opt-in**: it needs cached reference onsets, which exist only for corpus
+songs, so making it default would break the any-song path Kyle actually asked for. Generalising it
+means computing the scored-path onsets for arbitrary audio (Demucs, GPU, cacheable).
+⚠️**Small real cost**: `nps` 3.43 → 3.29 — snapping collapses events that land on one onset
+(88 of 833 on 1f767), which removes distinct note times.
+
 ### 🔴🔴 P0.7 LARGELY DISSOLVES: `onset_precision` IS SUBSTANTIALLY A DETECTOR MISMATCH
 **We place notes with one onset detector and score them with another.** `events.py` uses
 `htdemucs_6s` with per-stem detection; `outputs/onset_cache` (what the alignment axis scores
