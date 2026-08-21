@@ -60,6 +60,41 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅ P0.6 PRICED AND SETTLED BY THE JUDGE — `--lead-bias 0.3`
+`mapctl auto --lead-bias P` holds a lead hand for a phrase and lets **only that hand** repeat, then
+hands over at the boundary — the same *hold, then break* shape as the pulse fix. Judged on the new
+23-metric reference, medians over 23 songs, **two-sided**:
+
+| bias | PASS | p med | `role_asymmetry` | `role_swap_rate` | `ebpm_burst` |
+|---|---|---|---|---|---|
+| 0.00 (shipped) | 23/23 | 0.222 | **1.1 %** | 58.0 % | **6.9 %** |
+| **0.30** | 22/23 | **0.626** | **49.9 %** | 81.2 % | 46.4 % |
+| 0.40 | 23/23 | 0.545 | 73.2 % | 63.3 % | 59.9 % |
+| 0.50 | 22/23 | 0.462 | **97.8 %** | 63.8 % | 73.1 % |
+
+⇒**`--lead-bias 0.3` is the operating point**: `role_asymmetry` 1.1st → **49.9th percentile**, the
+human median exactly, and `ebpm_burst` 6.9th → 46.4th. **p median 0.222 → 0.626.**
+★★**AND THE TWO-SIDED READ IS WHAT PICKS IT: bias 0.5 lands `role_asymmetry` at 97.8 %, which is as
+wrong as the 1.1 % we started from.** A one-sided "more asymmetry is more human" rule would have
+taken 0.5 or 0.7 and called each one an improvement.
+⚠️**Cost: `role_swap_rate` drifts to 81.2 %** (from 58.0) — we hand the lead over more often than a
+human. bias 0.4 trades that back (63.3 %) at the price of `role_asymmetry` 73.2 %. 0.3 wins on
+summed two-sided distance and on p median, but this is a **real** trade, not a free win.
+✅✅**ISOLATION INVARIANT, unasked-for and strong: `nps`, `onset_precision` and `pulse_stability` are
+IDENTICAL across all four arms (17.7 %, 10.5 %, 88.1 %).** The lead hand changes **who plays a
+note, never when** — so the note-time metrics cannot move, and they do not. Same class of check as
+`idiomize`'s.
+✅**THE SONGSET STILL PASSES ON THE NEW RULER**: 23/23 at bias 0 against the 23-metric reference, so
+the earlier PASS rate survived recalibration.
+🔴**TWO DEFECTS THE NEW RULER MAKES PLAIN, cohort-wide over 23 songs:**
+- **`onset_precision` 10.5th percentile** — our notes sit on an audible event less often than ~90 %
+  of humans. **D2/D4 on the agent path.** Newly visible; nothing else on this path could see it.
+- **`pulse_stability` 88.1st percentile** — the pulse fix's rigid overshoot is **larger on the new
+  reference than the 71st I measured on the old one.** ★A recalibration moves every prior
+  percentile; re-read the ones a decision rested on.
+📦**Installed for his ear as a third arm: `AUTO <song> [AUTOLEAD]`** (pulse + lead-bias 0.3),
+alongside `[AUTOBASE]` and `[AUTOPULSE]` on all four standing songs.
+
 ### ✅✅ P0 CLOSED — THE JUDGE CAN HEAR. `mapjudge` NOW SCORES 23 METRICS, AND THE AUDIT PASSES
 `bash scripts/build_onsets_calib_spans.sh` (Demucs onsets over the CALIB and HELDOUT corpus spans,
 800 songs, **0 failed**) → `calibrate_mapjudge.py --n 1100` → `audit_mapjudge.py --n 250`.

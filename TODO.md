@@ -106,21 +106,36 @@ all four standing songs. Record with `scripts/record_verdict.py`.
 95th pct on 5/23 songs. If he says "too mechanical", that is the knob — `MAX_EMPTY_RUN` and the
 syncopation-restore threshold in `pulse.py`, not the phrase length.
 
-## 🔴 P0.6 — OUR HANDS ARE TOO EQUAL (the new top agent-path defect)
-**Evidence (the 23 pulse maps' worst metrics, 2026-08-20)**: with rhythm fixed, the tails are all
-hand-role. **`role_asymmetry` in a tail on 21/23 maps, median 1.1st percentile**; **`handedness` on
-13/23, median 1.5th**. A human leans on one hand within a passage and we split every passage evenly.
-★**There is headroom to pay for it**: `ebpm_burst` sits at the **4.7th pct on 9/23** — we are
-*slower* per hand than a human, so letting one hand take consecutive swings is affordable.
-⚠️**`mapctl --runs` already exists** (default 1). It was set to 1 on 2026-08-14 because `runs>=2`
-took `ebpm_burst` 376 → 752 — but that was measured on a **much denser** build, before the budget
-and pulse work. **Re-measure before assuming the trade still holds.**
-⚠️**Kyle named A6 hand-role division BY EAR as something that works** ⇒ this is a two-sided target:
-move toward the human median, do not maximise asymmetry.
-**Tasks**: re-price `--runs` 1 vs 2 vs 3 on the current build; if `ebpm_burst` stays inside its
-human band, find the runs policy that moves `role_asymmetry` and `handedness` toward the median.
-**DoD**: `role_asymmetry` and `handedness` medians inside the human interquartile range across ≥20
-songs, `ebpm_burst` still inside its human band, and the songset PASS rate still 23/23.
+## ✅➡️ P0.6 — HAND ROLE: PRICED AND SETTLED, AWAITING HIS EAR
+**`mapctl auto --lead-bias 0.3`** (default 0 = old behaviour). Judged, n=23, new 23-metric ruler:
+`role_asymmetry` **1.1st → 49.9th percentile** (the human median), `ebpm_burst` 6.9th → 46.4th,
+**p median 0.222 → 0.626**. Full table in PROGRESS.md.
+★**Picked two-sided**: bias 0.5 gives `role_asymmetry` 97.8 %, as wrong as the 1.1 % we started at.
+⚠️**Real cost**: `role_swap_rate` 58.0 → 81.2 % (we hand the lead over too often). bias 0.4 trades
+it back at the price of asymmetry. ⬜If his ear says the hands feel jumpy, try 0.4.
+✅**Isolation invariant holds**: `nps` / `onset_precision` / `pulse_stability` identical across all
+four arms — the lead hand changes who plays a note, never when.
+⬜**Installed as `AUTO <song> [AUTOLEAD]`** (pulse + lead 0.3) on the four standing songs.
+
+## 🔴 P0.7 — OUR NOTES ARE OFF THE MUSIC (`onset_precision` 10.5th percentile)
+**The first defect the new audio axis found, and no agent-path instrument could see it before.**
+Median over 23 songs: our notes sit on an audible event **less often than ~90 % of human maps**.
+★This is **D2 ("slightly off beat") and D4 ("not following the main vocals") reaching the AGENT
+path** — where, unlike the ML pipeline, we control exactly which onsets become notes.
+⚠️**Do not assume it is a global offset.** That is the `h_dist` failure, and the standing landmine
+says a blanket shift is an onset-detector artifact. Measure `offset_mad_ms` (now in the reference)
+before touching anything.
+**Tasks**: split the shortfall — are we placing notes where there is no onset, or missing the loud
+ones? `events.py` already has accent per event; cross it with `onset_precision` per section.
+**DoD**: `onset_precision` median moves inside the human interquartile range across ≥20 songs
+without `nps` leaving its band.
+
+## 🔴 P0.8 — THE PULSE FIX OVERSHOOTS MORE THAN IT LOOKED
+`pulse_stability` sits at the **88.1st percentile** on the new reference (I measured 71st on the
+old one — a recalibration moves every prior percentile). Still inside the human range, still on the
+rigid side, but further than reported.
+**Tasks**: `MAX_EMPTY_RUN` and the syncopation-restore threshold in `pulse.py` are the knobs.
+**DoD**: `pulse_stability` median inside 25–75 % with the other three pulse metrics staying there.
 
 ## 🟡 P1 — LEG 3: style is real but weak
 **Evidence**: all four ordering checks hold, but **n=1 song, 1 seed**, and `dense` reaches only
