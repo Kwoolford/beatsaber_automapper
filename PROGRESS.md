@@ -60,6 +60,32 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔬 THE ONE FAILING MAP IS `1f9a0`, AND THE CAUSE IS THE GRID BEING TOO COARSE FOR THE AXIS
+**The snap arm's 22/23 is ONE song, not a general regression.** `1f9a0`: `onset_precision` **0.474
+(0.9th pct)**, `offset_mad_ms` **19.7 ms (97th)** against ~10.6 everywhere else, `nps` 2.85 (6th).
+
+    1f9a0 is 93 bpm.  A 1/4-beat slot is 15000/bpm = 161 ms.
+    Worst-case grid snap is therefore ±81 ms, against a 50 ms alignment tolerance.
+    ⇒ THE GRID SNAP ALONE CAN EXCEED THE TOLERANCE BY 31 ms, before any other error.
+
+★★**AND THE THRESHOLD IS EXACT: a SUBDIV-4 half-slot first fits inside 50 ms at exactly 150 bpm**
+(15000/2/50). That is the same 150 bpm boundary the grid-representability table found empirically —
+every songset song ≥150 bpm scored 1.000 and every one ≤130 scored below the human. **Two
+independent routes to the same constant.**
+🔴**This is why `--snap-onsets` cannot help `1f9a0`:** the snap moves an event onto the judge's onset,
+and then the GRID SNAP re-quantises it up to 81 ms away. **The reconciliation is undone downstream
+by the very grid it feeds.** `offset_mad_ms` 19.7 vs 10.6 is that scatter, measured.
+★**93 bpm is also the half-tempo signature** — the ML path's detector fires at bpm<95 and catches
+15/28 half-tempo songs at **zero** false positives. **The agent path inherits the same defect**,
+and here it manifests as a grid too coarse for the alignment axis rather than as a note shortage.
+⬜**The fix is an adaptive subdivision**: at SUBDIV 8 the slot is 81 ms and worst case ±40 ms, inside
+tolerance. It would help all **10/23** songs whose grid cannot reach the human, not just this one.
+🔴**DELIBERATELY NOT BUILT TONIGHT.** `SUBDIV` is a module constant baked into the session grid
+(`slot_s`, `n_cells`) that `mapctl`, `notesheet`, `flowview` and every session on disk read. Changing
+it is a format change, not a knob, and doing it at the end of a long session with no one to check the
+maps is how a silent regression gets shipped. ⚠️Global SUBDIV 8 is REFUTED on the ML path
+(precision −0.127) — that says nothing about the agent path, but it does say **measure, do not assume.**
+
 ### ✅ THE DENSITY GAP WAS TWO ARITHMETIC BUGS OF OUR OWN, BOTH FIXED WITHOUT A FITTED CONSTANT
 `nps` **3.43 (19th pct) → 4.02 (44th)** against a human median 4.17, 23/23 still PASS.
 

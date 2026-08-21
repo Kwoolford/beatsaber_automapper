@@ -559,6 +559,30 @@ def cmd_auto(a) -> int:
                                               getattr(a, "accent_pct", None)))
         follow_times = sorted(set(follow_times))
 
+        # ★Reconcile the PLACING detector with the SCORED one BEFORE the budget is
+        # counted. `events.py` and the alignment axis disagree by a median 23-35 ms,
+        # and the snap COLLAPSES events that land on one onset -- so running it after
+        # the accent search silently undoes part of the budget the search just hit.
+        # ⚠️That ordering cost one map its PASS: the search landed the target, then
+        # the snap removed notes nobody accounted for.
+        def _reconcile(ts, quiet: bool = False):
+            if not getattr(a, "snap_onsets", False):
+                return ts
+            import refonsets as RO
+            out, moved, n_in = RO.snap(ts, s.get("song", ""))
+            if not quiet:
+                if moved:
+                    print(f"snap-onsets: moved {moved}/{n_in} events onto the judge's "
+                          f"own onsets ({n_in - len(out)} collapsed onto a shared "
+                          f"onset)")
+                else:
+                    print(f"⚠️snap-onsets: no cached reference onsets for "
+                          f"'{s.get('song', '')}' — times UNCHANGED")
+            return out
+
+        if not getattr(a, "target_notes", 0):
+            follow_times = _reconcile(follow_times)
+
         # ★★THE ACCENT FILTER COUNTS EVENTS; THE BUDGET IS SPENT IN DISTINCT SLOTS.
         # Two streams are unioned and then deduplicated onto the 1/4-beat grid, so
         # events colliding in one slot become one note: a plan budgeting 840 notes
@@ -573,6 +597,7 @@ def cmd_auto(a) -> int:
                 for spec in str(a.follow).split(","):
                     ts.extend(_follow_times(pathlib.Path(s["audio"]), an, spec.strip(),
                                             getattr(a, "min_accent", None), pct))
+                ts = _reconcile(sorted(set(ts)), quiet=True)
                 b0_, b1_ = (int(x) for x in a.bars.split("-"))
                 n_cells_ = BEATS_PER_BAR * SUBDIV
                 out = set()
@@ -599,23 +624,10 @@ def cmd_auto(a) -> int:
                 if abs(n_slots - want) <= max(2, want * 0.02):
                     break
             if best:
-                follow_times = sorted(set(best[1]))
+                follow_times = _reconcile(sorted(set(best[1])))
                 print(f"target-notes: {want} wanted, accent search lands {best[0]} "
                       f"distinct slots")
 
-        # ★Reconcile the PLACING detector with the SCORED one before anything is
-        # placed. `events.py` and the alignment axis disagree by a median 23-35 ms,
-        # which eats most of the axis' 50 ms budget once the grid snap is added.
-        if getattr(a, "snap_onsets", False):
-            import refonsets as RO
-            follow_times, moved, n_in = RO.snap(follow_times, s.get("song", ""))
-            if moved:
-                print(f"snap-onsets: moved {moved}/{n_in} events onto the judge's "
-                      f"own onsets ({n_in - len(follow_times)} collapsed onto a "
-                      f"shared onset)")
-            else:
-                print(f"⚠️snap-onsets: no cached reference onsets for "
-                      f"'{s.get('song', '')}' — times UNCHANGED")
     except ValueError as exc:
         print(exc, file=sys.stderr)
         return 2
