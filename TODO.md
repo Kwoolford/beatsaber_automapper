@@ -64,8 +64,15 @@ human rhythm, a quarter-beat off the song, passes two times in three.
 shift it. **The judge has the evidence and does not use it.**
 ★★★**This is D2 — *"it's painfully obvious the notes are off beat"* — surviving INSIDE the
 instrument built to catch it.**
-**Task**: an axis-aware gate term (one axis extreme enough is grounds to reject) vs the current
-aggregate. ⚠️**GATING and RANKING need different statistics.**
+🔴**RULED OUT BY MEASUREMENT (`scripts/probe_axis_gate.py`)**: a per-METRIC rule — *reject if any
+metric is beyond the q-th human percentile, two-sided* — **cannot work at any q**. `offbeat` first
+clears 0.10 at q=0.92, where **68 % of HUMAN maps are rejected**. ★Cause: with 23 metrics almost
+every human map has SOME metric in a tail, so a per-metric bound is an **uncorrected multiple test
+over 23 hypotheses** — the same defect already logged for `min(p_a,p_b)`.
+**Task**: a **PER-AXIS** conformal score — group the 23 metrics into their ~6 axes, calibrate each
+axis on the human CALIB slice, combine with a correction. That gives alignment a voice the other 21
+cannot drown **without privileging any metric by hand**. ⚠️**GATING and RANKING need different
+statistics.**
 🔴**Do NOT reweight `onset_precision` until this control fails** — that fits the gate to one control
 and is `h_dist` in a new costume.
 **DoD**: `offbeat` accept ≤0.10, human accept stays ≥0.85, and the other eight controls stay ≤0.10.

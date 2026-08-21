@@ -60,6 +60,34 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔴 THE SIMPLE FIX FOR P0.2 IS RULED OUT BY MEASUREMENT — IT MUST BE PER-AXIS, NOT PER-METRIC
+`scripts/probe_axis_gate.py` tests a deliberately **metric-agnostic** candidate — *reject if ANY
+single metric sits beyond the q-th human percentile, two-sided* — swept across q. ★Metric-agnostic
+on purpose: privileging `onset_precision` until `offbeat` fails would fit the gate to one control,
+which is `h_dist` in a new costume. A rule that names no metric cannot be fitted to one.
+
+| q | human accept | `offbeat` accept |
+|---|---|---|
+| 0.90 | 0.242 | 0.042 |
+| **0.92** | **0.317** | **0.100** |
+| 0.95 | 0.475 | 0.200 |
+| 0.98 | 0.750 | 0.467 |
+| 0.99 | 0.858 | 0.650 |
+
+🔴🔴**NO threshold satisfies human ≥0.85 AND `offbeat` ≤0.10.** `offbeat` first clears the bar at
+q=0.92, **where 68 % of HUMAN maps are rejected.** The curves never cross usefully.
+★★**WHY, and it generalises: with 23 metrics, almost every legitimate human map has SOME metric in a
+tail.** A per-metric bound is an **uncorrected multiple test over 23 hypotheses** — the same defect
+the reference already logs for `min(p_a,p_b)`, arriving from a new direction. Tightening it to catch
+a real defect necessarily catches humans first.
+⇒**The fix must be a PER-AXIS conformal score**: group the 23 metrics into their ~6 axes, calibrate
+each axis's own score on the human CALIB slice so each has a known false-rejection rate, then combine
+with a correction. That gives alignment a voice the other 21 metrics cannot drown, **without**
+privileging any metric by hand.
+✅**Value of this negative**: the obvious fix is eliminated with data rather than by argument, the
+reason is named, and the correct shape is identified — a future session need not re-derive it.
+⚠️**The gate was NOT changed.** What a PASS *means* is Kyle's decision, not an overnight one.
+
 ### 🔴🔴🔴 THE `offbeat` CONTROL: THE AXIS SEES IT, THE VERDICT DOES NOT. **THE JUDGE ACCEPTS 65 %
 OF MAPS THAT ARE A QUARTER-BEAT OFF THE MUSIC.**
 `make_offbeat` shifts every note **+0.25 beats** — a whole number of 1/16 slots, so `offgrid_frac`
