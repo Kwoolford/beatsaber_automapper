@@ -142,7 +142,8 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           pulse: bool = False, phrase_bars: int = 4, lead_bias: float = 0.0,
           lead_phrase_bars: int = 4, pulse_fill: int = 1,
           pulse_sync: float = 0.3, snap_onsets: bool = False,
-          adaptive_subdiv: bool = False, seed: int = 0) -> None:
+          adaptive_subdiv: bool = False, seed: int = 0,
+          doubles: bool = False, accent_slots: str = "0,8") -> None:
     init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
     if adaptive_subdiv:
         init += ["--adaptive-subdiv"]
@@ -165,6 +166,10 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
                    "--pulse-sync", str(pulse_sync)]
             if snap_onsets:
                 cmd += ["--snap-onsets"]
+            if doubles:
+                # ★Humans put both hands on ~16 % of note instants; we placed ZERO
+                # until 2026-08-21. `mapctl` had the flag the whole time.
+                cmd += ["--doubles", "--accent-slots", str(accent_slots)]
             if lead_bias > 0:
                 # ⚠️`--seed` used to reach `idiomize` ONLY, so the lead-hand RNG ran at
                 # seed 0 no matter what was asked for. Every "3 seeds" reading of a
@@ -218,6 +223,9 @@ def main() -> int:
     ap.add_argument("--lead-phrase-bars", type=int, default=4)
     ap.add_argument("--pulse-fill", type=int, default=1,
                     help="lattice points held across a quiet gap (P0.7)")
+    ap.add_argument("--doubles", action="store_true",
+                    help="both hands on accent slots (human double_share ~0.14)")
+    ap.add_argument("--accent-slots", default="0,8")
     ap.add_argument("--adaptive-subdiv", action="store_true",
                     help="1/8-beat slots below 150 bpm (P1.0)")
     ap.add_argument("--snap-onsets", action="store_true",
@@ -257,7 +265,8 @@ def main() -> int:
           phrase_bars=a.phrase_bars, lead_bias=a.lead_bias,
           lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
           pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
-          adaptive_subdiv=a.adaptive_subdiv, seed=a.seed)
+          adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,
+          doubles=a.doubles, accent_slots=a.accent_slots)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

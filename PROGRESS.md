@@ -15,6 +15,36 @@ them side by side in a text format to the map and evaluate by yourself, not usin
 computed if the map is fun to play or not."* ⇒I had been quoting percentiles all session. This is
 what reading produced in one hour.
 
+### 🔬 THE CLIMAX IS IN THE WRONG PLACE — CONFIRMED AGAINST A REAL HUMAN-HUMAN CEILING (n=197)
+Reading the two `1ddd1` maps side by side showed ours peaking at bars 17-24 and the human's at 9-16,
+with ours also spikier (2.63× max/min vs 1.83×). `nps` and `peak_nps` both said "human median" —
+**the SHAPE was wrong, not the level.** Whether that is a defect needed the human-human ceiling.
+
+**244 different-mapper pairs found across all 5 373 corpus zips; 197 scorable:**
+
+| rule | agrees with the human's peak phrase |
+|---|---|
+| **two DIFFERENT humans with each other** | **0.431** ← the ceiling |
+| most-stems-agree (best audio rule) | 0.26 |
+| follow the BASS peak | 0.22 |
+| **follow the VOCALS peak** | **0.17** |
+| chance (1 of 6) | 0.167 |
+
+⇒**It IS a real defect.** Humans agree with each other at 0.431; our best audio-derived rule reaches
+0.26, capturing roughly a **third** of the available signal.
+🔴🔴**AND FOLLOWING THE VOCALS STEM IS EXACTLY CHANCE — which is the heuristic I used on the dogfood
+song.** On an instrumental the `vocals` stem is Demucs leakage; even on sung songs it does not locate
+the climax.
+🔴**A clean single-song explanation that did NOT generalise**: on `1ddd1`, bass and `other` both
+peaked at 9-16 exactly where the human did, which looked like the rule. Across 23 songs bass alone
+scores 0.22 and most-stems-agree 0.26. ★*Two stems agreeing once is a coincidence, not a rule.*
+⚠️**n=4 nearly fooled me**: a first pass over 600 zips found only 4 pairs and gave a "ceiling" of
+0.25, which would have made our 0.26 look **at ceiling and therefore not a defect**. Scanning all
+5 373 moved it to 0.431 and reversed the conclusion. ★*Do not accept a ceiling from n=4.*
+⬜**Open**: no audio-derived rule tested gets near 0.431. This is D3 ("drops at wrong time") measured
+a new way, and the workflow should say plainly that peak placement is a **judgement call with a weak
+prior**, not a signal to read off `brief.py`.
+
 ### ★★★ `p` HAS A TARGET BAND, AND WE HAVE BEEN ABOVE IT: HUMAN p MEDIAN 0.455, IQR 0.28–0.57
 Measured on the **same 23 songs**, human map vs ours:
 

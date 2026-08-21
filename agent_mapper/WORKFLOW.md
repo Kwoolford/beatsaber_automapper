@@ -56,6 +56,12 @@ python agent_mapper/notesheet.py <audio>          # the full score as a page
 dense, where the player breathes. **This is the part the ML pipeline cannot do** — it
 decides one slot from a 16-note window and cannot know bar 33 is an outro.
 
+🔴🔴**DO NOT PICK THE CLIMAX FROM THE `vocals` STEM.** Measured against 197 different-mapper pairs:
+two humans agree on which sixth of the song holds the density peak **43.1 %** of the time, our best
+audio rule (the phrase where the most stems peak) reaches **0.26**, and **following the vocals peak
+scores 0.17 — exactly chance.** On an instrumental that stem is Demucs leakage. **Peak placement is a
+judgement call with a weak prior; say so in the plan rather than reading it off a density column.**
+
 ★**Start the plan with what you cannot see.** On the dogfood song three of six signals
 were unusable (lyrics hallucinated, structure untrusted, energy flat `####` on every
 phrase) — writing that down first stopped all three from silently steering the map.
