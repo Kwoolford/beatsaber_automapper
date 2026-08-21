@@ -87,12 +87,25 @@ def plan(audio: pathlib.Path, nps: float) -> list[dict]:
                 out[e["cls"]] = out.get(e["cls"], 0) + 1
         return out
 
+    # ★★NORMALISE THE ENERGY CURVE, do not just apply it. `0.55 + 0.60*energy` spans a
+    # breathing 55 % to a full 115 % of target, but its DURATION-WEIGHTED MEAN is only
+    # 0.919 across the songset (energy averages ~0.64, not 0.5), so asking for 4.17 nps
+    # silently delivers 3.83 -- an 8 % density shortfall built into the arithmetic, on
+    # an axis where we already sit at the 19th human percentile. Dividing by the
+    # weighted mean keeps every section's RELATIVE breathing identical (the shape Kyle
+    # named as something to protect) while making the map as a whole hit the target.
+    def _mult(s) -> float:
+        return 0.55 + 0.60 * float(s.get("energy") or 0.5)
+
+    _tot = sum(max(s["t1"] - s["t0"], 0.1) for s in sec["sections"]) or 1.0
+    _wmean = sum(max(s["t1"] - s["t0"], 0.1) * _mult(s)
+                 for s in sec["sections"]) / _tot or 1.0
+
     rows = []
     for s in sec["sections"]:
         b0, b1 = s["bar0"], s["bar0"] + s["bars"] - 1
         dur = max(s["t1"] - s["t0"], 0.1)
-        # Energy scales the budget between a breathing 55 % and a full 115 % of target.
-        budget = nps * dur * (0.55 + 0.60 * float(s.get("energy") or 0.5))
+        budget = nps * dur * (_mult(s) / _wmean)
 
         best = (None, 0)
         for stem in MELODIC:
@@ -153,9 +166,10 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
                         "--lead-phrase-bars", str(lead_phrase_bars)]
             # One budget for the merged stream: the section's whole accent budget,
             # not the drums/carrier split, which only existed to feed two passes.
-            pct = _pct(r["budget"], (r["drums_n"] or 0) + (r["carrier_n"] or 0))
-            if pct:
-                cmd += ["--accent-pct", str(pct)]
+            # The accent percentile is searched to hit the budget in SURVIVING
+            # slots; a percentile computed from the event count undershoots by
+            # whatever fraction of the two streams collides on the grid.
+            cmd += ["--target-notes", str(int(r["budget"]))]
             run(cmd, quiet=not verbose)
             continue
         # Drums first: the backbone defines the pulse, and `auto` assigns hands over

@@ -60,6 +60,40 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅ THE DENSITY GAP WAS TWO ARITHMETIC BUGS OF OUR OWN, BOTH FIXED WITHOUT A FITTED CONSTANT
+`nps` **3.43 (19th pct) → 4.02 (44th)** against a human median 4.17, 23/23 still PASS.
+
+**1. The energy curve was never normalised.** `budget = nps * dur * (0.55 + 0.60*energy)` is meant
+to span a breathing 55 % to a full 115 % of target — but section energy averages **0.64, not 0.5**,
+so its **duration-weighted mean is 0.919**: asking for 4.17 nps silently delivered **3.83**.
+✅Dividing each section's multiplier by that weighted mean keeps every section's **relative**
+breathing byte-identical (the shape Kyle named as worth protecting) while the map hits the target.
+Verified: effective 4.15–4.16 against 4.17, section range still 2.6–5.3 nps.
+
+**2. The accent filter counted EVENTS; the budget is spent in DISTINCT SLOTS.** The drums and
+carrier streams are unioned and then deduplicated onto the 1/4-beat grid, so events colliding in one
+slot become one note — a plan budgeting **840** delivered **~604**. ✅`--target-notes` **searches the
+accent percentile until the surviving slot count hits the target** (91 wanted → 90, 143 → 143,
+109 → 111). Self-correcting, same principle as `pulse.py`'s count-matched period, no fitted factor.
+
+🔴**ATTRIBUTION FIRST SAVED TUNING THE WRONG STAGE.** I assumed the loss was the pulse quantiser or
+the 150 ms per-hand floor. **It was neither**: the pulse stage is note-NEUTRAL (71→72, 113→115 cells)
+and placement matches its output exactly, so **nothing is skipped at placement at all.** The entire
+loss was upstream, in the budget arithmetic.
+⚠️**The realised gain was HALF the predicted one** (+0.16 nps from normalisation alone, against
++0.34 at the plan level) — which is what exposed bug 2. *A fix that under-delivers against its own
+arithmetic is evidence of a second loss, not of a bad fix.*
+⚠️**4.17 IS THE TARGET, NOT A FLOOR**: Kyle called 6.18 nps unplayable and the judge rejects near
+6.10. Overshooting is a failure, not a bonus.
+
+### 📊 FINAL STATE OF THE NIGHT (n=23, 23-metric judge, clean sessions)
+| arm | PASS | p med | `nps` | `onset_precision` | `pulse_stability` | `role_asymmetry` |
+|---|---|---|---|---|---|---|
+| `--pulse --lead-bias 0.3` | **23/23** | 0.616 | **4.02 (44 %)** | 0.860 (15 %) | 0.579 (56 %) | 0.093 (32 %) |
+| **+ `--snap-onsets`** | 22/23 | **0.746** | 3.71 (30 %) | **0.900 (25 %)** | 0.523 (39 %) | 0.101 (41 %) |
+⚠️The snap arm has the best typical map (p median 0.746, highest of the night) but **one map now
+fails** — it trades a little density for alignment. Unresolved; needs the per-map look next session.
+
 ### 🟡 P0.7 RECONCILIATION BUILT — HALF THE GAP CLOSES, AND THE RESIDUAL IS A COVERAGE BIAS
 `agent_mapper/refonsets.py` + `--snap-onsets`: each chosen event is moved onto the nearest onset the
 JUDGE recognises, within 60 ms (just outside the axis' own 50 ms tolerance, so near misses are

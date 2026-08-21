@@ -117,6 +117,23 @@ it back at the price of asymmetry. ⬜If his ear says the hands feel jumpy, try 
 four arms — the lead hand changes who plays a note, never when.
 ⬜**Installed as `AUTO <song> [AUTOLEAD]`** (pulse + lead 0.3) on the four standing songs.
 
+## ✅ P0.9 — DENSITY: TWO ARITHMETIC BUGS OF OURS, FIXED
+`nps` **3.43 (19th pct) → 4.02 (44th)**, human median 4.17, 23/23 PASS. (1) the energy curve was
+never normalised — its duration-weighted mean was 0.919, so 4.17 silently delivered 3.83; (2) the
+accent filter counted EVENTS while the budget is spent in DISTINCT SLOTS, so a plan budgeting 840
+delivered ~604. `--target-notes` now searches the accent percentile for surviving slots.
+⚠️**4.17 is the TARGET, not a floor** — 6.18 is unplayable per Kyle and the judge rejects near 6.10.
+★**Attribution first saved tuning the wrong stage**: the pulse quantiser and the per-hand floor were
+both innocent (pulse is note-neutral; nothing is skipped at placement).
+
+## 🔴 P1.0 — THE SNAP ARM FAILS ONE MAP (new, unresolved)
+`--snap-onsets` gives the best typical map of the night (p median **0.746**) but **22/23** — one map
+now fails where it passed without the snap. It trades density (`nps` 4.02 → 3.71) for alignment
+(`onset_precision` 0.860 → 0.900).
+**Tasks**: find the failing map and its worst metric; decide whether the snap's event-collapse is
+eating that song's budget (`--target-notes` runs BEFORE the snap, so collapses are not compensated).
+**DoD**: snap arm reaches 23/23 without giving back `onset_precision`.
+
 ## 🟡 P0.7 — DETECTOR MISMATCH: HALF FIXED, RESIDUAL IS A COVERAGE BIAS IN THE AXIS
 ✅**Built**: `agent_mapper/refonsets.py` + `--snap-onsets` (opt-in). `onset_precision`
 **0.856 → 0.890** (human 0.919), p median 0.655 → 0.680, 23/23 PASS, nothing else regressed.

@@ -558,6 +558,51 @@ def cmd_auto(a) -> int:
                                               getattr(a, "min_accent", None),
                                               getattr(a, "accent_pct", None)))
         follow_times = sorted(set(follow_times))
+
+        # ★★THE ACCENT FILTER COUNTS EVENTS; THE BUDGET IS SPENT IN DISTINCT SLOTS.
+        # Two streams are unioned and then deduplicated onto the 1/4-beat grid, so
+        # events colliding in one slot become one note: a plan budgeting 840 notes
+        # delivered ~604. Rather than inflate the request by a fitted factor, search
+        # the accent percentile for the one whose SURVIVING slot count hits the
+        # target -- self-correcting, and it costs a few cached-event lookups.
+        if getattr(a, "target_notes", 0) > 0:
+            want = int(a.target_notes)
+
+            def _slots_at(pct):
+                ts = []
+                for spec in str(a.follow).split(","):
+                    ts.extend(_follow_times(pathlib.Path(s["audio"]), an, spec.strip(),
+                                            getattr(a, "min_accent", None), pct))
+                b0_, b1_ = (int(x) for x in a.bars.split("-"))
+                n_cells_ = BEATS_PER_BAR * SUBDIV
+                out = set()
+                for bar_ in range(b0_, b1_ + 1):
+                    t0_ = s["phase"] + (bar_ - 1) * s["bar_s"]
+                    for tt in ts:
+                        if t0_ <= tt < t0_ + s["bar_s"]:
+                            i_ = int(round((tt - t0_) / s["slot_s"]))
+                            if 0 <= i_ < n_cells_:
+                                out.add((bar_, i_))
+                return len(out), ts
+
+            lo, hi = 0.02, 1.0
+            best = None
+            for _ in range(8):
+                mid = (lo + hi) / 2
+                n_slots, ts = _slots_at(mid)
+                if best is None or abs(n_slots - want) < abs(best[0] - want):
+                    best = (n_slots, ts)
+                if n_slots < want:
+                    lo = mid          # keep MORE events
+                else:
+                    hi = mid
+                if abs(n_slots - want) <= max(2, want * 0.02):
+                    break
+            if best:
+                follow_times = sorted(set(best[1]))
+                print(f"target-notes: {want} wanted, accent search lands {best[0]} "
+                      f"distinct slots")
+
         # ★Reconcile the PLACING detector with the SCORED one before anything is
         # placed. `events.py` and the alignment axis disagree by a median 23-35 ms,
         # which eats most of the axis' 50 ms budget once the grid snap is added.
@@ -987,6 +1032,9 @@ def main() -> int:
     p.add_argument("--pulse", action="store_true",
                    help="hold ONE interval per phrase instead of playing every onset "
                         "(P0.5: our pulse_stability 0.329 vs human 0.514)")
+    p.add_argument("--target-notes", type=int, default=0,
+                   help="search the accent percentile until this many DISTINCT grid "
+                        "slots survive; the budget is spent in slots, not events")
     p.add_argument("--snap-onsets", action="store_true",
                    help="move each event onto the nearest onset the JUDGE recognises "
                         "(within 60ms) before placing (P0.7 detector reconciliation)")
