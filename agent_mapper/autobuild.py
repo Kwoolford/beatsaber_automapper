@@ -126,7 +126,8 @@ def _pct(want: float, have: int) -> float | None:
 
 
 def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
-          pulse: bool = False, phrase_bars: int = 4) -> None:
+          pulse: bool = False, phrase_bars: int = 4, lead_bias: float = 0.0,
+          lead_phrase_bars: int = 4) -> None:
     run([str(AM / "mapctl.py"), "init", str(audio), "--name", name])
     for r in rows:
         bars = f"{r['bar0']}-{r['bar1']}"
@@ -142,6 +143,9 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
             cmd = [str(AM / "mapctl.py"), "auto", name, "--bars", bars,
                    "--follow", follow, "--wide", "--pulse",
                    "--phrase-bars", str(phrase_bars)]
+            if lead_bias > 0:
+                cmd += ["--lead-bias", str(lead_bias),
+                        "--lead-phrase-bars", str(lead_phrase_bars)]
             # One budget for the merged stream: the section's whole accent budget,
             # not the drums/carrier split, which only existed to feed two passes.
             pct = _pct(r["budget"], (r["drums_n"] or 0) + (r["carrier_n"] or 0))
@@ -182,6 +186,9 @@ def main() -> int:
                     help="hold one interval per phrase, from a single merged pass "
                          "over drums+carrier (P0.5)")
     ap.add_argument("--phrase-bars", type=int, default=4)
+    ap.add_argument("--lead-bias", type=float, default=0.0,
+                    help="probability a phrase's lead hand repeats (P0.6)")
+    ap.add_argument("--lead-phrase-bars", type=int, default=4)
     ap.add_argument("--json", type=pathlib.Path)
     a = ap.parse_args()
 
@@ -211,7 +218,8 @@ def main() -> int:
 
     print(f"\n=== BUILD")
     build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
-          phrase_bars=a.phrase_bars)
+          phrase_bars=a.phrase_bars, lead_bias=a.lead_bias,
+          lead_phrase_bars=a.lead_phrase_bars)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

@@ -60,6 +60,35 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅✅ P0 CLOSED — THE JUDGE CAN HEAR. `mapjudge` NOW SCORES 23 METRICS, AND THE AUDIT PASSES
+`bash scripts/build_onsets_calib_spans.sh` (Demucs onsets over the CALIB and HELDOUT corpus spans,
+800 songs, **0 failed**) → `calibrate_mapjudge.py --n 1100` → `audit_mapjudge.py --n 250`.
+
+    DIST   : 1100 maps, 811 with audio        held-out human accept 975/1100 = 0.886
+    CALIB  : 1100 maps, 408 with audio        (>100, so the audio p-value is NOT coarse)
+    HELDOUT: 1100 maps, 403 with audio
+
+**Reference now carries 23 metrics**, the two new ones being **`onset_precision`** and
+**`offset_mad_ms`**. **Audit DoD: MET** — human accept **0.884**, and **all eight degenerate
+controls accept 0.000**, including both timing controls.
+✅**Verified live on a real map** (not just in the reference): judging `PULSE__1f767` with its
+cached onsets prints **`scored 23 metrics`** with **no `⚠️NO AUDIO AXIS` banner**, and
+`onset_precision` appears with a real percentile.
+🔴🔴**BUT READ THE AUDIT HONESTLY: the control battery ran in NO-AUDIO mode.** The per-metric
+discrimination table lists **21 metrics, not 23** — the perturbed variants are not scored against
+cached onsets, so **the alignment axis was calibrated but never exercised against a control.** The
+DoD term *"the two timing controls are still rejected"* passes, but it passes on
+`pulse_stability` / `dominant_share` / `ioi_switch_rate` (AUC 0.99+ on both timing controls), which
+are **beat-domain**. ⇒**The audio axis is CALIBRATED, not AUDITED.** ⬜Next: give the controls
+onsets and re-run, so `onset_precision` has to earn its place like every other metric.
+★★**IT PAID OFF IMMEDIATELY — a defect no agent-path instrument could see before**: on
+`PULSE__1f767`, **`onset_precision` 0.823 at the 10.1st human percentile**. Our notes sit on an
+audible event less often than 90 % of human maps. That is D2/D4 arriving on the AGENT path, and
+until tonight the judge was structurally incapable of noticing it.
+⚠️**Every percentile quoted before this point was against the 21-metric reference.** The file
+`docs/eval_references/mapjudge_human_quantiles.json` has been rewritten; the songset's 23/23 PASS
+was measured against the OLD ruler and needs re-running against the new one.
+
 ### ✅ THE FIX IS BUILT AND VALIDATED — `agent_mapper/pulse.py`, n=23
 `--pulse` on `mapctl auto` / `autobuild`. Two changes, one per half of the split:
 **ONE merged pass over drums+carrier** (`--follow` now takes a comma-separated list) instead of two

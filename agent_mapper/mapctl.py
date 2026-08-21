@@ -40,6 +40,7 @@ import argparse
 import bisect
 import json
 import pathlib
+import random
 import sys
 
 import numpy as np
@@ -616,6 +617,9 @@ def cmd_auto(a) -> int:
     n_doubles = 0
     last_down = {"L": True, "R": True}
     since_swap = 0
+    # Seeded so a build is reproducible; the lead bias is the only stochastic part of
+    # placement and an unseeded one would make every arm unrepeatable.
+    _lead_rng = random.Random(getattr(a, "seed", 0))
     cols = {"L": [1, 0], "R": [2, 3]}
     new = []
     k = 0
@@ -634,12 +638,31 @@ def cmd_auto(a) -> int:
             since_swap = 1
             continue
         bar, sl = payload
+        # ★★A PASSAGE HAS A LEAD HAND. Strict alternation splits every window evenly,
+        # which is why `role_asymmetry` sits at the 1.1st human percentile on 21 of 23
+        # maps: humans are globally balanced but LOCALLY lopsided, and balance at
+        # every scale is the unnatural thing (evaluation/handrole.py). The lead hand
+        # is held for a phrase and then handed over, the same shape as the pulse fix
+        # -- hold, then break at a boundary. `--lead-bias 0` is the old behaviour.
+        lead_h = None
+        if a.lead_bias > 0:
+            phrase = (bar - b0) // max(1, a.lead_phrase_bars)
+            lead_h = ("L", "R")[(phrase + (0 if a.lead.upper() == "L" else 1)) % 2]
         if a.hands != "alternate":
             h = a.hands.upper()
         elif last_hand is None:
             h = a.lead.upper()
         elif since_swap >= run:
-            h = "R" if last_hand == "L" else "L"
+            other = "R" if last_hand == "L" else "L"
+            # Only the LEAD hand gets to repeat, and only sometimes: a lead that
+            # always repeats gives a 2:1 split (`role_asymmetry` 0.33) where the human
+            # sits at 0.11, i.e. roughly 55/45. Two-sided -- overshooting asymmetry is
+            # as wrong as our current evenness.
+            if (lead_h is not None and last_hand == lead_h
+                    and _lead_rng.random() < a.lead_bias):
+                h = last_hand
+            else:
+                h = other
         else:
             h = last_hand
         # ★THE PER-HAND FLOOR, measured from 31 723 human gaps over 40 songs: a human
@@ -925,6 +948,13 @@ def main() -> int:
                    help="only follow events at least this loud, in dB relative to "
                         "that stem's own median hit (a style knob: play the accents)")
     p.add_argument("--wide", action="store_true", help="use both columns per hand")
+    p.add_argument("--lead-bias", type=float, default=0.0,
+                   help="probability the phrase's LEAD hand repeats instead of "
+                        "alternating; 0 = strict alternation (P0.6: role_asymmetry "
+                        "ours 0.03 vs human 0.11)")
+    p.add_argument("--lead-phrase-bars", type=int, default=4,
+                   help="bars a hand keeps the lead before handing it over")
+    p.add_argument("--seed", type=int, default=0)
     p.add_argument("--pulse", action="store_true",
                    help="hold ONE interval per phrase instead of playing every onset "
                         "(P0.5: our pulse_stability 0.329 vs human 0.514)")

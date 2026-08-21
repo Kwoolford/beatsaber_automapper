@@ -77,14 +77,21 @@ BACKLOG section near the bottom; do not start one.
 
 ---
 
-## 🔴🔴 P0 — THE AGENT'S VALIDATOR IS DEAF (`mapjudge` has no audio axis)
-**Evidence**: five of six axes were once blind to a map sitting off the beat, and A8 was added the
-day he said *"it's painfully obvious the notes are off beat"*. `mapjudge` currently repeats that
-hole: 21 metrics, none of which load the audio.
-**Tasks**: cache the CALIB/HELDOUT onset spans → recalibrate → re-audit → confirm the audio-mode
-p-value is not coarse (needs ≥100 calibration maps with onsets; it warns if not).
-**DoD**: `mapjudge` reports 23 metrics without the `⚠️NO AUDIO AXIS` banner, human accept stays
-≥0.85, all eight controls stay ≤0.10, **and the two timing controls are still rejected**.
+## ✅➡️ P0 — THE JUDGE CAN HEAR (closed 2026-08-20 evening), WITH ONE GAP
+`mapjudge` now scores **23 metrics** including **`onset_precision`** and **`offset_mad_ms`**.
+Audit **DoD MET**: human accept 0.884, all eight controls 0.000. Verified live on a real map —
+`scored 23 metrics`, no banner. Full numbers in PROGRESS.md.
+🔴**THE REMAINING GAP: the audio axis is CALIBRATED but NOT AUDITED.** The control battery runs in
+no-audio mode (its per-metric table has 21 rows, not 23), so `onset_precision` has never had to
+discriminate a control. The timing controls are rejected by the **beat-domain** metrics instead.
+**Task**: give `audit_mapjudge.py`'s perturbed variants their song's cached onsets and re-run.
+**DoD**: the discrimination table has 23 rows, and `onset_precision` scores AUC > 0.8 on at least
+one timing control.
+⬜**Re-judge the songset against the NEW reference.** The 23/23 PASS was measured on the 21-metric
+ruler; every percentile in this file from before tonight moved.
+★**It already found something**: `onset_precision` **0.823, 10.1st percentile** on `PULSE__1f767` —
+our notes land on an audible event less often than 90 % of humans. **D2/D4 on the agent path**,
+invisible to every agent instrument until tonight.
 
 ## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
 **Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**
