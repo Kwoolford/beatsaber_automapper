@@ -243,6 +243,38 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
     return new, n_fallback
 
 
+def _reparity(notes: list[dict], bpm: float) -> list[dict]:
+    """Run `postprocess.fix_parity` over v3 note dicts, preserving times and colours.
+
+    Returns the notes unchanged if the fixer is unavailable or disagrees about the
+    note count -- a parity pass that silently drops notes would be worse than the
+    violation it fixes.
+    """
+    try:
+        from beatsaber_automapper.data.beatmap import ColorNote, DifficultyBeatmap
+        from beatsaber_automapper.generation.postprocess import fix_parity
+    except Exception:  # noqa: BLE001
+        return notes
+    order = sorted(range(len(notes)), key=lambda i: (notes[i].get("b", 0.0),
+                                                     notes[i].get("c", 0)))
+    cn = [ColorNote(beat=float(notes[i].get("b", 0.0)), x=int(notes[i].get("x", 0)),
+                    y=int(notes[i].get("y", 0)), color=int(notes[i].get("c", 0)),
+                    direction=int(notes[i].get("d", 0))) for i in order]
+    try:
+        fixed = fix_parity(DifficultyBeatmap(version="3.0.0", color_notes=cn))
+    except Exception:  # noqa: BLE001
+        return notes
+    out_notes = list(getattr(fixed, "color_notes", []) or [])
+    if len(out_notes) != len(cn):
+        return notes
+    out = [dict(n) for n in notes]
+    for slot, fn in zip(order, out_notes):
+        out[slot]["x"] = int(fn.x)
+        out[slot]["y"] = int(fn.y)
+        out[slot]["d"] = int(fn.direction)
+    return out
+
+
 def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
                  top_k: int = VOCAB_DEPTH, width: int = 6,
                  crossover: float = CROSSOVER_TARGET,
@@ -297,6 +329,21 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         # The invariant the whole design rests on: this pass moves cells and
         # nothing else. If it ever changes a time, a colour or the count, the A/B
         # stops isolating one thing and the comparison is worthless.
+        assert len(new) == len(notes)
+        for o, q in zip(notes, new):
+            assert o.get("b") == q.get("b") and o.get("c") == q.get("c")
+
+        # ★★RE-FIX PARITY. `mapctl export` runs `postprocess.fix_parity` and then THIS
+        # pass rewrites every direction, so the fixer's work is undone downstream and
+        # nothing re-checks. Measured on 1fb3f: 0 violations and 0 resets before this
+        # pass, **1 violation and 30 resets after** -- and `mapjudge` FAILs on
+        # `viol > 0` regardless of the p-value, so a single unplayable transition sinks
+        # an otherwise-passing map (that one scored p=0.746).
+        # ⚠️Reuse the pipeline's fixer; hand-rolled parity repair already cost this
+        # project 380 notes and still left violations.
+        new = _reparity(new, bpm)
+        # The invariant survives: the fixer changes DIRECTIONS, never times, colours
+        # or the count -- re-asserted here because that is what makes the A/B valid.
         assert len(new) == len(notes)
         for o, q in zip(notes, new):
             assert o.get("b") == q.get("b") and o.get("c") == q.get("c")

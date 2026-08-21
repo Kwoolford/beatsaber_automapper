@@ -106,17 +106,15 @@ all four standing songs. Record with `scripts/record_verdict.py`.
 95th pct on 5/23 songs. If he says "too mechanical", that is the knob — `MAX_EMPTY_RUN` and the
 syncopation-restore threshold in `pulse.py`, not the phrase length.
 
-## 🔴 P1.1 — THE COMPOSED CONFIG IS 21/23, AND THE CAUSE IS UNATTRIBUTED
-Final config (`--pulse` sync 0.3, `--lead-bias 0.2` cyclic, normalised budget + `--target-notes`):
-**PASS 21/23, p median 0.645, notes median 774**, all targeted metrics in the human body together.
-🔴**Two failures, cause NOT attributed**: `1fb2a` (p=0.083, just under) and `1fb3f` (**p=0.746 yet
-FAIL**). The earlier 23/23 was a different configuration, so this is a change, not a mystery — but
-density and lead-mode both moved and neither has been isolated.
-★**`1fb3f` is the more interesting one**: a high p-value with a rejecting verdict means the gate's
-mean/topk/max terms disagree with `p`. **Understand that before quoting `p` as a summary again** —
-this session already saw `p median` swing 0.746 → 0.626 between runs of the same arm.
-**Tasks**: bisect the two changes (density fix vs cyclic lead) on those two songs only — cheap.
-**DoD**: 23/23 restored, or the cost named and accepted with evidence.
+## ✅ P1.1 — RESOLVED: `idiomize` WAS UNDOING `fix_parity`
+The composed config is **23/23 PASS, p median 0.753, 0/23 maps with violations**.
+🔴**The bug**: `mapctl export` fixes parity, then `idiomize` rewrites every direction and nothing
+re-checks (1fb3f: 0 violations → 1 violation + 30 resets). **`mapjudge` FAILs on `viol > 0`
+regardless of `p`** — correctly. ✅`idiomize_zip` now re-runs `fix_parity`.
+★★**Side effect worth keeping**: `idiom_local` **51.0 %** (the human median) against the **98th
+percentile** Goodhart fingerprint, `idiom_jsd` 20.9 % against ~5 %. The parity fixer overrides some
+vocabulary-drawn directions, loosening `idiomize`'s coupling to the metrics it was tuned on.
+⚠️**Any future pass that rewrites directions must re-check parity** — that is the general lesson.
 
 ⚠️**AGGREGATION LANDMINE (cost a false alarm tonight)**: counting "metrics in a tail" over
 `res.worst(8)` and over `res.metrics` gives different denominators — only 8 metrics are eligible in

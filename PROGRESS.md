@@ -60,6 +60,37 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅✅ A REAL PLAYABILITY BUG: `idiomize` UNDOES `fix_parity`, AND FIXING IT ALSO UN-GOODHARTS IDIOM
+**Chasing why `1fb3f` failed at p=0.746 found the gate does the right thing**: `verdict()` returns
+FAIL on **`viol > 0` regardless of the p-value**. That map had a genuine parity break — two
+consecutive DOWN swings on one hand, x3→x0, a three-column jump in 158 ms.
+🔴🔴**CAUSE: `mapctl export` runs `postprocess.fix_parity`, and then `autobuild` runs `idiomize`,
+which REWRITES EVERY DIRECTION.** The fixer's work is undone downstream and nothing re-checks.
+Measured on 1fb3f:
+
+    BEFORE idiomize:  762 notes,  0 violations,   0 resets
+    AFTER  idiomize:  762 notes,  1 violation,   30 resets
+
+⚠️**This has been shipping in every idiomized map all session** — the earlier 23/23 figures were
+measured on maps carrying this exposure; only this song happened to cross the threshold.
+✅**Fixed**: `idiomize_zip` re-runs the pipeline's own `fix_parity` at the end (per the standing
+*do not reimplement it* rule), and bails out unchanged if the fixer disagrees about the note count —
+a parity pass that silently drops notes would be worse than the violation it repairs.
+
+**Songset after the fix (n=23, 23 metrics, audio axis):**
+
+    PASS 23/23   p median 0.753   maps with violations 0/23
+    nps 43.6%  pulse_stability 55.7%  role_asymmetry 32.9%  ebpm_burst 56.5%
+    onset_precision 14.7%  crossover 39.9%  idiom_jsd 20.9%  idiom_local 51.0%
+
+★★**AND THE SIDE EFFECT IS THE BEST PART: it partly UN-GOODHARTS the idiom metrics.**
+`idiom_local` **51.0 %** — the human median — against the **98th percentile** that was the
+documented `idiomize` Goodhart fingerprint, and `idiom_jsd` 20.9 % against ~5 %. **`fix_parity`
+overrides some vocabulary-drawn directions with flow-correct ones, loosening the tight coupling to
+the mined vocabulary that `idiomize` was tuned into.** A correctness fix repaired a measurement
+pathology — the opposite of the usual direction.
+★**Both failures resolved**: `1fb3f` (parity) and `1fb2a` (p 0.083 → passing), p median 0.645 → 0.753.
+
 ### 🔍 END-TO-END VERIFICATION OF THE COMPOSED CONFIG — 21/23, AND TWO THINGS TO BE CAREFUL ABOUT
 Every result tonight was measured against one or two arms in isolation. This rebuilds all 23 songs at
 the **final composed configuration** (`--pulse`, `SYNC_FRAC` 0.3, `--lead-bias 0.2` cyclic, normalised
