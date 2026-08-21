@@ -15,6 +15,45 @@ them side by side in a text format to the map and evaluate by yourself, not usin
 computed if the map is fun to play or not."* ⇒I had been quoting percentiles all session. This is
 what reading produced in one hour.
 
+### ★★★ `p` HAS A TARGET BAND, AND WE HAVE BEEN ABOVE IT: HUMAN p MEDIAN 0.455, IQR 0.28–0.57
+Measured on the **same 23 songs**, human map vs ours:
+
+| | p median | note |
+|---|---|---|
+| **HUMAN maps** | **0.455** (IQR 0.281–0.572) | what a real map scores |
+| ours, `--width` none | **0.753** | **above the human upper quartile** |
+| ours, `--width 3` | 0.599 | much closer |
+
+★★**A HIGH `p` MEANS BLANDER, NOT BETTER.** Our maps sit closer to the corpus centre than real
+human maps do, which is why the judge scored our `1ddd1` map **0.878** and the human's own map of
+that song **0.274**. **This is the `h_dist` failure recurring in the conformal p-value.**
+⇒**The standing rule "never optimise `p`" now has a positive form: TARGET THE HUMAN BAND,
+p ≈ 0.28–0.57. Above ~0.7 is a warning sign, not a win.**
+⇒**The width-3 `p` drop 0.753 → 0.599 is therefore an IMPROVEMENT.** The metric that looked like a
+cost was measuring us leaving the bland centre.
+
+### ✅ LEGIBILITY FIX VALIDATED COHORT-WIDE — `idiomize --width 3`, n=23
+| arm | top-5 share | recur ≤8 | PASS | p median |
+|---|---|---|---|---|
+| width none | 0.342 | 0.319 | 23/23 | 0.753 |
+| **width 3** | **0.492** | **0.434** | **23/23** | **0.599** |
+| width 5 | 0.413 | 0.374 | 23/23 | 0.553 |
+| HUMAN | 0.577 | 0.496 | | 0.455 |
+**Closes ~64 % of the legibility gap with no PASS cost**, and moves `p` toward the human band.
+
+### ✅ DOUBLES: THE FLAG ALREADY EXISTED AND WAS NEVER USED — `--doubles --accent-slots 0,8`
+`double_share` **0.000 → 0.138** against a human median **0.137**, 0 violations, 0 resets. **A gap
+open since 2026-08-14, closed by a flag `mapctl` already had** — undocumented in WORKFLOW, never
+passed by `autobuild`. **Fourth dead/undocumented lever found this session** (after `--width`,
+`--audio-dir`, and `--adaptive-subdiv`).
+⚠️**It is not free**: on the dogfood song it *reduced* legibility (top-5 0.533 → 0.495) and pushed
+`travel` 3.78 → 4.33 and `nps` 3.94 → 4.48, both past this song's human. **Doubles add notes at
+accent slots, which interrupts the recurring figure.** Needs a cohort test before adopting.
+🔴**My single-song read of HOW humans use doubles did NOT generalise**: on `1ddd1` both visible
+doubles were a symmetric both-hands-up gesture, but across **109 maps / 12 557 doubles** the pairing
+is **mixed 45 % / both-down 31 % / both-up 24 %**, and same-direction is only **0.436**. ★*A gesture
+seen twice is not a rule.*
+
 ### 🔴🔴🔴 THE JUDGE SCORES OUR MAP 3× HIGHER THAN THE HUMAN'S MAP OF THE SAME SONG
 `1ddd1`: **ours p=0.878, the human's own map p=0.274.** On `idiom_local`, the human scores **0.752
 (8.7th pct)** and our default scores 0.840 (33rd). ⇒**The metric rates us "more human" than the
