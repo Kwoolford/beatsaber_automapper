@@ -223,8 +223,10 @@ def main() -> int:
     ap.add_argument("--lead-phrase-bars", type=int, default=4)
     ap.add_argument("--pulse-fill", type=int, default=1,
                     help="lattice points held across a quiet gap (P0.7)")
-    ap.add_argument("--doubles", action="store_true",
-                    help="both hands on accent slots (human double_share ~0.14)")
+    ap.add_argument("--no-doubles", dest="doubles", action="store_false",
+                    help="disable both-hands accents; ON by default since 2026-08-21 "
+                         "(double_share 0.000 -> 0.127 against a human 0.205, n=23)")
+    ap.set_defaults(doubles=True)
     ap.add_argument("--accent-slots", default="0,8")
     ap.add_argument("--adaptive-subdiv", action="store_true",
                     help="1/8-beat slots below 150 bpm (P1.0)")

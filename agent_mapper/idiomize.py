@@ -154,7 +154,14 @@ def _pick(cands, rng: random.Random, prefer_cross: bool, width: int = 0):
     the `BEAT_GRID_SUBDIV` no-op this project already retired: a knob that reads as a
     lever and silently is not one.
 
-    ★**What it does now**: restrict the frequency-weighted draw to the `width` most
+    ★★**DEFAULT 3, validated n=23 (2026-08-21).** Found by READING two maps side by
+    side: the human plays a small recurring vocabulary and we played a scatter. Top-5
+    cell share **0.342 -> 0.492** (human 0.577) and recurrence-within-8-notes
+    **0.319 -> 0.434** (human 0.496), 23/23 still PASS. ⚠️`idiom_local` falls to the
+    15th percentile and that is CONVERGENCE, not a cost -- the human map of the dogfood
+    song sits at the **8.7th**.
+
+    ★**What it does**: restrict the frequency-weighted draw to the `width` most
     common candidates. `1` is greedy (always the single most human cell, minimum
     variety); a large width samples the whole tail. **This is a VARIETY dial, and
     variety is part of transition difficulty** -- Kyle: *"difficulty isn't always just
@@ -181,7 +188,7 @@ def _pick(cands, rng: random.Random, prefer_cross: bool, width: int = 0):
 
 
 def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
-             width: int = 0, crossover: float = CROSSOVER_TARGET,
+             width: int = 3, crossover: float = CROSSOVER_TARGET,
              repeat_p: float = REPEAT_P):
     """Redraw (x, y, direction) for every note from the human vocabulary.
 
@@ -294,7 +301,7 @@ def _reparity(notes: list[dict], bpm: float) -> list[dict]:
 
 
 def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
-                 top_k: int = VOCAB_DEPTH, width: int = 0,
+                 top_k: int = VOCAB_DEPTH, width: int = 3,
                  crossover: float = CROSSOVER_TARGET,
                  repeat_p: float = REPEAT_P) -> tuple[int, int]:
     """Copy `src` to `dst` with only note cells redrawn. Returns (n_notes, n_fallback)."""
@@ -384,7 +391,7 @@ def main() -> int:
     ap.add_argument("zip_in", type=pathlib.Path)
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--width", type=int, default=0,
+    ap.add_argument("--width", type=int, default=3,
                     help="restrict the draw to the N most common cells; 1 = greedy "
                          "(least variety), 0 = no restriction. A VARIETY dial — was a "
                          "dead no-op before 2026-08-21")
