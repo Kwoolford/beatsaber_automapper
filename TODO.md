@@ -11,69 +11,45 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 📍 CURRENT STATE (2026-08-20, close)
+## 📍 CURRENT STATE (2026-08-21, after the overnight agent-suite session)
 
-> ★★**FOCUS, set by Kyle 2026-08-20 (mid-session):** *"I want to focus solely on building an
-> agentic map building suite. The objective is to build a suite so good you are highly confident
-> and can manually map any song you'd like and even customize them to whatever style you want."*
-> ⇒**Everything above the backlog is agent-path work.** ML-pipeline work (retraining Stage-1, tempo
-> detection, decode levers) is **BACKLOGGED** at the bottom of this file — do not pick it up, and do
-> not let a shared metric pull the loop back into it. ★The test of an item is: *does it make the
-> AGENT build or validate a map better?*
+> ★★**FOCUS, set by Kyle 2026-08-20:** *"I want to focus solely on building an agentic map building
+> suite… so good you are highly confident and can manually map any song you'd like and even
+> customize them to whatever style you want."* ⇒**ML-pipeline work is in `🧊 BACKLOGGED` at the
+> bottom. Do not queue it.** ★The test of an item: *does it make the AGENT build or validate a map
+> better?* ⚠️A GPU job here is usually Demucs for the JUDGE, not training — say which.
 
-
-★★**Kyle's brief redefined the work this session:** *"keep working on the agentic building suite
-until you are confident the maps are good. **You should not need to rely on human review.** Get to a
-point where **no matter what song is sent your way, you have visibility as good as a human and can
-map to whatever style you want**."* Plus: *"build the agent framework **so visibly that you can
-confidently validate and create any map from any song**. The note sheet could use much more data —
-these **electric songs have LOTS of different note types**."*
-
-⇒**The work is a build/validate loop the agent runs alone.** The ML levers below are now
-secondary. Full numbers for everything here are in PROGRESS.md (2026-08-20).
-
-| leg | state |
-|---|---|
-| **1. Judge one map without him** | ✅**BUILT** — `mapjudge`, conformal, n=1. Human 0.884, **all 8 degenerate controls 0.000** |
-| **2. See any song as a human does** | 🟡**HALF** — `events.py` gives **14–20 typed note types** (was 4) + a per-stem trust verdict. 🔴**The judge still has no audio axis** |
-| **3. Map to any style** | 🟡**DEMONSTRATED** — `style.py`; ordering checks hold but magnitudes are modest (n=1 song) |
-
-**One command runs the whole loop:** `python agent_mapper/autobuild.py <audio> --name X`
+**One command builds and judges any song:**
+`python agent_mapper/autobuild.py <audio> --name X --pulse --lead-bias 0.2`
 → SEE (`events`+`structure`) → PLAN → BUILD (`mapctl`) → DRESS (`idiomize`) → JUDGE (`mapjudge`).
-**23/23 eval-songset songs produce a PASSing map.**
 
-### 🔴 The four limits that bound all of it — read before trusting any of the above
-1. 🔴🔴**THE JUDGE HAS NO AUDIO AXIS** ⇒ note-attributes-only, **structurally blind to D2/D3/D4**.
-   It killed a finding mid-session: `[PHASE]` ranked worse 6/6, but with `offgrid_frac` excluded the
-   arms are **identical on 5/6** — a global shift moves every note off a beat-0 grid *by
-   construction*. **This is P0.**
-2. ⚠️⚠️**`idiomize` was tuned against the judge** ⇒ "the judge scores it higher" is **circular**.
-   Non-circular: the isolation invariant, parity, and that the defect named matches his words.
-3. 🔴**A PASS = NOT DEFECTIVE, not GOOD.** It gates at the corpus **median**, which his standing
-   *"target is the best mappers"* makes a **FLOOR**. ★**`rank_score` is a distance-from-typical:
-   minimising it Goodharts toward the average map. NEVER optimise it.**
-4. 🔴**Nothing here has reached his ear.** Every 2026-08-20 result is a number.
+**Measured on the 23-song songset, 23-metric judge with the audio axis:**
 
----
+    PASS 23/23   p median 0.753   0 maps with violations   562 tests pass
+    pulse_stability 56th pct · role_asymmetry 33rd · nps 44th · idiom_local 51st
+    onset_precision 15th  ← the one axis still clearly short of human
+
+### 🔴 The limits that bound all of it — read before trusting any number above
+1. 🔴🔴🔴**THE VERDICT IGNORES THE AUDIO AXIS.** The judge accepts **65 %** of maps shifted a
+   quarter-beat off the music. The axis SEES it (`onset_precision` AUC 0.898, 21 of 23 metrics at
+   0.500) and the aggregate dilutes it. **This is D2 surviving inside the axis built to catch it.**
+   ⇒**P0.2 below. Until it is fixed, a PASS does not mean the notes are on the music.**
+2. 🔴**A PASS = NOT DEFECTIVE, not GOOD.** It gates at the corpus **median**, which his standing
+   *"target is the best mappers"* makes a **FLOOR**. ★**`rank_score`/`p` are distance-from-typical:
+   ranking by them Goodharts toward the average map. NEVER optimise them.**
+3. ⚠️**`idiomize` is still partly circular** (tuned against judge metrics), though the parity re-fix
+   moved `idiom_local` 98th → 51st percentile, which loosened it considerably.
+4. 🔴**Nothing here has reached his ear.** Every number above is a number.
 
 ### ▶️ START THE NEXT SESSION HERE
-★**Kyle's mid-session redirect (2026-08-20) makes this list agent-only.** ML items are in the
-BACKLOG section near the bottom; do not start one.
-1. 🔴🔴**Give the agent's validator ears — wire `alignment` into `mapjudge`.** Without it the agent
-   can build a map and has **no way to check the notes are on the music**, which is the one thing
-   Kyle asked for ("visibility as good as a human"). Run
-   **`bash scripts/build_onsets_calib_spans.sh`** (~55 min GPU — Demucs onset extraction, **not**
-   model training), then `python scripts/calibrate_mapjudge.py --n 1100`, then
-   `python scripts/audit_mapjudge.py --n 250`. Dual calibration sets are **already plumbed** (21 vs
-   23 metrics must not share one).
-2. ★★**Attack the pulse defect (P0.5)** — the biggest measured defect the agent path has, and it is
-   purely agent-side (no model in the path). `scripts/diag_pulse_union.py` has already split it.
-3. ⬜**Get an autobuilt map in front of his ear.** They are unheard. Suggest 1f767 or 1f8d6 against
-   the human map. Record with `scripts/record_verdict.py`.
-4. ⬜**`[CROSSOVER]` is still unjudged** — and `mapjudge` independently ranks the CROSSOVER arms
-   **top of 34**. Oldest open question on the board, now with a second line of evidence.
-5. ⬜**The best-mapper list** — leg 3 needs it to aim above the corpus median. ⚠️Ask only when he is
-   AT the machine; never block an overnight run on it.
+1. 🔴🔴**P0.2 — the gate ignores the audio axis.** Biggest open defect, and a **design** decision.
+2. ⬜**Ask him to play `[AUTOBASE]` vs `[AUTOPULSE]` vs `[AUTOLEAD]`** — installed on all four
+   standing songs. Record with `scripts/record_verdict.py`. **This is the real gate.**
+3. 🟡**P0.7** — `onset_precision` 15th pct; the residual is a detector COVERAGE bias (6-stem vs
+   4-stem). The principled fix moves the human baseline ⇒ deliberate decision.
+4. ⬜**`[CROSSOVER]` is still unjudged** — oldest open question on the board.
+5. ⬜**Ask for the best-mapper list** — leg 3 needs it to aim above the corpus median. ⚠️Only when
+   he is AT the machine; never block an overnight run on it.
 
 ---
 
@@ -93,17 +69,6 @@ aggregate. ⚠️**GATING and RANKING need different statistics.**
 🔴**Do NOT reweight `onset_precision` until this control fails** — that fits the gate to one control
 and is `h_dist` in a new costume.
 **DoD**: `offbeat` accept ≤0.10, human accept stays ≥0.85, and the other eight controls stay ≤0.10.
-
-## ✅ P0 — THE JUDGE CAN HEAR, AND THE AXIS IS NOW AUDITED (closed 2026-08-21)
-23 metrics incl. `onset_precision` + `offset_mad_ms`. `audit_mapjudge.py --audio` scores every
-control against the song's own onsets: **human accept 0.880, all eight controls 0.000, 23-row
-discrimination table, DoD MET.** `onset_precision` AUC **0.885** on `timing_random`.
-🔴**Known limit — the axis is NOT uniquely useful on the current controls.** Beat-domain metrics beat
-it on `timing_random` (0.99+) and it is weak on `timing_jitter` (0.694). **The battery contains no
-control that keeps human IOI structure while moving notes off the music** — which is our actual
-defect. ⇒**"the audio axis works" rests on our maps, not on the battery.**
-⬜**Build that control**: preserve the IOI distribution, shift note times off the onsets. It is the
-one perturbation that separates alignment from the beat-domain proxies. ★*Audit the controls too.*
 
 ## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
 **Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**
@@ -129,21 +94,7 @@ vocabulary-drawn directions, loosening `idiomize`'s coupling to the metrics it w
 ⚠️**Any future pass that rewrites directions must re-check parity** — that is the general lesson.
 
 ⚠️**AGGREGATION LANDMINE (cost a false alarm tonight)**: counting "metrics in a tail" over
-`res.worst(8)` and over `res.metrics` gives different denominators — only 8 metrics are eligible in
-the first. **A 6/23 → 12/23 "trend" was two different counts.** ★Check the denominator before reading
-a count as a trend.
-
-## 🟡➡️ P0.6 — HAND ROLE: LEVER CONFIRMED, OPERATING POINT UNDER-CONSTRAINED
-✅**The lever is real at 3 seeds**: `role_asymmetry` arm gap 60.8 pts vs a 47.5-pt seed spread;
-`handedness` 3.1 → ~32 (gap 2.7× spread). `mapctl auto --lead-bias 0.3`, default 0.
-⚠️**But the OPERATING POINT is not reliable**: at bias 0.3 `role_asymmetry` lands between the **37th
-and 85th percentile** depending on seed. The "39.6 %, human median exactly" I reported was **seed 0,
-the lowest of three**. Honest claim: *moves it into the human body*, not *onto the median*.
-🔴**A cost I reported is REFUTED**: `role_swap_rate` 58 → 81 % is **inside the seed spread**
-(gap 8.8, spread 10.1) ⇒ not a result. Do not treat it as a trade.
-✅**DONE — `--lead-mode cyclic` is the default and the seed spread is 0.0.** Re-tuned:
-**`--lead-bias 0.20`** (not 0.30 — that was tuned against the sampled lead and overshoots to the
-77.9th percentile under `cyclic`). ★**An operating point is not portable across a change in how the
+`res.worst(8)` and over `res.metrics` g`). ★**An operating point is not portable across a change in how the
 knob works.** 🔴0.30 has the higher `p` median and is still the wrong choice: `p` is a
 distance-from-typical and ranking by it Goodharts toward the average map.
 
@@ -172,16 +123,7 @@ alone; or let the pulse lattice prefer phases whose points carry onsets.
 
 ## 🟡 P0.7 — DETECTOR MISMATCH: HALF FIXED, RESIDUAL IS A COVERAGE BIAS IN THE AXIS
 ✅**Built**: `agent_mapper/refonsets.py` + `--snap-onsets` (opt-in). `onset_precision`
-**0.856 → 0.890** (human 0.919), p median 0.655 → 0.680, 23/23 PASS, nothing else regressed.
-🔴**DoD term 1 FAILED**: placed events within 50 ms of a scored onset **0.832 → 0.867**, target 0.97
-— because **13.3 % of our events have no scored onset within 60 ms at all**. A snap fixes TIMING
-disagreement, not COVERAGE.
-★★**`events.py` uses `htdemucs_6s` (guitar + piano stems); the scoring cache is the 4-stem union.**
-⇒**Part of this metric may be the AXIS being blind rather than the map being wrong** — a guitar note
-we can see and the scorer cannot is scored as a miss.
-⬜**The principled fix — rebuild the onset cache from the 6-stem separation.** ⚠️**This moves the
-human baseline** (`build_onset_cache.py` says so) ⇒ it means recalibrating `mapjudge` and
-re-measuring every alignment number recorded so far. **A deliberate decision, not a chore.**
+**0.856 → 0.890** (human 0.919), p median 0.655 → 0.680, ng every alignment number recorded so far. **A deliberate decision, not a chore.**
 ⬜**Generalise `--snap-onsets` to any song** — it needs cached reference onsets, which exist only for
 corpus songs, so it cannot be the default while "map any song" is the goal.
 ⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
@@ -221,20 +163,7 @@ always ran at seed 0. Hand-role numbers recorded before this are single-seed.
 ## 📦 AWAITING KYLE'S EAR
 - ★⚠️**`[CROSSOVER]` HAS NEVER BEEN PLAYED** — crossover 0.000 → 0.112 vs a human 0.183, `flow`
   0.37 → 0.23, and **`mapjudge` now ranks the CROSSOVER arms top of 34 independently.**
-- ⬜**The autobuilt maps** (`outputs/autobuild_*.zip`, and the songset run in the scratchpad).
-- ⬜**Two ML levers that passed their DoDs and were never flipped**: `BEAT_SUBDIV_AUTO=1`
-  (**+0.222 vocal coverage at 49× the seed sd** on the 15 half-tempo songs it fires on, notes
-  432→855, no precision cost, 0/121 false fires) and `--beat-threshold 0.25` (+0.029 at 8.6× sd,
-  median 4.06 nps, 0/23 songs above the 6.18 he called unplayable).
-- ⚠️**`[PHASE]` did not remove *"slightly off beat"*** ⇒ do not flip `BEAT_GRID_PHASE=search`.
-- 🔴**The notesheet page player has still never been confirmed working in a browser.** One page was
-  sent to him 2026-08-20 for its first render; no verdict yet.
-
-## 🔴 P1 — THE SIX DEFECTS HE NAMED (2026-08-17): what is still open
-| # | his words | still open |
-|---|---|---|
-| **D1** | *"very slow"* | = D4's budget lever. ⇒P0.5 + `--beat-threshold 0.25` |
-| **D2** | *"slightly off beat"* | 🔴Refuted as note placement (our times match a human's better than two humans match each other). ⚠️**Untested**: we may be *too* quantised for a song with groove |
+- ⬜**The autobuilt maps** (`outputs/autobuild_*.zip`, and the song (our times match a human's better than two humans match each other). ⚠️**Untested**: we may be *too* quantised for a song with groove |
 | **D3** | *"drops at wrong time"* | Confirmed (0.347 vs human-human 0.49). 🔴Its obvious fix is refuted — `structure.py` locates his moves *worse* than our map does |
 | **D4** | *"not following the main vocals"* | ★**Biggest ML-side defect**: we play **0.385** of the sung line vs human **0.743**. Route is training-side (P1 below) |
 | **D5** | *"random bursts"* | 🔴Refuted/inverted — the human bursts *more*. **Do not build a burst-suppressor** |
@@ -294,7 +223,6 @@ other hand already covered (human 20.7 %), so fixing doubling alone lifts vocal 
 rhythm 6× ⇒ **not reachable by decode**; cost a **representational** fix instead.
 ★A **chain** is the human's alternative — one swing carrying 4–5 segments, *density with no new
 distinct time*. `chains.py` builds them; they are installed and unjudged.
-
 
 
 ---
