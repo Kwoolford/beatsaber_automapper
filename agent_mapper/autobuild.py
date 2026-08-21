@@ -127,8 +127,9 @@ def _pct(want: float, have: int) -> float | None:
 
 def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           pulse: bool = False, phrase_bars: int = 4, lead_bias: float = 0.0,
-          lead_phrase_bars: int = 4) -> None:
-    run([str(AM / "mapctl.py"), "init", str(audio), "--name", name])
+          lead_phrase_bars: int = 4, pulse_fill: int = 1,
+          pulse_sync: float = 0.3) -> None:
+    run([str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"])
     for r in rows:
         bars = f"{r['bar0']}-{r['bar1']}"
         if pulse:
@@ -142,7 +143,9 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
                 continue
             cmd = [str(AM / "mapctl.py"), "auto", name, "--bars", bars,
                    "--follow", follow, "--wide", "--pulse",
-                   "--phrase-bars", str(phrase_bars)]
+                   "--phrase-bars", str(phrase_bars),
+                   "--pulse-fill", str(pulse_fill),
+                   "--pulse-sync", str(pulse_sync)]
             if lead_bias > 0:
                 cmd += ["--lead-bias", str(lead_bias),
                         "--lead-phrase-bars", str(lead_phrase_bars)]
@@ -189,6 +192,11 @@ def main() -> int:
     ap.add_argument("--lead-bias", type=float, default=0.0,
                     help="probability a phrase's lead hand repeats (P0.6)")
     ap.add_argument("--lead-phrase-bars", type=int, default=4)
+    ap.add_argument("--pulse-fill", type=int, default=1,
+                    help="lattice points held across a quiet gap (P0.7)")
+    ap.add_argument("--pulse-sync", type=float, default=0.3,
+                    help="syncopation-restore threshold; lower restores more real "
+                         "onsets (P0.7/P0.8)")
     ap.add_argument("--json", type=pathlib.Path)
     a = ap.parse_args()
 
@@ -219,7 +227,8 @@ def main() -> int:
     print(f"\n=== BUILD")
     build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
           phrase_bars=a.phrase_bars, lead_bias=a.lead_bias,
-          lead_phrase_bars=a.lead_phrase_bars)
+          lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
+          pulse_sync=a.pulse_sync)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

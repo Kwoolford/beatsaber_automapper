@@ -127,8 +127,20 @@ def cmd_init(a) -> int:
          "spb": g["spb"], "slot_s": g["slot"], "n_bars": g["n_bars"],
          "duration": an["dur"], "fit_r": an["r"]}
     (d / "session.json").write_text(json.dumps(s, indent=1))
-    if not notes_path(a.name).exists():
+    # 🔴🔴**A REUSED SESSION NAME SILENTLY BUILDS ON TOP OF THE LAST RUN.** `init` used
+    # to leave existing notes alone, which is right for a human resuming a hand-built
+    # map and WRONG for any sweep: re-running an arm with the same name appended a
+    # second full map onto the first, and the result did not error -- it just scored
+    # worse. That is exactly how a 2026-08-20 sweep invented a PASS-rate "regression"
+    # from 23/23 to 20/23 that did not exist. `--fresh` is what every automated
+    # builder should pass; the default still protects a hand-authored session.
+    if getattr(a, "fresh", False):
         write_notes(a.name, [])
+    elif not notes_path(a.name).exists():
+        write_notes(a.name, [])
+    elif read_notes(a.name):
+        print(f"  ⚠️session '{a.name}' already has {len(read_notes(a.name))} notes; "
+              f"they are KEPT. Pass --fresh to start empty.")
     print(f"session '{a.name}'  {audio.name}")
     print(f"  {g['bpm']:.2f} bpm, {g['n_bars']} bars, bar = {g['bar_s']:.3f}s, "
           f"1/16 = {g['slot']*1000:.1f}ms, downbeat {g['phase']*1000:+.0f}ms")
@@ -591,7 +603,9 @@ def cmd_auto(a) -> int:
         import pulse as PU
         before = len(picks)
         picks = PU.quantise(picks, n_cells, b0,
-                            phrase_bars=getattr(a, "phrase_bars", 4))
+                            phrase_bars=getattr(a, "phrase_bars", 4),
+                            max_empty=getattr(a, "pulse_fill", PU.MAX_EMPTY_RUN),
+                            sync=getattr(a, "pulse_sync", PU.SYNC_FRAC))
         print(f"pulse: {before} -> {len(picks)} cells, one interval held per "
               f"{getattr(a, 'phrase_bars', 4)}-bar phrase")
     picks = [p for p in picks if p not in occupied]
@@ -900,7 +914,9 @@ def main() -> int:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
 
-    p = sub.add_parser("init"); p.add_argument("audio", type=pathlib.Path)
+    p = sub.add_parser("init")
+    p.add_argument("--fresh", action="store_true",
+                   help="discard any existing notes for this session name"); p.add_argument("audio", type=pathlib.Path)
     p.add_argument("--name", required=True); p.set_defaults(fn=cmd_init)
 
     p = sub.add_parser("add"); p.add_argument("name")
@@ -958,6 +974,14 @@ def main() -> int:
     p.add_argument("--pulse", action="store_true",
                    help="hold ONE interval per phrase instead of playing every onset "
                         "(P0.5: our pulse_stability 0.329 vs human 0.514)")
+    p.add_argument("--pulse-sync", type=float, default=0.3,
+                   help="how far off the lattice (as a fraction of the period) an "
+                        "event must sit to be restored as a syncopation; LOWER "
+                        "restores more real onsets, breaking the pulse AND raising "
+                        "onset_precision together")
+    p.add_argument("--pulse-fill", type=int, default=1,
+                   help="lattice points to hold across a quiet gap; 0 = never invent "
+                        "a note (costs pulse, buys onset_precision)")
     p.add_argument("--phrase-bars", type=int, default=4,
                    help="bars per phrase for --pulse; the interval may change at each "
                         "boundary and not within (default 4)")

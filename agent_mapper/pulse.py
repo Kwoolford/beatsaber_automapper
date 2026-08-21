@@ -40,7 +40,33 @@ PERIODS = (1, 2, 3, 4, 6, 8)
 # One is half a beat at P=2: enough to bridge a single quiet slot without inventing a
 # bar of notes the song does not play. (Two put the first build 88 % above the human
 # note count.)
+# 🔴**THIS CONSTANT HAS A COST THE PULSE WORK COULD NOT SEE.** A filled point has no
+# source event by definition, so it lands where there may be no audio onset. Measured
+# once the audio axis existed: `onset_precision` 0.868 without the pulse pass, 0.829
+# with it (human 0.919) -- the fill nearly doubled our distance from the human on an
+# axis that did not exist when the pulse fix was priced. Tunable so the trade between
+# holding a pulse and staying on the music can be measured rather than assumed.
 MAX_EMPTY_RUN = 1
+
+# How far off the lattice a source event must sit before it is restored as a
+# syncopation, as a fraction of the period. 0.5 = only events exactly between two
+# lattice points.
+# **DEFAULT 0.3, measured (n=23, 2026-08-20).** At 0.5 the pass overshot: it held a
+# pulse at `pulse_stability` 0.717, the **88th** human percentile against a human
+# 0.514, while `onset_precision` sat at 0.829. At 0.3 both land where they should --
+# `pulse_stability` **0.515** (37th pct, the human is 0.514) and `onset_precision`
+# **0.856** -- so this is not a trade, it is strictly better on both. 0.2 overshoots
+# the other way (pulse 0.396, 13th pct). ⚠️0.5 and 0.4 are IDENTICAL: the period is an
+# integer number of slots, so both thresholds round to the same "at least one slot
+# off" test at the common period of 2.
+# ★★**THIS IS THE KNOB THAT MOVES BOTH AXES THE SAME WAY.** Everything restored here
+# is a REAL detected onset, so lowering it simultaneously (a) breaks the lattice more
+# often, pulling `pulse_stability` down off its 88th-percentile overshoot toward the
+# human 0.514, and (b) puts notes back onto audible events, raising
+# `onset_precision`. The fill knob above trades the two against each other; this one
+# does not. ⚠️Its floor is a real limit: at sync 0 every candidate is restored and
+# the pass degenerates to the un-quantised union it replaced.
+SYNC_FRAC = 0.3
 
 
 def _snap_cost(cands: list[int], start: int, period: int, phase: int) -> tuple[int, float]:
@@ -56,7 +82,8 @@ def _snap_cost(cands: list[int], start: int, period: int, phase: int) -> tuple[i
 
 
 def _emit(cands: list[int], start: int, span: int, period: int,
-          phase: int) -> list[int]:
+          phase: int, max_empty: int = MAX_EMPTY_RUN,
+          sync: float = SYNC_FRAC) -> list[int]:
     """The notes one (period, phase) lattice would actually play for this phrase."""
     lattice = [start + phase + k * period
                for k in range((span - phase + period - 1) // period)
@@ -79,11 +106,11 @@ def _emit(cands: list[int], start: int, span: int, period: int,
             empty = 0
         elif started:
             empty += 1
-            if empty <= MAX_EMPTY_RUN:
+            if empty <= max_empty:
                 # Hold the pulse across a short gap: this is what turns two hits
                 # either side of a quiet slot into a RUN rather than a long IOI.
                 out.append(lat)
-            # Past MAX_EMPTY_RUN the run has ended; the next hit starts a new one.
+            # Past `max_empty` the run has ended; the next hit starts a new one.
     # ⚠️Trim the tail: the fill holds the pulse ACROSS a gap, but past the last source
     # event there is nothing to hold it to, and those notes would land after the
     # section ends -- outside the bar range the caller asked for.
@@ -98,13 +125,15 @@ def _emit(cands: list[int], start: int, span: int, period: int,
     # lattice point is off-beat in the music, not noise.
     for c in cands:
         k = round((c - start - phase) / period)
-        if abs(c - (start + phase + k * period)) * 2 >= period:
+        if abs(c - (start + phase + k * period)) >= sync * period:
             kept.add(c)
     return sorted(o for o in kept if start <= o < start + span)
 
 
 def quantise_phrase(cands: list[int], start: int, span: int,
-                    periods: tuple[int, ...] = PERIODS) -> list[int]:
+                    periods: tuple[int, ...] = PERIODS,
+                    max_empty: int = MAX_EMPTY_RUN,
+                    sync: float = SYNC_FRAC) -> list[int]:
     """Lattice points to play for one phrase, as absolute slot indices.
 
     Every emitted point sits on one lattice, so consecutive gaps are equal by
@@ -123,7 +152,7 @@ def quantise_phrase(cands: list[int], start: int, span: int,
     best = None
     for period in periods:
         for phase in range(period):
-            got = _emit(cands, start, span, period, phase)
+            got = _emit(cands, start, span, period, phase, max_empty, sync)
             if not got:
                 continue
             miss = abs(len(got) - target)
@@ -136,7 +165,9 @@ def quantise_phrase(cands: list[int], start: int, span: int,
 
 def quantise(picks: list[tuple[int, int]], n_cells: int, bar0: int,
              phrase_bars: int = 4,
-             periods: tuple[int, ...] = PERIODS) -> list[tuple[int, int]]:
+             periods: tuple[int, ...] = PERIODS,
+             max_empty: int = MAX_EMPTY_RUN,
+             sync: float = SYNC_FRAC) -> list[tuple[int, int]]:
     """Re-time `(bar, slot)` picks so each phrase holds one interval.
 
     `picks` are already snapped to the build grid; this decides WHICH of that grid's
@@ -154,6 +185,7 @@ def quantise(picks: list[tuple[int, int]], n_cells: int, bar0: int,
     while p0 <= hi:
         cands = [i for i in idx if p0 <= i < p0 + span]
         if cands:
-            out.extend(quantise_phrase(cands, p0, span, periods))
+            out.extend(quantise_phrase(cands, p0, span, periods, max_empty,
+                                       sync))
         p0 += span
     return sorted({(bar0 + i // n_cells, i % n_cells) for i in out})

@@ -130,12 +130,16 @@ ones? `events.py` already has accent per event; cross it with `onset_precision` 
 **DoD**: `onset_precision` median moves inside the human interquartile range across ≥20 songs
 without `nps` leaving its band.
 
-## 🔴 P0.8 — THE PULSE FIX OVERSHOOTS MORE THAN IT LOOKED
-`pulse_stability` sits at the **88.1st percentile** on the new reference (I measured 71st on the
-old one — a recalibration moves every prior percentile). Still inside the human range, still on the
-rigid side, but further than reported.
-**Tasks**: `MAX_EMPTY_RUN` and the syncopation-restore threshold in `pulse.py` are the knobs.
-**DoD**: `pulse_stability` median inside 25–75 % with the other three pulse metrics staying there.
+## ✅ P0.8 — PULSE OVERSHOOT: FIXED by `SYNC_FRAC = 0.3`
+`pulse_stability` **88.1st → 37.2nd percentile** (human 0.514, ours 0.515) and `onset_precision`
+0.829 → 0.856 **at the same time** — not a trade, because everything the syncopation-restore puts
+back is a REAL detected onset, so it breaks the lattice and lands on audible events together.
+🔴**The fill knob (`MAX_EMPTY_RUN`) was the WRONG lever and the sweep refuted my mechanism**: fill 2
+scored BETTER `onset_precision` than fill 1 (0.842 vs 0.829), so "more fill = more invented notes =
+worse precision" is false — the count-matched period search reacts to the fill, and WHICH PERIOD is
+chosen matters more than how many gaps are bridged.
+⚠️`--pulse-sync` 0.5 and 0.4 are **identical**: the period is an integer number of slots, so both
+round to the same "≥1 slot off" test at the common period of 2. 0.2 overshoots the other way.
 
 ## 🟡 P1 — LEG 3: style is real but weak
 **Evidence**: all four ordering checks hold, but **n=1 song, 1 seed**, and `dense` reaches only

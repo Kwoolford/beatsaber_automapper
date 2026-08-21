@@ -66,7 +66,7 @@ def run(args: list[str]) -> str:
 def build_arm(audio: pathlib.Path, name: str, rows: list[dict], arm: str,
               out: pathlib.Path) -> None:
     """One arm of the same plan: drums only, carrier only, or both."""
-    run([str(AM / "mapctl.py"), "init", str(audio), "--name", name])
+    run([str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"])
     for r in rows:
         bars = f"{r['bar0']}-{r['bar1']}"
         if arm in ("DRUMS", "UNION") and r["drums_n"]:

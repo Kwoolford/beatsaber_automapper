@@ -60,6 +60,46 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔴🔴 A PASS-RATE "REGRESSION" THAT WAS MY OWN MEASUREMENT BUG — `init` MERGES SESSIONS
+`mapctl init` wrote an empty note list **only `if not notes_path(name).exists()`** — right for a
+human resuming a hand-built map, silently wrong for a sweep. **Re-running an arm under the same
+session name APPENDED a second full map onto the first.** It did not error; the map just scored
+worse. `sweep_lead_judged.py` names sessions `lj_<sid>_<bias>`, so its SECOND run built double maps
+for all 23 songs and reported a PASS-rate fall from 23/23 to **20–21/23** that never happened.
+★**Three independent checks killed it**: a clean rebuild gives **23/23, p median 0.739**; judging
+those maps **with and without the audio axis gives 23/23 either way** (so my second hypothesis —
+"the new axis is rejecting maps" — was also wrong); and building one map twice under one name is now
+byte-identical.
+✅**Fixed at the source**: `init --fresh` discards existing notes, `autobuild` and the diagnostics
+always pass it, and a bare re-init now **prints how many notes it kept** instead of accumulating in
+silence.
+⚠️**Blast radius, checked not assumed**: the bias-0.3 decision stands (first use of those names, so
+clean); `sweep_lead.py`'s raw table had **2 of 23 songs contaminated**; `diag_pulse_union.py`
+rmtree's its sessions and `sweep_pulse.py` names them from a randomised `hash()`, so both were clean.
+★★**SAME FAMILY AS THE DEPLOY COLLISION EARLIER TONIGHT: a name that already exists is not an
+error, it is a SILENT MERGE.** Both cost a wrong conclusion; neither raised anything.
+🔴**AND IT MADE ME REPORT A FALSE FINDING, now retracted**: I said the syncopation-restore had fixed
+most of the hand asymmetry on its own (`role_asymmetry` 1.1 % → 34.1 % at bias 0). That came from
+the contaminated run. **Clean, bias 0 gives 1.3 % — unchanged.** The lead bias is doing all of that
+work after all.
+
+### ✅ FINAL CONFIGURATION OF THE NIGHT, all numbers on clean sessions (n=23, 23-metric judge)
+`autobuild --pulse --lead-bias 0.3` (with `SYNC_FRAC` 0.3, `MAX_EMPTY_RUN` 1):
+
+| | bias 0 | **bias 0.3** | |
+|---|---|---|---|
+| PASS | 23/23 | **23/23** | |
+| p median | 0.274 | **0.655** | |
+| `role_asymmetry` | 1.3 % | **39.6 %** | |
+| `ebpm_burst` | 22.8 % | **46.4 %** | |
+| `pulse_stability` | 37.2 % | 37.2 % | (was 88 % before `SYNC_FRAC` 0.3) |
+| `onset_precision` | 14.4 % | 14.4 % | (was 10.5 %) |
+| `nps` | 18.8 % | 18.8 % | ⬜still low — the density gap is untouched |
+
+✅**Isolation invariant holds again**: `nps`, `onset_precision`, `pulse_stability` identical across
+both biases — the lead hand changes who plays a note, never when.
+📦**Redeployed for his ear** with these settings: `[AUTOBASE]` / `[AUTOPULSE]` / `[AUTOLEAD]`.
+
 ### ✅ P0.6 PRICED AND SETTLED BY THE JUDGE — `--lead-bias 0.3`
 `mapctl auto --lead-bias P` holds a lead hand for a phrase and lets **only that hand** repeat, then
 hands over at the boundary — the same *hold, then break* shape as the pulse fix. Judged on the new
