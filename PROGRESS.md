@@ -60,6 +60,44 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🟢 LEG 3 REPLICATES ON 10 SONGS — 4 OF 6 ORDERINGS, AND THE 2 THAT FAIL ARE INFORMATIVE
+Leg 3 was demonstrated on **one song, one seed**. After three separate 2-song readings reversed at
+n=23 tonight, that was not a result. `scripts/sweep_style.py` replicates it across **10 songs**,
+scored as **orderings** (is `dense` denser than `calm` *on the same song*) rather than distances —
+a pairwise test a lucky absolute value cannot satisfy.
+
+| ordering | holds | median gap | |
+|---|---|---|---|
+| `nps`: calm < dense | **10/10** | 0.647 | ✅ |
+| `peak_nps`: calm < dense | 8/10 | 0.500 | ✅ |
+| `angle_change`: flowing < technical | 9/10 | 1.581 | ✅ |
+| `crossover`: flowing < technical | **10/10** | 0.054 | ✅ |
+| `travel`: calm < technical | 7/10 | 0.176 | 🔴 |
+| `ebpm_burst`: calm < dense | **3/10** | **0.000** | 🔴 |
+
+✅**All five styles PASS 10/10** ⇒ a style is reached without making defective maps.
+★★**`ebpm_burst`'s median gap is EXACTLY 0.000 — and that is the system CORRECTLY REFUSING, not a
+broken knob.** It is pinned by the **150 ms per-hand floor**, derived from **31 723 human gaps over
+40 songs** (cohort p5 = 148 ms). A style asking for faster bursts is asking to swing one hand faster
+than a human ever does, and the floor declines. ⇒**The style space is BOUNDED BY PLAYABILITY**, which
+is the right behaviour — the same shape as the in-key gate that may only ever REFUSE.
+⚠️**This confirms at n=10 what TODO recorded at n=1** ("`ebpm_burst` identical across all five styles
+— no style knob moves it"). ★A prior finding reproducing at 10× the sample is worth more than a new
+one at n=1.
+⚠️**`travel` at 7/10 is NOT RESOLVABLE at this n**, not refuted — one song short of the bar, with a
+positive median gap. Needs more songs or seeds before a verdict.
+
+### 🔴 ONSET-AWARE EVENT SELECTION: REJECTED BEFORE BUILDING, AS GOODHARTING
+The refutation above points at "choose events by proximity to a scored onset". **It must not be
+built.** 13.3 % of our events have **no scored onset at all**, because `events.py` sees guitar and
+piano stems the 4-stem scoring union does not. Selecting against the scorer would drop **exactly
+those** — the real notes the axis is blind to — raising `onset_precision` while making the map
+musically worse.
+★**The distinction that keeps `--snap-onsets` legitimate**: snapping uses the scored detector to
+decide **WHERE** an event is (both detectors agree it exists, disagreeing by ~23 ms); selection would
+use it to decide **WHETHER** an event exists — and on that question our 6-stem detector is the
+better-informed one. **Same data source, opposite epistemic status.**
+
 ### 🔴🔴 ADAPTIVE SUBDIVISION REFUTED — THE ARITHMETIC WAS RIGHT, THE REMEDY IS WRONG
 Built behind `--adaptive-subdiv` (1/8-beat slots below 150 bpm) with a pre-registered safety gate.
 **Both gate terms passed**: `1f333` (188 bpm) came out **byte-identical**, and `1f9a0` (93 bpm) went

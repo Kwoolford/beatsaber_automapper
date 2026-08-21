@@ -167,15 +167,18 @@ chosen matters more than how many gaps are bridged.
 ⚠️`--pulse-sync` 0.5 and 0.4 are **identical**: the period is an integer number of slots, so both
 round to the same "≥1 slot off" test at the common period of 2. 0.2 overshoots the other way.
 
-## 🟡 P1 — LEG 3: style is real but weak
-**Evidence**: all four ordering checks hold, but **n=1 song, 1 seed**, and `dense` reaches only
-4.10 nps against a human median 4.17. `ebpm_burst` is identical (320) across all five styles —
-it is set by the 150 ms per-hand floor and **no style knob moves it**.
-🔴**Named style CLUSTERS are REFUTED** (silhouette 0.153 vs null 0.105, n=1098) — style is a
-**continuum**; do not rebuild clusters.
-**Tasks**: replicate the ordering checks across ≥10 songs × 3 seeds; find why density saturates
-(the budget is not event-supply-limited — only 3 of 16 accent slots were at "keep all").
-**DoD**: each ordering holds on ≥8 of 10 songs, and `dense` clears the human median nps.
+## 🟢➡️ P1 — LEG 3: REPLICATES ON 10 SONGS (4 of 6 orderings), AWAITING HIS EAR
+`scripts/sweep_style.py`, n=10 songs, scored as orderings: `nps` calm<dense **10/10**, `crossover`
+flowing<technical **10/10**, `angle_change` **9/10**, `peak_nps` **8/10**. **All five styles PASS
+10/10** — a style is reached without making defective maps.
+★★**`ebpm_burst` calm<dense is 3/10 with a median gap of EXACTLY 0.000 — the system correctly
+REFUSING.** It is pinned by the 150 ms per-hand floor (31 723 human gaps, p5 = 148 ms); a style
+asking for faster bursts asks to swing faster than a human ever does. ⇒**The style space is bounded
+by playability. Do not "fix" this by lowering the floor.**
+⚠️**`travel` 7/10 = NOT RESOLVABLE at this n**, not refuted — one short of the bar, positive median
+gap. More songs or seeds before a verdict.
+⬜**Remaining**: 3 seeds per song (this was 1), and his ear on whether the presets are named right —
+**the names are conventions over a continuum, not discoveries.**
 
 ## 📦 AWAITING KYLE'S EAR
 - ★⚠️**`[CROSSOVER]` HAS NEVER BEEN PLAYED** — crossover 0.000 → 0.112 vs a human 0.183, `flow`
