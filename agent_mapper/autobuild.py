@@ -141,8 +141,12 @@ def _pct(want: float, have: int) -> float | None:
 def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           pulse: bool = False, phrase_bars: int = 4, lead_bias: float = 0.0,
           lead_phrase_bars: int = 4, pulse_fill: int = 1,
-          pulse_sync: float = 0.3, snap_onsets: bool = False) -> None:
-    run([str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"])
+          pulse_sync: float = 0.3, snap_onsets: bool = False,
+          adaptive_subdiv: bool = False) -> None:
+    init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
+    if adaptive_subdiv:
+        init += ["--adaptive-subdiv"]
+    run(init)
     for r in rows:
         bars = f"{r['bar0']}-{r['bar1']}"
         if pulse:
@@ -210,6 +214,8 @@ def main() -> int:
     ap.add_argument("--lead-phrase-bars", type=int, default=4)
     ap.add_argument("--pulse-fill", type=int, default=1,
                     help="lattice points held across a quiet gap (P0.7)")
+    ap.add_argument("--adaptive-subdiv", action="store_true",
+                    help="1/8-beat slots below 150 bpm (P1.0)")
     ap.add_argument("--snap-onsets", action="store_true",
                     help="reconcile the placing detector with the judge's (P0.7)")
     ap.add_argument("--pulse-sync", type=float, default=0.3,
@@ -246,7 +252,8 @@ def main() -> int:
     build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
           phrase_bars=a.phrase_bars, lead_bias=a.lead_bias,
           lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
-          pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets)
+          pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
+          adaptive_subdiv=a.adaptive_subdiv)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

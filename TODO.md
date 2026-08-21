@@ -126,23 +126,19 @@ delivered ~604. `--target-notes` now searches the accent percentile for survivin
 ★**Attribution first saved tuning the wrong stage**: the pulse quantiser and the per-hand floor were
 both innocent (pulse is note-neutral; nothing is skipped at placement).
 
-## 🔴 P1.0 — THE BUILD GRID IS TOO COARSE BELOW 150 BPM (the one failing map)
-**Diagnosed**: the snap arm's 22/23 is **one song**, `1f9a0` at **93 bpm** — not a general
-regression. `onset_precision` 0.474 (0.9th pct), `offset_mad_ms` 19.7 ms (97th) vs ~10.6 elsewhere.
-★★**Exact arithmetic**: a 1/4-beat slot is `15000/bpm` ms, so the grid snap alone is worst-case
-±`7500/bpm` ms. **It first fits inside the axis' 50 ms tolerance at exactly 150 bpm** — the same
-boundary the grid-representability table found empirically. **Two independent routes, one constant.**
-🔴**This is why `--snap-onsets` cannot rescue it**: the snap puts an event on the judge's onset and
-the grid then re-quantises it up to 81 ms away. **The reconciliation is undone by the grid it feeds.**
-★**93 bpm is the half-tempo signature** (ML detector fires at bpm<95, 15/28 caught, 0 false fires) —
-the agent path inherits it, here as a grid too coarse rather than a note shortage.
-**Task**: adaptive subdivision — SUBDIV 8 below ~150 bpm gives an 81 ms slot (±40 ms, inside
-tolerance) and would help all **10/23** songs whose grid cannot reach the human.
-⚠️**This is a FORMAT change, not a knob**: `SUBDIV` is baked into the session grid (`slot_s`,
-`n_cells`) read by `mapctl`, `notesheet`, `flowview` and every session on disk. ⚠️Global SUBDIV 8 is
-REFUTED on the ML path (precision −0.127) — different path, but **measure, do not assume.**
-**DoD**: `1f9a0` passes, the 10 sub-150-bpm songs' `onset_precision` rises, and the ≥150 bpm songs
-are **byte-identical** to today (a subdivision change that touches them is out of scope).
+## 🔴 P1.0 — `1f9a0` STILL FAILS, AND THE OBVIOUS REMEDY IS REFUTED
+**The constraint is real**: below 150 bpm a 1/4-beat slot is `15000/bpm` ms, so the grid snap alone
+is worst-case ±`7500/bpm` — outside the axis' 50 ms tolerance. `1f9a0` (93 bpm) fails on
+`onset_precision` 0.474.
+🔴🔴**BUT A FINER GRID IS REFUTED** (`--adaptive-subdiv`, kept default-OFF as the measurement):
+`onset_precision` falls on **10 of 10** affected songs (0.899 → 0.846) and `pulse_stability`
+0.591 → 0.376. ★**`1f9a0`'s FAIL→PASS is NOT the defect being fixed** — its `onset_precision` moved
+only 0.474 → 0.499. **A PASS without the named defect moving is not a fix.**
+⇒**The binding constraint is note SELECTION, not what the grid permits** — agreeing with the
+grid-representability result (+0.106 headroom still unused at SUBDIV 4).
+**Next candidates** (none tried): choose events by *distance to a scored onset* rather than by accent
+alone; or let the pulse lattice prefer phases whose points carry onsets.
+**DoD**: `onset_precision` rises on the affected songs **without** `pulse_stability` leaving 25–75 %.
 
 ## 🟡 P0.7 — DETECTOR MISMATCH: HALF FIXED, RESIDUAL IS A COVERAGE BIAS IN THE AXIS
 ✅**Built**: `agent_mapper/refonsets.py` + `--snap-onsets` (opt-in). `onset_precision`

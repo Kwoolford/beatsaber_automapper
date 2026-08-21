@@ -60,6 +60,44 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔴🔴 ADAPTIVE SUBDIVISION REFUTED — THE ARITHMETIC WAS RIGHT, THE REMEDY IS WRONG
+Built behind `--adaptive-subdiv` (1/8-beat slots below 150 bpm) with a pre-registered safety gate.
+**Both gate terms passed**: `1f333` (188 bpm) came out **byte-identical**, and `1f9a0` (93 bpm) went
+584 notes FAIL → 672 notes PASS. **And the change is still refuted**, because the cohort was the
+wrong place to look and the target metric was the right one.
+
+**On the 10 songs it actually touches** (the other 13 are byte-identical, so the 23-song median is a
+badly-posed comparison):
+
+| arm | PASS | `onset_precision` | `offset_mad_ms` | `pulse_stability` | `nps` |
+|---|---|---|---|---|---|
+| off | 9/10 | **0.899 (25 %)** | 10.70 (65 %) | **0.591 (59 %)** | 3.68 |
+| on | **10/10** | 0.846 (13 %) | 12.50 (86 %) | 0.376 (11 %) | 3.77 |
+
+🔴🔴**`onset_precision` FALLS ON 10 OF 10 SONGS** — every single one, including the eight that were
+already passing comfortably (1fb44 0.873→0.743, 1f7f1 0.890→0.784, 1fbda 0.941→0.858).
+**The change makes the metric it was designed to fix worse, unanimously.**
+🔴**And `1f9a0`'s PASS is NOT the diagnosed defect being fixed**: its `onset_precision` moved only
+**0.474 → 0.499**, still bottom-percentile. The gate flipped on other metrics.
+★★**A PASS OBTAINED WITHOUT MOVING THE NAMED DEFECT IS NOT A FIX** — it is the gate reacting to
+something else, and reporting it as a fix would have been the most flattering wrong claim available.
+★**Why**: doubling the slots halves grid collisions, so the accent search selects a different, larger
+event set, and the pulse lattice gains twice as many positions to land on — points that need not
+carry an onset. ⇒**The binding constraint is note SELECTION, not what the grid permits**, which is
+exactly what the grid-representability measurement said hours earlier (headroom **+0.106** still
+available at SUBDIV 4). **The refutation and that measurement agree.**
+✅**Kept as a flag, default OFF, with the verdict in its `--help` string** so nobody re-derives it.
+The `subdiv` session field stays — it is the right shape for a per-song grid, and sessions without
+it default to 4.
+⚠️**Two false alarms in my own harness**, both of which would have produced a wrong conclusion:
+`autobuild` **exits 1 on a FAIL verdict**, so an `&&`-chained gate aborted and the second build never
+ran — I compared a hash of EMPTY input and read it as "differs". ★*A test that silently does not run
+looks exactly like a test that fails.* And `--no-idiomize` builds fail on `vertical_share` 1.000 /
+`diagonal_share` 0 / `crossover` 0 **by construction** (idiomize is what draws those from the human
+vocabulary) — not a regression.
+✅**The control that made it readable**: the same config built twice under different session names
+hashed identically, establishing determinism BEFORE any difference was attributed to the flag.
+
 ### 🔬 THE ONE FAILING MAP IS `1f9a0`, AND THE CAUSE IS THE GRID BEING TOO COARSE FOR THE AXIS
 **The snap arm's 22/23 is ONE song, not a general regression.** `1f9a0`: `onset_precision` **0.474
 (0.9th pct)**, `offset_mad_ms` **19.7 ms (97th)** against ~10.6 everywhere else, `nps` 2.85 (6th).

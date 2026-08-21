@@ -103,9 +103,33 @@ def write_notes(name: str, notes: list[dict]) -> None:
     notes_path(name).write_text("\n".join(lines) + "\n")
 
 
+def subdiv_of(s: dict) -> int:
+    """This session's slots per beat.
+
+    🔴🔴**THE ADAPTIVE PATH THAT USES THIS IS REFUTED — see `--adaptive-subdiv`.** The
+    arithmetic below is correct about what the grid PERMITS and wrong about the
+    remedy: a finer grid degrades `onset_precision` on 10 of 10 affected songs
+    (0.899 -> 0.846) because the binding constraint is note SELECTION, not the grid.
+    The field itself stays: it is the right shape for a per-song grid, and sessions
+    written without it default to 4.
+
+    ★**Per SESSION, not global.** The alignment axis matches at 50 ms, and a
+    1/4-beat slot is `15000/bpm` ms, so the grid snap alone is worst-case
+    `7500/bpm` ms -- which first fits inside the tolerance at exactly **150 bpm**.
+    Below that a SUBDIV-4 grid cannot put a note on the music however well the
+    events were chosen, which is why `1f9a0` (93 bpm, 161 ms slots) fails on
+    `onset_precision` 0.474 with `offset_mad_ms` 19.7 against ~10.6 elsewhere.
+    Sessions written before this field default to 4, so nothing on disk changes.
+    """
+    try:
+        return int(s.get("subdiv") or SUBDIV)
+    except (TypeError, ValueError):
+        return SUBDIV
+
+
 def to_beat(s: dict, bar: int, slot: int) -> float:
     """Bar+slot -> beat. Bars are 1-indexed; the grid is anchored on the fitted phase."""
-    return (bar - 1) * BEATS_PER_BAR + slot / SUBDIV
+    return (bar - 1) * BEATS_PER_BAR + slot / subdiv_of(s)
 
 
 def to_time(s: dict, beat: float) -> float:
@@ -120,11 +144,22 @@ def cmd_init(a) -> int:
         return 2
     an = B.analyse(audio)
     g = B.grid(an)
+    # ★Adaptive subdivision. Off by default: at >=150 bpm a SUBDIV-4 half-slot is
+    # already inside the alignment tolerance, so those songs must come out
+    # BYTE-IDENTICAL and this must not touch them.
+    subdiv = SUBDIV
+    if getattr(a, "adaptive_subdiv", False) and g["bpm"] < 150.0:
+        subdiv = 8
+        g = dict(g, slot=g["spb"] / subdiv)
+        print(f"  adaptive subdiv: {g['bpm']:.1f} bpm < 150 -> 1/{subdiv} beat slots "
+              f"({g['slot']*1000:.1f} ms, worst-case snap ±{g['slot']*500:.0f} ms "
+              f"vs the axis' 50 ms)")
     d = sess_dir(a.name)
     d.mkdir(parents=True, exist_ok=True)
     s = {"name": a.name, "audio": str(audio), "song": audio.stem,
          "bpm": g["bpm"], "phase": g["phase"], "bar_s": g["bar_s"],
          "spb": g["spb"], "slot_s": g["slot"], "n_bars": g["n_bars"],
+         "subdiv": subdiv,
          "duration": an["dur"], "fit_r": an["r"]}
     (d / "session.json").write_text(json.dumps(s, indent=1))
     # 🔴🔴**A REUSED SESSION NAME SILENTLY BUILDS ON TOP OF THE LAST RUN.** `init` used
@@ -172,8 +207,8 @@ def parse_note_line(s: dict, ln: str) -> dict | None:
         raise ValueError(f"col must be 0-3 and row 0-2, got {col},{row}")
     if not (1 <= bar <= s["n_bars"]):
         raise ValueError(f"bar {bar} is outside 1-{s['n_bars']}")
-    if not (0 <= slot < BEATS_PER_BAR * SUBDIV):
-        raise ValueError(f"slot must be 0-{BEATS_PER_BAR*SUBDIV-1}, got {slot}")
+    if not (0 <= slot < BEATS_PER_BAR * subdiv_of(s)):
+        raise ValueError(f"slot must be 0-{BEATS_PER_BAR*subdiv_of(s)-1}, got {slot}")
     beat = to_beat(s, bar, slot)
     return {"bar": bar, "slot": slot, "hand": hand, "col": col, "row": row,
             "dir": DIRS[dname], "beat": beat, "t": to_time(s, beat)}
@@ -379,7 +414,7 @@ def cmd_view(a) -> int:
         t1 = t0 + s["bar_s"]
         said = " ".join(w["word"] for w in words if t0 <= w["t"] < t1)
         for hand in ("L", "R"):
-            cells = ["."] * (BEATS_PER_BAR * SUBDIV)
+            cells = ["."] * (BEATS_PER_BAR * subdiv_of(s))
             for n in notes:
                 if n["bar"] == bar and n["hand"] == hand:
                     cells[n["slot"]] = ARROW[n["dir"]]
@@ -599,7 +634,7 @@ def cmd_auto(a) -> int:
                                             getattr(a, "min_accent", None), pct))
                 ts = _reconcile(sorted(set(ts)), quiet=True)
                 b0_, b1_ = (int(x) for x in a.bars.split("-"))
-                n_cells_ = BEATS_PER_BAR * SUBDIV
+                n_cells_ = BEATS_PER_BAR * subdiv_of(s)
                 out = set()
                 for bar_ in range(b0_, b1_ + 1):
                     t0_ = s["phase"] + (bar_ - 1) * s["bar_s"]
@@ -643,7 +678,7 @@ def cmd_auto(a) -> int:
                   "parity-only layout — this is the honest answer, not a failure.")
     cur = read_notes(a.name)
     occupied = {(n["bar"], n["slot"]) for n in cur}
-    n_cells = BEATS_PER_BAR * SUBDIV
+    n_cells = BEATS_PER_BAR * subdiv_of(s)
 
     picks: list[tuple[int, int]] = []
     for bar in range(b0, b1 + 1):
@@ -986,7 +1021,11 @@ def main() -> int:
 
     p = sub.add_parser("init")
     p.add_argument("--fresh", action="store_true",
-                   help="discard any existing notes for this session name"); p.add_argument("audio", type=pathlib.Path)
+                   help="discard any existing notes for this session name")
+    p.add_argument("--adaptive-subdiv", action="store_true",
+                   help="🔴REFUTED 2026-08-21: 1/8-beat slots below 150 bpm make "
+                        "onset_precision WORSE on 10 of 10 affected songs and cost "
+                        "pulse_stability 0.591->0.376. Kept as the measurement."); p.add_argument("audio", type=pathlib.Path)
     p.add_argument("--name", required=True); p.set_defaults(fn=cmd_init)
 
     p = sub.add_parser("add"); p.add_argument("name")

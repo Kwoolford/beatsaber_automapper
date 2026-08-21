@@ -47,7 +47,8 @@ def main() -> int:
     from beatsaber_automapper.evaluation import mapjudge as mj
     ref = mj.load_reference()
 
-    arms = {"BASE": [], "SNAP": ["--snap-onsets"]}
+    arms = {"BASE": [], "SNAP": ["--snap-onsets"],
+            "SNAP+SUB": ["--snap-onsets", "--adaptive-subdiv"]}
     sids = a.songs or [p.stem for p in
                        sorted((REPO / "data" / "eval_songset").glob("*.ogg"))]
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="snap_"))
