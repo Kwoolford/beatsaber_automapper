@@ -60,6 +60,37 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔎 P0.6 AUDITED AT 3 SEEDS — ONE CLAIM CONFIRMED, ONE QUALIFIED, ONE OF MINE REFUTED
+Now that `--seed` reaches the lead-hand RNG, the variance P0.6 never sampled (10 songs × 3 seeds,
+percentile medians over songs):
+
+| metric | bias | seed 0 | seed 1 | seed 2 | seed spread | arm gap | |
+|---|---|---|---|---|---|---|---|
+| `role_asymmetry` | 0.00 | 0.7 | 0.7 | 0.7 | 0.0 | | |
+| | 0.30 | 37.5 | **85.0** | 61.5 | **47.5** | 60.8 | ✅ gap > spread |
+| `role_swap_rate` | 0.00 | 63.1 | 63.1 | 63.1 | 0.0 | | |
+| | 0.30 | 73.7 | 63.6 | 71.9 | 10.1 | 8.8 | 🔴 **inside seed spread** |
+| `handedness` | 0.00 | 3.1 | 3.1 | 3.1 | 0.0 | | |
+| | 0.30 | 23.6 | 35.8 | 35.7 | 12.2 | 32.6 | ✅ gap > spread |
+
+✅**CONFIRMED — the lever is real.** `role_asymmetry`'s arm gap (60.8 pts) exceeds its seed spread,
+and `handedness` moves 3.1 → ~32 with a gap 2.7× its spread. The knob does what P0.6 said.
+⚠️**QUALIFIED — the OPERATING POINT is not reliable.** At bias 0.3 `role_asymmetry` lands anywhere
+from the **37th to the 85th percentile** depending on seed: a **47.5-point spread**. My reported
+"39.6 %, the human median exactly" was **seed 0 — the lowest of the three.** ⇒the honest claim is
+*"moves it into the human body"*, **not** *"onto the median"*. ⬜A knob whose outcome spans half the
+distribution is under-constrained; a per-phrase lead that ALTERNATES deterministically instead of
+sampling would likely be steadier, and costs nothing to try.
+🔴**REFUTED — a cost I reported does not exist.** I recorded *"`role_swap_rate` drifts 58 → 81 %, a
+real trade"*. Its arm gap is **8.8 points inside a 10.1-point seed spread** ⇒ **NOT A RESULT.**
+★**bias 0 is deterministic across seeds (spread 0.0) because the RNG is never called** — so the
+comparison is one stochastic arm against a fixed one, which is exactly the case where a single-seed
+reading misleads most.
+★★**This is the project's own standing rule finally being APPLICABLE here**: *an axis moving more
+between seeds of one arm than between arms is not a result.* It was written for the ML path; until
+the plumbing fix the seed could not move a hand-role metric at all, so it had never been tested on
+the agent path.
+
 ### 🔬 THE AGENT'S NOTE TIMES ARE SEED-INVARIANT — "3 SEEDS" IS VACUOUS FOR HALF THE METRICS
 Varying `--seed` on the agent path, **10 of 23 metrics are IDENTICAL by construction**:
 `nps`, `peak_nps`, `pulse_stability`, `dominant_share`, `ioi_switch_rate`, `ioi_cond_entropy`,

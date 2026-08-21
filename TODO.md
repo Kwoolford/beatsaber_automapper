@@ -106,16 +106,17 @@ all four standing songs. Record with `scripts/record_verdict.py`.
 95th pct on 5/23 songs. If he says "too mechanical", that is the knob — `MAX_EMPTY_RUN` and the
 syncopation-restore threshold in `pulse.py`, not the phrase length.
 
-## ✅➡️ P0.6 — HAND ROLE: PRICED AND SETTLED, AWAITING HIS EAR
-**`mapctl auto --lead-bias 0.3`** (default 0 = old behaviour). Judged, n=23, new 23-metric ruler:
-`role_asymmetry` **1.1st → 49.9th percentile** (the human median), `ebpm_burst` 6.9th → 46.4th,
-**p median 0.222 → 0.626**. Full table in PROGRESS.md.
-★**Picked two-sided**: bias 0.5 gives `role_asymmetry` 97.8 %, as wrong as the 1.1 % we started at.
-⚠️**Real cost**: `role_swap_rate` 58.0 → 81.2 % (we hand the lead over too often). bias 0.4 trades
-it back at the price of asymmetry. ⬜If his ear says the hands feel jumpy, try 0.4.
-✅**Isolation invariant holds**: `nps` / `onset_precision` / `pulse_stability` identical across all
-four arms — the lead hand changes who plays a note, never when.
-⬜**Installed as `AUTO <song> [AUTOLEAD]`** (pulse + lead 0.3) on the four standing songs.
+## 🟡➡️ P0.6 — HAND ROLE: LEVER CONFIRMED, OPERATING POINT UNDER-CONSTRAINED
+✅**The lever is real at 3 seeds**: `role_asymmetry` arm gap 60.8 pts vs a 47.5-pt seed spread;
+`handedness` 3.1 → ~32 (gap 2.7× spread). `mapctl auto --lead-bias 0.3`, default 0.
+⚠️**But the OPERATING POINT is not reliable**: at bias 0.3 `role_asymmetry` lands between the **37th
+and 85th percentile** depending on seed. The "39.6 %, human median exactly" I reported was **seed 0,
+the lowest of three**. Honest claim: *moves it into the human body*, not *onto the median*.
+🔴**A cost I reported is REFUTED**: `role_swap_rate` 58 → 81 % is **inside the seed spread**
+(gap 8.8, spread 10.1) ⇒ not a result. Do not treat it as a trade.
+⬜**Next**: a per-phrase lead that ALTERNATES deterministically instead of sampling should cut that
+47.5-pt spread at no cost. Cheap to try.
+**DoD**: `role_asymmetry` median stays in the human body with a seed spread under ~15 points.
 
 ## ✅ P0.9 — DENSITY: TWO ARITHMETIC BUGS OF OURS, FIXED
 `nps` **3.43 (19th pct) → 4.02 (44th)**, human median 4.17, 23/23 PASS. (1) the energy curve was
