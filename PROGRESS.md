@@ -60,6 +60,30 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅ P0'S LAST GAP CLOSED — THE AUDIO AXIS IS NOW *AUDITED*, AND IT IS NOT UNIQUELY USEFUL
+`audit_mapjudge.py --audio` scores every control variant against **the same song's cached onsets**
+(maps without onsets are SKIPPED, not scored on 21 metrics and pooled — that mixing is what the dual
+calibration sets exist to prevent). 150 held-out maps × 9 variants, 43 skipped.
+
+    human accept 0.880   all eight controls 0.000   DoD: MET
+    discrimination table now has 23 rows, including onset_precision and offset_mad_ms
+
+✅**The axis discriminates**: `onset_precision` AUC **0.885** on `timing_random` (DoD wanted >0.8) and
+`offset_mad_ms` **0.924**. It is not decorative.
+🔴🔴**BUT IT IS NOT UNIQUELY USEFUL ON THESE CONTROLS.** On `timing_random` the beat-domain metrics
+beat it (`ioi_cond_entropy` 0.996, `dominant_share` 0.993, `pulse_stability` 0.989), and on
+`timing_jitter` the alignment axis is **weak** (`onset_precision` 0.694, `offset_mad_ms` 0.537) while
+`pulse_stability` and `dominant_share` reach 0.997. ⇒**the axis passes the battery without adding
+discrimination the suite lacked.**
+★★**THAT IS A GAP IN THE CONTROLS, NOT THE AXIS.** Every control here is a synthetic perturbation of a
+HUMAN map, and none of them produces *"notes with human IOI structure that sit off the music"* —
+**which is exactly our defect** (`onset_precision` 14.7th pct on our maps, invisible to every other
+instrument). The battery can only validate an axis against failure modes it contains.
+⇒⬜**Add a control that keeps the IOI distribution and shifts notes off the onsets** — the one
+perturbation that would separate the alignment axis from the beat-domain proxies. Until then, "the
+audio axis works" rests on our own maps, not on the battery.
+⚠️This repeats a lesson already on the board from the pooling finding: **audit the CONTROLS too.**
+
 ### ✅✅ A REAL PLAYABILITY BUG: `idiomize` UNDOES `fix_parity`, AND FIXING IT ALSO UN-GOODHARTS IDIOM
 **Chasing why `1fb3f` failed at p=0.746 found the gate does the right thing**: `verdict()` returns
 FAIL on **`viol > 0` regardless of the p-value**. That map had a genuine parity break — two

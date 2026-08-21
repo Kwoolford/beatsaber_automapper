@@ -77,21 +77,16 @@ BACKLOG section near the bottom; do not start one.
 
 ---
 
-## ✅➡️ P0 — THE JUDGE CAN HEAR (closed 2026-08-20 evening), WITH ONE GAP
-`mapjudge` now scores **23 metrics** including **`onset_precision`** and **`offset_mad_ms`**.
-Audit **DoD MET**: human accept 0.884, all eight controls 0.000. Verified live on a real map —
-`scored 23 metrics`, no banner. Full numbers in PROGRESS.md.
-🔴**THE REMAINING GAP: the audio axis is CALIBRATED but NOT AUDITED.** The control battery runs in
-no-audio mode (its per-metric table has 21 rows, not 23), so `onset_precision` has never had to
-discriminate a control. The timing controls are rejected by the **beat-domain** metrics instead.
-**Task**: give `audit_mapjudge.py`'s perturbed variants their song's cached onsets and re-run.
-**DoD**: the discrimination table has 23 rows, and `onset_precision` scores AUC > 0.8 on at least
-one timing control.
-⬜**Re-judge the songset against the NEW reference.** The 23/23 PASS was measured on the 21-metric
-ruler; every percentile in this file from before tonight moved.
-★**It already found something**: `onset_precision` **0.823, 10.1st percentile** on `PULSE__1f767` —
-our notes land on an audible event less often than 90 % of humans. **D2/D4 on the agent path**,
-invisible to every agent instrument until tonight.
+## ✅ P0 — THE JUDGE CAN HEAR, AND THE AXIS IS NOW AUDITED (closed 2026-08-21)
+23 metrics incl. `onset_precision` + `offset_mad_ms`. `audit_mapjudge.py --audio` scores every
+control against the song's own onsets: **human accept 0.880, all eight controls 0.000, 23-row
+discrimination table, DoD MET.** `onset_precision` AUC **0.885** on `timing_random`.
+🔴**Known limit — the axis is NOT uniquely useful on the current controls.** Beat-domain metrics beat
+it on `timing_random` (0.99+) and it is weak on `timing_jitter` (0.694). **The battery contains no
+control that keeps human IOI structure while moving notes off the music** — which is our actual
+defect. ⇒**"the audio axis works" rests on our maps, not on the battery.**
+⬜**Build that control**: preserve the IOI distribution, shift note times off the onsets. It is the
+one perturbation that separates alignment from the beat-domain proxies. ★*Audit the controls too.*
 
 ## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
 **Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**

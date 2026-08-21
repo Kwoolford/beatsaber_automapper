@@ -213,6 +213,17 @@ def density_sweep(ref, a) -> int:
     return 0
 
 
+def _onsets_for(zp):
+    """The judge's cached onsets for this corpus map, or None."""
+    import numpy as _np
+    f = REPO / "outputs" / "onset_cache" / f"{zp.stem}.npz"
+    if not f.exists():
+        return None
+    z = _np.load(f)
+    k = list(z.keys())
+    return _np.asarray(z[k[0]], dtype=float) if k else None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -225,6 +236,10 @@ def main() -> int:
                          "thinned or thickened")
     ap.add_argument("--json", type=pathlib.Path,
                     default=REPO / "outputs" / "mapjudge_audit.json")
+    ap.add_argument("--audio", action="store_true",
+                    help="score every variant against the song's cached onsets so the "
+                         "ALIGNMENT axis is audited too; without this the battery runs "
+                         "on 21 metrics and alignment never discriminates anything")
     a = ap.parse_args()
 
     ref = mj.load_reference()
@@ -248,6 +263,7 @@ def main() -> int:
     umetrics: dict[str, dict[str, list[float]]] = {k: {} for k in cohorts}
 
     scored = 0
+    n_no_onsets = 0
     for zp in held:
         if scored >= a.n:
             break
@@ -257,6 +273,13 @@ def main() -> int:
         notes, bpm = loaded
         if len(notes) < 50 or not (30.0 < bpm < 400.0):
             continue
+        song_onsets = _onsets_for(zp) if a.audio else None
+        if a.audio and song_onsets is None:
+            # A map without cached onsets would be scored on 21 metrics and pooled
+            # with 23-metric ones -- the exact mixing the dual calibration sets exist
+            # to prevent. Skip it rather than dilute the cohort.
+            n_no_onsets += 1
+            continue
         scored += 1
 
         variants = {"human": notes}
@@ -264,7 +287,11 @@ def main() -> int:
             variants[cname] = fn(list(notes), rng)
 
         for vname, vnotes in variants.items():
-            rec = mj.map_record(vnotes, bpm)
+            # ★Every variant is scored against the SAME song's onsets. That is the
+            # point: the two timing controls move note TIMES while the music stays
+            # put, so the alignment axis is the one instrument that should catch them
+            # directly rather than through a beat-domain proxy.
+            rec = mj.map_record(vnotes, bpm, onsets=song_onsets)
             res = mj.judge(rec, ref, label=f"{zp.name}:{vname}")
             cohorts[vname].append(res)
             for m in res.metrics:
@@ -274,7 +301,9 @@ def main() -> int:
             print(f"  ... {scored} maps")
 
     print(f"\nscored {scored} held-out human maps x {1+len(all_controls)} variants "
-          f"= {scored*(1+len(all_controls))} judgements, each at n=1\n")
+          f"= {scored*(1+len(all_controls))} judgements, each at n=1"
+          + (f"   [AUDIO: {n_no_onsets} skipped, no cached onsets]"
+             if a.audio else "   [no audio axis - 21 metrics]") + "\n")
 
     # ---------------- accept rates ----------------
     print(f"{'cohort':<15} {'accept':>7} {'no-parity':>10} {'p median':>9} "
