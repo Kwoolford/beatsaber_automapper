@@ -739,6 +739,7 @@ def cmd_auto(a) -> int:
     # Seeded so a build is reproducible; the lead bias is the only stochastic part of
     # placement and an unseeded one would make every arm unrepeatable.
     _lead_rng = random.Random(getattr(a, "seed", 0))
+    _lead_ctr = [0]
     cols = {"L": [1, 0], "R": [2, 3]}
     new = []
     k = 0
@@ -777,8 +778,21 @@ def cmd_auto(a) -> int:
             # always repeats gives a 2:1 split (`role_asymmetry` 0.33) where the human
             # sits at 0.11, i.e. roughly 55/45. Two-sided -- overshooting asymmetry is
             # as wrong as our current evenness.
-            if (lead_h is not None and last_hand == lead_h
-                    and _lead_rng.random() < a.lead_bias):
+            # ★**CYCLIC, not sampled.** Drawing each repeat from an RNG made the
+            # OUTCOME a lottery: at bias 0.3, `role_asymmetry` landed anywhere from
+            # the 37th to the 85th human percentile across three seeds -- a 47.5-point
+            # spread on a knob whose whole job is to hit a target percentile. A
+            # counter gives the same long-run repeat RATE with none of the variance,
+            # so the knob means something on a single map (which is what Kyle plays).
+            _repeat = False
+            if lead_h is not None and last_hand == lead_h:
+                if a.lead_mode == "random":
+                    _repeat = _lead_rng.random() < a.lead_bias
+                else:
+                    _lead_ctr[0] += 1
+                    period = max(2, int(round(1.0 / max(a.lead_bias, 1e-6))))
+                    _repeat = (_lead_ctr[0] % period) == 0
+            if _repeat:
                 h = last_hand
             else:
                 h = other
@@ -1077,6 +1091,10 @@ def main() -> int:
                    help="probability the phrase's LEAD hand repeats instead of "
                         "alternating; 0 = strict alternation (P0.6: role_asymmetry "
                         "ours 0.03 vs human 0.11)")
+    p.add_argument("--lead-mode", choices=("cyclic", "random"), default="cyclic",
+                   help="how the lead hand takes its extra swings. `cyclic` = every "
+                        "1/bias-th opportunity (deterministic); `random` = sampled "
+                        "(kept as the measurement — it gave a 47.5-point seed spread)")
     p.add_argument("--lead-phrase-bars", type=int, default=4,
                    help="bars a hand keeps the lead before handing it over")
     p.add_argument("--seed", type=int, default=0)

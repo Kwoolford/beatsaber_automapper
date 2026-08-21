@@ -60,6 +60,39 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅ THE LEAD HAND IS NOW DETERMINISTIC — SEED SPREAD 47.5 pts → **0.0**
+`--lead-mode cyclic` (now the default): the lead hand takes its extra swing every
+`1/bias`-th opportunity instead of drawing it from an RNG. Same long-run repeat rate, none of the
+variance. Measured on 1f767 across 3 seeds: `role_asymmetry`, `role_swap_rate` and `handedness` all
+have a spread of **exactly 0.0**.
+★★**WHY THIS MATTERS BEYOND TIDINESS: the knob's job is to hit a target percentile, and sampling made
+the OUTCOME a lottery** — the same setting produced maps at the 37th and the 85th percentile. **Kyle
+plays ONE map, not a distribution over seeds.** A knob whose result cannot be predicted from its
+setting is not a knob.
+✅**It also makes the measurement cheaper and more honest**: with a deterministic build, ONE seed is
+sufficient for these metrics — the same conclusion the seed-invariance finding reached from the other
+direction. `random` is kept as a mode with the 47.5-point spread in its `--help`.
+
+**Re-tuned for the new mode (12 songs, deterministic, so n=1 seed is the right n):**
+
+| bias | PASS | p med | `role_asymmetry` | `ebpm_burst` | two-sided distance |
+|---|---|---|---|---|---|
+| 0.00 | 11/12 | 0.254 | 0.7 % | 25.3 % | — |
+| 0.15 | 12/12 | 0.566 | 13.5 % | 59.7 % | 46.2 |
+| **0.20** | 12/12 | 0.680 | **36.8 %** | 73.1 % | **36.3** |
+| 0.30 | 12/12 | **0.767** | 77.9 % | 73.1 % | 51.0 |
+
+⇒**`--lead-bias 0.20` is the operating point** — nearest the human median on the metrics this knob
+targets. 🔴**NOT 0.30, despite it having the highest `p` median**: `p` is a distance-from-typical and
+ranking by it Goodharts toward the average map. That is the `h_dist` failure, and the standing rule
+says never optimise it. ★**The two-sided sum picks a different arm than the aggregate score would —
+which is exactly why the rule exists.**
+⚠️**The recommendation MOVED from 0.30 to 0.20 because the MODE changed.** 0.30 was tuned against the
+sampled lead at seed 0; under `cyclic` the same number overshoots to the 77.9th percentile. **A knob's
+operating point is not portable across a change in how the knob works.**
+✅**Isolation invariant now holds EXACTLY** (deterministic): `nps` 31.6 %, `onset_precision` 8.6 %,
+`pulse_stability` 46.0 % — byte-identical across all four biases.
+
 ### 🔎 P0.6 AUDITED AT 3 SEEDS — ONE CLAIM CONFIRMED, ONE QUALIFIED, ONE OF MINE REFUTED
 Now that `--seed` reaches the lead-hand RNG, the variance P0.6 never sampled (10 songs × 3 seeds,
 percentile medians over songs):

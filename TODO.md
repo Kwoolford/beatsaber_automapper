@@ -114,9 +114,11 @@ and 85th percentile** depending on seed. The "39.6 %, human median exactly" I re
 the lowest of three**. Honest claim: *moves it into the human body*, not *onto the median*.
 🔴**A cost I reported is REFUTED**: `role_swap_rate` 58 → 81 % is **inside the seed spread**
 (gap 8.8, spread 10.1) ⇒ not a result. Do not treat it as a trade.
-⬜**Next**: a per-phrase lead that ALTERNATES deterministically instead of sampling should cut that
-47.5-pt spread at no cost. Cheap to try.
-**DoD**: `role_asymmetry` median stays in the human body with a seed spread under ~15 points.
+✅**DONE — `--lead-mode cyclic` is the default and the seed spread is 0.0.** Re-tuned:
+**`--lead-bias 0.20`** (not 0.30 — that was tuned against the sampled lead and overshoots to the
+77.9th percentile under `cyclic`). ★**An operating point is not portable across a change in how the
+knob works.** 🔴0.30 has the higher `p` median and is still the wrong choice: `p` is a
+distance-from-typical and ranking by it Goodharts toward the average map.
 
 ## ✅ P0.9 — DENSITY: TWO ARITHMETIC BUGS OF OURS, FIXED
 `nps` **3.43 (19th pct) → 4.02 (44th)**, human median 4.17, 23/23 PASS. (1) the energy curve was
