@@ -106,6 +106,23 @@ all four standing songs. Record with `scripts/record_verdict.py`.
 95th pct on 5/23 songs. If he says "too mechanical", that is the knob — `MAX_EMPTY_RUN` and the
 syncopation-restore threshold in `pulse.py`, not the phrase length.
 
+## 🔴 P1.1 — THE COMPOSED CONFIG IS 21/23, AND THE CAUSE IS UNATTRIBUTED
+Final config (`--pulse` sync 0.3, `--lead-bias 0.2` cyclic, normalised budget + `--target-notes`):
+**PASS 21/23, p median 0.645, notes median 774**, all targeted metrics in the human body together.
+🔴**Two failures, cause NOT attributed**: `1fb2a` (p=0.083, just under) and `1fb3f` (**p=0.746 yet
+FAIL**). The earlier 23/23 was a different configuration, so this is a change, not a mystery — but
+density and lead-mode both moved and neither has been isolated.
+★**`1fb3f` is the more interesting one**: a high p-value with a rejecting verdict means the gate's
+mean/topk/max terms disagree with `p`. **Understand that before quoting `p` as a summary again** —
+this session already saw `p median` swing 0.746 → 0.626 between runs of the same arm.
+**Tasks**: bisect the two changes (density fix vs cyclic lead) on those two songs only — cheap.
+**DoD**: 23/23 restored, or the cost named and accepted with evidence.
+
+⚠️**AGGREGATION LANDMINE (cost a false alarm tonight)**: counting "metrics in a tail" over
+`res.worst(8)` and over `res.metrics` gives different denominators — only 8 metrics are eligible in
+the first. **A 6/23 → 12/23 "trend" was two different counts.** ★Check the denominator before reading
+a count as a trend.
+
 ## 🟡➡️ P0.6 — HAND ROLE: LEVER CONFIRMED, OPERATING POINT UNDER-CONSTRAINED
 ✅**The lever is real at 3 seeds**: `role_asymmetry` arm gap 60.8 pts vs a 47.5-pt seed spread;
 `handedness` 3.1 → ~32 (gap 2.7× spread). `mapctl auto --lead-bias 0.3`, default 0.

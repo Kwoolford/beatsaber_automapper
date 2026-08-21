@@ -60,6 +60,31 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔍 END-TO-END VERIFICATION OF THE COMPOSED CONFIG — 21/23, AND TWO THINGS TO BE CAREFUL ABOUT
+Every result tonight was measured against one or two arms in isolation. This rebuilds all 23 songs at
+the **final composed configuration** (`--pulse`, `SYNC_FRAC` 0.3, `--lead-bias 0.2` cyclic, normalised
+budget + `--target-notes`) and judges on 23 metrics with audio. ✅**562 tests pass, 9 xpassed.**
+
+    PASS 21/23   p median 0.645   notes median 774   scored 23 metrics
+    nps 43.6%  pulse_stability 55.7%  dominant_share 50.5%  ioi_switch_rate 59.6%
+    role_asymmetry 32.9%  ebpm_burst 56.5%  handedness 17.0%  onset_precision 14.7%
+
+✅**Every metric this session targeted is in the human body**, and they hold TOGETHER, not just in
+the isolated arms they were tuned in.
+🔴**PASS is 21/23, not the 23/23 measured earlier** — but the earlier figure was a **different
+configuration** (bias 0.3 sampled-lead, pre-density-fix). ⚠️**I have NOT attributed which change costs
+the two maps**; density and lead-mode both moved. Failures: `1fb2a` (p=0.083, just under the bar) and
+`1fb3f` (**p=0.746 yet FAIL** — the gate is mean+topk+max, so a high p-value with a rejecting verdict
+means a different gate term fired; worth understanding before trusting `p` as a summary).
+🔴🔴**"`idiom_jsd` in a tail on 12/23, up from 6/23" IS A MEASUREMENT ARTIFACT OF MY OWN AGGREGATION.**
+The earlier count iterated `worst(8)` — only the eight worst metrics per map were even eligible to be
+counted — while this one iterates all 23. **6/23 → 12/23 compares two different denominators.**
+★*Before reading a count as a trend, check the two counts were taken over the same set.*
+⚠️**What `idiom_jsd` actually shows is the KNOWN `idiomize` circularity, not a new defect**: it sits at
+the **LOW** tail (median 0.311, ~5th pct), meaning our idiom mix is *more* human-typical than 95 % of
+human maps. That is the documented Goodhart fingerprint — `idiomize` was tuned against these metrics —
+and two-sided scoring is correctly flagging it. `corr(note count, idiom_jsd) = -0.271`, weak.
+
 ### ✅ THE LEAD HAND IS NOW DETERMINISTIC — SEED SPREAD 47.5 pts → **0.0**
 `--lead-mode cyclic` (now the default): the lead hand takes its extra swing every
 `1/bias`-th opportunity instead of drawing it from an RNG. Same long-run repeat rate, none of the
