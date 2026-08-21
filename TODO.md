@@ -167,18 +167,26 @@ chosen matters more than how many gaps are bridged.
 ⚠️`--pulse-sync` 0.5 and 0.4 are **identical**: the period is an integer number of slots, so both
 round to the same "≥1 slot off" test at the common period of 2. 0.2 overshoots the other way.
 
-## 🟢➡️ P1 — LEG 3: REPLICATES ON 10 SONGS (4 of 6 orderings), AWAITING HIS EAR
-`scripts/sweep_style.py`, n=10 songs, scored as orderings: `nps` calm<dense **10/10**, `crossover`
-flowing<technical **10/10**, `angle_change` **9/10**, `peak_nps` **8/10**. **All five styles PASS
-10/10** — a style is reached without making defective maps.
-★★**`ebpm_burst` calm<dense is 3/10 with a median gap of EXACTLY 0.000 — the system correctly
-REFUSING.** It is pinned by the 150 ms per-hand floor (31 723 human gaps, p5 = 148 ms); a style
-asking for faster bursts asks to swing faster than a human ever does. ⇒**The style space is bounded
-by playability. Do not "fix" this by lowering the floor.**
-⚠️**`travel` 7/10 = NOT RESOLVABLE at this n**, not refuted — one short of the bar, positive median
-gap. More songs or seeds before a verdict.
-⬜**Remaining**: 3 seeds per song (this was 1), and his ear on whether the presets are named right —
-**the names are conventions over a continuum, not discoveries.**
+## 🟢➡️ P1 — LEG 3: 5 OF 6 ORDERINGS HOLD, AWAITING HIS EAR ON THE NAMES
+n=10 songs (× 3 seeds where the seed can matter): `nps` 10/10, `crossover` 18/18, `angle_change`
+16/18, `peak_nps` 8/10, `travel` **25/30 (83 %)**. **All styles PASS** (30/30) — a style is reached
+without making defective maps.
+★★**`ebpm_burst` is the playability floor correctly REFUSING** (median gap exactly 0.000, pinned by
+the 150 ms per-hand floor from 31 723 human gaps). **Do not "fix" it by lowering the floor.**
+⚠️**`travel` is AT the bar, not comfortably past it** — and 7/10 (1 seed) vs 25/30 (3 seeds) are not
+resolvably different rates, so *"seeds rescued it"* is NOT established.
+⬜**What is left is his ear**: the preset NAMES are conventions over a continuum, not discoveries.
+Ask which corner of the space he'd call "flowing".
+
+## ⚠️ SEEDS ON THE AGENT PATH — READ BEFORE QUOTING ANY "n SEEDS" NUMBER
+**10 of 23 metrics are seed-INVARIANT by construction** — every time-domain one (`nps`, `peak_nps`,
+`pulse_stability`, `dominant_share`, `ioi_*`, `ebpm_burst`, `onset_precision`, `offset_mad_ms`,
+`offgrid_frac`). The agent builds from **cached events**, so note TIMES are deterministic.
+★**This is the opposite of the ML path**, where a seed re-draws the Demucs stems.
+⇒**Running 3 seeds for a time-domain metric is wasted GPU and a false sense of rigour.** Seeds matter
+only for **geometry and hand-role**.
+✅**Fixed 2026-08-21**: `--seed` reached `idiomize` only, never `mapctl auto`, so the lead-hand RNG
+always ran at seed 0. Hand-role numbers recorded before this are single-seed.
 
 ## 📦 AWAITING KYLE'S EAR
 - ★⚠️**`[CROSSOVER]` HAS NEVER BEEN PLAYED** — crossover 0.000 → 0.112 vs a human 0.183, `flow`

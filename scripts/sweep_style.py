@@ -58,6 +58,9 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--songs", nargs="*", default=None)
     ap.add_argument("--n", type=int, default=10)
+    ap.add_argument("--seeds", nargs="+", type=int, default=[0],
+                    help="only worth >1 for GEOMETRY/hand-role metrics — the agent's "
+                         "note TIMES are deterministic given cached events")
     ap.add_argument("--styles", nargs="+",
                     default=["calm", "human", "dense", "flowing", "technical"])
     a = ap.parse_args()
@@ -74,21 +77,22 @@ def main() -> int:
         audio = REPO / "data" / "eval_songset" / f"{sid}.ogg"
         on = onsets_for(sid)
         for st in a.styles:
-            out = tmp / f"{st}__{sid}.zip"
-            subprocess.run(
-                [sys.executable, str(AM / "autobuild.py"), str(audio), "--pulse",
-                 "--lead-bias", "0.3", "--style", st,
-                 "--name", f"st_{sid}_{st}", "--out", str(out)],
-                capture_output=True, text=True, cwd=REPO)
-            if not out.exists():
-                continue
-            try:
-                r = mj.judge_zip(out, onsets=on, reference=ref)
-            except Exception:  # noqa: BLE001
-                continue
-            verdicts[st].append(r.verdict())
-            for m in r.metrics:
-                vals[(sid, st, m.name)] = m.value
+            for sd in a.seeds:
+                out = tmp / f"{st}_{sd}__{sid}.zip"
+                subprocess.run(
+                    [sys.executable, str(AM / "autobuild.py"), str(audio), "--pulse",
+                     "--lead-bias", "0.3", "--style", st, "--seed", str(sd),
+                     "--name", f"st_{sid}_{st}_{sd}", "--out", str(out)],
+                    capture_output=True, text=True, cwd=REPO)
+                if not out.exists():
+                    continue
+                try:
+                    r = mj.judge_zip(out, onsets=on, reference=ref)
+                except Exception:  # noqa: BLE001
+                    continue
+                verdicts[st].append(r.verdict())
+                for m in r.metrics:
+                    vals[(sid, sd, st, m.name)] = m.value
 
     print(f"\nsongs: {len(sids)}   styles: {', '.join(a.styles)}")
     print(f"\n{'ordering':<38}{'holds':>10}{'median gap':>14}")
@@ -99,11 +103,12 @@ def main() -> int:
             continue
         gaps = []
         for sid in sids:
-            lo = vals.get((sid, lo_s, metric))
-            hi = vals.get((sid, hi_s, metric))
-            if lo is None or hi is None:
-                continue
-            gaps.append(hi - lo)
+            for sd in a.seeds:
+                lo = vals.get((sid, sd, lo_s, metric))
+                hi = vals.get((sid, sd, hi_s, metric))
+                if lo is None or hi is None:
+                    continue
+                gaps.append(hi - lo)
         if not gaps:
             continue
         held = sum(1 for g in gaps if g > 0)
@@ -112,7 +117,7 @@ def main() -> int:
         print(f"{metric + ': ' + lo_s + ' < ' + hi_s:<38}"
               f"{held:>4}/{len(gaps):<5}{statistics.median(gaps):>14.3f}"
               f"{'  ✅' if ok else '  🔴'}")
-    print(f"\nDoD: each ordering holds on >=8 of 10 songs.  met by {n_ok} of "
+    print(f"\nDoD: each ordering holds on >=80% of song x seed pairs.  met by {n_ok} of "
           f"{len([o for o in ORDERINGS if o[1] in a.styles and o[2] in a.styles])}")
     print("\nPASS rate per style (hitting a style is NOT passing the gate):")
     for st in a.styles:

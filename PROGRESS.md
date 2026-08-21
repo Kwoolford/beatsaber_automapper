@@ -60,6 +60,36 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔬 THE AGENT'S NOTE TIMES ARE SEED-INVARIANT — "3 SEEDS" IS VACUOUS FOR HALF THE METRICS
+Varying `--seed` on the agent path, **10 of 23 metrics are IDENTICAL by construction**:
+`nps`, `peak_nps`, `pulse_stability`, `dominant_share`, `ioi_switch_rate`, `ioi_cond_entropy`,
+`ebpm_burst`, `onset_precision`, `offset_mad_ms`, `offgrid_frac` — **every time-domain metric**. The
+13 that move are all geometry and hand-role.
+★★**This is the OPPOSITE of the ML path**, where `seed_everything` re-draws the Demucs stems and a
+seed changes the audio itself. **The agent builds from CACHED events, so its note TIMES are
+deterministic.** ⇒**"replicate at 3 seeds" adds nothing for any time-domain metric here**, and leg 3's
+surviving orderings (`nps`, `peak_nps`) were seed-invariant before anyone checked.
+🔴🔴**AND THE SEED WAS NOT PLUMBED**: `--seed` reached `idiomize` ONLY, never `mapctl auto`, so the
+lead-hand RNG always ran at seed 0. **Every hand-role number tonight was one seed wearing three
+hats.** ✅Fixed — `handedness`, `role_asymmetry` and `role_swap_rate` now move across seeds where
+they previously could not.
+⚠️**CAVEAT ON P0.6, from me**: `role_asymmetry` 1.3 % → 39.6 % was therefore a **single-seed** reading
+of a stochastic knob. It still rests on 23 songs, which is real, but per-seed variance was never
+sampled and the earlier report implied otherwise.
+
+### 🟡 `travel` MEETS ITS BAR — AND THE "SEEDS RESCUED IT" STORY IS NOT RESOLVABLE
+⚠️**I confounded my own experiment first**: the seeded run went from 10 songs to 6 **and** from 1 seed
+to 3, and the 6 were a **prefix subset** of the 10 — so `travel` 7/10 → 18/18 could have been the
+easier subset with the seeds contributing nothing. ★*Change one variable.*
+✅**Disentangled on the SAME 10 songs × 3 seeds: 25/30 (83 %)**, clearing the 80 % bar.
+🔴**But 7/10 and 25/30 are NOT resolvably different rates** — if the true rate were 0.70,
+P(≥25 of 30) = 0.077; if it were 0.83, P(≤7 of 10) = 0.234. **Neither is unlikely.** ⇒the honest
+statement is *"`travel` holds on roughly 80 % of song×seed pairs, right at the bar"*, **not** *"seeds
+rescued it"*.
+⇒**Leg 3 final: 5 of 6 orderings hold** (`nps`, `peak_nps`, `angle_change`, `crossover`, `travel`),
+and the sixth (`ebpm_burst`) is the playability floor correctly refusing. **All styles PASS
+30/30.**
+
 ### 🟢 LEG 3 REPLICATES ON 10 SONGS — 4 OF 6 ORDERINGS, AND THE 2 THAT FAIL ARE INFORMATIVE
 Leg 3 was demonstrated on **one song, one seed**. After three separate 2-song readings reversed at
 n=23 tonight, that was not a result. `scripts/sweep_style.py` replicates it across **10 songs**,

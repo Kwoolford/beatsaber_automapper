@@ -142,7 +142,7 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           pulse: bool = False, phrase_bars: int = 4, lead_bias: float = 0.0,
           lead_phrase_bars: int = 4, pulse_fill: int = 1,
           pulse_sync: float = 0.3, snap_onsets: bool = False,
-          adaptive_subdiv: bool = False) -> None:
+          adaptive_subdiv: bool = False, seed: int = 0) -> None:
     init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
     if adaptive_subdiv:
         init += ["--adaptive-subdiv"]
@@ -166,8 +166,12 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
             if snap_onsets:
                 cmd += ["--snap-onsets"]
             if lead_bias > 0:
+                # ⚠️`--seed` used to reach `idiomize` ONLY, so the lead-hand RNG ran at
+                # seed 0 no matter what was asked for. Every "3 seeds" reading of a
+                # hand-role metric was therefore one seed wearing three hats.
                 cmd += ["--lead-bias", str(lead_bias),
-                        "--lead-phrase-bars", str(lead_phrase_bars)]
+                        "--lead-phrase-bars", str(lead_phrase_bars),
+                        "--seed", str(seed)]
             # One budget for the merged stream: the section's whole accent budget,
             # not the drums/carrier split, which only existed to feed two passes.
             # The accent percentile is searched to hit the budget in SURVIVING
@@ -253,7 +257,7 @@ def main() -> int:
           phrase_bars=a.phrase_bars, lead_bias=a.lead_bias,
           lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
           pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
-          adaptive_subdiv=a.adaptive_subdiv)
+          adaptive_subdiv=a.adaptive_subdiv, seed=a.seed)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 
