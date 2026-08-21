@@ -199,6 +199,20 @@ def main() -> int:
               "legitimately have none)")
     else:
         print(f"LYRICS {len(words)} words, {len(lines)} lines")
+        # 🔴The cascade this closes: Whisper invents text on non-speech audio, and the
+        # LYRIC REPEATS block below then presents that invention as the song's structural
+        # backbone -- which WORKFLOW tells the agent to map against. Surface the doubt at
+        # the point of use, not only in `lyrics.py`, because this is where it is believed.
+        # ⚠️`a` is the ANALYSIS dict here; the audio path is `a_.audio`. Using `a.audio`
+        # raised AttributeError, and a bare `except` swallowed it so the guard silently
+        # never fired -- the project's own "never wrap in a bare except" landmine.
+        import lyrics as _L
+        _d = _L.transcribe(a_.audio, "large-v3", False, None)   # cached, so cheap
+        _suspect, _why = _L.hallucination_risk(_d)
+        if _suspect:
+            print(f"  🔴 DO NOT TRUST THE LYRICS — {_why}. Whisper invents text on "
+                  f"non-speech audio.\n     Treat as INSTRUMENTAL: ignore the lyric "
+                  f"column and the LYRIC REPEATS block below.")
 
     if a_.bars or a_.secs:
         if a_.secs:

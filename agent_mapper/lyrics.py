@@ -70,6 +70,45 @@ def _vocals_stem(audio: pathlib.Path, out_dir: pathlib.Path) -> pathlib.Path:
     return wav_path
 
 
+# Whisper's stock filler on non-speech audio. It emits these confidently-formatted
+# phrases when there is nothing to transcribe, and they are indistinguishable from real
+# lyrics downstream -- `brief.py` will happily print one as the song's structural
+# backbone. Caught 2026-08-21 on an instrumental that returned "Thank you for watching"
+# three times at lang p=0.253 and had it presented as a 3x lyric repeat.
+_FILLER = (
+    "thank you for watching", "thanks for watching", "thank you.", "thank you",
+    "please subscribe", "subscribe to my channel", "see you next time",
+    "you", "bye.", "bye", ".", "♪", "music", "outro", "[music]",
+)
+
+
+def hallucination_risk(d: dict) -> tuple[bool, str]:
+    """(suspect, why) -- is this transcript Whisper talking to itself?
+
+    Three signals, any one of which is enough to distrust the words:
+      * low language confidence -- the model is not sure it heard a language at all
+      * filler text -- the stock phrases it emits over non-speech
+      * a handful of words spread over minutes -- real singing is denser than this
+    ⚠️This flags a transcript as UNTRUSTWORTHY; it does not delete it. An instrumental
+    with a sung hook is a real case, and the agent should see the words and the doubt.
+    """
+    lp = float(d.get("language_probability") or 0.0)
+    words = d.get("words") or []
+    lines = d.get("lines") or []
+    texts = [str(r.get("text", "")).strip().lower() for r in lines]
+    n_filler = sum(1 for x in texts if x.rstrip(".!?") in
+                   {f.rstrip(".!?") for f in _FILLER})
+    why = []
+    if lp and lp < 0.5:
+        why.append(f"language confidence {lp:.2f} < 0.50")
+    if texts and n_filler >= max(1, len(texts) // 2):
+        why.append(f"{n_filler}/{len(texts)} lines are Whisper's stock filler")
+    dur = float(d.get("duration") or 0.0)
+    if dur > 30 and len(words) and len(words) / (dur / 60.0) < 20:
+        why.append(f"{len(words)} words over {dur/60:.1f} min is far below sung density")
+    return (bool(why), "; ".join(why))
+
+
 def transcribe(audio: pathlib.Path, model_name: str = DEFAULT_MODEL,
                force: bool = False, language: str | None = None,
                vad: bool = False, temperature: float = 0.0,
@@ -160,6 +199,13 @@ def main() -> int:
     if not d["words"]:
         print("  ⚠️no words found — instrumental, or the vocal stem is empty. "
               "That is a real answer, not a failure; the brief will say so.")
+    else:
+        suspect, why = hallucination_risk(d)
+        if suspect:
+            print(f"\n  🔴 DO NOT TRUST THESE WORDS — {why}.")
+            print("  Whisper invents text on non-speech audio. Treat this song as an "
+                  "INSTRUMENTAL:\n  ignore the lyric line and the lyric-repeat map in "
+                  "`brief.py`, and plan from density instead.")
     return 0
 
 

@@ -3,121 +3,234 @@
 Repo: `/home/kyle/repos/beatsaber_automapper`. `source .venv/bin/activate` first.
 All commands are `python agent_mapper/<tool>`.
 
-## 0. Transcribe the vocals once (slow, cached)
-```bash
-python agent_mapper/lyrics.py data/eval_songset/1f333.ogg --lines
-```
-Instrumental songs legitimately return nothing — that is an answer, not a failure.
-
-## 0b. THE OTHER THREE PERCEPTION AXES (all cached after the first run)
-```bash
-python agent_mapper/structure.py  <audio>            # ★sections, and which REPEAT
-python agent_mapper/melody.py     <audio>            # pitch: what note, which way it moves
-python agent_mapper/percussion.py <audio>            # which drum is hitting
-```
-Each takes `--validate` and will tell you **on this song** whether to trust it —
-a screamed vocal has no pitch, and a drum track too repetitive to carry information
-says so instead of guessing. See `docs/perception_scorecard.md` for what each control
-established and what is still missing.
-
-## 1. READ THE WHOLE SONG BEFORE PLACING ANYTHING
-```bash
-python agent_mapper/brief.py data/eval_songset/1f333.ogg          # 8-bar timeline
-```
-You get: the grid, per-stem onset density per 8 bars, an energy column, the lyric for
-each phrase, and ★**the lyric repeat map** — which lines are sung more than once and in
-which bars. That last one is the structure, read rather than inferred.
-
-**Decide the plan here, in prose, before touching the map**: which instrument carries
-each section, how dense it should be, where the player should breathe. This is the part
-only you can do — the generator has a 16-note window and cannot know that bar 129 is a
-breakdown or that bars 59/115/195 are the same chorus.
-
-## 2. ZOOM IN where you are about to write
-```bash
-python agent_mapper/brief.py <audio> --bars 59-66
-```
-One row per stem per bar, sixteen cells to a bar. `mapctl` accepts notes in **exactly
-these cells**, so what you read is what you write.
-
-## 3. BUILD, section by section
-```bash
-python agent_mapper/mapctl.py init <audio> --name hunger
-
-# bulk: follow an instrument over a range
-python agent_mapper/mapctl.py auto hunger --bars 33-56 --follow vocals --lead L --wide
-python agent_mapper/mapctl.py auto hunger --bars 33-56 --follow drums --every 3 --lead R
-
-# hand-place the moments that matter
-python agent_mapper/mapctl.py add hunger --from phrase.txt
-```
-`phrase.txt` is `<bar>.<slot> <L|R> <col 0-3> <row 0-2> <dir>`; dir is
-`U D L R UL UR DL DR X`. A bad line rejects the whole file — a half-applied phrase is
-worse than none, because you cannot see which half landed.
-
-**Layering is normal**: follow the drums, then add the vocal line on top. `auto`
-assigns hands over the **merged** timeline and enforces the human per-hand floor
-(~150 ms), so it will *skip* onsets no hand can reach and tell you how many.
-
-## 3b. ★MAP A SECTION ONCE, THEN REUSE IT
-```bash
-python agent_mapper/mapctl.py plan  hunger                 # the section work list
-python agent_mapper/mapctl.py auto  hunger --bars 55-74 --follow drums --wide
-python agent_mapper/mapctl.py reuse hunger --label D       # -> 113-130 and 194-215
-```
-`reuse` copies the mapped instance of a section to its repeats, truncated to each
-target's own length. ⚠️**`--vary` defaults to 0.15 on purpose** — the open question on
-review set A is whether repetition reads INTENTIONAL or LAZY, and a byte-identical
-repeat is the definition of lazy. Use `--vary 0` only when you want an exact copy.
-
-## 4. CHECK BEFORE YOU EXPORT
-```bash
-python agent_mapper/mapctl.py check hunger      # parity, doubles, violations
-python agent_mapper/mapctl.py view hunger --bars 59-62   # your notes vs the stems
-python agent_mapper/mapctl.py status hunger     # coverage, and what is still empty
-```
-A parity violation is not a rough edge, it is an unplayable map.
-
-## 5. TWEAK ON FEEDBACK — the loop Kyle asked for
-Feedback is almost always about a *place* and a *feeling*. Translate it, redo that
-range only, re-check:
-
-| he says | what to do |
-|---|---|
-| "the chorus is too empty" | `clear --bars 57-72` then `auto --follow drums` (drop `--every`) |
-| "too busy / exhausting there" | `clear`, re-`auto` with `--every 2` or a sparser stem |
-| "it ignores the singing" | `auto --follow vocals` over that range |
-| "it doesn't line up" | check the grid: `init` prints the fit `r`; a weak fit means the bar lines are wrong, and no amount of note-editing fixes that |
-| "let me breathe before the drop" | `clear` the bars before it; emptiness is a choice |
-
-```bash
-python agent_mapper/mapctl.py clear hunger --bars 57-72
-python agent_mapper/mapctl.py auto  hunger --bars 57-72 --follow drums --lead L --wide
-python agent_mapper/mapctl.py check hunger
-```
-
-## 6. EXPORT AND INSTALL
-```bash
-python agent_mapper/mapctl.py export hunger --out outputs/agent_hunger.zip
-python scripts/deploy_maps.py outputs/agent_hunger.zip --replace
-```
+> **This document was rewritten 2026-08-21 by building a map with it**, on a song outside
+> the eval songset with cold caches (`1ddd1` "Drive Away Lite", 130 bpm, instrumental).
+> Every ⚠️ below is something that actually went wrong during that build, not something
+> anticipated. The previous version claimed things that are not true — see §9.
 
 ---
 
-## What to distrust in your own map
+## 0. PERCEIVE — and read each tool's own verdict on itself
 
-★**Onset precision is circular here.** `auto` places notes on the onsets the metric
-scores against, so a high number is guaranteed and means nothing. Judge yourself on the
-axes you did *not* optimise: `ebpm_burst` (per-hand speed), `travel`, `double_share`,
-nps against the human Expert median of **3.91**.
+```bash
+python agent_mapper/events.py     <audio>              # ★START HERE: 6 stems, typed
+python agent_mapper/structure.py  <audio> --validate   # sections, and which repeat
+python agent_mapper/percussion.py <audio> --validate   # which drum is hitting
+python agent_mapper/melody.py     <audio>              # pitch: register + direction
+python agent_mapper/lyrics.py     <audio> --lines      # timestamped words (slow, cached)
+python agent_mapper/brief.py      <audio>              # 8-bar timeline, 4 stems
+```
 
-★**The suite does not track Kyle's ear.** It ranks the map he called *"really empty"*
-second-best and the one he graded **A+** fifth-worst. A good score is not a good map;
-the only verdict that counts is him playing it. Record what he says with
-`python scripts/record_verdict.py`.
+★**`events.py` is the most informative and the previous workflow did not mention it.**
+It runs `htdemucs_6s` — **six** stems including **guitar and piano** — and names 14–20
+typed note classes by physics. On the dogfood song it found `piano` 244 events and
+`guitar` 159; **`brief.py`'s four-stem view cannot see either**, and piano was the real
+lead. **If you plan from `brief.py` alone you will miss the melody on any song with a
+keyboard or guitar.**
 
-⚠️**Known gaps in the current `auto`** (both measured, both open):
-- `travel` **4.42 vs a human 12.53** — it uses two columns and two rows per hand, so
-  the hands barely move. Hand-place the passages you want to feel big.
-- `double_share` **0.000 vs a human 0.146** — it never plays both hands at one instant.
-  Doubles are how a human adds density *without* speeding up either hand.
+⚠️**`melody.py` does NOT take `--validate`.** The old doc said "each takes `--validate`";
+it does not, and an agent following that gets an argparse error. `structure.py` and
+`percussion.py` do.
+
+### 🔴 Believe the verdicts, including the negative ones
+- `percussion --validate` → `z = +19.3 ✅ labels carry real repeating structure` — trust it.
+- `structure --validate` → `⚠️ not better than chance — do not trust these letters here`
+  — then **§3b is unusable on this song** and you must plan by density instead (§1).
+- 🔴🔴**`lyrics.py` HALLUCINATES ON INSTRUMENTALS. It does NOT "return nothing".** The
+  dogfood song returned *"Thank you for watching"* ×3 at `lang p=0.253` — Whisper's
+  signature filler. **It then propagated into `brief.py`'s LYRIC REPEATS block and was
+  presented as the song's structural backbone.** ★**Check `language_probability`: below
+  ~0.5 on a song with no singing, the words are invented. Discard them.**
+
+---
+
+## 1. READ THE WHOLE SONG, THEN WRITE THE PLAN IN PROSE
+
+```bash
+python agent_mapper/brief.py <audio>              # timeline + energy + lyric repeats
+python agent_mapper/brief.py <audio> --bars 17-24 # zoom: one row per stem per bar
+python agent_mapper/notesheet.py <audio>          # the full score as a page
+```
+
+**Write the plan before placing anything**: which instrument carries each section, how
+dense, where the player breathes. **This is the part the ML pipeline cannot do** — it
+decides one slot from a 16-note window and cannot know bar 33 is an outro.
+
+★**Start the plan with what you cannot see.** On the dogfood song three of six signals
+were unusable (lyrics hallucinated, structure untrusted, energy flat `####` on every
+phrase) — writing that down first stopped all three from silently steering the map.
+
+⚠️**`init` prints a grid fit `r`.** Below ~0.35 the bar lines are wrong and **no amount
+of note editing fixes it**. The dogfood song was `r=0.364` — *just* above the floor, so
+the grid was usable but marginal. Treat 0.35–0.45 as "check a bar by eye before trusting it".
+
+---
+
+## 2. BUILD, section by section
+
+```bash
+python agent_mapper/mapctl.py init <audio> --name drive --fresh
+
+python agent_mapper/mapctl.py auto drive --bars 9-16 \
+    --follow "drums,piano/mid-stab" --wide \
+    --pulse --lead-bias 0.2 --target-notes 62
+```
+
+⚠️**`--fresh` is not optional for a rebuild.** Without it `init` KEEPS existing notes and
+a second build silently appends a whole second map onto the first. No error, just a worse
+score. It faked a PASS-rate regression on 2026-08-20.
+
+### The four placement levers, with their measured operating points
+
+| lever | what it does | operating point | why |
+|---|---|---|---|
+| `--follow "a,b"` | ONE pass over merged streams | comma-separated | two layered passes cost the pulse: drums alone 0.387, drums+carrier union 0.329 (human 0.514) |
+| `--pulse` | each phrase holds ONE interval | on | `pulse_stability` 6th → 56th percentile |
+| `--lead-bias` | a hand leads a passage | **0.2** | `role_asymmetry` 1st → 33rd pct. **0.3 overshoots**; mode is `cyclic` (deterministic) |
+| `--target-notes N` | search the accent percentile until N **distinct grid slots** survive | the section's budget | the budget is spent in SLOTS, not events; colliding events collapse |
+
+★**`--snap-onsets`** moves each event onto the nearest onset the JUDGE recognises. It needs
+cached onsets (§4) and only helps where they exist.
+
+### 🔴 A stem's CLASSES can be refused, per song, and that is correct
+```
+--follow guitar/hi-stab: the class labelling of `guitar` FAILED its control on this
+song (labels repeat no better than shuffled) ... Follow `guitar` as one lane instead.
+```
+This happened twice in the dogfood build (`bass`, `guitar`). **Follow the bare stem name
+instead.** ⚠️`events.py` PRINTS those class names without flagging that `mapctl` will
+refuse them — the summary and the follow-check disagree, so expect it.
+
+---
+
+## 3. REUSE — when structure is trustworthy
+```bash
+python agent_mapper/mapctl.py plan  drive
+python agent_mapper/mapctl.py reuse drive --label D    # --vary defaults to 0.15
+```
+⚠️**When `structure --validate` fails, `plan` reports ONE section for the whole song** and
+there is nothing to reuse. That is not a bug; plan by density instead.
+
+---
+
+## 4. VALIDATE — check, then judge
+
+```bash
+python agent_mapper/mapctl.py check  drive     # parity, doubles, violations
+python agent_mapper/mapctl.py status drive     # coverage, and what is still empty
+python agent_mapper/mapctl.py export drive --out out.zip
+python agent_mapper/idiomize.py out.zip --out dressed.zip
+python -m beatsaber_automapper.evaluation.mapjudge dressed.zip
+```
+
+★**A parity violation is an unplayable map, and `mapjudge` FAILs on `viol > 0` regardless
+of the p-value.** That is correct behaviour, not a quirk.
+
+### Getting the audio axis on a song outside the corpus
+```bash
+python scripts/build_onset_cache.py --audio-dir /path/to/dir --songs <audio-stem>
+```
+⚠️**Without this the judge prints `⚠️NO AUDIO AXIS` and scores 21 metrics instead of 23** —
+it cannot tell you the notes are on the music. The cache is keyed by the **audio file
+stem**, not the corpus id. This flag existed and was undocumented.
+
+---
+
+## 5. TAILOR — the loop Kyle asked for
+
+Feedback is about a *place* and a *feeling*. Translate, redo that range only, re-judge.
+
+| he says | what to do |
+|---|---|
+| "the chorus is too empty" | `clear --bars a-b`, re-`auto` with a higher `--target-notes` |
+| "too busy there" | same, lower `--target-notes` |
+| "it ignores the melody" | `--follow` the carrier `events.py` names, not the one `brief.py` shows |
+| "it feels mechanical" | lower `--lead-bias`, or `--pulse-sync 0.2` to break the pulse more |
+| "let me breathe before the drop" | `clear` those bars — emptiness is a choice |
+| "the hands don't move" | known gap: `travel` sits ~15th pct. Hand-place with `add` |
+
+**Measured on the dogfood song**: densifying one section moved `peak_nps` 4.50 (10th pct)
+→ 6.00 (49th) and `p` 0.604 → 0.878, with everything else held. **Tailoring a part works
+and is measurable.**
+
+---
+
+## 5b. DIFFICULTY IS A TARGET YOU SET — AND IT IS NOT JUST NPS
+
+★★**Kyle, 2026-08-21:** *"I wouldn't worry too much [about nps]. It's something we can
+tailor to whatever we want of the song. I like playing fast songs… The objective is to be
+able to map whatever difficulty we want. **Difficulty isn't always just NPS, it's how hard
+are the notes to get to from the last note as well.**"*
+
+⚠️**So 6.18 nps is NOT a ceiling.** It is one verdict on one map from 2026-08-11, and his
+taste has moved since. **Treat it as a data point, not a bound.** (An earlier version of
+this section said "his number wins" — that was wrong.)
+
+**Difficulty has two independent axes, and the suite measures both:**
+
+| axis | metrics | dial |
+|---|---|---|
+| **RATE** — how often you swing | `nps`, `peak_nps`, `ebpm_burst` | `--target-notes` per section |
+| **TRANSITION COST** — how hard the next note is to reach | `travel`, `angle_change`, `crossover` | `idiomize --width`, `--crossover` |
+
+**Measured on the dogfood song (same note times, cells redrawn):**
+
+| `--width` | `travel` | `angle_change` | `idiom_local` |
+|---|---|---|---|
+| 1 (greedy) | **4.21 (51st pct)** | 1.66 (1st) | 0.61 (2nd) |
+| 3 | 3.78 (35th) | 12.1 (13th) | 0.80 (15th) |
+| 12 | 3.23 (19th) | **24.5 (73rd)** | **0.89 (65th)** |
+| `--crossover 0.30` | 3.28 (20th) | 26.9 (81st) | — |
+
+🔴**`travel` and `angle_change` pull in OPPOSITE directions.** Greedy picking sends the
+hands far between repeated identical figures but never rotates the wrist; a wide draw
+rotates constantly but keeps the hands near home. **There is no single setting that is
+high on both**, so "harder" has to be a *direction you choose*, not a slider.
+⬜**Open**: reaching human `travel` (51st pct) currently costs `idiom_local` (2nd pct).
+Whether a human map achieves both, or trades the same way, is unmeasured.
+
+---
+
+## 6. WHAT TO DISTRUST IN YOUR OWN MAP
+
+🔴🔴**A PASS DOES NOT MEAN THE NOTES ARE ON THE MUSIC.** Measured 2026-08-21: the judge
+accepts **65 %** of maps shifted a quarter-beat off the song. The alignment axis sees it
+(`onset_precision` AUC 0.898) but the 23-metric aggregate dilutes two moving metrics among
+twenty-one silent ones. **Read `onset_precision` yourself; do not rely on the verdict.**
+
+🔴**A PASS = NOT DEFECTIVE, not GOOD.** It gates at the corpus **median**, and Kyle's
+standing *"my target is the best mappers"* makes that a **FLOOR**.
+
+🔴**Never rank by `p` or `rank_score`** — they are distance-from-typical, so minimising
+them Goodharts toward the average map.
+
+⚠️**`idiomize` is partly circular** — it was tuned against `idiom_local`/`idiom_jsd`.
+
+**Known gaps, still open, measured on the dogfood build:**
+- `travel` **3.06 at the default, 15th pct** — but this is a DIAL, not a defect: it
+  reaches the 51st percentile at `--width 1`. See §5b for what that costs.
+- `double_share` **0.000 vs a human 0.137** — it never plays both hands at one instant.
+
+---
+
+## 7. A COMPLETE WORKED EXAMPLE
+`1ddd1` "Drive Away Lite", 130 bpm, 40 bars, instrumental, cold caches, built with this
+document: **274 notes, 3.95 nps, PASS p=0.878 on 23 metrics, 0 parity violations**, with
+`onset_precision` 0.945 (55th pct), `pulse_stability` 0.577 (55th), `role_asymmetry` 0.108
+(48th), `ebpm_burst` 260 (46th), `peak_nps` 6.00 (49th).
+★**The hand-planned map beat `autobuild.py` on `onset_precision` by 55th vs 15th
+percentile** — choosing the carrier per section from `events.py` is what did it.
+
+## 8. `autobuild.py` IS NOT THIS WORKFLOW
+`python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` drives these same tools
+with **fixed heuristics** in place of the prose plan. It is a consumer of the framework,
+useful as a baseline and for bulk runs. **It scores worse on alignment than a planned build
+because it cannot choose the carrier by ear.**
+
+## 9. WHAT THE PREVIOUS VERSION OF THIS DOC GOT WRONG
+1. *"Each takes `--validate`"* — `melody.py` does not.
+2. *"Instrumental songs legitimately return nothing"* — they return **hallucinated filler**.
+3. It never mentioned `events.py`, `notesheet.py`, `mapjudge`, or any placement lever.
+4. It never mentioned that a stem's classes can be refused per song.
+5. Its "known gaps" numbers were from 2026-08-14 and stale.
+★**A workflow doc decays silently. Rebuild a map with it before trusting it.**

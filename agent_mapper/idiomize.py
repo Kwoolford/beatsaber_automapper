@@ -144,13 +144,31 @@ def _candidates(ranked, counts, h: _Hand, dt_beats: float, spb: float,
     return out
 
 
-def _pick(cands, rng: random.Random, prefer_cross: bool):
-    """Frequency-weighted choice, preferring a crossover when one was asked for."""
+def _pick(cands, rng: random.Random, prefer_cross: bool, width: int = 0):
+    """Frequency-weighted choice, preferring a crossover when one was asked for.
+
+    🔴🔴**`width` WAS A DEAD PARAMETER UNTIL 2026-08-21.** It was accepted by
+    `idiomize()`, threaded through `idiomize_zip()`, and advertised in `--help` as
+    *"sample from the best N candidates (1 = greedy)"* -- and never referenced in the
+    body. `--width 1` and `--width 12` produced **byte-identical** maps. Same shape as
+    the `BEAT_GRID_SUBDIV` no-op this project already retired: a knob that reads as a
+    lever and silently is not one.
+
+    ★**What it does now**: restrict the frequency-weighted draw to the `width` most
+    common candidates. `1` is greedy (always the single most human cell, minimum
+    variety); a large width samples the whole tail. **This is a VARIETY dial, and
+    variety is part of transition difficulty** -- Kyle: *"difficulty isn't always just
+    NPS, it's how hard are the notes to get to from the last note as well."*
+    ⚠️`0` means "no restriction", which is the pre-fix behaviour, so nothing that did
+    not pass `width` changes.
+    """
     pool = cands
     if prefer_cross:
         crossing = [c for c in cands if c[2]]
         if crossing:
             pool = crossing
+    if width and width > 0 and len(pool) > width:
+        pool = sorted(pool, key=lambda c: -c[1])[:width]
     total = sum(w for _e, w, _x in pool)
     if total <= 0:
         return None
@@ -163,7 +181,7 @@ def _pick(cands, rng: random.Random, prefer_cross: bool):
 
 
 def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
-             width: int = 6, crossover: float = CROSSOVER_TARGET,
+             width: int = 0, crossover: float = CROSSOVER_TARGET,
              repeat_p: float = REPEAT_P):
     """Redraw (x, y, direction) for every note from the human vocabulary.
 
@@ -214,10 +232,10 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # Set to the human 0.208 it realised 0.063, because most legal candidates
         # stay on-side and a permissive filter never changes the odds. When the
         # draw asks for a crossover, pick from the crossing candidates.
-        pick = _pick(cands, rng, prefer_cross=cross_ok)
+        pick = _pick(cands, rng, prefer_cross=cross_ok, width=width)
         if pick is None and cross_ok:
             cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, False)
-            pick = _pick(cands, rng, prefer_cross=False)
+            pick = _pick(cands, rng, prefer_cross=False, width=width)
         if pick is not None:
             dx, dy, _df, d_to, _c = pick
             nx, ny = h.x + dx, h.y + dy
@@ -276,7 +294,7 @@ def _reparity(notes: list[dict], bpm: float) -> list[dict]:
 
 
 def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
-                 top_k: int = VOCAB_DEPTH, width: int = 6,
+                 top_k: int = VOCAB_DEPTH, width: int = 0,
                  crossover: float = CROSSOVER_TARGET,
                  repeat_p: float = REPEAT_P) -> tuple[int, int]:
     """Copy `src` to `dst` with only note cells redrawn. Returns (n_notes, n_fallback)."""
@@ -366,8 +384,10 @@ def main() -> int:
     ap.add_argument("zip_in", type=pathlib.Path)
     ap.add_argument("--out", type=pathlib.Path, required=True)
     ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--width", type=int, default=6,
-                    help="sample from the best N candidates (1 = greedy)")
+    ap.add_argument("--width", type=int, default=0,
+                    help="restrict the draw to the N most common cells; 1 = greedy "
+                         "(least variety), 0 = no restriction. A VARIETY dial — was a "
+                         "dead no-op before 2026-08-21")
     ap.add_argument("--top-k", type=int, default=VOCAB_DEPTH,
                     help="vocabulary depth (default %(default)s; see VOCAB_DEPTH)")
     ap.add_argument("--crossover", type=float, default=CROSSOVER_TARGET)
