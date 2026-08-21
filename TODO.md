@@ -77,6 +77,23 @@ BACKLOG section near the bottom; do not start one.
 
 ---
 
+## 🔴🔴 P0.2 — THE VERDICT IGNORES THE AXIS: 65 % OF OFF-BEAT MAPS PASS
+**New control `offbeat`** (+0.25 beats: whole slots, so `offgrid_frac` is unmoved; all intervals
+preserved, so beat-domain metrics are unmoved; cells untouched, so geometry/idiom are unmoved).
+✅**It isolates alignment perfectly**: `onset_precision` AUC **0.898**, `offset_mad_ms` 0.812, and
+**21 of 23 metrics score exactly 0.500.** The axis is the only instrument that sees it.
+🔴🔴🔴**But the judge ACCEPTS 65 % of these maps** (every other control: ≤0.10). A map with perfect
+human rhythm, a quarter-beat off the song, passes two times in three.
+★**Cause**: the verdict is a mean/topk/max over 23 metrics; two moving and twenty-one silent does not
+shift it. **The judge has the evidence and does not use it.**
+★★★**This is D2 — *"it's painfully obvious the notes are off beat"* — surviving INSIDE the
+instrument built to catch it.**
+**Task**: an axis-aware gate term (one axis extreme enough is grounds to reject) vs the current
+aggregate. ⚠️**GATING and RANKING need different statistics.**
+🔴**Do NOT reweight `onset_precision` until this control fails** — that fits the gate to one control
+and is `h_dist` in a new costume.
+**DoD**: `offbeat` accept ≤0.10, human accept stays ≥0.85, and the other eight controls stay ≤0.10.
+
 ## ✅ P0 — THE JUDGE CAN HEAR, AND THE AXIS IS NOW AUDITED (closed 2026-08-21)
 23 metrics incl. `onset_precision` + `offset_mad_ms`. `audit_mapjudge.py --audio` scores every
 control against the song's own onsets: **human accept 0.880, all eight controls 0.000, 23-row

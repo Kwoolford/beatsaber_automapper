@@ -91,7 +91,43 @@ def make_too_sparse(notes, rng):
     return [n for i, n in enumerate(notes) if i % 4 == 0]
 
 
-EXTRA_CONTROLS = {"too_dense": make_too_dense, "too_sparse": make_too_sparse}
+def make_offbeat(notes, rng):
+    """Every note shifted a QUARTER BEAT later -- attacks the ALIGNMENT axis alone.
+
+    ★**Why this control had to be added (2026-08-21).** The audio axis passed the
+    battery without adding anything: on `timing_random` the beat-domain metrics beat
+    it (`ioi_cond_entropy` 0.996 vs `onset_precision` 0.885) and on `timing_jitter` it
+    is weak (0.694 vs `pulse_stability` 0.997). Not because the axis is useless, but
+    because **no control here produces the failure mode it exists for** -- notes with
+    perfectly human rhythm that sit off the music. Every existing control damages the
+    IOI sequence, which the beat-domain metrics catch first. A metric with no control
+    that isolates it is untested, exactly as `make_too_dense` records for density.
+
+    ★**The shift is a quarter beat for a reason**: it is a whole number of 1/16 grid
+    slots, so `offgrid_frac` cannot move (a shift off the grid would be caught
+    trivially and by construction -- the `[PHASE]` finding), and it preserves every
+    interval, so `pulse_stability`, `dominant_share`, `ioi_switch_rate` and
+    `ioi_cond_entropy` are unchanged. Note count, colours, positions and directions
+    are untouched, so geometry, idiom and hand-role cannot move either.
+    ⇒**Only the audio axis can see this map is wrong**, which is the point.
+    At 120-188 bpm a quarter beat is 80-125 ms, comfortably outside the 50 ms
+    matching tolerance.
+
+    ⚠️A human would call the result a different map, not a broken one -- it is
+    rhythmically intact and merely displaced against the song. That is precisely the
+    defect `onset_precision` reports on OUR maps.
+    """
+    import copy
+    out = []
+    for n in notes:
+        m = copy.copy(n)
+        m.beat = n.beat + 0.25
+        out.append(m)
+    return out
+
+
+EXTRA_CONTROLS = {"too_dense": make_too_dense, "too_sparse": make_too_sparse,
+                  "offbeat": make_offbeat}
 
 
 def auc(pos: list[float], neg: list[float]) -> float:

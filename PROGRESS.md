@@ -60,6 +60,39 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔴🔴🔴 THE `offbeat` CONTROL: THE AXIS SEES IT, THE VERDICT DOES NOT. **THE JUDGE ACCEPTS 65 %
+OF MAPS THAT ARE A QUARTER-BEAT OFF THE MUSIC.**
+`make_offbeat` shifts every note **+0.25 beats** — a whole number of 1/16 slots, so `offgrid_frac`
+cannot move; every interval preserved, so the beat-domain metrics cannot move; notes, colours,
+positions and directions untouched, so geometry/idiom/hand-role cannot move.
+
+**It isolates the axis perfectly — 21 of 23 metrics score AUC exactly 0.500:**
+
+    onset_precision   0.898   ← and this is its BEST column across ALL controls
+    offset_mad_ms     0.812
+    everything else   0.500   (angle_change, travel, pulse_stability, dominant_share,
+                               ioi_*, offgrid_frac, idiom_*, role_*, nps, peak_nps …)
+
+✅**So the alignment axis is exactly as valuable as hoped**: it is the ONLY instrument in the suite
+that can see this map is wrong, and no beat-domain proxy comes near it.
+🔴🔴🔴**AND THE JUDGE ACCEPTS THE MAP ANYWAY: `offbeat` accept rate 0.650**, against ≤0.10 for all
+eight other controls. **A map with perfect human rhythm sitting a quarter-beat off the song passes
+the gate two times in three.**
+★★**CAUSE: the aggregate DILUTES the axis.** The conformal score is a mean/topk/max over 23 metrics;
+two moving and twenty-one silent does not move it. The judge *has* the evidence and the verdict does
+not use it.
+★★★**THIS IS KYLE'S D2 IN THE INSTRUMENT ITSELF.** *"It's painfully obvious the notes are off beat"*
+is the complaint that caused the alignment axis to be built on 2026-08-01 — and the judge, now
+carrying that axis, **still cannot reject the map he was complaining about.** Getting the axis into
+the reference was necessary and is not sufficient.
+⬜**Needs a gate change, and it is a DESIGN decision, not a tune**: an axis-aware term (any single
+axis extreme enough is grounds to reject) versus the current all-metrics aggregate. ⚠️**GATING and
+RANKING need different statistics** — this is the same lesson from the `max`/`topk` work, arriving
+from the opposite side. **Do not just reweight `onset_precision` until this control fails**: that
+fits the gate to one control and is the `h_dist` mistake in a new costume.
+★**The control battery just paid for itself twice**: it validated the axis AND found that the verdict
+ignores it. Neither was visible before the control existed.
+
 ### ✅ P0'S LAST GAP CLOSED — THE AUDIO AXIS IS NOW *AUDITED*, AND IT IS NOT UNIQUELY USEFUL
 `audit_mapjudge.py --audio` scores every control variant against **the same song's cached onsets**
 (maps without onsets are SKIPPED, not scored on 21 metrics and pooled — that mixing is what the dual
