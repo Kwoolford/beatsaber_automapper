@@ -53,44 +53,34 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 🔴🔴 P0.2 — THE VERDICT IGNORES THE AXIS: 65 % OF OFF-BEAT MAPS PASS
-**New control `offbeat`** (+0.25 beats: whole slots, so `offgrid_frac` is unmoved; all intervals
-preserved, so beat-domain metrics are unmoved; cells untouched, so geometry/idiom are unmoved).
-✅**It isolates alignment perfectly**: `onset_precision` AUC **0.898**, `offset_mad_ms` 0.812, and
-**21 of 23 metrics score exactly 0.500.** The axis is the only instrument that sees it.
-🔴🔴🔴**But the judge ACCEPTS 65 % of these maps** (every other control: ≤0.10). A map with perfect
-human rhythm, a quarter-beat off the song, passes two times in three.
-★**Cause**: the verdict is a mean/topk/max over 23 metrics; two moving and twenty-one silent does not
-shift it. **The judge has the evidence and does not use it.**
-★★★**This is D2 — *"it's painfully obvious the notes are off beat"* — surviving INSIDE the
-instrument built to catch it.**
-🔴**RULED OUT BY MEASUREMENT (`scripts/probe_axis_gate.py`)**: a per-METRIC rule — *reject if any
-metric is beyond the q-th human percentile, two-sided* — **cannot work at any q**. `offbeat` first
-clears 0.10 at q=0.92, where **68 % of HUMAN maps are rejected**. ★Cause: with 23 metrics almost
-every human map has SOME metric in a tail, so a per-metric bound is an **uncorrected multiple test
-over 23 hypotheses** — the same defect already logged for `min(p_a,p_b)`.
-🔴**PER-AXIS IS ALSO REFUTED** (`scripts/probe_per_axis_gate.py`, both `mean` and `max` within-axis):
-both are **worse than the current gate on `offbeat` AND on nearly every other control** — `max` let
-**95.5 %** of `timing_jitter` through. ★**The failure explains the gate: its strength IS the pooling**
-(many mildly-extreme metrics adding up), and a Bonferroni-corrected per-axis minimum throws that away
-while raising each axis' bar to the 98.3rd percentile.
-⇒**The problem is not that the gate pools — it is that pooling 2 signals among 21 nulls dilutes.**
-**Task**: a dilution-resistant pooling statistic — **Fisher's method or higher criticism** over the
-per-metric p-values. 🔴**REFUTED — the `max` term is NOT pinned**: on `offbeat` it is driven by `onset_precision` (39/80)
-and `offset_mad_ms` (13/80). The `crossover` saturation note applies to OUR maps, not to
-human-derived controls. ★*A landmine recorded for one cohort does not automatically apply to another.*
-📐**THE DILUTION, QUANTIFIED (n=80)**: `s_mean` AUC 0.609, `s_topk` 0.716, `s_max` **0.732** — against
-**`onset_precision` alone at 0.898**. **Aggregation costs ~0.17 of AUC, which BOUNDS what reweighting
-the three existing terms can achieve.**
-★**The usable signal**: `offbeat` has **2 simultaneously-extreme, RELATED metrics** (both alignment);
-a human has 0–1 random ones. **Fisher / higher criticism can use that; mean/topk/max cannot.**
-🔴**Do NOT reweight `onset_precision` until this control fails** — that fits the gate to one control
-and is `h_dist` in a new costume.
-**DoD**: `offbeat` accept ≤0.10, human accept stays ≥0.85, and the other eight controls stay ≤0.10.
+## 🟡 P0.2 — SOLVED IN PRINCIPLE, ONE DECISION LEFT (Kyle's)
+**The judge accepts 65 % of maps a quarter-beat off the music** (`offbeat` control; 21 of 23 metrics
+score AUC 0.500, only alignment sees it). ✅**The fix is an UNDILUTED alignment floor** — the one
+thing pooling structurally cannot do.
+**Measured trade (real combined gate, n=200):**
 
-> ✅**Finished this session and moved to PROGRESS.md** (a completed item is history, not work):
-> the pulse overshoot fix (`SYNC_FRAC 0.3`), the density fixes (energy-curve normalisation +
-> slot-aware `--target-notes`), the `idiomize`/`fix_parity` playability bug, and P0's audio axis.
+| alignment floor | human | `offbeat` |
+|---|---|---|
+| none (today) | 0.870 | 0.650 |
+| 93rd pct | 0.850 | 0.315 |
+| **90th pct** | **0.825** | **0.080** |
+
+⇒**A floor at the 90th human percentile takes `offbeat` 65 % → 8 %, and costs human accept
+0.870 → 0.825.** My bar was human ≥0.85, so it misses by **0.025**.
+★★**THAT 0.025 IS THE DECISION**: reject ~17.5 % of human maps instead of 13 %, to catch 92 % of
+off-beat maps instead of 35 %. ⚠️His *"target is the best mappers"* makes the corpus median a FLOOR,
+so rejecting a few more median-ish human maps may be right — **but it changes what a PASS means, so
+it is his call.**
+🔴**FOUR ALTERNATIVES ELIMINATED** (all worse than today's gate on `offbeat`): per-metric bound,
+per-axis mean, per-axis max, **Fisher / higher criticism**. ★The current aggregate beat every
+replacement I built — the fix is to ADD a term, not replace the combination.
+⚠️**Not Goodharting**: alignment answers a *qualitatively different* question the other 21 metrics
+cannot; `alignment.py` records five axes passing a map 5/5 while it sat off the beat.
+
+## 🔴 P0.3 — THE GATE ACCEPTS 20 % OF `shuffled` MAPS
+Surfaced by the P0.2 work: `shuffled` sits at **0.205** accept in every gate variant tested, and the
+alignment floor does not touch it. A map with its notes reordered passes one time in five.
+**DoD**: `shuffled` ≤0.10 without human dropping below its current 0.870.
 
 ## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
 **Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**

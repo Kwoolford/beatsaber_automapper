@@ -60,6 +60,47 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### ✅ P0.2 SOLVED IN PRINCIPLE — AN UNDILUTED ALIGNMENT FLOOR, AND THE EXACT PRICE
+**Four candidates were eliminated first, all WORSE than the gate they would replace on `offbeat`:**
+per-metric bound (best case 0.100 accept but at **68 % human rejection**), per-axis `mean` (0.800),
+per-axis `max` (0.775, and 95.5 % of `timing_jitter` through), and **Fisher (0.825) / higher
+criticism (0.880)** — 🔴**my own recommended shape, refuted by measurement.** ★The current
+aggregate gate (0.650) beat every alternative I built. *It is better than I gave it credit for; it is
+simply not good enough.*
+
+**What DOES work is the one thing pooling cannot do — leave alignment undiluted.** A gate on
+`onset_precision` alone (human median 0.938, `offbeat` 0.578):
+
+| human accept | `offbeat` accept |
+|---|---|
+| 0.905 | 0.105 |
+| **0.850** | **0.055** |
+
+**And the REAL combined gate (existing aggregate AND an alignment floor), measured not assumed:**
+
+| alignment floor | human | `offbeat` | worst other control |
+|---|---|---|---|
+| 99th pct | 0.870 | 0.650 | 0.205 |
+| 95th | 0.865 | 0.385 | 0.205 |
+| 93rd | **0.850** | 0.315 | 0.205 |
+| **90th** | **0.825** | **0.080** | 0.200 |
+
+⇒🟡**THE DoD IS NARROWLY MISSED, AND THE TRADE IS NOW EXACT**: an alignment floor at the 90th human
+percentile takes `offbeat` from **65 % accepted to 8 %** — and costs human accept **0.870 → 0.825**.
+**My stated bar was human ≥0.85; this misses it by 0.025.**
+★★**THAT 0.025 IS THE WHOLE DECISION, AND IT IS KYLE'S**: reject ~17.5 % of human maps instead of
+13 %, in exchange for catching **92 %** of off-beat maps instead of 35 %. Given his standing
+*"target is the best mappers"* — which makes the corpus median a FLOOR — rejecting a few more
+median-ish human maps may be exactly the right price. **I am not making that call overnight.**
+⚠️**Is privileging alignment Goodharting? No, and the distinction matters**: it is not a weight tuned
+until a control fails — it is the recognition that alignment answers a **qualitatively different
+question** (*is the map on the music?*) that the other 21 metrics are **structurally unable** to
+answer. `alignment.py`'s own docstring records five axes scoring a map 5/5 while it sat off the beat.
+**Pooling it with them reproduces exactly that blindness.**
+⚠️**Unrelated weakness this exposed**: `shuffled` sits at **0.205** in every row — the existing gate
+accepts a fifth of shuffled maps and the alignment floor does not touch it. **Separate defect, now on
+the board.**
+
 ### 📐 THE DILUTION, QUANTIFIED — AND THE `crossover`-SATURATION HYPOTHESIS IS REFUTED
 🔴**My narrowest candidate was WRONG.** The gate's `max` term is **not** pinned by `crossover`: on
 `offbeat` maps the max is driven by **`onset_precision` (39/80)** and **`offset_mad_ms` (13/80)** —
