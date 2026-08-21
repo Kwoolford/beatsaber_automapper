@@ -60,6 +60,21 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 🔴 RETRACTED WITHIN THE HOUR: "the gate accepts 20 % of `shuffled` maps" — MY PROBE, NOT THE GATE
+I filed P0.3 off my own probe's number. **The real gate accepts 0.000 of `shuffled`.**
+★**Cause**: `JudgeResult.verdict()` returns FAIL on **`viol > 0` BEFORE it looks at the p-value**, and
+**97.5 % of shuffled maps have parity violations**. My probes' accept rule was `p >= alpha`, which
+skips that term entirely. The 0.205 I reported is the audit's **`no-parity` column** — accept *if you
+ignored parity* — which the audit prints separately for exactly this reason.
+✅**The P0.2 conclusions SURVIVE**: `offbeat` has `viol>0` = 0.017, the same as human, because
+shifting every note by a whole quarter beat preserves the swing structure. So its numbers are
+unaffected, and the alternative-gate comparisons were internally consistent (every arm used the same
+rule). Only the claim I made about the REAL gate's `shuffled` behaviour was wrong.
+✅All three probe scripts now carry the warning at the top.
+★★**THE LESSON: a probe that reimplements part of the system it is measuring will drift from it.**
+The gate is `viol` **then** `p`; I re-derived only the second half and compared the result to the
+whole. ⇒**Call `verdict()` rather than reconstructing it.**
+
 ### ✅ P0.2 SOLVED IN PRINCIPLE — AN UNDILUTED ALIGNMENT FLOOR, AND THE EXACT PRICE
 **Four candidates were eliminated first, all WORSE than the gate they would replace on `offbeat`:**
 per-metric bound (best case 0.100 accept but at **68 % human rejection**), per-axis `mean` (0.800),

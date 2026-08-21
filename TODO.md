@@ -77,11 +77,6 @@ replacement I built — the fix is to ADD a term, not replace the combination.
 ⚠️**Not Goodharting**: alignment answers a *qualitatively different* question the other 21 metrics
 cannot; `alignment.py` records five axes passing a map 5/5 while it sat off the beat.
 
-## 🔴 P0.3 — THE GATE ACCEPTS 20 % OF `shuffled` MAPS
-Surfaced by the P0.2 work: `shuffled` sits at **0.205** accept in every gate variant tested, and the
-alignment floor does not touch it. A map with its notes reordered passes one time in five.
-**DoD**: `shuffled` ≤0.10 without human dropping below its current 0.870.
-
 ## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
 **Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**
 Full numbers in PROGRESS.md. n=23: `pulse_stability` 0.329 (6th pct) → **0.637 (71st)**,

@@ -26,6 +26,15 @@ I built to expose this defect has been fitted to it.
 
 ⚠️Measures candidates; ships nothing. What a PASS means is Kyle's decision.
 """
+
+# 🔴🔴**PARITY IS PART OF THE VERDICT AND THESE PROBES ONCE IGNORED IT.**
+# `JudgeResult.verdict()` returns FAIL on `viol > 0` BEFORE it ever looks at the
+# p-value, so an accept rule of `p >= alpha` overstates acceptance for any cohort that
+# breaks parity. It made `shuffled` look like it passed 20 % of the time when the real
+# gate rejects 100 % of it (97.5 % of shuffled maps have violations), and that was
+# filed as a defect before being caught. ★Cohorts with viol≈0 (`human`, `offbeat`,
+# `timing_jitter`) are unaffected, which is why the P0.2 conclusions survived.
+
 from __future__ import annotations
 
 import argparse
