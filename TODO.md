@@ -76,9 +76,14 @@ both are **worse than the current gate on `offbeat` AND on nearly every other co
 while raising each axis' bar to the 98.3rd percentile.
 ⇒**The problem is not that the gate pools — it is that pooling 2 signals among 21 nulls dilutes.**
 **Task**: a dilution-resistant pooling statistic — **Fisher's method or higher criticism** over the
-per-metric p-values. ⚠️**Check first**: the gate's existing `max` term **saturates on `crossover`=0**
-for our maps, and a max term pinned by one metric cannot respond to alignment. **That may be the
-narrowest real bug.**
+per-metric p-values. 🔴**REFUTED — the `max` term is NOT pinned**: on `offbeat` it is driven by `onset_precision` (39/80)
+and `offset_mad_ms` (13/80). The `crossover` saturation note applies to OUR maps, not to
+human-derived controls. ★*A landmine recorded for one cohort does not automatically apply to another.*
+📐**THE DILUTION, QUANTIFIED (n=80)**: `s_mean` AUC 0.609, `s_topk` 0.716, `s_max` **0.732** — against
+**`onset_precision` alone at 0.898**. **Aggregation costs ~0.17 of AUC, which BOUNDS what reweighting
+the three existing terms can achieve.**
+★**The usable signal**: `offbeat` has **2 simultaneously-extreme, RELATED metrics** (both alignment);
+a human has 0–1 random ones. **Fisher / higher criticism can use that; mean/topk/max cannot.**
 🔴**Do NOT reweight `onset_precision` until this control fails** — that fits the gate to one control
 and is `h_dist` in a new costume.
 **DoD**: `offbeat` accept ≤0.10, human accept stays ≥0.85, and the other eight controls stay ≤0.10.

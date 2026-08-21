@@ -60,6 +60,34 @@ its stated reason — the union smearing the grid — is the wrong mechanism.**
 ⚠️**Merging is real but is the smaller half**: drums alone is 0.387, the union 0.329, so the merge
 costs 0.058 of the 0.186.
 
+### 📐 THE DILUTION, QUANTIFIED — AND THE `crossover`-SATURATION HYPOTHESIS IS REFUTED
+🔴**My narrowest candidate was WRONG.** The gate's `max` term is **not** pinned by `crossover`: on
+`offbeat` maps the max is driven by **`onset_precision` (39/80)** and **`offset_mad_ms` (13/80)** —
+65 % of the time by alignment, exactly as it should be. (The saturation note in the reference is
+about OUR generated maps where `crossover`=0, not about human-derived controls. ★*A landmine
+recorded for one cohort does not automatically apply to another.*)
+
+**So the terms respond — they are just too weak. Measured, human vs `offbeat`, n=80:**
+
+| statistic | human med | `offbeat` med | AUC |
+|---|---|---|---|
+| `s_mean` | 0.4832 | 0.5154 | 0.609 |
+| `s_topk` | 0.8774 | 0.9378 | 0.716 |
+| `s_max` | 0.9409 | 0.9800 | **0.732** |
+| count of metrics >95th pct | 0 | **2** | 0.694 |
+| **`onset_precision` alone** | | | **0.898** |
+
+★★**AGGREGATION COSTS ~0.17 OF AUC: the defect's own metric separates at 0.898 and the best gate
+term manages 0.732.** That is the dilution as a number, and it **bounds what any reweighting of the
+existing three terms can achieve** — none of them can exceed what pooling 23 metrics leaves intact.
+★**The shape of the signal is now visible**: `offbeat` has **2 simultaneously-extreme metrics that
+are RELATED** (both alignment) where a human has ~**0–1 random** ones. A statistic sensitive to
+*how many* metrics are extreme **and whether they belong together** (Fisher, higher criticism) can
+use that; a mean/topk/max over undifferentiated metrics cannot.
+⇒**This is the concrete brief for the fix**, and it is Kyle's design call: **preserve more of the
+single-metric signal.** ⚠️Three candidates now eliminated with data (per-metric bound, per-axis
+mean, per-axis max) plus one hypothesis refuted (max saturation).
+
 ### 🔴 A PER-AXIS GATE IS ALSO REFUTED — AND IT EXPLAINS WHY THE AGGREGATE IS STRONG
 `scripts/probe_per_axis_gate.py`: group the 23 metrics into their six axes, calibrate each axis'
 score on a **held-out half** of the human maps (the other half measures human accept), reject if any
