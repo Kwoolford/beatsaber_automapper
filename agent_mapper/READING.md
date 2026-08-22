@@ -32,6 +32,7 @@ genuinely different maps.**
 | crossover (hand in the other half) | **0.078** | 0.218 |
 | doubles (both hands at once) | **0.058** | 0.177 |
 | density (nps) | **0.609** | 4.36 |
+| travel | **0.975** | 4.43 |
 
 ★Anything inside 1.0× of that spread is **a valid interpretation, not an error.** Above ~1.5× is a
 real gap. This is how to hold "the ground truth is subjective" and "we still have defects" at once.

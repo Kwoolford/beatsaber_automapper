@@ -26,6 +26,27 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### ✅ THE LANE-SPREAD LEVER WAS NOT BUILT: `travel` IS NOT A DEFECT
+The style conflict ended with *"the fix is a second lever that moves travel without touching cell
+variety"*. **Checked whether `travel` is a defect at all before building it. It is not.**
+
+    ours   4.000   (42nd human percentile)      human   4.431
+    |ours - that song's human|  1.095
+    human-human spread on travel (163 different-mapper pairs)  0.975
+    ratio 1.12x  ->  marginal, INSIDE the range that separates two human mappers
+
+⇒**No lever needed.** `travel` sat at the 15th percentile only in the width-1 experiments; at the
+shipped default it is at the **42nd**, which is where a human map sits.
+★★**This is the check that stops the work, and it nearly did not happen.** The previous iteration
+ended with a concrete build queued and a plausible rationale. Building it would have produced a
+lever aimed at a number that was already correct — the definition of work with no defect behind it.
+⚠️**`travel` at the 15th percentile appears in READING.md's open-gaps table from 2026-08-21.** That
+reading came from the `--no-idiomize` and width-1 arms, **not the shipped config**, and is now
+stale. ★*A number recorded from an experimental arm becomes a false defect the moment the default
+changes.*
+✅**Two more properties now have a real human-human yardstick** (163 pairs): `travel` **0.975**,
+joining legibility 0.121, recurrence 0.113, crossover 0.078, doubles 0.058, density 0.609.
+
 ### 🔴 A STYLE CANNOT SET `width`: THREE MAPPINGS MEASURED, NONE BEATS LEAVING IT ALONE
 `style.build_args` sets `nps`, `crossover` and `top_k` but never **`width`** — which 2026-08-21
 established as the dominant lever on `travel`. Three of the five presets name `travel` as a target,
