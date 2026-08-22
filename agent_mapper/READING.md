@@ -87,6 +87,14 @@ python scripts/map_view.py <map.zip> --find doubles      # read how they are pla
 
 These are mine, caught repeatedly, and they recur:
 
+🔴**0. THE PAGE PROPOSES; ONLY THE COHORT DISPOSES — and my eye has now been wrong twice
+running.** Reading `1f767` on 2026-08-22 I was sure the right hand *"crosses into the left half
+constantly"* where the human's stays home. Measured: ours **0.193** vs human **0.174**, a difference
+of **0.73× the human-human spread — inside the range**. I then guessed the crossovers must at least
+*cluster* differently; that was also wrong (0.964 vs 1.050, similar). **A passage that looks
+lopsided usually is not; a handful of adjacent examples is exactly what randomness produces.**
+★Use the page to generate the hypothesis and the cohort to keep or kill it — every time.
+
 🔴**1. I over-read a single song.** Every strong pattern I saw once failed to generalise:
 - *"the human repeats a 4-note figure"* — the ABAB rate was identical for both. It was vocabulary
   SIZE, not repetition.
