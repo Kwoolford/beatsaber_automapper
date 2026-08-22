@@ -26,6 +26,42 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 🔬 `vertical_share`: FOUR EXPLANATIONS REFUTED, AND THE GAP IS INSIDE THE SAMPLER
+Largest non-circular gap on the shipped config. **Humans use all nine cut directions; we
+effectively use six.**
+
+    direction mix, 1f767      ours              human
+      vertical (↑↓)           0.773             0.480
+      diagonal (↖↗↙↘)         0.223             0.415
+      horizontal (←→)         0.004             0.094   ← a near-ABSENT gesture
+
+★**A clean gradient shows why it is self-sustaining in humans and not in us**: of the top-500
+idioms reachable **from** a vertical, only 18–31 % are diagonal; **from a diagonal, 42–66 %**.
+Diagonals sustain diagonals — but you have to enter the state.
+
+**Four hypotheses, all refuted by measurement:**
+1. 🔴*"the mined vocabulary lacks diagonals"* — it is **34.4 % diagonal** (stationary distribution
+   of its own transition matrix, top-500). ⚠️A first read said the mix was 45 % "→right" — I read
+   **field 4 of the tuple as the direction when the schema is `(dx, dy, d_from, d_to, dt_class)`**
+   and the direction is field 3. ★*Read the schema, do not infer it from plausible-looking output.*
+2. 🔴*"the fallback resets the hand to mapctl's vertical seed"* — **0 fallbacks in 986 notes.**
+3. 🔴*"`_reparity` rewrites diagonals back to vertical"* — it changed **0 of 986** directions.
+4. 🔴*"doubles force verticals, because `dt_class 0` is 0.000 diagonal"* — plausible and specific,
+   but our doubles and solo notes have **identical** diagonal shares (0.219 vs 0.226). ⚠️This one
+   would have implicated my own doubles work from two iterations earlier, which is exactly why it
+   needed checking rather than assuming.
+
+⇒**ESTABLISHED**: `idiomize` turns a 100 %-vertical input into 22.3 % diagonals, and **iterating it
+does not compound** (22.3 → 20.8 → 27.3 → 22.7 — a stable fixed point). The sampler converges
+**below its own vocabulary's 34.4 %**, and neither the fallback, the parity pass, nor the timing
+class explains the difference.
+⬜**NOT YET EXPLAINED, and left that way rather than guessed at.** The remaining candidates are the
+crossover filter and the `REPEAT_P` figure-repeat rule, both of which re-weight the draw after the
+`d_from` match. **Measured against the yardstick this is 1.32× the human-human spread — marginal —
+so it does not justify shipping a change on a fifth untested hypothesis.**
+★★**The horizontal gesture (0.004 vs 0.094) is the more interesting half and is untouched by any of
+this**: humans use ←→ nine times more than we do, and it is a distinct feel, not a rounding error.
+
 ### 📐 THE FULL PROPERTY TABLE, EVERY AXIS AGAINST ITS OWN HUMAN-HUMAN SPREAD (163 pairs)
 With `travel` retracted, re-ranked every metric by distance from the human median on the shipped
 config, then measured the yardstick for the one that stood out.

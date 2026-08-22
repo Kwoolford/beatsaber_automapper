@@ -141,6 +141,20 @@ alone; or let the pulse lattice prefer phases whose points carry onsets.
 corpus songs, so it cannot be the default while "map any song" is the goal.
 ⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
 
+## 🟡 P1.2 — WE USE SIX CUT DIRECTIONS, HUMANS USE NINE
+**Largest non-circular gap** (1.32× the human-human spread — marginal, not urgent).
+`vertical 0.773 vs 0.480 · diagonal 0.223 vs 0.415 · horizontal 0.004 vs 0.094`.
+🔴**Four explanations refuted**: the vocabulary HAS the diagonals (34.4 % stationary); 0 fallbacks;
+`_reparity` changes 0 directions; doubles are not the cause (doubles and solo notes have the same
+diagonal share). ⇒**the loss is inside the sampler and is NOT yet explained.**
+★Reachability gradient: from a vertical only 18–31 % of reachable idioms are diagonal; from a
+diagonal, 42–66 %. **Diagonals sustain diagonals — the question is why we never accumulate them.**
+**Next candidates** (untested): the crossover filter and `REPEAT_P`, both of which re-weight after
+the `d_from` match.
+⬜**The horizontal gesture is the bigger and cleaner miss**: ←→ is 9.4 % of human cuts and **0.4 %**
+of ours. Worth its own look — it is a distinct feel rather than a distribution tail.
+**DoD**: diagonal share inside the human-human spread (|Δ| ≤ 0.125) without `viol` rising.
+
 ## 🟢➡️ P1 — LEG 3: 4 OF 6 ORDERINGS, AND `technical` IS OVER-SPECIFIED
 🔴**`travel` and `angle_change` anti-correlate on `width`** (width 1 → p51/p1; width 12 → p19/p73)
 **and `technical` asks for both at p75.** Three width mappings measured on 10 songs: none beats
