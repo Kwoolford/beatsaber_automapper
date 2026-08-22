@@ -26,6 +26,40 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 🔴🔴 CORRECTION TO P0.4: THE SHIFT RESELECTS THE MAP, IT DOES NOT REALIGN IT
+I filed the phase offset as *"every note in every map we have made is placed slightly early"* and
+called it the biggest open map-quality defect. **That framing is wrong**, and two further tests show
+why.
+
+**1. The phase criterion is not biased.** Compared the `R`-optimal phase against one chosen by
+**minimising median snap distance** (a continuous distance, so it cannot saturate the way the last
+test did). Across 12 songs the median **signed** difference is **+0.002 beats** — the two criteria
+disagree per song (|0.058|) but in **random directions**. ⇒`comb_refine` has no systematic early bias.
+
+**2. The shifted build is a DIFFERENT MAP.** Comparing note sets between shift 0 and shift 0.10:
+
+    song     notes@0   notes@0.10   shared beat positions
+    1f333      1222        1362              21.6 %
+    1f767       986        1048              65.3 %
+    1f8d6      1005         850              42.0 %
+    median                                   45.9 %
+
+⇒**Less than half the note positions survive the shift**, and the note count moves by up to ±14 %.
+Sliding the grid changes **which events snap to which slot and which survive dedup**, so the
+comparison was never "the same map, better aligned" — it was **two different maps, one of which
+happened to score better.**
+
+★★**WHAT SURVIVES, AND IT IS STILL WORTH SOMETHING**: the shifted arm scores better on **both**
+independent references, on **16 of 23 songs**, with an inverted-U in both. A reliable, reproducible
+improvement from a grid change is a real signal about the grid — it is just **not** the "our notes
+are early" story, and any fix aimed at the phase estimator would have been aimed at nothing.
+⇒**P0.4 downgraded** from "the biggest open map-quality defect" to *"a grid-phase choice measurably
+affects which events get selected, and our current choice is not the best one on 16/23 songs — cause
+unknown."*
+⚠️**This is the sixth explanation refuted across two defects today.** ★The pattern worth keeping:
+**every one of them died to a test of the mechanism rather than of the effect.** The effect has
+reproduced every time; the stories about why have not.
+
 ### 🔴 THE MECHANISM BEHIND THE PHASE OFFSET IS STILL UNEXPLAINED — MY TEST WAS MALFORMED
 Tried to explain *why* the estimator is early. `comb_refine` picks the phase that maximises circular
 concentration `R` over all onsets, while the map is judged on a hard **50 ms tolerance** — plausible

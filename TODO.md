@@ -141,23 +141,20 @@ alone; or let the pulse lattice prefer phases whose points carry onsets.
 corpus songs, so it cannot be the default while "map any song" is the goal.
 ⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
 
-## 🔴 P0.4 — OUR GRID PHASE IS SYSTEMATICALLY EARLY (the biggest open map-quality defect)
-**Confirmed n=23 on two independent references.** Shifting every bar line +0.05–0.10 beats improves
-`onset_precision` **0.866 → 0.916** AND agreement with the human's own note times **0.645 → 0.686**;
-**16/23 songs improve**. An inverted-U on both, so it is an optimum rather than a metric walked
-uphill. ⇒**every note we place is slightly early**, which is why P0.7 survived four note-selection
-explanations.
-🔴**DO NOT SHIP A BLANKET CONSTANT.** The optimum is broad (0.05 ≈ 0.10) and per-song variable —
-only 6/23 peak at 0.10, so a global shift helps 16 and hurts 7. The standing landmine about blanket
-global shifts applies.
-**Task**: fix the **phase estimator** in `tempo.py`. ⚠️**The mechanism is NOT yet known** — the
-"R-optimal vs tolerance-optimal" hypothesis was tested and the test was malformed (it measured
-onset→slot, which saturates: above ~150 bpm the half-slot is under the 50 ms tolerance, so every
-onset trivially "hits"). Do not assume that explanation. ⚠️This moves every alignment number on record, so it is a deliberate build with a
-re-measurement, not a default flip.
-**DoD**: median |ours − human note times| improves at shift 0 (i.e. the estimator finds what the
-+0.10 probe finds), with no song regressing more than the human-human spread.
-⚠️`--phase-shift` is TEST ONLY and must never be used to make a real map.
+## 🟡 P0.4 — A DIFFERENT GRID PHASE SELECTS A BETTER MAP (cause unknown)
+**Effect CONFIRMED n=23**: shifting the bar grid +0.05–0.10 beats improves `onset_precision`
+0.866 → 0.916 **and** agreement with the human's own note times 0.645 → 0.686, on **16/23 songs**,
+inverted-U on both references.
+🔴🔴**BUT IT IS NOT A REALIGNMENT — RETRACTED.** Only **45.9 %** of note beat positions survive the
+shift and counts move ±14 %: the shift changes **which events snap to which slot**, so this is two
+different maps rather than one map realigned. **"Every note is placed early" was wrong.**
+🔴**And the phase criterion is not biased**: `R`-optimal vs minimum-snap-distance-optimal differ by
+a median **signed** +0.002 beats (random directions). ⇒**a fix aimed at the phase estimator would be
+aimed at nothing.**
+⬜**What is left**: a reproducible grid-dependent selection effect with **no known mechanism**. Worth
+understanding before acting — a per-song phase search is the obvious next probe, but it optimises a
+selection rather than an alignment, which is a different thing to justify.
+⚠️`--phase-shift` stays TEST ONLY.
 
 ## 🟡 P1.2 — WE USE SIX CUT DIRECTIONS, HUMANS USE NINE
 **Largest non-circular gap** (1.32× the human-human spread — marginal, not urgent).
