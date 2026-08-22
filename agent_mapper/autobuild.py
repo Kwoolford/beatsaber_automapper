@@ -326,6 +326,8 @@ def main() -> int:
             kw["crossover"] = sargs["crossover"]
         if "top_k" in sargs:
             kw["top_k"] = sargs["top_k"]
+        if "width" in sargs:
+            kw["width"] = sargs["width"]
         n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
 

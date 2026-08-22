@@ -26,6 +26,34 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 🔴 A STYLE CANNOT SET `width`: THREE MAPPINGS MEASURED, NONE BEATS LEAVING IT ALONE
+`style.build_args` sets `nps`, `crossover` and `top_k` but never **`width`** — which 2026-08-21
+established as the dominant lever on `travel`. Three of the five presets name `travel` as a target,
+so this looked like a clear missing wire. It is not.
+
+**Measured on 10 songs, scored by how many of the six style orderings hold:**
+
+| width mapping | `travel` | `angle_change` | orderings met |
+|---|---|---|---|
+| **none (idiomize default 3)** | 7/10 | **9/10** | **4 of 6** |
+| driven by the `travel` target | **8/10** | **0/10** | 4 of 6 |
+| weighted to `angle_change` | 7/10 | 7/10 | **3 of 6** |
+
+🔴🔴**`width` moves `travel` and `angle_change` in OPPOSITE directions** (width 1 → travel p51 /
+angle p1; width 12 → p19 / p73) **and `technical` asks for BOTH at p75.** Routing travel through
+width inverted `angle_change: flowing < technical` from 9/10 to **0/10**; weighting to angle put
+both at 7/10, which is worse overall than either extreme.
+★★**THE PRESET IS OVER-SPECIFIED, AND THAT IS THE FINDING.** No single vocabulary-width can be both
+high-travel and high-wrist-variety, so a style system built on this one knob **cannot express
+`technical` as written**. ⇒The fix is a **second lever that moves travel without touching cell
+variety** (lane spread is the candidate), not a cleverer mapping of the one that exists.
+✅**Reverted to unset, with the three measurements written into `build_args`** so the next session
+does not re-derive them. ⚠️I could have shipped the travel-driven mapping and reported *"travel
+7/10 → 8/10, DoD closer"* — it scores the same 4 of 6 as doing nothing while silently destroying a
+different ordering. **A change that trades one ordering for another is not progress.**
+✅All five styles still PASS 10/10 throughout — the presets never made defective maps, they just
+could not reach one of their stated targets.
+
 ### ✅ ALL FIVE ELEMENTS NOW SHIP — AND I HAD TO RETRACT "arcs/chains are not a real gap"
 🔴**Retraction from one iteration earlier.** I measured arcs/chains at **0 % of human maps** and
 wrote it off as "v2 corpus — not a real gap". **That reading came from a corpus that is 767 v2 to

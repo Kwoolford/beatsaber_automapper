@@ -126,6 +126,31 @@ def build_args(style: str | dict, reference: dict) -> dict:
         # idiomize.VOCAB_DEPTH.
         p = r["idiom_coverage"]["target_pct"]
         args["top_k"] = 500 if p >= 0.85 else (1000 if p >= 0.5 else 2000)
+    # ★`--width` restricts the draw to the N commonest cells and is the dominant
+    # lever on TRAVEL and idiom breadth — measured 2026-08-21: width 1 reaches
+    # travel at the 51st human percentile with idiom_local at the 2nd, width 12 the
+    # reverse (19th / 65th). Three of the five presets name `travel` as a target and
+    # none of them could reach it until now, because `build_args` never set width.
+    # ⚠️Low width = few distinct cells = hands travel further between repeats; high
+    # width = more variety, less travel. The mapping is deliberately coarse (3 steps)
+    # because the knob itself quantises.
+    # 🔴🔴**`width` IS DELIBERATELY NOT SET FROM A STYLE — measured, three ways.**
+    # width moves `travel` and `angle_change` in OPPOSITE directions (width 1 -> travel
+    # p51 / angle p1; width 12 -> p19 / p73), and `technical` asks for BOTH at p75.
+    # Three mappings tried on 10 songs, scored by how many of the six orderings hold:
+    #
+    #     no width at all (idiomize default 3)   travel 7/10   angle 9/10   -> 4 of 6
+    #     width driven by the travel target      travel 8/10   angle 0/10   -> 4 of 6
+    #     width weighted to angle_change         travel 7/10   angle 7/10   -> 3 of 6
+    #
+    # ⇒**Every mapping is a trade and none beats leaving it alone.** The honest reading
+    # is that `technical` is OVER-SPECIFIED: no single vocabulary-width can be both
+    # high-travel and high-wrist-variety, so a style system built on one knob cannot
+    # express it. ★Fixing this needs a SECOND lever that moves travel without touching
+    # cell variety (e.g. lane spread), not a cleverer mapping of the one we have.
+    # ⚠️Left unset on purpose. Do not "fix" it by reintroducing a mapping — that has
+    # now been measured three times and each version trades one ordering for another.
+
     return args
 
 

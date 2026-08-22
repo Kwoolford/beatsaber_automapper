@@ -141,7 +141,15 @@ alone; or let the pulse lattice prefer phases whose points carry onsets.
 corpus songs, so it cannot be the default while "map any song" is the goal.
 ⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
 
-## 🟢➡️ P1 — LEG 3: 5 OF 6 ORDERINGS HOLD, AWAITING HIS EAR ON THE NAMES
+## 🟢➡️ P1 — LEG 3: 4 OF 6 ORDERINGS, AND `technical` IS OVER-SPECIFIED
+🔴**`travel` and `angle_change` anti-correlate on `width`** (width 1 → p51/p1; width 12 → p19/p73)
+**and `technical` asks for both at p75.** Three width mappings measured on 10 songs: none beats
+leaving `width` unset (4 of 6). ⇒**needs a SECOND lever that moves travel without touching cell
+variety** — lane spread is the candidate. Do not re-attempt a width mapping; it has been measured
+three times.
+⚠️`ebpm_burst` remains 0/10 by design — the 150 ms per-hand floor correctly refuses.
+
+## 🟢➡️ P1 — LEG 3 (original): AWAITING HIS EAR ON THE NAMES
 n=10 songs (× 3 seeds where the seed can matter): `nps` 10/10, `crossover` 18/18, `angle_change`
 16/18, `peak_nps` 8/10, `travel` **25/30 (83 %)**. **All styles PASS** (30/30) — a style is reached
 without making defective maps.
