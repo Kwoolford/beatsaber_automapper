@@ -11,45 +11,45 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 📍 CURRENT STATE (2026-08-21, after the overnight agent-suite session)
+## 📍 CURRENT STATE (2026-08-22, after the agent-suite session)
 
-> ★★**FOCUS, set by Kyle 2026-08-20:** *"I want to focus solely on building an agentic map building
-> suite… so good you are highly confident and can manually map any song you'd like and even
-> customize them to whatever style you want."* ⇒**ML-pipeline work is in `🧊 BACKLOGGED` at the
-> bottom. Do not queue it.** ★The test of an item: *does it make the AGENT build or validate a map
-> better?* ⚠️A GPU job here is usually Demucs for the JUDGE, not training — say which.
+> ★★**FOCUS (Kyle, 2026-08-20):** *"focus solely on building an agentic map building suite… map any
+> song you'd like and customize them to whatever style you want."* ML work is in `🧊 BACKLOGGED`.
+> ★**2026-08-22 goal:** *"be confident people will want to play the maps."*
 
-**One command builds and judges any song:**
-`python agent_mapper/autobuild.py <audio> --name X --pulse --lead-bias 0.2`
-→ SEE (`events`+`structure`) → PLAN → BUILD (`mapctl`) → DRESS (`idiomize`) → JUDGE (`mapjudge`).
+**One command:** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2 [--walls 89
+--arcs 90 --chains 16]`  → 📖`agent_mapper/WORKFLOW.md` · 📖`agent_mapper/READING.md` (how to JUDGE
+by reading) · 📖`LISTENING.md` (what to play).
 
-**Measured on the 23-song songset, 23-metric judge with the audio axis:**
+**Measured, 23-song songset, 23-metric judge:** 23/23 PASS · 0 parity violations · 565 tests pass.
 
-    PASS 23/23   p median 0.753   0 maps with violations   562 tests pass
-    pulse_stability 56th pct · role_asymmetry 33rd · nps 44th · idiom_local 51st
-    onset_precision 15th  ← the one axis still clearly short of human
+★★**THE BAR IS THE SPREAD BETWEEN TWO HUMAN MAPPERS** (163 different-mapper pairs), not the human
+map. Two humans agree on the climax only 43 % of the time — much of "different" is taste.
 
-### 🔴 The limits that bound all of it — read before trusting any number above
-1. 🔴🔴🔴**THE VERDICT IGNORES THE AUDIO AXIS.** The judge accepts **65 %** of maps shifted a
-   quarter-beat off the music. The axis SEES it (`onset_precision` AUC 0.898, 21 of 23 metrics at
-   0.500) and the aggregate dilutes it. **This is D2 surviving inside the axis built to catch it.**
-   ⇒**P0.2 below. Until it is fixed, a PASS does not mean the notes are on the music.**
-2. 🔴**A PASS = NOT DEFECTIVE, not GOOD.** It gates at the corpus **median**, which his standing
-   *"target is the best mappers"* makes a **FLOOR**. ★**`rank_score`/`p` are distance-from-typical:
-   ranking by them Goodharts toward the average map. NEVER optimise them.**
-3. ⚠️**`idiomize` is still partly circular** (tuned against judge metrics), though the parity re-fix
-   moved `idiom_local` 98th → 51st percentile, which loosened it considerably.
+| property | ×human-human spread | |
+|---|---|---|
+| legibility / recurrence / crossover | 0.72 – 0.81× | ✅ inside |
+| travel | 1.12× | 🟡 marginal |
+| `vertical_share` | 1.32× | 🟡 marginal, largest non-circular gap |
+| doubles | 1.40× | 🟡 near the taste floor |
+| density | — | ceiling is the song's own event supply |
+
+**Nothing exceeds 1.5×.** All five map elements now ship (notes + walls + arcs + chains + bombs-capable).
+
+### 🔴 The limits that bound all of it
+1. 🔴🔴**A PASS DOES NOT MEAN THE NOTES ARE ON THE MUSIC** — the judge accepts **65 %** of maps
+   shifted a quarter-beat off. Read `onset_precision` yourself. ⇒**P0.2, needs Kyle.**
+2. 🔴**A PASS = NOT DEFECTIVE, not GOOD**; a **FAIL can mean NOT TYPICAL, not bad** (P0.1).
+   Never rank by `p` — human maps score p median 0.455, ours 0.5–0.75; **high p means blander**.
+3. 🔴**Walls, arcs and chains are invisible to all 23 metrics** — only his ear can judge them.
 4. 🔴**Nothing here has reached his ear.** Every number above is a number.
 
 ### ▶️ START THE NEXT SESSION HERE
-1. 🔴🔴**P0.2 — the gate ignores the audio axis.** Biggest open defect, and a **design** decision.
-2. ⬜**Ask him to play `[AUTOBASE]` vs `[AUTOPULSE]` vs `[AUTOLEAD]`** — installed on all four
-   standing songs. Record with `scripts/record_verdict.py`. **This is the real gate.**
-3. 🟡**P0.7** — `onset_precision` 15th pct; the residual is a detector COVERAGE bias (6-stem vs
-   4-stem). The principled fix moves the human baseline ⇒ deliberate decision.
-4. ⬜**`[CROSSOVER]` is still unjudged** — oldest open question on the board.
-5. ⬜**Ask for the best-mapper list** — leg 3 needs it to aim above the corpus median. ⚠️Only when
-   he is AT the machine; never block an overnight run on it.
+1. ⬜**His verdict on `[V2]` vs `[FULL]`** (Fallen Kingdom) — see `LISTENING.md`. Settles a
+   three-day-old question no metric can touch.
+2. 🔴**P0.1 and P0.2 are his decisions** — both change what a PASS means.
+3. 🟡**P0.4** — a grid-phase change reliably selects a better map on 16/23 songs, cause unknown.
+4. ⬜**Approve the map cleanup** in `LISTENING.md` — 78 arms are installed, ~40 superseded.
 
 ---
 
@@ -92,19 +92,6 @@ per-axis mean, per-axis max, **Fisher / higher criticism**. ★The current aggre
 replacement I built — the fix is to ADD a term, not replace the combination.
 ⚠️**Not Goodharting**: alignment answers a *qualitatively different* question the other 21 metrics
 cannot; `alignment.py` records five axes passing a map 5/5 while it sat off the beat.
-
-## ✅➡️ P0.5 — PULSE: FIXED AND VALIDATED, AWAITING HIS EAR
-**Built 2026-08-20 evening: `agent_mapper/pulse.py`, `--pulse` on `mapctl auto` / `autobuild`.**
-Full numbers in PROGRESS.md. n=23: `pulse_stability` 0.329 (6th pct) → **0.637 (71st)**,
-`dominant_share` 0.362 → **0.495**, `ioi_switch_rate` 25.9 → **12.5**, `ioi_cond_entropy` 0.680 →
-**0.505**, lift over each map's own shuffle 0.074 → **0.273**, `n_notes` 641 → **711** (rose).
-**23/23 still PASS.** All three DoD terms met.
-⬜**THE ONLY THING LEFT IS HIS EAR.** Installed as **`AUTO <song> [AUTOBASE]` vs `[AUTOPULSE]`** on
-all four standing songs. Record with `scripts/record_verdict.py`.
-⬜**Then decide the default.** Left OFF deliberately — it has not been heard.
-⚠️**It overshoots to the RIGID side**: lift 0.273 vs the human 0.167, `pulse_stability` past the
-95th pct on 5/23 songs. If he says "too mechanical", that is the knob — `MAX_EMPTY_RUN` and the
-syncopation-restore threshold in `pulse.py`, not the phrase length.
 
 ## 🟡➡️ P0.6 — HAND ROLE: LEVER CONFIRMED, OPERATING POINT UNDER-CONSTRAINED
 ✅**The lever is real at 3 seeds**: `role_asymmetry` arm gap 60.8 pts vs a 47.5-pt seed spread;
@@ -182,17 +169,6 @@ leaving `width` unset (4 of 6). ⇒**needs a SECOND lever that moves travel with
 variety** — lane spread is the candidate. Do not re-attempt a width mapping; it has been measured
 three times.
 ⚠️`ebpm_burst` remains 0/10 by design — the 150 ms per-hand floor correctly refuses.
-
-## 🟢➡️ P1 — LEG 3 (original): AWAITING HIS EAR ON THE NAMES
-n=10 songs (× 3 seeds where the seed can matter): `nps` 10/10, `crossover` 18/18, `angle_change`
-16/18, `peak_nps` 8/10, `travel` **25/30 (83 %)**. **All styles PASS** (30/30) — a style is reached
-without making defective maps.
-★★**`ebpm_burst` is the playability floor correctly REFUSING** (median gap exactly 0.000, pinned by
-the 150 ms per-hand floor from 31 723 human gaps). **Do not "fix" it by lowering the floor.**
-⚠️**`travel` is AT the bar, not comfortably past it** — and 7/10 (1 seed) vs 25/30 (3 seeds) are not
-resolvably different rates, so *"seeds rescued it"* is NOT established.
-⬜**What is left is his ear**: the preset NAMES are conventions over a continuum, not discoveries.
-Ask which corner of the space he'd call "flowing".
 
 ## ⚠️ SEEDS ON THE AGENT PATH — READ BEFORE QUOTING ANY "n SEEDS" NUMBER
 **10 of 23 metrics are seed-INVARIANT by construction** — every time-domain one (`nps`, `peak_nps`,
