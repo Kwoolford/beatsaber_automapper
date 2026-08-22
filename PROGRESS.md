@@ -26,6 +26,39 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### ★★ GRID FIT `r` IS THE STRONGEST PREDICTOR OF MAP QUALITY FOUND SO FAR — AND MY DOC'S
+THRESHOLD WAS INVENTED
+Followed up the bpm doubling seen in the dogfood. **BPM detection is fine: 21 of 23 songset songs
+match the mapper's declared bpm exactly** (one HALF, one 1.5×). But the grid fit `r` came back with
+a median of **0.303**, and `WORKFLOW.md` — which I wrote — says *"below ~0.35 the bar lines are
+wrong and no amount of note editing fixes it"*. That would condemn 14 of 23 maps.
+
+🔴**THE 0.35 WAS MINE AND IT IS NOT THE REAL THRESHOLD.** `tempo.py` defines
+**`R_TRUST = 0.10`** — *"below this, the grid has no real relationship to the music"*. The 0.35 is
+`brief.py`'s **display** warning, which I read off a printout during the first dogfood and wrote up
+as a correctness threshold. **Every songset song is above the real floor** (min 0.171). ★*A number
+copied from a display string is not a specification.*
+
+★★**BUT `r` IS NOT COSMETIC — IT PREDICTS THE MAP.** n=23:
+
+    corr(r, onset_precision) = +0.575      corr(r, judge p-value) = +0.465
+    r < 0.30  (n=11)  onset_precision 0.781
+    r >= 0.30 (n=12)  onset_precision 0.882
+
+⇒**A 0.10 gap in `onset_precision` between the well-fitted and poorly-fitted halves of the songset**
+— comparable in size to the entire `vertical_share` defect, and **the strongest single predictor of
+map quality measured on this project.**
+★★**THIS PARTLY EXPLAINS P0.7**, which I closed as *"not yet explained"* on 2026-08-21 after
+refuting the grid snap, the lattice fill and the detector mismatch as sole causes. **A weak tempo fit
+puts the whole bar grid slightly off the music, so every note inherits the error** — which is
+exactly the shape of a defect that survives every note-selection fix.
+⚠️**n=23 and correlational.** It does not establish direction: a song whose onsets are hard to fit
+may also be a song whose events are hard to hit, so the fit and the precision could share a cause
+rather than one driving the other. ⬜**The test that would separate them**: build the same song on a
+deliberately mis-fitted grid and see whether `onset_precision` follows.
+✅**`WORKFLOW.md` corrected** to state the real floor (0.10), that `brief.py` warns at 0.35 as a
+soft flag, and that low `r` predicts a weaker map without condemning it.
+
 ### ✅ SECOND DOGFOOD: A COLD SONG AT THE WORST TEMPO, BUILT WITH EVERY ELEMENT
 The skill is the deliverable and it had drifted again — `WORKFLOW.md` and `SKILL.md` mentioned
 **none** of walls, arcs, chains, `--doubles-rate` or `--accent-slots`, all added since the first

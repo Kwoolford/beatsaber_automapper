@@ -66,9 +66,18 @@ judgement call with a weak prior; say so in the plan rather than reading it off 
 were unusable (lyrics hallucinated, structure untrusted, energy flat `####` on every
 phrase) — writing that down first stopped all three from silently steering the map.
 
-⚠️**`init` prints a grid fit `r`.** Below ~0.35 the bar lines are wrong and **no amount
-of note editing fixes it**. The dogfood song was `r=0.364` — *just* above the floor, so
-the grid was usable but marginal. Treat 0.35–0.45 as "check a bar by eye before trusting it".
+⚠️**`init` prints a grid fit `r`, and two different numbers matter.**
+- **`R_TRUST = 0.10`** (`tempo.py`) is the real floor: below it *"the grid has no real relationship
+  to the music"* and the map is not worth building. **Every songset song clears it** (min 0.171).
+- **`brief.py` flags `⚠️weak` below 0.35**, which is a soft display warning, NOT a correctness
+  threshold. The songset median is **0.303**, so most songs show it. 🔴An earlier version of this
+  doc reported the 0.35 as "the bar lines are wrong" — that was a display string mistaken for a
+  specification.
+
+★**Low `r` does predict a weaker map, though**: across 23 songs `corr(r, onset_precision) = +0.575`,
+and the `r < 0.30` half scores **0.781** against **0.882** for the rest. ⇒**Expect a poorly-fitted
+song to land its notes less precisely on the music, and say so in the plan** rather than treating it
+as a failure. ⚠️Correlational at n=23; fit quality and hit-ability may share a cause.
 
 ---
 
