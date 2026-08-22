@@ -26,6 +26,32 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 🔴 THE MECHANISM BEHIND THE PHASE OFFSET IS STILL UNEXPLAINED — MY TEST WAS MALFORMED
+Tried to explain *why* the estimator is early. `comb_refine` picks the phase that maximises circular
+concentration `R` over all onsets, while the map is judged on a hard **50 ms tolerance** — plausible
+that the two optima differ. Swept the phase and compared the `R`-optimal against the
+"tolerance-optimal" position.
+
+🔴🔴**THE TEST WAS WRONG AND SAID SO ITSELF.** `hit@tol` came back **exactly 1.000 on 7 of 12
+songs**, with the argmax pinned at the sweep boundary (−0.500). ★*A metric that saturates has no
+meaningful argmax* — the project's own "a tie to N decimals is a construction" rule, arriving in a
+new place. The median difference of **−0.100 beats** looked like a beautiful match for the empirical
++0.10 optimum **and is an artifact**: it is the median of argmaxes that mostly ran off the edge.
+
+★**Why it saturated — worth keeping, because it is a real property of the tolerance:** I measured
+*share of ONSETS within 50 ms of a grid SLOT*, but `onset_precision` measures *share of our NOTES
+within 50 ms of an ONSET*. **Different directions.** And the first one is degenerate at speed: a
+1/4-beat slot is 79.8 ms at 188 bpm and 93.8 ms at 160 bpm, so the **half-slot is under 50 ms and
+every onset is trivially within tolerance of some slot.**
+⇒**On songs above ~150 bpm, "is this onset near a grid slot" carries no information.** Any future
+alignment metric measured in that direction is dead on arrival for fast songs.
+
+✅**The empirical finding is unaffected** — it came from building real maps and scoring their notes,
+not from this sweep. **P0.4 stands: +0.05–0.10 beats improves both references, 16/23 songs.**
+⬜**The mechanism remains unexplained**, and is now recorded as such rather than filled with a
+plausible story. ★*A mechanism that matches the magnitude of the effect is exactly the kind of
+explanation worth double-checking, because it is the one you want to be true.*
+
 ### ★★★ OUR GRID PHASE IS SYSTEMATICALLY ~0.05–0.10 BEATS EARLY — CONFIRMED ON TWO INDEPENDENT
 REFERENCES, n=23
 Built `--phase-shift` to DEGRADE the grid on purpose and settle whether `corr(fit r,

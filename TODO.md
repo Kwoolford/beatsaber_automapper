@@ -150,8 +150,10 @@ explanations.
 🔴**DO NOT SHIP A BLANKET CONSTANT.** The optimum is broad (0.05 ≈ 0.10) and per-song variable —
 only 6/23 peak at 0.10, so a global shift helps 16 and hurts 7. The standing landmine about blanket
 global shifts applies.
-**Task**: fix the **phase estimator** in `tempo.py` — its least-squares fit is evidently biased
-early. ⚠️This moves every alignment number on record, so it is a deliberate build with a
+**Task**: fix the **phase estimator** in `tempo.py`. ⚠️**The mechanism is NOT yet known** — the
+"R-optimal vs tolerance-optimal" hypothesis was tested and the test was malformed (it measured
+onset→slot, which saturates: above ~150 bpm the half-slot is under the 50 ms tolerance, so every
+onset trivially "hits"). Do not assume that explanation. ⚠️This moves every alignment number on record, so it is a deliberate build with a
 re-measurement, not a default flip.
 **DoD**: median |ours − human note times| improves at shift 0 (i.e. the estimator finds what the
 +0.10 probe finds), with no song regressing more than the human-human spread.
