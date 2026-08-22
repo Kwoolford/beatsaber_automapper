@@ -26,6 +26,29 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### ⚠️ THE 9-nps FAILURE IS THE JUDGE WORKING CORRECTLY — AND IT CONFLICTS WITH WHAT KYLE PLAYS
+The one map that fails at `--nps 9.0` is **`1f65d`**, and its worst metric is **`nps` at the 97.1st
+human percentile**. It has **0 violations** and nothing else is wrong with it. The judge is not
+broken: it gates against the human corpus, and 7.26 nps is genuinely rare there.
+
+**The human corpus, n=1 100 maps:**
+
+    5th  2.73 · 25th 3.59 · median 4.16 · 75th 4.90 · 95th 6.77 · 99th 8.53 nps
+    the judge starts rejecting around 7.18 nps
+
+★★**THIS IS A REAL CONFLICT, NOT A BUG.** Kyle: *"I like playing fast songs and have been playing
+faster ones lately… the objective is to be able to map whatever difficulty we want."* **A map he
+would enjoy at the 97th percentile is one the gate calls defective**, because the gate's whole
+construction is *"is this typical of the corpus?"*.
+⇒**The judge cannot validate a deliberately-hard map.** It is a defect detector calibrated on the
+median, and it was already known that *a PASS means NOT DEFECTIVE, not GOOD* — this is the same
+limitation biting from the other end: **a FAIL can mean NOT TYPICAL rather than BAD.**
+⬜**Needs his decision, not mine**: when a density is requested explicitly, should the judge
+(a) keep gating `nps` against the corpus, (b) exempt `nps`/`peak_nps` when `--nps` is given, or
+(c) gate against the corpus *conditioned on* the requested difficulty? ⚠️Option (b) is the easy one
+and the most dangerous — it removes the only guard against runaway density.
+✅**Everything else stays clean at 9 nps**: 0 violations on all 8 songs, `onset_precision` 0.806.
+
 ### 🔬 BUT DELIVERY STILL DEGRADES, AND THE CAUSE IS NOT WHAT I FIRST SAID
 Sweep, 8 songs × 3 requested densities:
 

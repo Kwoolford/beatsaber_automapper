@@ -53,6 +53,22 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
+## 🔴 P0.1 — THE JUDGE CANNOT VALIDATE A DELIBERATELY-HARD MAP (needs Kyle's call)
+`--nps 9.0` on `1f65d` produces a map whose only problem is **`nps` at the 97.1st human
+percentile** — 0 violations, nothing else out of range. The gate asks *"is this typical?"*, so a
+map Kyle would enjoy is one it calls defective.
+**Human corpus (n=1100):** 5th 2.73 · median 4.16 · 95th 6.77 · 99th 8.53 nps; the gate starts
+rejecting near **7.18**.
+★**His stated taste is the conflict**: *"I like playing fast songs… map whatever difficulty we
+want."* ⇒**A FAIL here means NOT TYPICAL, not BAD** — the mirror of the standing rule that a PASS
+means not-defective rather than good.
+**Options** (his choice, not mine): (a) keep gating `nps` against the corpus; (b) exempt
+`nps`/`peak_nps` when a density is explicitly requested; (c) gate conditioned on the requested
+difficulty. ⚠️**(b) is easiest and most dangerous** — it removes the only guard against runaway
+density, and 6.18 nps is the number he once called unplayable.
+**DoD**: a requested-difficulty map is judged on everything EXCEPT the density it was asked for,
+without that exemption silently applying to maps where no density was requested.
+
 ## 🟡 P0.2 — SOLVED IN PRINCIPLE, ONE DECISION LEFT (Kyle's)
 **The judge accepts 65 % of maps a quarter-beat off the music** (`offbeat` control; 21 of 23 metrics
 score AUC 0.500, only alignment sees it). ✅**The fix is an UNDILUTED alignment floor** — the one
