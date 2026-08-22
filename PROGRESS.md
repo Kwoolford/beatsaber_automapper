@@ -26,6 +26,39 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 🔴🔴 WE SHIPPED ZERO WALLS, AND NO METRIC COULD EVER HAVE TOLD US
+Looked for defects the suite is structurally blind to, since every measurable gap is now at or near
+its floor. **The suite scores notes and nothing else** — adding 84 walls + 48 arcs + 16 chains moves
+every axis by **exactly 0.000** (PROGRESS 2026-08-19g). Measured the five map elements directly:
+
+| element | ours (median) | human (median) | human maps with >0 |
+|---|---|---|---|
+| notes | 969 | 1012 | 100 % |
+| **walls** | **0** | **89** | **96 %** |
+| arcs / chains / bombs | 0 | 0 | 0 % (v2 corpus — not a real gap) |
+
+★**`agent_mapper/walls.py` was BUILT on 2026-08-19** against 16 504 vanilla human walls, with the
+idiom measured (median 84/map, 0.12 beats, 90 % one lane, 93 % outer lane) — **and never wired into
+`autobuild`.** Every map the agent has produced is missing an entire physical layer. ⚠️This is the
+Fallen Kingdom *"really empty"* complaint's only untested candidate cause, and five instruments
+failed to explain it because **every one of them looked at notes.**
+
+### 🔴 AND THE FIRST WIRING WAS UNPLAYABLE — CAUGHT BY ONE CHECK, INVISIBLE TO EVERY METRIC
+Placing walls before `idiomize` produced **12 notes trapped inside an active wall** on 1f8d6 —
+literally unplayable. `walls.py` chooses lanes no note occupies, but **`idiomize` REDRAWS every
+note's column afterwards**, so the layout the walls avoided is not the layout that ships.
+★★**The map looked correct on every number available**: lanes 45/44 across the two outer lanes
+(human 93 % outer), median duration 0.17 beats (human 0.12), width-1 share 100 % (human 90 %). Only
+an explicit note-inside-wall collision check found it.
+✅**Fixed by moving walls after `idiomize`** — 0 trapped notes on all four review songs.
+✅**`tests/test_walls_playable.py`** pins it permanently (3 tests: no trapped note on a dense
+every-lane map, walls stay in outer lanes, and a map with every lane busy gets no unplayable walls).
+**565 tests pass.**
+✅**Isolation invariant holds**: p-values are IDENTICAL to the wall-less builds (0.315 / 0.501 /
+0.379 / 0.604) because walls do not touch notes — which is also exactly why no axis can judge them.
+📦**Installed as `AUTO <song> [WALLS]`** on all four standing songs. ⚠️**Only his ear can judge
+this** — there is no metric, by construction.
+
 ### 🟡 DOUBLES: RATE AND PLACEMENT SEPARATED, AND THE RESIDUAL IS TASTE NOT ERROR
 Reading found three differences from human doubles: ours were **3.4× rarer**, **100 % exactly on a
 beat** (human 0.635), and spaced **2.3× further apart**. The 100 %-on-beat is the mechanical feel.

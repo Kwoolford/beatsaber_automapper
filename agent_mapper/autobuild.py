@@ -258,6 +258,10 @@ def main() -> int:
                     help="slots eligible for doubles. The eighth-note set matches the "
                          "human on-beat share (0.64 vs 0.635); `0,8` pins 100%% of "
                          "doubles exactly on a beat, which is the mechanical feel")
+    ap.add_argument("--walls", type=int, default=0,
+                    help="add N walls (0 = none). Human median is 89 and 96%% of human "
+                         "maps have them; we shipped zero until 2026-08-22. ⚠️No metric "
+                         "in the suite can see walls — only his ear can judge them")
     ap.add_argument("--doubles-rate", type=float, default=0.3,
                     help="fraction of eligible accent slots that become doubles. 0.3 "
                          "measured n=23: rate 0.166 vs human 0.237, 23/23 PASS. 0.5 "
@@ -318,6 +322,25 @@ def main() -> int:
             kw["top_k"] = sargs["top_k"]
         n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
+
+    # ★★WALLS — the element 96 % of human maps have and we shipped ZERO of.
+    # Measured 2026-08-22 over the same 23 songs: human median **89 walls per map**,
+    # ours **0**. `walls.py` was built on 2026-08-19 against 16 504 vanilla human walls
+    # and never wired into this loop, so every map the agent has produced is missing a
+    # whole physical layer. 🔴**No metric can see this** — adding 84 walls + 48 arcs +
+    # 16 chains moves every axis by exactly 0.000, because the suite scores notes and
+    # nothing else. That is precisely why it went unnoticed for three days.
+    # 🔴🔴**MUST RUN AFTER `idiomize`.** `walls.py` places each wall in a lane no note
+    # occupies, but `idiomize` REDRAWS every note's column afterwards — so walls chosen
+    # against the pre-idiomize layout end up on top of notes. Measured on the first
+    # attempt: **12 notes trapped inside an active wall**, i.e. unplayable, while the
+    # lane/duration/width statistics all still matched the human idiom perfectly.
+    # ★Only the collision check caught it; no axis in the suite can see walls at all.
+    if a.walls:
+        import walls as W
+        n_walls = W.add_walls(out, out, per_map=a.walls, seed=a.seed)
+        print(f"\n=== WALLS")
+        print(f"  added {n_walls} walls (human median 89; 96 % of human maps have them)")
 
     print(f"\n=== JUDGE")
     res = mj.judge_zip(out, reference=ref)
