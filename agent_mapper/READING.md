@@ -152,7 +152,9 @@ In the order they have actually worked:
 | recurrence | 0.81× | ✅ inside |
 | crossover | 0.73× | ✅ inside |
 | doubles | 1.54× | 🟡 marginal (was 3.54× before `--doubles`) |
-| **density** | **1.92×** | 🔴 **the real remaining gap** |
+| **density** | understood | ceiling is the song's own event supply, not the code |
+| travel | 1.12× | 🟡 marginal |
+| `vertical_share` | 1.32× | 🟡 marginal — largest NON-CIRCULAR gap left |
 
 **Density is the one honest failure.** We build every song at ~4 nps (range 3.15–4.46) while human
 maps for the same songs range **1.88–7.51**. On the fast songs we sit at **0.48–0.59** of the

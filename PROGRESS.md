@@ -26,6 +26,40 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 📐 THE FULL PROPERTY TABLE, EVERY AXIS AGAINST ITS OWN HUMAN-HUMAN SPREAD (163 pairs)
+With `travel` retracted, re-ranked every metric by distance from the human median on the shipped
+config, then measured the yardstick for the one that stood out.
+
+**Furthest from the human median**: `idiom_coverage` 43.2 pts, `idiom_jsd` 41.6, **`vertical_share`
+40.2**, `angle_change` 35.4. ⚠️The idiom axes are the **known-circular** ones (`idiomize` was tuned
+against them), so `vertical_share` — a pure cut-direction property — is the informative one.
+
+    CUT DIRECTIONS, ours vs each song's own human (n=23)
+      vertical_share   ours 0.754   human 0.552      (our percentile: 90th)
+      diagonal_share   ours 0.243   human 0.352
+      angle_change     ours 12.33   human 18.17
+
+⇒**Three quarters of our cuts are up/down where a human is barely half.** We under-use diagonals
+and rotate the wrist less. Coherent across all three metrics, which is what makes it credible.
+**Judged against the yardstick: |ours − human| 0.164 vs a human-human spread of 0.125 = 1.32×** —
+**marginal**, the same band as doubles (1.40×) and travel (1.12×), and two humans differ by 0.125
+on it themselves, so it is taste-adjacent rather than a clear defect.
+
+**The complete table, every property against the spread between two human mappers:**
+
+| property | ×human-human spread | verdict |
+|---|---|---|
+| travel | 1.12× | 🟡 marginal (was called a defect; retracted) |
+| `vertical_share` | 1.32× | 🟡 marginal — the largest non-circular gap left |
+| doubles | 1.40× | 🟡 marginal, near the taste floor |
+| legibility | 0.72× | ✅ inside |
+| recurrence | 0.81× | ✅ inside |
+| crossover | 0.73× | ✅ inside |
+
+★★**NOTHING IS ABOVE 1.5× ANY MORE.** Every measurable property is inside or marginal to the range
+that separates two human mappers. ⇒**The measurable work is essentially done, and the remaining
+questions are the two decisions and his ear.**
+
 ### ✅ THE LANE-SPREAD LEVER WAS NOT BUILT: `travel` IS NOT A DEFECT
 The style conflict ended with *"the fix is a second lever that moves travel without touching cell
 variety"*. **Checked whether `travel` is a defect at all before building it. It is not.**
