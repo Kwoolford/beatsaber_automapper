@@ -151,8 +151,13 @@ diagonal share). ⇒**the loss is inside the sampler and is NOT yet explained.**
 diagonal, 42–66 %. **Diagonals sustain diagonals — the question is why we never accumulate them.**
 **Next candidates** (untested): the crossover filter and `REPEAT_P`, both of which re-weight after
 the `d_from` match.
-⬜**The horizontal gesture is the bigger and cleaner miss**: ←→ is 9.4 % of human cuts and **0.4 %**
-of ours. Worth its own look — it is a distinct feel rather than a distribution tail.
+🔴**RETRACTED: the horizontal gesture is NOT a miss.** The 9.4 % figure came from ONE song; across
+109 human maps it is **3.2 %**, and on the 23-song cohort human 0.019 vs ours 0.001 = **|Δ| 0.016**,
+negligible. ★*The page proposes, only the cohort disposes* — generalised from one song again, one
+iteration after writing that rule down.
+🔴**AND THE DIAGONAL GAP IS INSIDE THE HUMAN SPREAD**: |Δ| 0.099 vs a 0.106 spread over 163 pairs.
+⇒**The ONLY real cut-direction quantity is vertical over-use** (|Δ| 0.164 vs spread 0.125 = 1.32×,
+marginal). Do not build a horizontal or diagonal lever.
 **DoD**: diagonal share inside the human-human spread (|Δ| ≤ 0.125) without `viol` rising.
 
 ## 🟢➡️ P1 — LEG 3: 4 OF 6 ORDERINGS, AND `technical` IS OVER-SPECIFIED

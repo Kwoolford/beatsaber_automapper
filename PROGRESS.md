@@ -26,6 +26,35 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 🔴 CORRECTION: THE "MISSING HORIZONTAL GESTURE" WAS A ONE-SONG ARTIFACT, AND THE DIAGONAL
+GAP IS INSIDE THE HUMAN SPREAD
+I ended the previous iteration calling the horizontal cut *"the bigger and cleaner miss — 9.4 % of
+human cuts against our 0.4 %"* and queued it as the next build. **Both halves were wrong.**
+
+    measured across 109 human maps / 95 046 notes:  horizontal = 0.032
+    measured across the 23-song cohort:             human 0.019, ours 0.001,  |Δ| 0.016
+
+**The 9.4 % came from ONE SONG (1f767).** ★I wrote *"the page proposes, only the cohort disposes"*
+into READING.md as habit #0 one iteration earlier, and then generalised from a single song again in
+the very next one. **Knowing the failure mode does not prevent it; only running the cohort does.**
+
+**The corrected cohort picture:**
+
+| | vertical | diagonal | horizontal | dot |
+|---|---|---|---|---|
+| ours | 0.754 | 0.243 | 0.001 | 0.000 |
+| human | 0.552 | 0.352 | 0.019 | 0.018 |
+| \|Δ\| | **0.164** | 0.099 | 0.016 | 0.018 |
+
+★★**AND THE DIAGONAL GAP IS INSIDE THE HUMAN-HUMAN SPREAD**: |Δ| **0.099 against a spread of
+0.106** measured over 163 different-mapper pairs. ⇒**Diagonals are not a defect either.** The whole
+of the last two iterations' cut-direction hunt reduces to **one** real quantity: we over-use
+vertical cuts by 0.164 against a human-human spread of 0.125 (**1.32×, marginal**).
+✅**Nothing here justifies a change**, and the four refuted mechanisms plus this correction are why
+that is now a measured statement rather than a shrug.
+⬜The `dot` gesture (0.018 vs 0.000) is the one thing we genuinely never emit, but at |Δ| 0.018 it
+is the smallest gap on the board.
+
 ### 🔬 `vertical_share`: FOUR EXPLANATIONS REFUTED, AND THE GAP IS INSIDE THE SAMPLER
 Largest non-circular gap on the shipped config. **Humans use all nine cut directions; we
 effectively use six.**
