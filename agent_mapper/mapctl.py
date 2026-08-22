@@ -148,6 +148,14 @@ def cmd_init(a) -> int:
     # already inside the alignment tolerance, so those songs must come out
     # BYTE-IDENTICAL and this must not touch them.
     subdiv = SUBDIV
+    # ★A DELIBERATE grid degradation, for the causal test only. Slides every bar line
+    # by a fraction of a beat while leaving the music untouched, so a build can be
+    # compared against itself with only the grid quality changed.
+    # ⚠️Never use this to make a real map — it exists to answer whether the measured
+    # `corr(fit r, onset_precision) = +0.575` is causal or a shared cause.
+    if getattr(a, "phase_shift", 0.0):
+        g = dict(g, phase=g["phase"] + float(a.phase_shift) * g["spb"])
+        print(f"  ⚠️phase shifted {a.phase_shift:+.2f} beats — DEGRADED GRID, test only")
     if getattr(a, "adaptive_subdiv", False) and g["bpm"] < 150.0:
         subdiv = 8
         g = dict(g, slot=g["spb"] / subdiv)
@@ -1052,6 +1060,9 @@ def main() -> int:
     p = sub.add_parser("init")
     p.add_argument("--fresh", action="store_true",
                    help="discard any existing notes for this session name")
+    p.add_argument("--phase-shift", type=float, default=0.0,
+                   help="TEST ONLY: slide every bar line by N beats to degrade the "
+                        "grid on purpose. Never use for a real map")
     p.add_argument("--adaptive-subdiv", action="store_true",
                    help="🔴REFUTED 2026-08-21: 1/8-beat slots below 150 bpm make "
                         "onset_precision WORSE on 10 of 10 affected songs and cost "

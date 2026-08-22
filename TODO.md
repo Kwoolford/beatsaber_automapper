@@ -141,6 +141,22 @@ alone; or let the pulse lattice prefer phases whose points carry onsets.
 corpus songs, so it cannot be the default while "map any song" is the goal.
 ⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
 
+## 🔴 P0.4 — OUR GRID PHASE IS SYSTEMATICALLY EARLY (the biggest open map-quality defect)
+**Confirmed n=23 on two independent references.** Shifting every bar line +0.05–0.10 beats improves
+`onset_precision` **0.866 → 0.916** AND agreement with the human's own note times **0.645 → 0.686**;
+**16/23 songs improve**. An inverted-U on both, so it is an optimum rather than a metric walked
+uphill. ⇒**every note we place is slightly early**, which is why P0.7 survived four note-selection
+explanations.
+🔴**DO NOT SHIP A BLANKET CONSTANT.** The optimum is broad (0.05 ≈ 0.10) and per-song variable —
+only 6/23 peak at 0.10, so a global shift helps 16 and hurts 7. The standing landmine about blanket
+global shifts applies.
+**Task**: fix the **phase estimator** in `tempo.py` — its least-squares fit is evidently biased
+early. ⚠️This moves every alignment number on record, so it is a deliberate build with a
+re-measurement, not a default flip.
+**DoD**: median |ours − human note times| improves at shift 0 (i.e. the estimator finds what the
++0.10 probe finds), with no song regressing more than the human-human spread.
+⚠️`--phase-shift` is TEST ONLY and must never be used to make a real map.
+
 ## 🟡 P1.2 — WE USE SIX CUT DIRECTIONS, HUMANS USE NINE
 **Largest non-circular gap** (1.32× the human-human spread — marginal, not urgent).
 `vertical 0.773 vs 0.480 · diagonal 0.223 vs 0.415 · horizontal 0.004 vs 0.094`.

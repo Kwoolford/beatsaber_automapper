@@ -165,8 +165,10 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           pulse_sync: float = 0.3, snap_onsets: bool = False,
           adaptive_subdiv: bool = False, seed: int = 0,
           doubles: bool = False, accent_slots: str = "0,2,4,6,8,10,12,14",
-          doubles_rate: float = 0.3) -> None:
+          doubles_rate: float = 0.3, phase_shift: float = 0.0) -> None:
     init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
+    if phase_shift:
+        init += ["--phase-shift", str(phase_shift)]
     if adaptive_subdiv:
         init += ["--adaptive-subdiv"]
     run(init)
@@ -258,6 +260,8 @@ def main() -> int:
                     help="slots eligible for doubles. The eighth-note set matches the "
                          "human on-beat share (0.64 vs 0.635); `0,8` pins 100%% of "
                          "doubles exactly on a beat, which is the mechanical feel")
+    ap.add_argument("--phase-shift", type=float, default=0.0,
+                    help="TEST ONLY: degrade the grid by N beats (causal probe)")
     ap.add_argument("--walls", type=int, default=0,
                     help="add N walls (0 = none). Human median is 89 and 96%% of human "
                          "maps have them; we shipped zero until 2026-08-22. ⚠️No metric "
@@ -314,7 +318,7 @@ def main() -> int:
           pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
           adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,
           doubles=a.doubles, accent_slots=a.accent_slots,
-          doubles_rate=a.doubles_rate)
+          doubles_rate=a.doubles_rate, phase_shift=a.phase_shift)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

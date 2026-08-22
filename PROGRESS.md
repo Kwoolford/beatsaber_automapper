@@ -26,6 +26,43 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### ★★★ OUR GRID PHASE IS SYSTEMATICALLY ~0.05–0.10 BEATS EARLY — CONFIRMED ON TWO INDEPENDENT
+REFERENCES, n=23
+Built `--phase-shift` to DEGRADE the grid on purpose and settle whether `corr(fit r,
+onset_precision) = +0.575` was causal. It found an improvement instead.
+
+    phase shift      vs detected onsets      vs the HUMAN's own note times
+      0.00                 0.866                        0.645
+      0.05                 0.901                        0.685
+      0.10                 0.916                        0.686
+      0.15                 0.901                        0.655
+
+★★**A clean inverted-U on BOTH references** — this is an optimum, not a metric being walked uphill.
+**16 of 23 songs improve at +0.10.**
+★★**AND IT SURVIVES THE TEST BUILT TO KILL IT.** The standing landmine says *"never apply a blanket
+global shift — that is an onset-detector offset, and fixing it is the `h_dist` failure."* Shifting
+notes to match a detector's own latency flatters `onset_precision` while making the map no better.
+**So it was checked against the HUMAN's note times, which our detector cannot influence — and the
+improvement holds there too** (0.645 → 0.686). ⇒**not the Goodhart trap.** ★*When a landmine warns
+you off a result, the answer is an independent reference, not abandoning the result.*
+⇒**Every note in every map we have made is placed slightly early.** That is a defect that survives
+every note-SELECTION fix, which is exactly why P0.7 resisted four separate explanations.
+
+⚠️**WHAT THIS DOES NOT LICENSE — a blanket constant.** The optimum is **broad** (0.05 and 0.10 tie
+on the human reference at 0.685/0.686) and **per-song variable: only 6 of 23 peak exactly at 0.10**.
+A global +0.10 would help 16 songs and hurt 7. ⇒**The fix belongs in the PHASE ESTIMATOR**
+(`tempo.py`'s least-squares fit, which is evidently biased early), **not in a constant added
+afterwards.** ⬜Not shipped: changing the estimator moves every number in this file, so it is a
+deliberate build, not an overnight default flip.
+⚠️**n=1 nearly misled me twice here**: the 4-song probe showed +0.10 as a clear winner with one
+dissenting song; the cohort shows the dissent was the honest signal about breadth, not noise.
+✅**`--phase-shift` kept as a TEST-ONLY flag**, marked as such in both `mapctl` and `autobuild`.
+⚠️**And the confound that nearly inverted this**: the first version wrote the shift into
+`session.json` after `init`, but `autobuild` calls `init --fresh` itself and would have **overwritten
+it, making every arm identical** — a flat line read as "not causal". Caught by checking `autobuild`
+before running. ★*Same shape as the session-merge bug: a setup step silently undoing the thing under
+test.*
+
 ### ★★ GRID FIT `r` IS THE STRONGEST PREDICTOR OF MAP QUALITY FOUND SO FAR — AND MY DOC'S
 THRESHOLD WAS INVENTED
 Followed up the bpm doubling seen in the dogfood. **BPM detection is fine: 21 of 23 songset songs
