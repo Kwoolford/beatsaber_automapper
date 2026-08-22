@@ -94,6 +94,8 @@ score. It faked a PASS-rate regression on 2026-08-20.
 | `--pulse` | each phrase holds ONE interval | on | `pulse_stability` 6th → 56th percentile |
 | `--lead-bias` | a hand leads a passage | **0.2** | `role_asymmetry` 1st → 33rd pct. **0.3 overshoots**; mode is `cyclic` (deterministic) |
 | `--target-notes N` | search the accent percentile until N **distinct grid slots** survive | the section's budget | the budget is spent in SLOTS, not events; colliding events collapse |
+| `--doubles-rate` | fraction of eligible accent slots that become doubles | **0.3** | rate and placement are separate: `--accent-slots` sets WHERE (eighth-notes match the human 0.635 on-beat share), this sets HOW MANY |
+| `--nps N` | the density target | 4.17 (human median) | ⚠️**bounded by the song, not the code** — see below |
 
 ★**`--snap-onsets`** moves each event onto the nearest onset the JUDGE recognises. It needs
 cached onsets (§4) and only helps where they exist.
@@ -118,6 +120,32 @@ python agent_mapper/mapctl.py reuse drive --label D    # --vary defaults to 0.15
 there is nothing to reuse. That is not a bug; plan by density instead.
 
 ---
+
+## 3c. THE OTHER FOUR MAP ELEMENTS — a map is not only notes
+
+```bash
+python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2 \
+    --walls 89 --arcs 90 --chains 16
+```
+
+🔴🔴**Until 2026-08-22 every map this agent produced contained notes and NOTHING ELSE**, while
+**96 % of human maps have walls** (median 89) and, among v3 maps where they can exist, **100 % have
+arcs** (median 90) and **71 % have chains** (median 16). `walls.py`, `arcs.py` and `chains.py` were
+all built, measured against the human corpus, and never wired in.
+
+⚠️**NO METRIC IN THE SUITE CAN SEE ANY OF THIS.** Adding 84 walls + 48 arcs + 16 chains moves every
+axis by **exactly 0.000** — the judge scores notes only. The p-value is *identical* with and without
+them. ⇒**Only his ear can say whether they help**, and a `[NOTES]` vs `[FULL]` pair is the way to ask.
+
+★**The counts are a request, not a promise.** A short or dense song gets fewer: on a 39-second song
+`--walls 89 --arcs 90` produced **56 walls and 73 arcs**, because a wall may only go where no note
+is and the song ran out of room. That is correct behaviour, not a failure.
+
+🔴**A wall a note sits inside is unplayable, and nothing else checks it.** `walls.py` places walls
+in lanes no note occupies — but `idiomize` REDRAWS every note's column afterwards, so walls must be
+added **after** it. Doing it the other way produced **12 trapped notes** on a map whose lane,
+duration and width statistics all still matched the human idiom perfectly.
+`tests/test_walls_playable.py` pins this; run it after touching wall placement.
 
 ## 4. VALIDATE — check, then judge
 
@@ -160,6 +188,15 @@ Feedback is about a *place* and a *feeling*. Translate, redo that range only, re
 and is measurable.**
 
 ---
+
+### ⚠️ `--nps` IS BOUNDED BY THE SONG'S OWN EVENTS
+You cannot place a note where no event is. The real ceiling is **how many distinct grid slots the
+song's events occupy**, which ranges **4.69 – 9.22 nps** across the songset — well below the grid's
+own `bpm/60 × 4`. Asking for 9 nps on a song whose events support 5 gets you 5, and that is not a
+bug. ★Above a song's own event density, more notes must come from **subdivision or invention**,
+which is a different feature.
+★**Judge the map by nps, not by note count.** A 39-second song at a correct 4.59 nps has only 179
+notes, which looks alarming and is not.
 
 ## 5b. DIFFICULTY IS A TARGET YOU SET — AND IT IS NOT JUST NPS
 

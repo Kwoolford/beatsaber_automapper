@@ -26,6 +26,30 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### ✅ SECOND DOGFOOD: A COLD SONG AT THE WORST TEMPO, BUILT WITH EVERY ELEMENT
+The skill is the deliverable and it had drifted again — `WORKFLOW.md` and `SKILL.md` mentioned
+**none** of walls, arcs, chains, `--doubles-rate` or `--accent-slots`, all added since the first
+dogfood. Rather than patch from code-reading, built a map with them on a **new** off-corpus song.
+
+**`1eaaa` "Brain Power S"** — chosen because it is the hardest case available: metadata 90 bpm, so
+below both the 150 bpm grid threshold and the 95 bpm half-tempo trigger.
+
+    179 notes · 4.59 nps · 56 walls · 73 arcs · 16 chains
+    0 notes trapped in walls · parity clean · PASS p=0.438
+
+✅**The whole loop works cold on a song it has never seen**, with all five elements.
+⚠️**Two things worth knowing, both found by doing it:**
+1. **The element counts are a request, not a promise.** `--walls 89 --arcs 90` produced **56 and
+   73** — a wall may only go where no note is, and a 39-second song runs out of room. Correct
+   behaviour, but it looks like a failure if you expect the number you asked for.
+2. **Judge by nps, not note count.** 179 notes reads as alarmingly sparse; at 39 seconds it is
+   **4.59 nps**, right on target. ★I flagged it as a defect before checking the duration.
+⚠️**Detected bpm 180 against metadata 90** — a clean doubling. Harmless here (the grid fit held and
+the map passed), but it is the half-tempo failure mode appearing on the agent path.
+✅**Both docs updated from what the run actually showed**, including the wall/idiomize ordering trap
+and the `--nps` ceiling. ★**A workflow doc decays silently; the only reliable check is building a
+map with it.** This is the second time it had gone stale in three days.
+
 ### 🔴 CORRECTION: THE "MISSING HORIZONTAL GESTURE" WAS A ONE-SONG ARTIFACT, AND THE DIAGONAL
 GAP IS INSIDE THE HUMAN SPREAD
 I ended the previous iteration calling the horizontal cut *"the bigger and cleaner miss — 9.4 % of
