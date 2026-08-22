@@ -262,6 +262,12 @@ def main() -> int:
                     help="add N walls (0 = none). Human median is 89 and 96%% of human "
                          "maps have them; we shipped zero until 2026-08-22. ⚠️No metric "
                          "in the suite can see walls — only his ear can judge them")
+    ap.add_argument("--arcs", type=int, default=0,
+                    help="add N arcs (v3 human median 90, present in 100%% of v3 maps). "
+                         "Purely additive — notes are untouched")
+    ap.add_argument("--chains", type=int, default=0,
+                    help="add N chains (v3 human median 16, present in 71%%). Extends an "
+                         "existing swing, so parity is re-checked after")
     ap.add_argument("--doubles-rate", type=float, default=0.3,
                     help="fraction of eligible accent slots that become doubles. 0.3 "
                          "measured n=23: rate 0.166 vs human 0.237, 23/23 PASS. 0.5 "
@@ -341,6 +347,25 @@ def main() -> int:
         n_walls = W.add_walls(out, out, per_map=a.walls, seed=a.seed)
         print(f"\n=== WALLS")
         print(f"  added {n_walls} walls (human median 89; 96 % of human maps have them)")
+
+    # ★ARCS and CHAINS — the other two elements measured but never wired.
+    # Among v3 human maps (the only format where they can exist): **arcs in 100 %,
+    # median 90 per map; chains in 71 %, median 16**. ⚠️A first pass read 0 % for both
+    # because 767 of 791 corpus maps are v2, where the objects do not exist — the
+    # project's own landmine: *check the feature was AVAILABLE before calling it rare.*
+    # ★An arc is purely additive (its own object between two positions, notes
+    # untouched). A chain extends the swing an existing note starts, so it is checked
+    # against the swing simulator below rather than trusted.
+    if a.arcs:
+        import arcs as A
+        n_arcs = A.add_arcs(out, out, target=a.arcs)
+        print(f"\n=== ARCS")
+        print(f"  added {n_arcs} arcs (v3 human median 90; 100 % of v3 maps have them)")
+    if a.chains:
+        import chains as C
+        n_chains = C.add_chains(out, out, target=a.chains, seed=a.seed)
+        print(f"\n=== CHAINS")
+        print(f"  added {n_chains} chains (v3 human median 16; 71 % of v3 maps)")
 
     print(f"\n=== JUDGE")
     res = mj.judge_zip(out, reference=ref)

@@ -26,6 +26,35 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### ✅ ALL FIVE ELEMENTS NOW SHIP — AND I HAD TO RETRACT "arcs/chains are not a real gap"
+🔴**Retraction from one iteration earlier.** I measured arcs/chains at **0 % of human maps** and
+wrote it off as "v2 corpus — not a real gap". **That reading came from a corpus that is 767 v2 to
+24 v3, and arcs/chains CANNOT EXIST in v2.** Among the v3 maps where they *can*:
+
+| element | share of v3 human maps | median when present |
+|---|---|---|
+| **arcs** | **100 %** | 90 |
+| **chains** | **71 %** | 16 |
+| bombs | 54 % | 22 |
+| walls | 88 % | 41 |
+
+★**This is the project's own landmine repeating**: *before calling a feature rare, check it was
+AVAILABLE.* It was recorded on 2026-08-19f and I walked into it anyway, in the same session as the
+walls finding.
+✅**`arcs.py` and `chains.py` were also built-and-never-wired**, exactly like `walls.py`. All three
+are now behind `--walls / --arcs / --chains`.
+✅**Verified additive, not assumed**: the all-elements map and the walls-only map have
+**byte-identical notes** (same count, beat, colour, x, y, direction). ⚠️A first comparison showed
+p 0.379 vs 0.408 and looked like a violation of that invariant — the difference was the **audio
+axis**, not the elements: one run had cached onsets (23 metrics) and the other did not (21). Scored
+on the same axis set both give **p = 0.379**. ★*Compare like with like before believing an invariant
+broke.*
+📦**`AUTO <song> [FULL]` installed on all four standing songs**: 89 walls + 90 arcs + 16 chains,
+**0 trapped notes, 0 parity violations, p identical to the notes-only build.** 565 tests pass.
+⚠️**Every one of these is invisible to all 23 metrics by construction.** The judge cannot say
+whether they improve the map — this arm exists purely for his ear, and the A/B that matters is
+`[V2]` (notes only) vs `[FULL]` on Fallen Kingdom, the song he called *"really empty"*.
+
 ### 🔴🔴 WE SHIPPED ZERO WALLS, AND NO METRIC COULD EVER HAVE TOLD US
 Looked for defects the suite is structurally blind to, since every measurable gap is now at or near
 its floor. **The suite scores notes and nothing else** — adding 84 walls + 48 arcs + 16 chains moves
