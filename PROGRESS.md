@@ -7,6 +7,62 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-22 — DENSITY: THE DIAL WAS BLOCKED BY A HARDCODED TWO-STREAM LIMIT, AND THE REMAINING
+CEILING IS THE SONG, NOT THE CODE
+
+**Goal set by Kyle:** *"be confident people will want to play the maps."* ⇒Prioritised **density**
+over the top of the TODO stack (P0.2, a judge fix), because density is the one measured gap that is
+about the playing experience, and he named it himself: *"the objective is to be able to map whatever
+difficulty we want."*
+
+### ✅ THE BLOCKER: `autobuild` ONLY EVER LOOKED AT TWO STREAMS
+`plan()` picked the **single busiest** melodic class and paired it with drums. On Hunger that is
+**1 965 candidate events of the 4 813** the song has across six stems — four stems were invisible to
+the budget, so `--nps 9.0` silently delivered **6.25**. The plan was asking for 2 465 notes and the
+supply could not pay for it.
+✅**Fixed**: rank every class and recruit further carriers **only when the top one cannot cover the
+section's melodic share** (1.3 carriers/section at 4.17 nps, 2.3 at 9.0), all merged into **ONE**
+pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a union of two
+independent passes 0.329, human 0.514).
+**Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
+
+### 🔬 BUT DELIVERY STILL DEGRADES, AND THE CAUSE IS NOT WHAT I FIRST SAID
+Sweep, 8 songs × 3 requested densities:
+
+| asked | got | delivery | `onset_precision` | viol | PASS |
+|---|---|---|---|---|---|
+| 4.17 | 4.34 | **104 %** | 0.820 | 0 | 8/8 |
+| 6.50 | 5.23 | 80 % | 0.814 | 0 | 8/8 |
+| 9.00 | 5.50 | **61 %** | 0.806 | 0 | 7/8 |
+
+🔴**MY FIRST EXPLANATION WAS REFUTED BY ITS OWN TEST.** I proposed the SUBDIV-4 grid ceiling
+(`bpm/60 × 4` slots per second, so 130 bpm caps at 8.67 nps). Only **3 of 8** songs are grid-limited
+at 9 nps and the median grid ceiling is **10.93** — we realised 5.50, barely half of what the grid
+allows. **The grid is real but not the binding constraint.**
+🔴**Event supply is not it either**: the recruited pool covers the budget on most songs (102 %,
+114 %) while delivery is 61 %.
+★★**THE ACTUAL CEILING IS THE SONG: how many DISTINCT GRID SLOTS the song's own events occupy.**
+
+    song   bpm   grid max   event slots   REAL ceiling (nps)
+    1f333  188      12.53          2536          9.22
+    1f767  160      10.67          1641          8.09
+    1f8a3  128       8.53          1020          6.29
+    1f7f1  120       8.00          1172          5.77
+    1f336  130       8.67          1292          4.69
+
+⇒**You cannot place a note where no event is.** Median real ceiling ≈ 6.3 nps against a realised
+5.50 — **the dial is already delivering close to what these songs physically allow**, and the
+apparent 61 % failure is mostly an impossible request.
+✅**AND THE DENSITY IS NOT FILLER**: `onset_precision` barely moves across the whole range
+(0.820 → 0.806) and violations stay at **0** — the extra notes land on real events, which is the
+check that separates a difficulty dial from a padding dial.
+⬜**What this means for "map any difficulty"**: above a song's own event density, more notes must
+come from **subdivision or invention**, not selection. That is a different feature and should be
+named as one rather than expected from `--nps`.
+⚠️**7/8 PASS at 9.0** — one map now fails; unattributed, and worth a look before adopting a high
+default.
+
+
 ## 2026-08-21 (reading, not measuring) — ★★★KYLE WAS RIGHT: READING THE SCORE FOUND A UNANIMOUS
 DEFECT NO METRIC SEES, AND THE JUDGE PREFERS OUR MAP TO THE HUMAN'S
 

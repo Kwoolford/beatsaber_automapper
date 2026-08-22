@@ -107,24 +107,45 @@ def plan(audio: pathlib.Path, nps: float) -> list[dict]:
         dur = max(s["t1"] - s["t0"], 0.1)
         budget = nps * dur * (_mult(s) / _wmean)
 
-        best = (None, 0)
-        for stem in MELODIC:
-            for cls, n in classes_in(stem, b0, b1).items():
-                if n > best[1]:
-                    best = (f"{stem}/{cls}", n)
-        carrier, n_carrier = best
+        # ★★RECRUIT AS MANY CARRIERS AS THE BUDGET NEEDS.
+        # Taking only the single busiest class made the note supply, not the
+        # requested density, the real ceiling: on Hunger the two streams we looked at
+        # hold **1 965** candidate events while the song has **4 813** across six
+        # stems, so `--nps 9` silently delivered 6.25 and every song came out at
+        # roughly the same difficulty. Kyle: *"the objective is to be able to map
+        # whatever difficulty we want."* Rank the classes and take them until the
+        # section's melodic share can actually be paid for.
+        ranked = sorted(
+            ((f"{stem}/{cls}", n)
+             for stem in MELODIC
+             for cls, n in classes_in(stem, b0, b1).items()),
+            key=lambda kv: -kv[1],
+        )
+        carrier, n_carrier = (ranked[0] if ranked else (None, 0))
+        carriers = [c for c, _ in ranked[:1]]
+        n_pool = n_carrier
 
         drums = sum(1 for e in d["events"]
                     if e["stem"] == "drums" and b0 <= e["bar"] <= b1)
         # Split the budget: the carrier takes the larger share in a loud section,
         # the drums carry a quiet one where a melodic line is sparse anyway.
         share = 0.55 if float(s.get("energy") or 0.5) >= 0.5 else 0.35
+        # Recruit further classes only when the top one cannot cover its share. Each
+        # added class is a real instrument line, so this widens the map rather than
+        # doubling notes onto times already played.
+        want_melodic = budget * share
+        for name, n in ranked[1:]:
+            if n_pool >= want_melodic:
+                break
+            carriers.append(name)
+            n_pool += n
         rows.append({
             "bar0": b0, "bar1": b1, "role": s.get("role"), "label": s["label"],
             "energy": round(float(s.get("energy") or 0), 2), "dur": round(dur, 1),
             "budget": int(budget),
             "carrier": carrier, "carrier_n": n_carrier,
-            "carrier_pct": _pct(budget * share, n_carrier),
+            "carriers": carriers, "pool_n": n_pool,
+            "carrier_pct": _pct(want_melodic, n_pool),
             "drums_n": drums,
             "drums_pct": _pct(budget * (1 - share), drums),
         })
@@ -155,8 +176,11 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
             # Two passes is what P0.5 measured as the merge cost (drums alone
             # `pulse_stability` 0.387, the union 0.329, human 0.514), and a pulse
             # grid chosen twice independently is not a pulse.
-            follow = ",".join(x for x in (("drums" if r["drums_n"] else None),
-                                          r["carrier"]) if x)
+            # All recruited carriers go into ONE merged pass — layering separate
+            # passes is what cost the pulse (drums alone 0.387, a union of two
+            # independent passes 0.329, human 0.514).
+            follow = ",".join(x for x in [("drums" if r["drums_n"] else None),
+                                          *(r.get("carriers") or [r["carrier"]])] if x)
             if not follow:
                 continue
             cmd = [str(AM / "mapctl.py"), "auto", name, "--bars", bars,
