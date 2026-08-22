@@ -740,6 +740,7 @@ def cmd_auto(a) -> int:
     # placement and an unseeded one would make every arm unrepeatable.
     _lead_rng = random.Random(getattr(a, "seed", 0))
     _lead_ctr = [0]
+    _dbl_rng = [0]
     cols = {"L": [1, 0], "R": [2, 3]}
     new = []
     k = 0
@@ -886,8 +887,23 @@ def cmd_auto(a) -> int:
         # stem agreement and the per-hand floor only ~3 survive — a double share of
         # 0.016 against a human 0.146. Humans accent every STRONG beat, so slots 0 and
         # 8 (beats 1 and 3) both qualify.
-        if a.doubles and sl in a.double_slots and \
-                _agree(an, _t, s["slot_s"]) >= a.doubles_stems:
+        # ★★RATE AND PLACEMENT ARE SEPARATE CHOICES.
+        # The slot set alone controls both, so no setting matches the human on both:
+        # `0,4,8,12` gives a double RATE of 0.439 against a human 0.275 while sitting
+        # 100 % on the beat (human 0.635); the eighth-note set matches the on-beat
+        # share exactly (0.640) and doubles the rate to 0.691. Measured on 1f767.
+        # `--doubles-rate` thins the accepted slots so the placement can stay wide
+        # while the rate lands where it should.
+        _dbl_ok = a.doubles and sl in a.double_slots and \
+            _agree(an, _t, s["slot_s"]) >= a.doubles_stems
+        if _dbl_ok and 0.0 < getattr(a, "doubles_rate", 1.0) < 1.0:
+            _dbl_rng[0] += 1
+            # Deterministic thinning: keep every 1/rate-th eligible slot. A sampled
+            # version would make the outcome a lottery, which is the lesson the lead
+            # hand already paid for (37th-85th percentile across seeds).
+            period = max(2, int(round(1.0 / a.doubles_rate)))
+            _dbl_ok = (_dbl_rng[0] % period) == 0
+        if _dbl_ok:
             o = "R" if h == "L" else "L"
             if a.min_gap_ms <= 0 or _free(o):
                 od = "D" if last_down[o] else "U"
@@ -1129,6 +1145,10 @@ def main() -> int:
     p.add_argument("--doubles", action="store_true",
                    help="both hands on bar downbeats where stems agree; how a human "
                         "adds density without speeding either hand up")
+    p.add_argument("--doubles-rate", type=float, default=1.0,
+                   help="fraction of eligible accent slots that become doubles; 1.0 = "
+                        "all of them. Lets the slot set stay wide (for a human on-beat "
+                        "share) while the RATE lands on the human 0.275")
     p.add_argument("--accent-slots", default="0,8",
                    help="slots that count as a strong beat for doubles (0,8 = beats "
                         "1 and 3). Downbeats alone are too few to reach a human rate.")

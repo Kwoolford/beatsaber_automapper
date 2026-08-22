@@ -164,7 +164,8 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           lead_phrase_bars: int = 4, pulse_fill: int = 1,
           pulse_sync: float = 0.3, snap_onsets: bool = False,
           adaptive_subdiv: bool = False, seed: int = 0,
-          doubles: bool = False, accent_slots: str = "0,8") -> None:
+          doubles: bool = False, accent_slots: str = "0,2,4,6,8,10,12,14",
+          doubles_rate: float = 0.3) -> None:
     init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
     if adaptive_subdiv:
         init += ["--adaptive-subdiv"]
@@ -194,6 +195,8 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
                 # ★Humans put both hands on ~16 % of note instants; we placed ZERO
                 # until 2026-08-21. `mapctl` had the flag the whole time.
                 cmd += ["--doubles", "--accent-slots", str(accent_slots)]
+                if doubles_rate < 1.0:
+                    cmd += ["--doubles-rate", str(doubles_rate)]
             if lead_bias > 0:
                 # ⚠️`--seed` used to reach `idiomize` ONLY, so the lead-hand RNG ran at
                 # seed 0 no matter what was asked for. Every "3 seeds" reading of a
@@ -251,7 +254,15 @@ def main() -> int:
                     help="disable both-hands accents; ON by default since 2026-08-21 "
                          "(double_share 0.000 -> 0.127 against a human 0.205, n=23)")
     ap.set_defaults(doubles=True)
-    ap.add_argument("--accent-slots", default="0,8")
+    ap.add_argument("--accent-slots", default="0,2,4,6,8,10,12,14",
+                    help="slots eligible for doubles. The eighth-note set matches the "
+                         "human on-beat share (0.64 vs 0.635); `0,8` pins 100%% of "
+                         "doubles exactly on a beat, which is the mechanical feel")
+    ap.add_argument("--doubles-rate", type=float, default=0.3,
+                    help="fraction of eligible accent slots that become doubles. 0.3 "
+                         "measured n=23: rate 0.166 vs human 0.237, 23/23 PASS. 0.5 "
+                         "matches the median better but is not resolvably closer "
+                         "per-song (1.40x vs 1.55x human-human spread) and costs a PASS")
     ap.add_argument("--adaptive-subdiv", action="store_true",
                     help="1/8-beat slots below 150 bpm (P1.0)")
     ap.add_argument("--snap-onsets", action="store_true",
@@ -292,7 +303,8 @@ def main() -> int:
           lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
           pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
           adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,
-          doubles=a.doubles, accent_slots=a.accent_slots)
+          doubles=a.doubles, accent_slots=a.accent_slots,
+          doubles_rate=a.doubles_rate)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

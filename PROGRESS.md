@@ -26,6 +26,34 @@ pass — layering separate passes is what cost the pulse (drums alone 0.387 vs a
 independent passes 0.329, human 0.514).
 **Hunger at `--nps 9.0`: 6.25 → 7.28 nps, 1 700 → 1 980 notes, PASS, 0 violations.**
 
+### 🟡 DOUBLES: RATE AND PLACEMENT SEPARATED, AND THE RESIDUAL IS TASTE NOT ERROR
+Reading found three differences from human doubles: ours were **3.4× rarer**, **100 % exactly on a
+beat** (human 0.635), and spaced **2.3× further apart**. The 100 %-on-beat is the mechanical feel.
+🔴**Cause: rate and placement were welded to one knob.** `--accent-slots` controls both, so no
+setting matches the human on both — `0,4,8,12` gives rate 0.439 (human 0.275) at 100 % on-beat,
+while the eighth-note set matches the on-beat share **exactly** (0.640 vs 0.635) and doubles the
+rate to 0.691.
+✅**`--doubles-rate` separates them** (deterministic thinning of eligible slots — a sampled version
+would make the outcome a lottery, the lesson the lead hand already paid for).
+
+| n=23 | double rate | on-beat | \|Δ\| vs human | ×human-human spread | PASS |
+|---|---|---|---|---|---|
+| rate 0.3 | 0.166 | 0.564 | 0.090 | 1.55× | 23/23 |
+| **rate 0.5** | **0.253** | 0.542 | 0.081 | **1.40×** | 22/23 |
+| HUMAN | 0.237 | 0.688 | — | 1.00× | — |
+
+🔴**MATCHING THE MEDIAN BARELY HELPED**: rate 0.5 lands the cohort median almost exactly
+(0.253 vs 0.237) and the per-song error improves only 1.55 → 1.40×, at the cost of one PASS.
+★★**BECAUSE THE RESIDUAL IS THE PER-SONG CHOICE, AND THAT CHOICE IS TASTE.**
+**corr(our doubles rate, the human's for the same song) = +0.128. Two DIFFERENT HUMANS correlate
++0.181 on the same measure.** We are almost exactly as uncorrelated with a given mapper as they are
+with each other. ⇒**1.40× their mutual disagreement is close to the floor**, and chasing it further
+would be fitting to one mapper's taste. ★Kyle: *"the human ground truth is subjective. Songs can be
+mapped a lot of different ways and all be fun."*
+✅**Adopted `--doubles-rate 0.3` as the default** (not 0.5): the per-song difference between them is
+0.009 — inside the noise — and 0.3 keeps **23/23 PASS** where 0.5 costs one. ★When two settings are
+not resolvably different on the target, take the one that costs nothing elsewhere.
+
 ### ⚠️ THE 9-nps FAILURE IS THE JUDGE WORKING CORRECTLY — AND IT CONFLICTS WITH WHAT KYLE PLAYS
 The one map that fails at `--nps 9.0` is **`1f65d`**, and its worst metric is **`nps` at the 97.1st
 human percentile**. It has **0 violations** and nothing else is wrong with it. The judge is not
