@@ -43,6 +43,11 @@ map. Two humans agree on the climax only 43 % of the time — much of "different
    Never rank by `p` — human maps score p median 0.455, ours 0.5–0.75; **high p means blander**.
 3. 🔴**Walls, arcs and chains are invisible to all 23 metrics** — only his ear can judge them.
 4. 🔴**Nothing here has reached his ear.** Every number above is a number.
+5. ⚠️**THE OUTPUT DIRS ARE NOT INTERCHANGEABLE — check the date before quoting or queueing one.**
+   `outputs/review_2026-08-22/V2__*` (newest, **the build to judge**), `outputs/final_verify2/`
+   (2026-08-21), `outputs/kyle_review_2026-08-19/*_FULL` (2026-08-19). On the same 4 songs these
+   differ **2–4×** on a note-level property (measured 2026-08-22 via `diag_pendulum`), so a
+   number taken from one **does not describe** another. ★Name the directory, never just the arm.
 
 ### ▶️ START THE NEXT SESSION HERE
 1. ⬜**His verdict on `[V2]` vs `[FULL]`** (Fallen Kingdom) — see `LISTENING.md`. Settles a
@@ -315,6 +320,15 @@ decode"* is **wrong at the root**: the draw happens before the model runs.
   **every axis by exactly 0.000** — it scores notes and nothing else. ⇒**No axis can justify or
   reject the element work; only his ear can.** (Chains: the model works, but 16 in 913 swings is
   1.7 % and `travel` is a median — under-powered at human chain density.)
+- 🔴**DO NOT BUILD A "PENDULUM LOCK" AXIS (tested 2026-08-22).** Two-state alternations
+  (one hand oscillating between exactly two `(x,y,dir)` states) are real and readable in our
+  maps — `map_view --bars 105-108 --idioms` on 1f333 shows ~8 beats of it — but **humans
+  produce them at the same rate**: our median share sits at human **percentile 0.57**, 0/23
+  above p90. A zero-spike looked decisive (29 % of humans emit zero, 0/23 of ours,
+  p=0.0025, survives a sparsity control) but **the gap exists only at the run-length
+  threshold I picked and reverses sign by MINRUN=10**, where our maps are cleaner than
+  human. Tool kept at `scripts/diag_pendulum.py` as a reading aid, **not** as an axis.
+  ★Generalisable: sweep the free parameter before believing any threshold-defined metric.
 - ⚠️⚠️**`copy.deepcopy` of a `scorecard._load_any` beatmap DOES NOT ISOLATE IT.** `_load_any` builds a
   local `_BM` whose `color_notes` is a **class attribute**, so the copy shares the same note list and
   the same note objects (`deepcopy(bm).color_notes is bm.color_notes` → True). Mutating "a copy"

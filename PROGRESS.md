@@ -13864,3 +13864,8 @@ same rate, so they are not what "odd flow" names.
 **Still unexplained:** what Kyle heard. The reading channel found a real pattern and the
 corpus said it is normal, which leaves the complaint unaccounted for. Needs his ear on a
 current build (`review_2026-08-22/V2__*`), not another axis.
+
+⚠️**Label the two separately.** *Pendulum locks as the cause* = NOT REPRODUCED (above).
+*"The notes flow in a really odd way"* = **NOT YET MEASURABLE** — it came from Kyle's ear,
+which in this project has been ahead of the metrics more than once, and one dead hypothesis
+is not evidence against the observation. Do not record the complaint as refuted.
