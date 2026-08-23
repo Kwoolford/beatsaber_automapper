@@ -13815,3 +13815,52 @@ committed defaults (two-sided judge + `REPEAT_P = 0.55`), `scripts/verify_autobu
 statistically distinguishable from a human map **on 21 note-attribute metrics**". It has **no audio
 axis**, so it cannot see whether the notes are on the music; and `idiomize` was tuned against the
 geometry metrics, so those are partly fitted. **The maps remain unheard.**
+
+### 2026-08-22 — "odd flow": the pendulum-lock hypothesis (NOT REPRODUCED)
+
+**Origin.** The only recorded verdict with a stated reason is Kyle's 2026-08-17 Hunger
+call: *"I was expecting the agents song to be much better. The main problem is the notes
+flow in a really odd way."* That map predates `melody.py`/`structure.py`/`percussion.py`,
+so the complaint had never been re-tested against the current pipeline.
+
+**Reading.** `map_view --bars 105-108 --idioms` on the current 1f333 build shows both
+hands locked in a two-state oscillation for ~8 beats (R: `3,1 ↗` ↔ `2,0 ↙`, four cycles;
+L simultaneously `1,x ↓` ↔ `1,2 ↑`). Every transition is a common idiom (#37/#38/#94)
+and parity is legal, so no existing axis can see it. Hypothesis: these "pendulum locks"
+are the odd flow.
+
+**Measured** (`scripts/diag_pendulum.py`, new): share of notes inside a run of >=MINRUN
+notes alternating between exactly two (x, y, direction) states, per hand.
+
+| | ours (n=23) | human (n=300) |
+|---|---|---|
+| median share | 0.026 | 0.018 |
+| our median's human percentile | **0.57** | — |
+| maps above human p90 | **0/23** | — |
+
+Magnitude is human-normal. A **zero-spike** looked more promising: 29% of human maps
+(23% restricted to >=900 notes, so not a sparsity effect — zero-lock humans median 713
+notes vs 793 for the rest) contain *exactly zero* locks, while 0/23 of ours do
+(min 0.009). Binomial P(0 of 23 | rate 0.23) = 0.0025.
+
+🔴**Killed by the threshold sweep.** MINRUN is arbitrary, so I swept it:
+
+| MINRUN | human zero% | our zero% | human med | our med |
+|---|---|---|---|---|
+| 4 | 1% | 0% | 0.124 | 0.123 |
+| 6 | 23% | **0%** | 0.016 | 0.026 |
+| 8 | 60% | 57% | 0.000 | 0.000 |
+| 10 | 81% | **96%** | 0.000 | 0.000 |
+
+The gap exists only at MINRUN=6 and **reverses sign by MINRUN=10**, where our maps are
+cleaner than human. A real property holds its sign across the operating point; this does
+not. **Verdict: NOT REPRODUCED — threshold artifact.** Do not build a pendulum axis.
+
+★The pattern now holds for seven consecutive mechanisms: each died to a test *of the
+mechanism*, never of the effect. The effects reproduce; the stories about why do not.
+Two-state locks are genuinely present in our maps — humans just produce them at the
+same rate, so they are not what "odd flow" names.
+
+**Still unexplained:** what Kyle heard. The reading channel found a real pattern and the
+corpus said it is normal, which leaves the complaint unaccounted for. Needs his ear on a
+current build (`review_2026-08-22/V2__*`), not another axis.
