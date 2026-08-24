@@ -134,7 +134,7 @@ def _bar_range(spec: str) -> tuple[float, float]:
 
 def render(notes, bpm: float, b0: float, b1: float,
            feats=None, names=None, label: str = "", idioms: bool = False,
-           elems=None) -> list[str]:
+           elems=None, onsets=None, offset: float = 0.0) -> list[str]:
     """★`elems` adds the THREE ELEMENTS NOTHING COULD READ (see agent_mapper/elements.py).
 
     Without it this sheet shows a `[FULL]` map -- 89 walls, 90 arcs, 16 chains -- as if
@@ -144,6 +144,23 @@ def render(notes, bpm: float, b0: float, b1: float,
     """
     par, _card = _parity_map(notes, bpm)
     idi = _idiom_map(notes) if idioms else {}
+    # ★★PER-NOTE ALIGNMENT — "is this note ON a sound I can hear?"
+    # The skill's own first warning is that a PASS does not mean the notes are on the
+    # music and that `onset_precision` must be read directly -- but that is an
+    # AGGREGATE, and a listener perceives alignment note by note. This column is that
+    # perception: signed ms to the nearest detected onset.
+    # ⚠️Note time must include `_songTimeOffset`; it carries the grid phase, and
+    # omitting it once made a phase shift look like it moved nothing at all.
+    align = {}
+    if onsets is not None and len(onsets):
+        import numpy as _np
+        _o = _np.sort(_np.asarray(onsets, dtype=float))
+        for n in notes:
+            tsec = offset + n.beat * 60.0 / bpm
+            i = int(_np.clip(_np.searchsorted(_o, tsec), 1, len(_o) - 1))
+            lo, hi = _o[i - 1], _o[i]
+            near = lo if abs(tsec - lo) <= abs(tsec - hi) else hi
+            align[round(n.beat, 3)] = (tsec - near) * 1000.0
     by_slot: dict[tuple[int, int], list] = {}
     for n in notes:
         if b0 <= n.beat < b1:
@@ -154,6 +171,8 @@ def render(notes, bpm: float, b0: float, b1: float,
     w = 19 if idioms else 10
 
     head = f"{'bar':>4s} {'beat':>7s} │ {'L':<{w}s} │ {'R':<{w}s}"
+    if align:
+        head += " │  ±ms"
     if elems:
         head += " │ lanes │ gest"
     if has_audio:
@@ -188,6 +207,15 @@ def render(notes, bpm: float, b0: float, b1: float,
         if not any(c.strip() for c in cells) and s % SUB != 0:
             continue
         row = f"{bar:>4d} {beat:>7.2f} │ {cells[0]} │ {cells[1]}"
+        if align:
+            d = align.get(round(beat, 3))
+            if d is None:
+                row += " │      "
+            else:
+                # ● inside the axis' 50 ms tolerance · ○ 50-120 ms (the near-miss band
+                # the onset snap was built for) · ✗ beyond it: nothing there to hit.
+                mk = "●" if abs(d) <= 50 else ("○" if abs(d) <= 120 else "✗")
+                row += f" │{mk}{d:>5.0f}"
         if elems:
             # ★The player's dodge surface: which of the 4 columns is blocked NOW.
             row += f" │ {_EL.lane_map(elems['walls'], beat)}  │ "
@@ -313,6 +341,12 @@ def main() -> None:
     ap.add_argument("--sections", action="store_true", help="whole-song overview")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"),
                     help="two bar ranges to print side by side")
+    ap.add_argument("--align", action="store_true",
+                    help="per-note distance to the nearest detected onset, in ms "
+                         "(● within 50ms · ○ 50-120ms · ✗ beyond). Answers 'is this "
+                         "note on a sound I can hear?' note by note, which the "
+                         "aggregate onset_precision cannot. Uses the cached onsets for "
+                         "a corpus song, or computes them from --audio")
     ap.add_argument("--elements", action="store_true",
                     help="show WALLS, ARCS and CHAINS in the sheet — the three "
                          "elements no reading tool could see until 2026-08-24, and "
@@ -370,8 +404,38 @@ def main() -> None:
     if a.audio:
         feats, names = _stem_lanes(pathlib.Path(a.audio), bpm, b1)
     el = _EL.load_elements(pathlib.Path(a.map)) if a.elements else None
+    ons = off = None
+    _align_all = None
+    if a.align:
+        sys.path.insert(0, str(REPO))
+        from agent_mapper import refonsets as _RO
+        # `song_id` is the map filename's own id; refonsets prefers the cached corpus
+        # entry and falls back to computing from audio (content-hashed), so this works
+        # on a song the corpus has never seen.
+        sid = pathlib.Path(a.map).stem.split("__")[-1].split("_")[0]
+        ons = _RO.reference_onsets(sid, audio=a.audio, compute=bool(a.audio))
+        if ons is None:
+            print("⚠️--align: no onsets for this song and no --audio to compute them; "
+                  "alignment column omitted")
+        off = _EL.load_elements(pathlib.Path(a.map))["offset"] if ons is not None else 0.0
     print("\n".join(render(notes, bpm, b0, b1, feats, names, idioms=a.idioms,
-                           elems=el)))
+                           elems=el, onsets=ons, offset=off or 0.0)))
+    if ons is not None and len(ons):
+        # ★Whole-map alignment, so the page and the cohort agree. The bars on screen
+        # are a sample; this is the map. `READING.md` rule 0: the page proposes, the
+        # cohort disposes -- and a passage can easily look worse than the map is.
+        import numpy as _np
+        _o = _np.sort(_np.asarray(ons, dtype=float))
+        ts = _np.array([(off or 0.0) + n.beat * 60.0 / bpm for n in notes])
+        i = _np.clip(_np.searchsorted(_o, ts), 1, len(_o) - 1)
+        d = _np.minimum(_np.abs(ts - _o[i - 1]), _np.abs(ts - _o[i])) * 1000.0
+        on, near, miss = (d <= 50).mean(), ((d > 50) & (d <= 120)).mean(), (d > 120).mean()
+        print(f"\nALIGNMENT (whole map, {len(notes)} notes)")
+        print(f"  ● on a sound (≤50ms)  {on:6.1%}   ← this is `onset_precision`")
+        print(f"  ○ near-miss (50-120)  {near:6.1%}")
+        print(f"  ✗ nothing there       {miss:6.1%}   ← notes the player hears as unmotivated")
+        print(f"  median |offset| {_np.median(d):.0f}ms · "
+              f"signed median {_np.median((ts - _o[i - 1]) * 1000):+.0f}ms")
     if el:
         s = _EL.summary(el)
         print(f"\nELEMENTS  walls {s['walls']} · arcs {s['arcs']} · chains "
