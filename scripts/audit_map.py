@@ -133,6 +133,28 @@ def main() -> int:
         report["alignment"] = {"on": float(on), "near": float(near), "miss": float(miss),
                                "signed_median_ms": float(np.median(signed))}
 
+    # ---- EMPTINESS ---------------------------------------------------------
+    # ★The direction nothing measured before: not "was this note motivated?" but
+    # "was this musical moment answered?" -- which is what "it feels empty" means.
+    print("\n## EMPTINESS — did the map answer what the song asked? (vs 975 human maps)")
+    if onsets is None or not len(onsets):
+        print("    🔴needs onsets — pass --audio")
+        report["coverage"] = None
+    else:
+        import coverage as CV
+        jc = CV.judge(elems, onsets)
+        for ln in jc["lines"]:
+            print(f"  {ln['flag']} {ln['key']:24s}{ln['value']:>9.4g}"
+                  f"  human med {ln['median']:>8.4g}  pct {100 * ln['pct']:>5.0f}%")
+        if jc.get("note"):
+            print(f"    ⚠️{jc['note']}")
+        for g in jc["summary"]["worst_gaps"][:3]:
+            print(f"    gap {g['dur']:.1f}s at {g['t0']:.0f}s "
+                  f"({g['onsets_per_s']} onsets/s inside — "
+                  f"{'the song is BUSY here' if g['onsets_per_s'] > 2 else 'the song is quiet too'})")
+        report["coverage"] = {k: v for k, v in jc["summary"].items()
+                              if k != "worst_gaps"}
+
     # ---- ELEMENTS ----------------------------------------------------------
     print("\n## ELEMENTS — walls, arcs, chains vs 2 688 human maps")
     j = EL.judge(elems)

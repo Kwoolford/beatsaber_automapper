@@ -7,6 +7,47 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-24e — "REALLY EMPTY" IS **NOT** ABOUT NOTE COVERAGE, MEASURED AT LAST
+
+Kyle's Fallen Kingdom complaint — *"it feels really empty"* — has survived **five separate
+note-based instruments**, every one of which asked *"was this NOTE motivated?"*
+(`overlay.py`'s HIT/MISSED/WASTED). ★**"Empty" is the OTHER direction**: *was this musical MOMENT
+answered?* Nothing measured it, because **a note that is never placed raises no metric** — exactly
+`READING.md`'s rule *"look for what is ABSENT; absence does not raise a number."*
+
+✅**Built `agent_mapper/coverage.py`**: `answered` (share of the SONG'S onsets that got a note —
+the inverse of `onset_precision`), gap detection (note-free stretches **while the song keeps
+playing**, with timestamps, so the complaint can finally point at a bar), and a density contour.
+⚠️A gap only counts if the song is still busy — otherwise a quiet outro reads as a hole, and letting
+the player breathe is something Kyle named as worth PROTECTING.
+
+✅**And the human reference that makes it judgeable** (`scripts/calibrate_coverage.py`, **975**
+human maps — no Demucs needed, since 1 956 songs already have cached onsets AND a human map).
+★**Both sides scored against the SAME onset set**, which is the footing the `h_dist` failure lacked.
+
+### 🔴🔴 THE ANSWER: WE ANSWER **MORE** OF THE SONG THAN 95 % OF HUMAN MAPPERS
+
+| | ours (Fallen Kingdom) | human median | percentile |
+|---|---|---|---|
+| `answered_overall` | **0.695** | 0.523 | **95th** |
+| `answered_busy_windows` | 0.672 | 0.519 | 93rd |
+| `longest_gap_s` | 7.07 | 0.0 (p95 7.58) | 93rd 🟡 |
+
+★★**Human mappers answer a MEDIAN 48.8 % of a song's detected onsets** — answering everything was
+never the goal, and the song offers several times more events than a map should play (C1: 4.5
+onsets available per note we emit).
+⇒**"Empty" is definitively NOT note coverage.** We are *denser* in coverage than almost every human
+map. **Five instruments failed to explain the complaint because all five were looking in the one
+place it cannot be.**
+★The single 7.1 s gap is at 231 s with **0.57 onsets/s inside** — the song is quiet there too, so it
+is a breath, not a hole. The tool says so on the line.
+
+⇒**The remaining candidates are the PHYSICAL layer** (`wall_duty` sits at the 16th–18th percentile —
+right number of walls, far less of the song occupied) **or something outside every current channel.**
+That is now a sharp question rather than a shrug, and `[V2]` vs `[FULL]` is the A/B for it.
+
+---
+
 ## 2026-08-24 — THE ONSET SNAP IS A REAL REALIGNMENT, NOT A GOODHART, AND IT NOW WORKS ON ANY SONG
 
 **Why this first.** The stack's top four items all need Kyle (his ear on `[V2]` vs `[FULL]`, the
