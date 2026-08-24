@@ -197,8 +197,33 @@ selection rather than an alignment, which is a different thing to justify.
 diagonal share). ⇒**the loss is inside the sampler and is NOT yet explained.**
 ★Reachability gradient: from a vertical only 18–31 % of reachable idioms are diagonal; from a
 diagonal, 42–66 %. **Diagonals sustain diagonals — the question is why we never accumulate them.**
-**Next candidates** (untested): the crossover filter and `REPEAT_P`, both of which re-weight after
-the `d_from` match.
+✅★★**MECHANISM LOCATED 2026-08-24 — IT IS THE `width` TRUNCATION** (`scripts/diag_diagonal_leak.py`,
+n=23, every song agrees). Tracing the diagonal share of the candidate pool through every sampler
+stage:
+
+| stage | diagonal share | Δ |
+|---|---|---|
+| A after `_candidates` (d_from + reachability + parity + cross) | **0.404** | — |
+| B after `REPEAT_P` | 0.363 | −0.041 |
+| C after the crossover filter | 0.363 | **+0.000** |
+| **D after the `width` truncation** | **0.261** | **−0.102** |
+| E picked | 0.242 | −0.019 |
+
+★★**THE CANDIDATE POOL IS AT THE HUMAN VALUE** (0.404 vs human **0.415**) on all 23 songs — the
+vocabulary AND the reachability match both offer diagonals at the human rate. `_pick` then keeps
+only the `width`(=3) **highest-COUNT** candidates, and human idiom frequency is dominated by
+verticals, so a top-3-by-frequency truncation strips diagonals by construction.
+🔴**BOTH TODO-NAMED SUSPECTS ARE DEMOTED**: the crossover filter contributes **exactly 0.000**
+(refuted), `REPEAT_P` −0.041 (40 % of `width`'s effect). The real cause was never on the list.
+⚠️**`width=3` became the default 2026-08-21** on recurrence evidence (top-5 cell share 0.342 → 0.492,
+human 0.577) — **its effect on cut direction was never measured**, so raising it trades P1.2 against
+that gain.
+⬜**NEXT**: sweep `width` ∈ {0, 3, 5, 8, 12} measuring `diagonal_share` AND the recurrence axes
+together. **DoD**: |Δdiagonal| ≤ 0.125 without `viol` rising and without recurrence returning to its
+pre-2026-08-21 value.
+⚠️**NOT the refuted "width mapping"** — that landmine is about mapping `width` to STYLES for
+`travel`/`angle_change` (measured three times, don't retry). Sweeping it for cut direction is a
+different question and has never been done.
 🔴**RETRACTED: the horizontal gesture is NOT a miss.** The 9.4 % figure came from ONE song; across
 109 human maps it is **3.2 %**, and on the 23-song cohort human 0.019 vs ours 0.001 = **|Δ| 0.016**,
 negligible. ★*The page proposes, only the cohort disposes* — generalised from one song again, one

@@ -180,6 +180,46 @@ cannot see; that cost is unmeasured.
 
 ---
 
+## 2026-08-24b — P1.2's MECHANISM IS FOUND, AND IT IS THE ONE NOBODY SUSPECTED
+
+P1.2 (vertical over-use) is the **largest non-circular gap** — 1.32× the human-human spread. Four
+explanations were already refuted and TODO recorded the loss as living *"inside the sampler and NOT
+yet explained"*, naming two untested suspects: the **crossover filter** and **`REPEAT_P`**.
+
+★**Traced the whole pipeline instead of testing the suspects one at a time** — a leak is a place,
+not a hypothesis. `scripts/diag_diagonal_leak.py` records the diagonal share of the candidate pool
+at every sampler stage, per note, per hand (n=23, **every song agrees**):
+
+| stage | diagonal share | Δ |
+|---|---|---|
+| A after `_candidates` (d_from + reachability + parity + cross) | **0.404** | — |
+| B after `REPEAT_P` | 0.363 | −0.041 |
+| C after the crossover filter | 0.363 | **+0.000** |
+| **D after the `width` truncation** | **0.261** | **−0.102** |
+| E picked | 0.242 | −0.019 |
+
+★★**THE CANDIDATE POOL IS ALREADY AT THE HUMAN VALUE**: 0.404 against human **0.415**, on all 23
+songs (range 0.379–0.417). So the vocabulary offers diagonals at the human rate *and* so does the
+reachability match — both prior explanations are confirmed innocent, and the entire loss is
+downstream.
+
+🔴**THE CAUSE IS `_pick`'s `width` TRUNCATION.** It keeps only the `width` (default **3**)
+**highest-COUNT** candidates before drawing, and human idiom frequency is dominated by verticals —
+so a top-3-by-frequency cut strips diagonals **by construction**. This is the third suspect, and it
+was not on the list.
+🔴**Both named suspects are demoted**: the crossover filter moves the share by **exactly 0.000**
+(refuted outright); `REPEAT_P` costs −0.041, about 40 % of `width`'s effect.
+
+⚠️**`width=3` became the default on 2026-08-21** on recurrence evidence (top-5 cell share
+0.342 → 0.492 against human 0.577, recurrence-within-8 0.319 → 0.434 against 0.496, 23/23 PASS).
+**Its effect on cut direction was never measured.** So this is a real trade, not a free fix, and the
+next step is a sweep that measures both together.
+⚠️**This is NOT the refuted "width mapping"** — that landmine concerns mapping `width` to STYLES for
+`travel`/`angle_change`, measured three times and dead. Sweeping `width` for cut direction is a
+different question that has never been asked.
+
+---
+
 ## 2026-08-22 — DENSITY: THE DIAL WAS BLOCKED BY A HARDCODED TWO-STREAM LIMIT, AND THE REMAINING
 CEILING IS THE SONG, NOT THE CODE
 
