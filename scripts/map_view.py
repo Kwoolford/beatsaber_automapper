@@ -42,6 +42,9 @@ sys.path.insert(0, str(REPO / "scripts"))
 
 from beatsaber_automapper.evaluation import swing_sim as ss  # noqa: E402
 
+sys.path.insert(0, str(REPO / "agent_mapper"))
+import elements as _EL  # noqa: E402
+
 ARROW = {0: "↑", 1: "↓", 2: "←", 3: "→", 4: "↖", 5: "↗", 6: "↙", 7: "↘", 8: "•"}
 BEATS_PER_BAR = 4.0
 SUB = 4          # rows per beat (1/16-note resolution)
@@ -130,7 +133,15 @@ def _bar_range(spec: str) -> tuple[float, float]:
 
 
 def render(notes, bpm: float, b0: float, b1: float,
-           feats=None, names=None, label: str = "", idioms: bool = False) -> list[str]:
+           feats=None, names=None, label: str = "", idioms: bool = False,
+           elems=None) -> list[str]:
+    """★`elems` adds the THREE ELEMENTS NOTHING COULD READ (see agent_mapper/elements.py).
+
+    Without it this sheet shows a `[FULL]` map -- 89 walls, 90 arcs, 16 chains -- as if
+    it were notes-only, which is exactly how "is FULL less empty than V2?" stayed
+    unanswerable. The `lanes` column is the player's dodge decision (`██··` = blocked),
+    and `arc`/`chn` mark the gestures.
+    """
     par, _card = _parity_map(notes, bpm)
     idi = _idiom_map(notes) if idioms else {}
     by_slot: dict[tuple[int, int], list] = {}
@@ -143,6 +154,8 @@ def render(notes, bpm: float, b0: float, b1: float,
     w = 19 if idioms else 10
 
     head = f"{'bar':>4s} {'beat':>7s} │ {'L':<{w}s} │ {'R':<{w}s}"
+    if elems:
+        head += " │ lanes │ gest"
     if has_audio:
         head += " │ K S H │ bass lead"
     lines = []
@@ -175,6 +188,17 @@ def render(notes, bpm: float, b0: float, b1: float,
         if not any(c.strip() for c in cells) and s % SUB != 0:
             continue
         row = f"{bar:>4d} {beat:>7.2f} │ {cells[0]} │ {cells[1]}"
+        if elems:
+            # ★The player's dodge surface: which of the 4 columns is blocked NOW.
+            row += f" │ {_EL.lane_map(elems['walls'], beat)}  │ "
+            g = []
+            for arc in elems["arcs"]:
+                if abs(float(arc.get("b", -9)) - beat) < 1e-6:
+                    g.append("⌒" + ("L" if int(arc.get("c", 0)) == 0 else "R"))
+            for ch in elems["chains"]:
+                if abs(float(ch.get("b", -9)) - beat) < 1e-6:
+                    g.append(f"╞{int(ch.get('sc', 0))}")
+            row += " ".join(g)[:6].ljust(6)
         if has_audio and s < len(feats):
             f = feats[s]
             def blk(nm):
@@ -289,6 +313,13 @@ def main() -> None:
     ap.add_argument("--sections", action="store_true", help="whole-song overview")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"),
                     help="two bar ranges to print side by side")
+    ap.add_argument("--elements", action="store_true",
+                    help="show WALLS, ARCS and CHAINS in the sheet — the three "
+                         "elements no reading tool could see until 2026-08-24, and "
+                         "the reason 'is FULL less empty than V2?' was unanswerable. "
+                         "Adds a `lanes` column (██·· = blocked columns, the player's "
+                         "dodge decision) and arc/chain gesture marks, then prints an "
+                         "element audit including notes trapped inside walls")
     ap.add_argument("--idioms", action="store_true",
                     help="annotate each note with the rank + corpus frequency of the "
                          "human idiom it completes, or OOV if out of vocabulary")
@@ -338,7 +369,26 @@ def main() -> None:
     feats = names = None
     if a.audio:
         feats, names = _stem_lanes(pathlib.Path(a.audio), bpm, b1)
-    print("\n".join(render(notes, bpm, b0, b1, feats, names, idioms=a.idioms)))
+    el = _EL.load_elements(pathlib.Path(a.map)) if a.elements else None
+    print("\n".join(render(notes, bpm, b0, b1, feats, names, idioms=a.idioms,
+                           elems=el)))
+    if el:
+        s = _EL.summary(el)
+        print(f"\nELEMENTS  walls {s['walls']} · arcs {s['arcs']} · chains "
+              f"{s['chains']} ({s['chain_segments']} segments) · bombs {s['bombs']}")
+        print(f"  wall duty {s['wall_duty']:.1%} of the song · "
+              f"{s['walls_per_min']}/min · arcs on {s['arc_share_of_notes']:.1%} of notes")
+        # 🔴A note inside a wall is unplayable and HAS shipped: wiring walls before
+        # idiomize once put 12 notes inside walls, caught only by a collision check.
+        flag = "🔴" if s["notes_in_walls"] else "✅"
+        print(f"  {flag} notes trapped inside walls: {s['notes_in_walls']}")
+        if s["min_dodge_s"] is not None:
+            print(f"  dodge windows: {s['tight_dodges_lt_0p5s']} under 0.5 s, "
+                  f"tightest {s['min_dodge_s']}s "
+                  f"(how long the player had to leave the blocked lane)")
+        # ★Reading is not judging. Place every quantity against 2 688 human maps, so
+        # the agent gets "18th percentile" rather than "0.042".
+        print("\n".join(_EL.format_judgement(_EL.judge(el))))
 
 
 if __name__ == "__main__":
