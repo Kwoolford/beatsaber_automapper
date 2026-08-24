@@ -55,6 +55,14 @@ SESSIONS = HERE / "sessions"
 BEATS_PER_BAR = 4
 SUBDIV = 4
 
+# ★The measured bias of our own phase estimator, in beats: our fitted bar grid sits
+# this far EARLY of the grid a human mapper used for the same song (median over 18
+# bpm-matched songs, sd 0.019). Applied only under `--phase-calibrate`.
+# ⚠️Held-out folds independently produced +0.0569 and +0.0513, which is why a single
+# constant is defensible; re-derive it with `scripts/sweep_phase_heldout.py` if the
+# tempo/phase fit ever changes, because it is a property of THAT fit.
+PHASE_BIAS_BEATS = 0.053
+
 # Beat Saber cut directions.
 DIRS = {"U": 0, "D": 1, "L": 2, "R": 3, "UL": 4, "UR": 5, "DL": 6, "DR": 7, "X": 8}
 DIR_NAME = {v: k for k, v in DIRS.items()}
@@ -156,6 +164,27 @@ def cmd_init(a) -> int:
     if getattr(a, "phase_shift", 0.0):
         g = dict(g, phase=g["phase"] + float(a.phase_shift) * g["spb"])
         print(f"  ⚠️phase shifted {a.phase_shift:+.2f} beats — DEGRADED GRID, test only")
+
+    # ★★**PHASE CALIBRATION — a measured correction, not a degradation.** Distinct from
+    # `--phase-shift` above, which exists to make the grid deliberately worse.
+    # Measured 2026-08-24: our fitted phase sits **0.053 beats EARLY** of the grid a
+    # human mapper used for the same song (18/18 songs, sd 0.019), against a reference
+    # our detector never touched.
+    #   * held-out validated: the constant fitted on one half of the cohort and applied
+    #     to the other lifts `onset_precision` 0.888 -> 0.917 and human agreement
+    #     0.642 -> 0.709 (better on 15/18), capturing **99 %** of what a per-song oracle
+    #     achieves -- so the bias really is a constant.
+    #   * it is NOT the corpus `t=0` convention: padding the audio by 137 ms moves the
+    #     fitted phase with the music (residual 4.5 ms vs 29.9 ms if it locked to t=0,
+    #     6/6 songs), so the correction should generalise to any audio.
+    # 🔴**DEFAULT OFF.** It changes where every note lands, and defaults that shape how
+    # a map feels are Kyle's call, not a metric's — the same rule that keeps
+    # `BEAT_GRID_PHASE` off after it "fixed" 18 songs on the axis and he still heard
+    # the defect. See LISTENING.md for the A/B.
+    if getattr(a, "phase_calibrate", False):
+        g = dict(g, phase=g["phase"] + PHASE_BIAS_BEATS * g["spb"])
+        print(f"  phase calibrated {PHASE_BIAS_BEATS:+.3f} beats "
+              f"({PHASE_BIAS_BEATS * g['spb'] * 1000:+.1f} ms) — measured estimator bias")
     if getattr(a, "adaptive_subdiv", False) and g["bpm"] < 150.0:
         subdiv = 8
         g = dict(g, slot=g["spb"] / subdiv)
@@ -1069,6 +1098,12 @@ def main() -> int:
     p.add_argument("--phase-shift", type=float, default=0.0,
                    help="TEST ONLY: slide every bar line by N beats to degrade the "
                         "grid on purpose. Never use for a real map")
+    p.add_argument("--phase-calibrate", action="store_true",
+                   help=f"correct the measured {PHASE_BIAS_BEATS:+.3f}-beat bias in our "
+                        "phase estimator (our grid sits that far early of a human "
+                        "mapper's). Held-out validated: onset_precision 0.888->0.917, "
+                        "human agreement 0.642->0.709. Default OFF — it changes where "
+                        "every note lands")
     p.add_argument("--adaptive-subdiv", action="store_true",
                    help="🔴REFUTED 2026-08-21: 1/8-beat slots below 150 bpm make "
                         "onset_precision WORSE on 10 of 10 affected songs and cost "

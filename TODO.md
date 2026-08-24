@@ -229,10 +229,22 @@ songs. ⇒**the fit measures the MUSIC, not the convention; the bias is a real e
 correction should generalise.**
 ★**Common root visible**: fitted phase negative on 6/6 (−19…−36 ms) *and* onsets read 0.033 beats
 early ⇒ suspect ONE analysis/frame-centring latency, not two coincidences.
-⬜**NEXT — calibrate on HELD-OUT songs.** 0.053 was measured on the same 18 songs it would apply to.
-**DoD**: fit the bias on half the cohort, reproduce the `onset_precision` + human-agreement gains on
-the other half, then re-run the padded control on the corrected estimator.
-⚠️Do not ship "+0.05 everywhere".
+✅★★**HELD-OUT VALIDATED AND BUILT** (`scripts/sweep_phase_heldout.py`, n=18). Constant fitted on one
+fold, applied to the other; both directions run (folds gave **+0.0569** and **+0.0513** independently):
+
+| | none | held-out | oracle (ceiling) |
+|---|---|---|---|
+| `onset_precision` | 0.8882 | **0.9170** (+0.029) | 0.9172 |
+| human agreement | 0.6422 | **0.7086** (+0.067, 15/18) | 0.7101 |
+
+★★**A single constant captures 99 % of the per-song ORACLE gain** ⇒ the bias really is constant.
+✅**Shipped as `--phase-calibrate`** (`mapctl.PHASE_BIAS_BEATS = 0.053`), **default OFF**.
+✅**A/B built + installed**: `AUTO <song> [PBASE]` vs `[PCAL]`, 4 songs — Hunger `onset_precision`
+**0.768 → 0.917**, human agreement **0.484 → 0.667**. ⇒**`LISTENING.md`, play Hunger first.**
+🔴**Default stays OFF — Kyle's call.** Every note moves ~20 ms; `BEAT_GRID_PHASE` once "fixed" 18
+songs on the axis while he still heard the defect.
+⚠️`PHASE_BIAS_BEATS` is a property of the CURRENT tempo/phase fit — re-derive it with
+`sweep_phase_heldout.py` if that fit ever changes.
 ⚠️**Per-song sanity gates, not cohort medians**: `1fa32`/`1f9a0` fail "human notes on their own grid"
 (0.109 / 0.062) — song offset or BPM changes — and would have measured reconstruction error.
 ⚠️`--phase-shift` stays TEST ONLY.

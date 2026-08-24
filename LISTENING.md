@@ -4,6 +4,36 @@
 > four matter and what question each one settles. Everything else is superseded or from an older
 > line of work; a proposed cleanup is at the bottom.
 
+## ⭐⭐ ADDED 2026-08-24 — `[PBASE]` vs `[PCAL]`: **is the map ON THE MUSIC?**
+
+★**Play this one first.** It is the biggest measured change in the session and it targets the thing
+you named by ear three sessions ago — *"slightly off beat"*.
+
+**What was found**: our bar grid sits **0.053 beats EARLY** of the grid a human mapper used for the
+same song — **18 of 18 songs**, measured against their maps, which our onset detector never touched.
+`[PCAL]` corrects that measured bias; `[PBASE]` is today's default.
+
+| song | `onset_precision` | agreement with the human's own note times |
+|---|---|---|
+| **Hunger** | 0.768 → **0.917** | 0.484 → **0.667** |
+| アリスブルー | 0.890 → **0.937** | 0.547 → 0.588 |
+| Digital Life Hacker | 0.914 → **0.941** | 0.656 → 0.689 |
+| Fallen Kingdom | 0.825 → **0.866** | 0.600 → 0.661 |
+
+★**Held-out validated**: the constant was fitted on half the songs and applied to the *other* half,
+where it still lifts `onset_precision` 0.888 → 0.917 and human agreement 0.642 → 0.709 — capturing
+**99 %** of what a per-song oracle achieves. ★**And it is not a corpus artifact**: padding the audio
+by 137 ms moves the fitted phase *with the music* (6/6 songs), so it should work on any song you
+bring.
+
+⚠️**Every note moves by ~20 ms**, so unlike the `[W3]`/`[W5]` A/B below this is not a
+same-notes comparison — note counts shift slightly too as more events land inside slots.
+🔴**Default is still OFF** (`--phase-calibrate`). Every number above is a number, and
+`BEAT_GRID_PHASE` once "fixed" 18 songs on the axis while you still heard the defect. **Start with
+Hunger** — it moves furthest.
+
+---
+
 ## ⭐ ADDED 2026-08-24 — `[W3]` vs `[W5]`: the cut-direction A/B
 
 **The question**: we play **vertical** where humans play **diagonal** (vertical 0.77 vs human 0.48;

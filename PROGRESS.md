@@ -306,11 +306,40 @@ generalise to arbitrary audio.** The finding survived the control that would hav
 our onsets independently read **0.033 beats early**. Two different front-end measurements both
 running early points at a single analysis/frame-centring latency, not two coincidences.
 
-⬜**NEXT — calibrate the estimator on HELD-OUT songs.** The correction is justified now, but 0.053
-was measured on the same 18 songs it would be applied to.
-**DoD**: fit the bias on one half of the cohort, apply it to the other half and reproduce the
-`onset_precision` and human-agreement gains there; then re-run the padded control to confirm the
-corrected estimator still tracks.
+### ✅ HELD-OUT VALIDATED — AND A SINGLE CONSTANT CAPTURES 99 % OF THE ORACLE
+`scripts/sweep_phase_heldout.py` splits the 18 songs, fits the bias on one fold and applies it
+untouched to the other, in both directions. The folds independently produced **+0.0569** and
+**+0.0513** beats.
+
+| | none | **held-out** | oracle (ceiling) |
+|---|---|---|---|
+| `onset_precision` | 0.8882 | **0.9170 (+0.029)** | 0.9172 (+0.029) |
+| human agreement | 0.6422 | **0.7086 (+0.067, better on 15/18)** | 0.7101 (+0.068) |
+
+★★**The held-out constant captures 99 % of what a PER-SONG ORACLE achieves.** The oracle uses each
+song's own fitted phase — the very quantity being repaired — so it is a ceiling, not a candidate.
+That the constant matches it says the bias really is **constant**, not per-song.
+⚠️`onset_precision` improves on only 10/18 songs while the mean rises sharply: the correction rescues
+badly-misaligned songs (Hunger 0.768 → 0.917) and slightly overshoots a few that were already fine
+(those have small oracle corrections, 0.015–0.033). **The mean and the win count disagree, and both
+are reported.**
+
+### ✅ SHIPPED AS `--phase-calibrate`, DEFAULT OFF
+`mapctl.PHASE_BIAS_BEATS = 0.053`, deliberately separate from `--phase-shift` (which exists to
+*degrade* the grid). A/B built and installed as `AUTO <song> [PBASE]` vs `[PCAL]`:
+
+| song | `onset_precision` | human agreement |
+|---|---|---|
+| **Hunger** | 0.768 → **0.917** | 0.484 → **0.667** |
+| アリスブルー | 0.890 → **0.937** | 0.547 → 0.588 |
+| Digital Life Hacker | 0.914 → **0.941** | 0.656 → 0.689 |
+| Fallen Kingdom | 0.825 → **0.866** | 0.600 → 0.661 |
+
+🔴**Default stays OFF — Kyle's call.** Every note moves ~20 ms, and `BEAT_GRID_PHASE` once "fixed" 18
+songs on the axis while he still reported *"slightly off beat"*. This targets that exact complaint,
+which is why it goes to his ear rather than into the defaults.
+⚠️`PHASE_BIAS_BEATS` is a property of the CURRENT tempo/phase fit; re-derive it with
+`sweep_phase_heldout.py` if that fit changes.
 ⚠️`--phase-shift` stays TEST ONLY. ⚠️**Any prior negative-shift measurement in this repo is suspect**
 until re-checked against displacement.
 
