@@ -42,12 +42,20 @@ would be reading a quantisation artifact. ★**`displacement` is therefore repor
 alongside every arm: an arm whose median displacement is a full slot is not a
 perturbation of the same map and its scores are not comparable.**
 
-★★**AND THE POSITIVE ARMS SHARPEN P0.4.** At +0.05 and +0.20 the surviving notes sit
-at median displacement **0.0** -- exactly on the unshifted absolute grid -- while the
-note COUNT changes (986 -> 1039). So the phase shift does not move notes at all; it
-changes **which events get selected into which slot**. That confirms and sharpens
-TODO's retraction: the grid phase is a **SELECTION knob, not an alignment knob**, and
-whatever P0.4 is buying, it is buying by re-picking notes.
+🔴🔴**RETRACTED — the "0.0 ms displacement" above was MY BUG, not a property of the
+knob.** `note_times` computed `beat * 60/bpm` and ignored **`_songTimeOffset`**, which
+is exactly where `mapctl export` writes the fitted phase ("the offset must be the phase
+or every note lands `phase` early"). Dropping it discarded the only term that moves
+when the phase shifts, so a real realignment measured as "notes did not move" and
+produced the false conclusion that the grid phase is a selection-only knob.
+★*If a knob appears to change nothing, suspect the instrument before concluding the
+knob is inert.*
+
+✅**With the offset included, the picture is coherent** (n=23):
+`onset_precision` 0.857 -> **0.894** at +0.05 and back down to **0.820** at +0.10;
+human agreement 0.610 -> **0.678**. **The inverted-U is real and peaks at +0.05**,
+which is exactly the independently measured grid error of **0.053 beats early**
+(`diag_grid_vs_human.py`). Overshooting to +0.10 hurts, as a correction should.
 
 ⚠️Anything that changes the grid changes the map, so `nps` and note count are reported
 too: a "gain" bought by emitting fewer, easier notes is not a gain.
@@ -112,10 +120,24 @@ def note_times(zp: pathlib.Path) -> tuple[np.ndarray, int] | None:
             break
     if not bpm:
         return None
+    # 🔴🔴**`_songTimeOffset` IS THE GRID PHASE AND MUST BE INCLUDED.** `mapctl export`
+    # writes the fitted phase into it ("the map is written on the FITTED grid… the
+    # offset must be the phase or every note lands `phase` early"), and Beat Saber
+    # applies it to the audio. An earlier version of this function computed
+    # `beat * 60/bpm` alone and therefore DROPPED the only term that moves when the
+    # phase is shifted -- which made a +0.05 shift look like it displaced notes by
+    # 0.0 ms and produced the false conclusion that the phase changes selection but
+    # not placement. ★*If a knob appears to change nothing, suspect the instrument
+    # before concluding the knob is inert.*
+    offset = 0.0
+    for k, v in meta.items():
+        if "songtimeoffset" in k.lower().replace("_", ""):
+            offset = float(v)
+            break
     notes = dat.get("colorNotes") or []
     if not notes:
         return None
-    t = np.array([float(n.get("b", 0.0)) * 60.0 / bpm for n in notes])
+    t = np.array([offset + float(n.get("b", 0.0)) * 60.0 / bpm for n in notes])
     return np.sort(t), len(notes), bpm
 
 
@@ -230,9 +252,10 @@ def main() -> int:
             print("     note by a FULL SLOT on most songs. That is not the same map")
             print("     perturbed, it is a map moved off the grid, so their collapse is")
             print("     a quantisation artifact and NOT evidence of a signed phase error.")
-            print("  ★What IS readable: arms with displacement 0.0 change the note")
-            print("     COUNT while leaving surviving notes exactly in place ⇒ the grid")
-            print("     phase is a SELECTION knob, not an alignment knob.")
+            print("  ★What IS readable: the small POSITIVE arms. Note times DO move with")
+            print("     the phase (it is exported as `_songTimeOffset`), so these are a")
+            print("     genuine realignment, and the optimum should sit at the measured")
+            print("     grid error — see `diag_grid_vs_human.py` (0.053 beats early).")
         elif dn > 0 and dp > 0:
             print("  🔴BOTH DIRECTIONS HELP ⇒ zero is NOT a special phase. The gain is")
             print("     RESELECTION, not a phase correction. Do not build a phase")

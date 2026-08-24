@@ -193,8 +193,14 @@ re-checked against displacement.**
 ★★**THE DISPLACEMENT ASYMMETRY IS THE MECHANISM**: −δ crosses a slot boundary **2–4× more often**
 than +δ. If events sat centred in their slots, ±δ would displace symmetrically. ⇒**events sit
 systematically LATE within their slots; the bar grid is early relative to them by ~0.05 beats.**
-✅**And the gain is still SELECTION** (retraction confirmed): at +0.05 surviving notes move **0.0 ms**
-on 18/23 while note count rises 978 → 1009, and BOTH references improve on 21/23 songs.
+🔴🔴**RETRACTED (same session): "the notes do not move" was MY INSTRUMENT'S BUG** — it ignored
+**`_songTimeOffset`**, which is exactly where `mapctl export` writes the fitted phase, dropping the
+only term that moves when the phase shifts. ★***If a knob appears to change nothing, suspect the
+instrument before concluding the knob is inert.***
+✅**Re-measured correctly (n=23): `onset_precision` 0.857 → 0.894 at +0.05, back to 0.820 at +0.10;
+human agreement 0.610 → 0.678.** ★★**The inverted-U peaks at +0.05 — exactly the independently
+measured 0.053-beat grid error**, and overshooting HURTS, which a selection lottery would not do.
+⇒**P0.4 is a genuine quantified realignment.**
 ✅★★**ANSWERED — OUR GRID IS EARLY BY EXACTLY THE OPTIMAL SHIFT** (`scripts/diag_grid_vs_human.py`,
 n=18 bpm-matched + sanity-passing songs; the human's grid is an INDEPENDENT ruler our detector never
 touched):
@@ -212,11 +218,10 @@ offset, and the human grid is what distinguishes the two. **P0.4 is buildable.**
 ⚠️**The detector is separately biased 0.033 beats EARLY** (not late — the usual intuition is
 backwards). **Do not fix both with one shift**: correcting the grid alone leaves events 0.033 early
 instead of 0.020 late, i.e. further from slot centre.
-⬜**NEXT — the gain does not arrive the way the mechanism suggests.** At +0.05 surviving note times
-do not move at all (they re-quantise onto the same absolute slots); the gain is entirely in WHICH
-events are selected. **DoD**: make the corrected grid carry through to note PLACEMENT, then
-re-measure `onset_precision` and human agreement — if the gain survives when notes actually move,
-the correction is real; if it vanishes, the +0.05 was only ever a selection re-roll.
+⬜**NEXT — fix the PHASE ESTIMATOR, not a blanket constant.** 0.053 is a cohort median (sd 0.019)
+and is per-song measurable. **DoD**: a per-song phase correction derived WITHOUT reference to the
+human map (the human grid is the VALIDATION set, never an input) reproduces the +0.05 gain at ≥3
+seeds, and `--phase-shift` becomes unnecessary. ⚠️Do not ship "+0.05 everywhere".
 ⚠️**Per-song sanity gates, not cohort medians**: `1fa32`/`1f9a0` fail "human notes on their own grid"
 (0.109 / 0.062) — song offset or BPM changes — and would have measured reconstruction error.
 ⚠️`--phase-shift` stays TEST ONLY.
