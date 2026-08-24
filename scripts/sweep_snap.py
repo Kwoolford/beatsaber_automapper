@@ -21,6 +21,7 @@ import statistics
 import subprocess
 import sys
 import tempfile
+import time
 
 import numpy as np
 
@@ -29,7 +30,15 @@ AM = REPO / "agent_mapper"
 sys.path.insert(0, str(REPO / "src"))
 sys.path.insert(0, str(REPO / "scripts"))
 
-WATCH = ("onset_precision", "offset_mad_ms", "pulse_stability", "role_asymmetry", "nps")
+WATCH = ("onset_precision", "offset_mad_ms", "pulse_stability", "nps",
+         # ★Cut-direction axes added 2026-08-24. The snap cost 2 of 23 songs their
+         # PASS, and BOTH failed on idiom/geometry while `onset_precision` ROSE --
+         # `diagonal_share` at the 98th-99.8th human percentile, `vertical_share`
+         # at the 3rd. That is the P1.2 direction (we sit vertical 0.773 / diagonal
+         # 0.223 vs human 0.480 / 0.415) and P1.2 records the loss as living
+         # "inside the sampler and NOT yet explained". Two songs propose; only the
+         # cohort disposes -- this is here to make the cohort answer.
+         "vertical_share", "diagonal_share", "idiom_coverage")
 
 
 def onsets_for(sid):
@@ -47,22 +56,31 @@ def main() -> int:
     from beatsaber_automapper.evaluation import mapjudge as mj
     ref = mj.load_reference()
 
-    arms = {"BASE": [], "SNAP": ["--snap-onsets"],
-            "SNAP+SUB": ["--snap-onsets", "--adaptive-subdiv"]}
+    # ⚠️`SNAP+SUB` retired: `--adaptive-subdiv` is REFUTED (`onset_precision` falls on
+    # 10 of 10 affected songs, `pulse_stability` 0.591 -> 0.376), so keeping it here
+    # spent a third of the sweep re-measuring a dead arm.
+    arms = {"BASE": [], "SNAP": ["--snap-onsets"]}
     sids = a.songs or [p.stem for p in
                        sorted((REPO / "data" / "eval_songset").glob("*.ogg"))]
     tmp = pathlib.Path(tempfile.mkdtemp(prefix="snap_"))
     res = {k: [] for k in arms}
+    times = {k: [] for k in arms}
     for sid in sids:
         audio = REPO / "data" / "eval_songset" / f"{sid}.ogg"
         on = onsets_for(sid)
         for arm, extra in arms.items():
             out = tmp / f"{arm}__{sid}.zip"
+            t0 = time.time()
             subprocess.run(
+                # ★`--lead-bias 0.20`, not 0.30: 0.30 was tuned against the SAMPLED
+                # lead and overshoots to the 77.9th percentile under the `cyclic`
+                # default. An operating point is not portable across a change in how
+                # the knob works.
                 [sys.executable, str(AM / "autobuild.py"), str(audio), "--pulse",
-                 "--lead-bias", "0.3", "--name", f"sn_{sid}_{arm}",
+                 "--lead-bias", "0.2", "--name", f"sn_{sid}_{arm}",
                  "--out", str(out), *extra],
                 capture_output=True, text=True, cwd=REPO)
+            times[arm].append(time.time() - t0)
             if out.exists():
                 try:
                     res[arm].append(mj.judge_zip(out, onsets=on, reference=ref))
@@ -87,6 +105,27 @@ def main() -> int:
                 cells.append("--")
         print(f"{arm:<7}{npass:>4}/{len(rs):<3}{pmed:>8.3f}"
               + "".join(f"{c:>17}" for c in cells))
+
+    print(f"\n{'arm':<7}{'build s/song (median)':>24}")
+    for arm in arms:
+        if times[arm]:
+            print(f"{arm:<7}{statistics.median(times[arm]):>24.1f}")
+    if times["BASE"] and times["SNAP"]:
+        d = statistics.median(times["SNAP"]) - statistics.median(times["BASE"])
+        note = ("corpus cache is warm here, so this is the FLOOR" if d >= 0
+                else "inside run-to-run noise")
+        print(f"\nsnap costs {d:+.1f} s/song ({note})")
+
+    print("\nVERDICT LOGIC — should --snap-onsets become the DEFAULT?")
+    print("  The 2026-08-20 cost was `nps` 3.43 -> 3.29, but that predates the")
+    print("  two-stream carrier fix, so it is re-measured here at current defaults.")
+    print("  DEFAULT-WORTHY if: onset_precision rises, PASS count does not fall, and")
+    print("     the nps cost is smaller than the density lever can trivially repay.")
+    print("  NOT DEFAULT-WORTHY if: nps falls materially, or PASS falls -- the snap")
+    print("     COLLAPSES events sharing an onset, and that is a note-budget change")
+    print("     wearing an alignment change's clothes.")
+    print("  ⚠️Build-time above is the CORPUS floor. A non-corpus song additionally")
+    print("     pays a full 4-stem Demucs pass, which this sweep cannot see.")
     return 0
 
 

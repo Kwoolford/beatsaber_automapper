@@ -141,11 +141,21 @@ closer (p=0.035), near-human@50 ms 0.627 → 0.665, sign stable at every toleran
 **−0.061**, though both concentrate event times identically. The lift is musical, not discretisation.
 ✅**Works on any song now** (`refonsets` falls back to a content-hashed key and runs the judge's own
 detector). Verified end-to-end on audio with no corpus identity. See PROGRESS 2026-08-24.
-⬜**LEFT: should `--snap-onsets` become the DEFAULT?** It costs a **second Demucs pass** on any
-non-corpus song (4-stem `htdemucs` on top of the `htdemucs_6s` already run for events).
-⚠️Cost to weigh: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
-**DoD**: build-time on a fresh song measured, and the density cost re-checked at the current
-carrier-recruitment defaults (the 3.43 → 3.29 predates the two-stream fix).
+✅**PRICED (n=23)**: `onset_precision` **0.866 → 0.891**, and 🔴**the recorded `nps` 3.43 → 3.29 cost
+is REFUTED as an artifact** — it predated the two-stream carrier fix, and at current defaults
+density *rises* (4.412 → 4.464). ★*A cost measured against a supply-starved build is not a property
+of the change.*
+🔴**Stays OPT-IN — DoD not met: PASS falls 23 → 21.** Both losses are **idiom/geometry** while
+`onset_precision` ROSE, and both songs were already marginal in BASE (`1f9a0` 0.450→0.478 with
+`diagonal_share` p=0.998; `1fb3f` `idiom_coverage` 0.675→0.350).
+🔴**A P1.2 lead died here**: those two songs move cut directions exactly the way P1.2 wants, but the
+**cohort does not move at all** (`vertical_share` 0.754→0.760, `diagonal_share` 0.243→0.239).
+**Do not revive "the snap fixes cut directions".**
+⬜**NARROWED, worth a probe**: *why does idiom sampling collapse on those two songs when times
+collapse onto shared onsets?* A per-song sampler fragility, same shape as P0.4's reselection.
+**DoD**: the mechanism named and shown on both songs, and either fixed or shown to be a property of
+those songs. ⚠️Also unmeasured: the second Demucs pass a NON-corpus song pays (the sweep ran
+corpus-warm).
 🔴**Do not "fix" the ±1-frame drift between a fresh detector run and the stored cache** — it is
 environment drift, and the cache is the fixed point every alignment number is measured against.
 

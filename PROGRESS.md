@@ -85,8 +85,48 @@ p90 34.8 ms is the environment drift above, not the generalisation.
 **573 tests pass** (8 new, covering the corpus-preference, the prefix guard, and that `compute=False`
 never launches Demucs).
 
-⬜**Still open**: `--snap-onsets` remains **opt-in**, not default. Making it default costs every
-non-corpus build a second Demucs pass, and that is a build-time decision worth taking deliberately.
+### 📊 THEN PRICED THE DEFAULT QUESTION (23 songs, current defaults)
+
+| arm | PASS | `onset_precision` | `nps` | build |
+|---|---|---|---|---|
+| BASE | **23/23** | 0.866 | 4.412 | 3.1 s |
+| SNAP | **21/23** | **0.891** | **4.464** | 3.2 s |
+
+✅🔴**THE RECORDED DENSITY COST IS GONE — AND IT WAS AN ARTIFACT.** P0.7 carried
+*"`nps` 3.43 → 3.29"* as the snap's price. At current defaults density **rises** (4.412 → 4.464).
+The old cost was measured **before the two-stream carrier fix**: when `autobuild` could only see
+drums + one carrier, collapsing events onto a shared onset removed notes the build could not
+replace. With carrier recruitment it can. ★**A cost measured against a supply-starved build is not
+a property of the change** — the same trap as the `travel` "defect" that came from an experimental arm.
+
+🔴**BUT THE DoD IS NOT MET: PASS falls 23 → 21.** Per-song diagnosis
+(`scripts/diag_snap_failures.py`) shows **both** losses are on **idiom/geometry**, and in **both**
+`onset_precision` ROSE:
+- `1f9a0` (the 93 bpm P1.0 song): 0.450 → 0.478, but `diagonal_share` 0.688 (**p=0.998**),
+  `vertical_share` 0.312 (p=0.031), `idiom_coverage` 0.228 (p=0.000).
+- `1fb3f`: 0.915 → 0.925, but `idiom_coverage` 0.675 → **0.350**, `diagonal_share` 0.601 (p=0.983).
+★Both songs were **already marginal in BASE** (1f9a0 had two out-of-range metrics; 1fb3f's
+`idiom_coverage` sat at p=0.035). ⇒**These are not typical songs newly broken; they are marginal
+songs pushed over.**
+
+### 🔴 A P1.2 LEAD, RAISED AND REFUTED IN THE SAME SESSION
+Those two songs move cut directions **exactly the way P1.2 wants** — P1.2 is the largest
+non-circular gap (we sit vertical 0.773 / diagonal 0.223 vs human 0.480 / 0.415) and records the
+loss as living *"inside the sampler and NOT yet explained"*. A snap that collapses distinct times
+and sends `diagonal_share` to p=0.998 looked like the missing mechanism.
+🔴**THE COHORT SAYS NO**: `vertical_share` 0.754 → 0.760, `diagonal_share` 0.243 → 0.239,
+`idiom_coverage` 0.990 → 0.988 — **nothing moves.** The geometry swing is **song-specific**.
+★*The page proposes, only the cohort disposes* — this repo has now generalised from a handful of
+songs twice; checking the cohort first is what stopped the third.
+
+### ⇒ RECOMMENDATION: KEEP `--snap-onsets` OPT-IN
+Cohort-wide it buys **+0.025 `onset_precision`** for **no density cost and no geometry cost**, which
+is the best-priced alignment change we have. But it costs 2 of 23 songs a PASS, and its DoD said
+PASS must not fall. ⬜**The open question is now narrower and worth a probe**: *why does idiom
+sampling collapse on exactly those two songs when times are collapsed onto shared onsets?* That is
+a per-song fragility in the sampler, and it is the same shape as P0.4's grid-phase **reselection**.
+⚠️A non-corpus song additionally pays a full 4-stem Demucs pass, which this corpus-warm sweep
+cannot see; that cost is unmeasured.
 
 ---
 
