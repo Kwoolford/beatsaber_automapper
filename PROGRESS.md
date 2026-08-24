@@ -7,6 +7,54 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-24g — THE DoD TEST: BUILT A COLD-CACHE SONG AND JUDGED IT WITHOUT KYLE
+
+★**Kyle's DoD:** *"complete when you call the skill and are confident in the map you build and feel
+you can evaluate the map correctly and don't need to rely on me to audit."* Building the six
+channels is not evidence they are ENOUGH. ⇒**Ran `/buildmap` end to end on `24e6c` ("Shut Up", Mia
+Rodriguez, 110 bpm) — no event cache, no onset cache**, and recorded every question the tools could
+not answer. A human map exists for it, used ONLY as an after-the-fact check, never as an input.
+
+**Built**: 599 notes over 4 sections, density breathing 3.38 / 4.50 / **2.01 (breakdown)** / 4.18
+nps, 0 parity violations, plus 70 walls / 60 arcs / 12 chains.
+
+**The audit answered everything except taste:** PASS `p=0.438` (inside the human 0.28–0.57 band, so
+not bland) · alignment **91.3 % ●** · answered 58.7 % of onsets (74th pct) · **zero gaps** · every
+element in human range · effort below human. ⇒**On every measurable axis I could judge this map
+alone.**
+
+### 🔴 WHAT THE RUN CAUGHT THAT THE AUDIT MISSED — and it is the rule the audit was built on
+`mapctl check` printed **`double share 0.000` (human median 0.137)** and **`audit_map` said
+nothing**, because every block it had asks *"is what is HERE within range"*. `READING.md`'s second
+rule is the opposite: ***"look for what is ABSENT, not what is wrong. Absence does not raise a
+number."*** **A gesture used on zero instants cannot be out of range; it simply is not there.**
+✅Added an ABSENCE block, calibrated on **250 human maps** so a flag means something:
+- **doubles 0.0 %** — only **2.0 %** of human maps have none ⇒🔴a real absence.
+- **lead-hand passages 0** — but **7.6 %** of human maps also have none ⇒🟡unusual, NOT a defect.
+★**Calibrating separated them.** Flagging both red would have overstated the second, which is the
+mistake of quoting a number with no yardstick.
+
+### ⚠️ A RISK I FLAGGED BEFORE BUILDING THAT WAS NOT REAL
+`grid_r` was **0.323** and `mapctl init` warned *"tempo fit is WEAK — check the grid"*. Comparing
+metadata, our phase sat **+59 ms** from the human's — **43 % of a slot**, and in the OPPOSITE
+direction from the corpus bias, so `--phase-calibrate` would have made it worse.
+🔴**But the concern was wrong.** Built and measured: alignment **91.3 %**, and our notes coincide
+with the human mapper's own note times to a **median 9 ms**. ⇒**Comparing grid ANCHORS is not
+comparing where notes LAND.** ★*The page proposes, the measurement disposes* — applied to my own
+pre-build reasoning.
+⚠️Note the honest caveat: `onset_precision` scores our notes against OUR onsets, both downstream of
+our grid, so a self-consistent-but-shifted grid could score well. The human-note-time check (61 % of
+our notes within 50 ms of a human note, median 9 ms) is what rules that out here — and on a genuinely
+new song **that check would not be available.**
+
+### ⇒ WHERE THE DoD ACTUALLY STANDS
+✅**Everything except "is it fun".** Defects, alignment, coverage, elements, effort and absence are
+all judgeable alone, each against a human corpus.
+🔴**Still needs Kyle**: whether the map is worth playing, and whether the 38 % of our notes at times
+the human did not use are good choices or noise — both taste, and neither is a tooling gap.
+
+---
+
 ## 2026-08-24e — "REALLY EMPTY" IS **NOT** ABOUT NOTE COVERAGE, MEASURED AT LAST
 
 Kyle's Fallen Kingdom complaint — *"it feels really empty"* — has survived **five separate

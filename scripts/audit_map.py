@@ -198,6 +198,46 @@ def main() -> int:
           + (f"  first at beat {cols[0]['beat']:.2f}" if cols else ""))
     report["collisions"] = len(cols)
 
+    # ---- ABSENCE -----------------------------------------------------------
+    # 🔴**FOUND BY THE DoD RUN (2026-08-24).** `mapctl check` reported `double share
+    # 0.000` against a human median of 0.137 and this audit said nothing, because every
+    # other block asks "is what is HERE within range". `READING.md`'s second rule for
+    # finding unfun parts is the opposite: **"look for what is ABSENT, not what is
+    # wrong. Absence does not raise a number."** A gesture used on zero instants cannot
+    # be out of range; it simply is not there.
+    print("\n## ABSENCE — gestures the map never uses at all")
+    notes = elems["notes"]
+    by_beat: dict = {}
+    for n in notes:
+        by_beat.setdefault(round(float(n.get("b", 0)), 3), set()).add(int(n.get("c", 0)))
+    doubles = sum(1 for v in by_beat.values() if len(v) > 1)
+    d_share = doubles / max(len(by_beat), 1)
+    # ⚠️Thresholds calibrated on 250 human maps, because "we have zero of X" is only a
+    # defect if humans have some. **2.0 % of human maps have zero doubles** (so zero is
+    # a real absence) but **7.6 % have zero lead-runs** (so zero there is unusual, not
+    # damning). Flagging both the same way would have overstated the second.
+    _ABS = json.loads((REPO / "outputs" / "absence_reference.json").read_text()) \
+        if (REPO / "outputs" / "absence_reference.json").exists() else None
+    _dm = _ABS["double_share"]["median"] if _ABS else 0.137
+    print(f"  {'🔴' if d_share < 0.005 else ('🟡' if d_share < (_ABS['double_share']['p5'] if _ABS else 0.034) else '✅')}"
+          f" doubles (both hands on one instant): {d_share:.1%} of instants"
+          f"   human median {_dm:.1%}"
+          + ("   (only 2.0% of human maps have none)" if d_share < 0.005 else ""))
+    lead_runs = 0
+    if elems["notes"]:
+        # A human map hands whole passages to one hand; a map with no lead alternation
+        # reads as "both hands play everything", which READING.md calls the fastest read
+        # on the biggest defect.
+        import itertools
+        seq = [int(n.get("c", 0)) for n in sorted(notes, key=lambda n: float(n.get("b", 0)))]
+        lead_runs = sum(1 for _k, g in itertools.groupby(seq) if len(list(g)) >= 4)
+    _lm = _ABS["lead_runs"]["median"] if _ABS else 10
+    print(f"  {'🟡' if lead_runs == 0 else '✅'} lead-hand passages (4+ notes one hand): "
+          f"{lead_runs}   human median {_lm}"
+          + ("   (7.6% of human maps also have none — unusual, not a defect)"
+             if lead_runs == 0 else ""))
+    report["absence"] = {"double_share": d_share, "lead_runs": lead_runs}
+
     # ---- THE HANDOVER ------------------------------------------------------
     print("\n## WHAT THIS CANNOT TELL YOU — read the map (agent_mapper/READING.md)")
     print("  1. Does a cell COME BACK? A scatter has nothing to lock into — the single")
