@@ -64,7 +64,8 @@ Kyle.** ⇒Every gap below is "something a player perceives that the agent canno
 | 1 | **walls/arcs/chains** — where they are, what they block | ✅**DONE** `map_view --elements` + `agent_mapper/elements.py`, judged vs **2 688** human maps |
 | 2 | **is this note on a sound I hear** | ✅**DONE** `map_view --align` (● ≤50ms · ○ 50–120 · ✗ nothing), whole-map split |
 | 3 | **effort / strain** — reach, wrist reset, comfort per transition | ⬜ parity `F/B` exists; distance-in-time and reset cost do not |
-| 4 | **a verdict on ONE map** | ⬜🔴`mapjudge` is a COHORT statistic — **all six axes are `nan` at n=1 and n=2**, so the agent cannot score the map it just built |
+| 4 | **a verdict on ONE map** | ✅**ALREADY SOLVED — I had this wrong.** `mapjudge.judge_zip` scores **23/23 metrics on a single map, zero `nan`**. The *"all six axes are `nan` at n=1"* landmine is about the OLDER six-axis `scorecard.score_cohort`, **not** `mapjudge`. ⇒The gap is not scoring one map; it is that **no single command assembles every channel into one verdict** — see gap 4b |
+| 4b | **one honest verdict, all channels** | ⬜`mapjudge` (notes) + `--align` + `--elements` + parity all exist and must each be remembered, run, and interpreted separately |
 | 5 | **emptiness** — the song is busy here and the map is not | ⬜ `overlay` has HIT/MISSED/WASTED; there is no "the song asked and we did not answer" contour |
 | 6 | **what it sounds like** — vocals/guitar/piano lanes in the sheet | 🟡 `--audio` gives drums+bass+lead only; `events.py` sees 6 stems |
 

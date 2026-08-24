@@ -324,6 +324,19 @@ badly-misaligned songs (Hunger 0.768 → 0.917) and slightly overshoots a few th
 (those have small oracle corrections, 0.015–0.033). **The mean and the win count disagree, and both
 are reported.**
 
+### ⚠️ CORRECTION (2026-08-24, same day): a signed-offset figure I published was a bug
+The commit adding `map_view --align` reported *"the signed median offset falls +32ms → +17ms"*.
+**Wrong** — that column compared each note against the LOWER neighbouring onset instead of the
+NEARER one, biasing the median positive by about half a gap. Corrected, `PBASE` reads **+2 ms** and
+`PCAL` **+9 ms**.
+★**And the correction taught something worth keeping**: with ~2 000+ detected onsets in a song,
+almost every note has one nearby, so **the signed median SATURATES near zero even on a map with a
+real grid error** — 1f333 reads +2 ms while only **76.8 %** of its notes are within 50 ms.
+⇒**The ● SHARE is the discriminating statistic; the signed median is context only.** A heuristic in
+`audit_map.py` that warned on |signed median| > 15 ms was rebuilt around the ● share instead.
+⚠️**The `--phase-calibrate` result is unaffected** — it was always measured on the ● share
+(`onset_precision` 0.768 → 0.917 on Hunger), never on the signed median.
+
 ### ✅ SHIPPED AS `--phase-calibrate`, DEFAULT OFF
 `mapctl.PHASE_BIAS_BEATS = 0.053`, deliberately separate from `--phase-shift` (which exists to
 *degrade* the grid). A/B built and installed as `AUTO <song> [PBASE]` vs `[PCAL]`:

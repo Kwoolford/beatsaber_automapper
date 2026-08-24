@@ -434,8 +434,13 @@ def main() -> None:
         print(f"  ● on a sound (≤50ms)  {on:6.1%}   ← this is `onset_precision`")
         print(f"  ○ near-miss (50-120)  {near:6.1%}")
         print(f"  ✗ nothing there       {miss:6.1%}   ← notes the player hears as unmotivated")
+        # ⚠️Signed offset must use the NEARER onset. Measuring against `_o[i-1]`
+        # always takes the lower neighbour, which biases the median positive by
+        # roughly half a gap -- it read +32ms where the true value is +2ms.
+        _sgn = _np.where(_np.abs(ts - _o[i - 1]) <= _np.abs(ts - _o[i]),
+                         ts - _o[i - 1], ts - _o[i]) * 1000.0
         print(f"  median |offset| {_np.median(d):.0f}ms · "
-              f"signed median {_np.median((ts - _o[i - 1]) * 1000):+.0f}ms")
+              f"signed median {_np.median(_sgn):+.0f}ms")
     if el:
         s = _EL.summary(el)
         print(f"\nELEMENTS  walls {s['walls']} · arcs {s['arcs']} · chains "
