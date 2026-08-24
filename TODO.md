@@ -184,9 +184,24 @@ different maps rather than one map realigned. **"Every note is placed early" was
 🔴**And the phase criterion is not biased**: `R`-optimal vs minimum-snap-distance-optimal differ by
 a median **signed** +0.002 beats (random directions). ⇒**a fix aimed at the phase estimator would be
 aimed at nothing.**
-⬜**What is left**: a reproducible grid-dependent selection effect with **no known mechanism**. Worth
-understanding before acting — a per-song phase search is the obvious next probe, but it optimises a
-selection rather than an alignment, which is a different thing to justify.
+✅★★**A MECHANISM AT LAST (2026-08-24, `scripts/diag_phase_sign.py`, n=23).**
+🔴**First: `--phase-shift` note times do NOT move continuously.** Negative shifts displace the
+median note by a **FULL SLOT** on **19/23** songs at −0.10 and 10/23 at −0.05 (positives: 5/23).
+⇒**any negative-arm comparison measures quantisation, not phase**, and a naive sign test reads the
+collapse as a signed offset. ⚠️**Any prior negative-shift number in this repo is suspect until
+re-checked against displacement.**
+★★**THE DISPLACEMENT ASYMMETRY IS THE MECHANISM**: −δ crosses a slot boundary **2–4× more often**
+than +δ. If events sat centred in their slots, ±δ would displace symmetrically. ⇒**events sit
+systematically LATE within their slots; the bar grid is early relative to them by ~0.05 beats.**
+✅**And the gain is still SELECTION** (retraction confirmed): at +0.05 surviving notes move **0.0 ms**
+on 18/23 while note count rises 978 → 1009, and BOTH references improve on 21/23 songs.
+⬜**NEXT — the question that decides whether a phase fix may ever ship**: is the lateness
+**onset-detector latency** (C2's landmine: *"never apply a blanket global shift… fixing it is the
+`h_dist` failure"*) or real musical placement? ★**Evidence against pure latency**: agreement with the
+HUMAN MAPPER'S OWN note times — which our detector never touched — improves on 21/23 songs.
+**DoD**: measure where human notes sit inside their own slots. If humans are late too, the lateness
+is musical and a grid correction is legitimate; if only we are late, it is detector offset and C2's
+landmine binds.
 ⚠️`--phase-shift` stays TEST ONLY.
 
 ## 🟡 P1.2 — WE USE SIX CUT DIRECTIONS, HUMANS USE NINE

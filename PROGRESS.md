@@ -180,6 +180,69 @@ cannot see; that cost is unmeasured.
 
 ---
 
+## 2026-08-24c — P0.4: THE SIGN TEST I BUILT WAS INVALID, AND FIXING IT FOUND THE ASYMMETRY
+
+P0.4 is *"a reproducible grid-dependent selection effect with no known mechanism"*: a bar-grid shift
+of **+0.05–0.10 beats** improves `onset_precision` 0.866 → 0.916 and human-note agreement
+0.645 → 0.686 on 16/23 songs, but only **45.9 %** of note beats survive, so it builds a different map.
+
+★**The test came from earlier the same day**: `--snap-onsets` turned out to RESELECT rather than
+realign once its window was a large fraction of a slot. A phase shift is the same kind of
+perturbation. So — **a real phase error has a SIGN; a reselection lottery does not.** Shift both ways.
+
+### 🔴 THE FIRST ANSWER WAS WRONG, AND THE INSTRUMENT WAS WHY
+The first run said negatives collapse (`onset_precision` 0.849 → 0.624) and printed
+*"only the positive direction helps ⇒ a real signed grid offset"*. **That verdict was an artifact.**
+Note times do **not** move continuously with the phase — measured on 1f767 (160 bpm, slot 93.8 ms):
+
+| shift | median displacement from the unshifted map |
+|---|---|
+| −0.20 / −0.05 | **93.8 ms — a FULL SLOT** |
+| −0.01 / +0.05 / +0.20 | **0.0 ms** |
+
+⇒**The negative arm is not the same perturbation with the opposite sign** — it is a map moved a
+whole slot off the grid, far outside the 50 ms tolerance, so its collapse measures quantisation.
+⚠️**Two bugs in my own probe had to be fixed before it could say anything**: the slot was estimated
+from the median inter-note GAP (several slots wide, so the guard could never fire), and `SHIFTS`
+iterated negatives **before** the 0.0 baseline, leaving every negative arm's displacement `nan` —
+which is exactly why the bad verdict printed. ★*An instrument that reports `nan` into a guard reports
+"no problem".*
+
+### ✅ WHAT SURVIVES, ON THE CORRECTED COHORT (n=23)
+
+| shift | `onset_precision` | human agreement | notes | displaced a full slot |
+|---|---|---|---|---|
+| −0.10 | 0.624 | 0.262 | 889 | **19/23** |
+| −0.05 | 0.713 | 0.393 | 918 | **10/23** |
+| **0.00** | 0.849 | 0.615 | 978 | 0/23 |
+| **+0.05** | **0.890** | **0.682** | 1009 | 5/23 |
+| +0.10 | 0.894 | 0.679 | 989 | 5/23 |
+
+1. 🔴**The raw sign comparison is unreadable**: the negative arms are contaminated by full-slot
+   displacement on 10–19 of 23 songs. Their collapse is not evidence about phase.
+2. ★★**BUT THE DISPLACEMENT ASYMMETRY IS ITSELF THE FINDING**: −δ pushes notes over a slot boundary
+   **2–4× more often** than +δ (19/23 and 10/23 vs 5/23). Were events centred in their slots, ±δ
+   would displace symmetrically. ⇒**events sit systematically LATE within their slots**, and the
+   default bar grid is early relative to them by roughly 0.05 beats. **That is a mechanism, and P0.4
+   had none.**
+3. ✅**The gain is still SELECTION, confirming the retraction**: at +0.05 the surviving notes do not
+   move at all (0.0 ms displacement on 18/23) while the note count rises 978 → **1009**, and *both*
+   references improve — `onset_precision` on **21/23** songs and human agreement on 21/23. Notes are
+   not being realigned; different notes are being chosen, and the different ones are better placed.
+
+### ⚠️ THE OPEN QUESTION, AND THE LANDMINE IT SITS ON
+"Events sit late in their slots" has an obvious suspect: **onset-detector latency**. C2's landmine
+says exactly this — *"never apply a blanket global shift; that part is an onset-detector offset, and
+fixing it is the `h_dist` failure."*
+★**But a pure detector offset should not improve agreement with the HUMAN MAPPER'S OWN note times**,
+which our detector never touched — and that improves on 21/23 songs. ⇒Either the lateness is real
+musical placement rather than detector latency, or the human reference shares the bias. **Resolving
+that is the next step, and it decides whether a phase correction may ever be shipped.**
+⚠️`--phase-shift` stays TEST ONLY. ⚠️**Any prior negative-shift measurement in this repo is suspect**
+until re-checked against displacement.
+
+---
+
 ## 2026-08-24b — P1.2's MECHANISM IS FOUND, AND IT IS THE ONE NOBODY SUSPECTED
 
 P1.2 (vertical over-use) is the **largest non-circular gap** — 1.32× the human-human spread. Four
