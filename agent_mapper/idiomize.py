@@ -56,6 +56,13 @@ from beatsaber_automapper.evaluation import swing_sim as ss  # noqa: E402
 # a chosen target -- a point target is what Goodharted `h_dist`.
 CROSSOVER_TARGET = 0.208   # judge reference median over 1100 maps
 TRAVEL_TARGET = 4.167      # grid-units per second, same source
+# ★**LEG 3's second travel lever** (2026-08-24). `travel` and `angle_change`
+# anti-correlate under `width`, and the `technical` style asks for BOTH at p75, so a
+# width mapping is over-specified -- three were measured and none beat leaving `width`
+# alone. This is the orthogonal knob: `width` chooses HOW MANY candidates are
+# considered, `travel_target` re-weights them by HOW FAR each move travels, without
+# touching which cut directions are on offer.
+# ⚠️Do NOT re-attempt a width->style mapping; it is refuted three times over.
 # Vocabulary depth to sample from. ★Not 500, even though the top 500 idioms cover
 # ~90 % of human transitions -- BECAUSE they do. Sampling only from the top 500
 # forces `idiom_coverage` to ~1.0 by construction, and humans sit at 0.909; the map
@@ -103,7 +110,7 @@ class _Hand:
 
 
 def _candidates(ranked, counts, h: _Hand, dt_beats: float, spb: float,
-                top_k: int, cross_ok: bool):
+                top_k: int, cross_ok: bool, travel_target: float = TRAVEL_TARGET):
     """Vocabulary moves legal from this hand's state, with their human weights.
 
     Returns `[(idiom, weight)]`. The weight is the idiom's **frequency in the human
@@ -138,7 +145,7 @@ def _candidates(ranked, counts, h: _Hand, dt_beats: float, spb: float,
         dist = (dx * dx + dy * dy) ** 0.5
         # A1: prefer travel near the human median, but as a soft weight rather than
         # a sort key -- a hard sort is what discarded the common idioms.
-        speed_err = abs(dist / dt_sec - TRAVEL_TARGET) / TRAVEL_TARGET
+        speed_err = abs(dist / dt_sec - travel_target) / max(travel_target, 1e-6)
         w = counts.get(entry, 1) / (1.0 + speed_err) ** 2
         out.append((entry, w, crosses))
     return out
@@ -189,7 +196,8 @@ def _pick(cands, rng: random.Random, prefer_cross: bool, width: int = 0):
 
 def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
              width: int = 3, crossover: float = CROSSOVER_TARGET,
-             repeat_p: float = REPEAT_P):
+             repeat_p: float = REPEAT_P,
+             travel_target: float = TRAVEL_TARGET):
     """Redraw (x, y, direction) for every note from the human vocabulary.
 
     `records` is a list of dicts with keys b/x/y/c/d (the v3 `colorNotes` shape).
@@ -227,7 +235,8 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # entirely, which the judge reports as the single most non-human property
         # of every map we ship (crossover 0.000, human percentile 0.4).
         cross_ok = rng.random() < crossover
-        cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, cross_ok)
+        cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, cross_ok,
+                            travel_target)
         # Prefer a figure this hand has just played, when one still fits from its
         # current state. This is what makes the local vocabulary small.
         if cands and recent[color] and rng.random() < repeat_p:
@@ -241,7 +250,8 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # draw asks for a crossover, pick from the crossing candidates.
         pick = _pick(cands, rng, prefer_cross=cross_ok, width=width)
         if pick is None and cross_ok:
-            cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, False)
+            cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, False,
+                                travel_target)
             pick = _pick(cands, rng, prefer_cross=False, width=width)
         if pick is not None:
             dx, dy, _df, d_to, _c = pick
@@ -303,7 +313,8 @@ def _reparity(notes: list[dict], bpm: float) -> list[dict]:
 def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
                  top_k: int = VOCAB_DEPTH, width: int = 3,
                  crossover: float = CROSSOVER_TARGET,
-                 repeat_p: float = REPEAT_P) -> tuple[int, int]:
+                 repeat_p: float = REPEAT_P,
+                 travel_target: float = TRAVEL_TARGET) -> tuple[int, int]:
     """Copy `src` to `dst` with only note cells redrawn. Returns (n_notes, n_fallback)."""
     import json
     import shutil
@@ -349,8 +360,16 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         if len(notes) < 20:
             raise ValueError("too few notes to re-place")
 
+        # ⚠️Every parameter added to `idiomize_zip` MUST be threaded into this call.
+        # `width` was accepted here, advertised in --help, and never passed for weeks:
+        # `--width 1` and `--width 12` produced byte-identical maps. `travel_target`
+        # was inert for exactly the same reason the moment it was added, and was
+        # caught only because the sweep printed three identical rows.
+        # ★A knob whose arms are identical to 3 decimals is not a weak lever, it is an
+        # UNWIRED one.
         new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
-                            width=width, crossover=crossover, repeat_p=repeat_p)
+                            width=width, crossover=crossover, repeat_p=repeat_p,
+                            travel_target=travel_target)
         # The invariant the whole design rests on: this pass moves cells and
         # nothing else. If it ever changes a time, a colour or the count, the A/B
         # stops isolating one thing and the comparison is worthless.
@@ -398,6 +417,10 @@ def main() -> int:
     ap.add_argument("--top-k", type=int, default=VOCAB_DEPTH,
                     help="vocabulary depth (default %(default)s; see VOCAB_DEPTH)")
     ap.add_argument("--crossover", type=float, default=CROSSOVER_TARGET)
+    ap.add_argument("--travel-target", type=float, default=TRAVEL_TARGET,
+                    help="grid-units/sec the sampler prefers a move to cover. Higher "
+                         "= wider reaches. Orthogonal to --width, which sets how many "
+                         "candidates are considered rather than how far they go")
     ap.add_argument("--repeat-p", type=float, default=REPEAT_P,
                     help="chance a hand repeats a figure it just played "
                          "(0 = resample independently, which is what put "

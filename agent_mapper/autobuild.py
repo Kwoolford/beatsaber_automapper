@@ -263,6 +263,11 @@ def main() -> int:
                     help="correct the measured +0.053-beat bias in our phase estimator "
                          "(held-out: onset_precision 0.888->0.917, human agreement "
                          "0.642->0.709). Default OFF")
+    # ★LEG 3's second travel lever: re-weights candidates by HOW FAR each move
+    # travels, where --width sets how MANY are considered. See idiomize.TRAVEL_TARGET.
+    ap.add_argument("--travel-target", type=float, default=None,
+                    help="grid-units/sec the sampler prefers a move to cover "
+                         "(default 4.167). Higher = wider reaches")
     ap.add_argument("--width", type=int, default=None,
                     help="idiom candidate-pool width (default 3). Higher = more "
                          "diagonals and a broader local vocabulary; 5 sits closest "
@@ -358,6 +363,8 @@ def main() -> int:
             kw["top_k"] = sargs["top_k"]
         if "width" in sargs:
             kw["width"] = sargs["width"]
+        if a.travel_target is not None:
+            kw["travel_target"] = a.travel_target
         # An explicit --width beats the style's choice: it is the knob being A/B'd.
         if a.width is not None:
             kw["width"] = a.width
