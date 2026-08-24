@@ -119,12 +119,44 @@ and sends `diagonal_share` to p=0.998 looked like the missing mechanism.
 ★*The page proposes, only the cohort disposes* — this repo has now generalised from a handful of
 songs twice; checking the cohort first is what stopped the third.
 
+### 🔴🔴 THEN THE PROBE — AND IT FOUND SOMETHING BIGGER THAN THE QUESTION IT ASKED
+Hypothesis: the idiom collapse is a **reselection**, the P0.4 shape (a grid-phase shift *looked*
+like a realignment; only 45.9 % of note beats survived, so it was two different maps).
+`scripts/diag_snap_reselection.py` measures survival = |beats(BASE) ∩ beats(SNAP)| / |beats(BASE)|.
+
+🔴**REFUTED for the failing songs — they are the LEAST reselected**: `1f9a0` 0.822 (+0.8 sd),
+`1fb3f` 0.937 (+1.5 sd) against a cohort median of **0.701**. Times are kept and coverage collapses
+anyway (−5.3 sd and −3.1 sd), so the mechanism is **not** P0.4's.
+
+★★**BUT THE SNAP *IS* A RESELECTION ON FAST SONGS — `corr(bpm, survival) = −0.868` (n=23).**
+188 bpm → 0.413 survival, 180 bpm → 0.363, 174 bpm → 0.367; 95 bpm → 0.937, 105 bpm → 0.927.
+**The mechanism is arithmetic**: the snap window is a fixed **60 ms** against a 1/4-beat slot of
+`15000/bpm` ms. At 188 bpm the slot is **80 ms**, so a 60 ms move lands the event in a **different
+slot** and a different map gets built; at 95 bpm the slot is 158 ms and the note stays put.
+⇒**On fast songs part of the +0.025 `onset_precision` is a different SELECTION, not a realignment**
+— the same caveat P0.4 earned, and it should be attached to the map-level number.
+⚠️**The event-level validation is NOT affected**: `diag_snap_independent` operates on cached events
+*before* selection, so "the snap moves events toward human note times" still stands as measured.
+
+🔴🔴**AND A REPORTING FAILURE WORTH KEEPING: THE COHORT MEDIAN HID A SEVERE PER-SONG DEFECT.**
+The sweep reports `idiom_coverage` **0.990 → 0.988** — "nothing happened". Per song, **four songs**
+move by −0.19 to −0.54: `1f9a0` 0.767→0.228, `1fb3f` 0.675→0.350, `1f333` 0.989→**0.570**,
+`1fa93` 0.992→0.804. `1f333` loses 0.42 of its idiom vocabulary **and still PASSes.**
+★**A median over 23 songs is not a safety check for a per-song hazard.** The two songs that FAIL are
+simply the two whose BASE coverage was already low — the damage is much wider than the PASS count
+shows. ⇒**Report per-song spread, not just the cohort median, for any axis a change can gut locally.**
+
 ### ⇒ RECOMMENDATION: KEEP `--snap-onsets` OPT-IN
-Cohort-wide it buys **+0.025 `onset_precision`** for **no density cost and no geometry cost**, which
-is the best-priced alignment change we have. But it costs 2 of 23 songs a PASS, and its DoD said
-PASS must not fall. ⬜**The open question is now narrower and worth a probe**: *why does idiom
-sampling collapse on exactly those two songs when times are collapsed onto shared onsets?* That is
-a per-song fragility in the sampler, and it is the same shape as P0.4's grid-phase **reselection**.
+Cohort-wide it buys **+0.025 `onset_precision`** for no density cost and no *median* geometry cost.
+But the probe makes the case against defaulting it **stronger than the PASS count did**: it guts
+`idiom_coverage` on 4 of 23 songs, and on fast songs it rewrites most of the map rather than
+realigning it.
+⬜**The next question, now well-posed**: *should `SNAP_WINDOW_S` scale with the grid slot instead of
+being a fixed 60 ms?* The arithmetic says a fixed window is ~75 % of a slot at 188 bpm and ~38 % at
+93 bpm, and survival tracks that almost perfectly (r = −0.868).
+**DoD**: a bpm-relative window (e.g. a fixed fraction of `15000/bpm` ms) raises survival on fast
+songs **without** giving back the event-level alignment gain — measured on the cohort, and with the
+per-song `idiom_coverage` spread reported, not just its median.
 ⚠️A non-corpus song additionally pays a full 4-stem Demucs pass, which this corpus-warm sweep
 cannot see; that cost is unmeasured.
 

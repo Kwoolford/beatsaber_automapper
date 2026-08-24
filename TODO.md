@@ -151,11 +151,20 @@ of the change.*
 🔴**A P1.2 lead died here**: those two songs move cut directions exactly the way P1.2 wants, but the
 **cohort does not move at all** (`vertical_share` 0.754→0.760, `diagonal_share` 0.243→0.239).
 **Do not revive "the snap fixes cut directions".**
-⬜**NARROWED, worth a probe**: *why does idiom sampling collapse on those two songs when times
-collapse onto shared onsets?* A per-song sampler fragility, same shape as P0.4's reselection.
-**DoD**: the mechanism named and shown on both songs, and either fixed or shown to be a property of
-those songs. ⚠️Also unmeasured: the second Demucs pass a NON-corpus song pays (the sweep ran
-corpus-warm).
+🔴**The reselection explanation is REFUTED** — the two failing songs are the **least** reselected
+(survival 0.822 / 0.937 vs cohort median **0.701**).
+★★**BUT `corr(bpm, survival) = −0.868`: THE SNAP RESELECTS FAST SONGS.** 188 bpm → 0.413 survival,
+95 bpm → 0.937. **Arithmetic**: a fixed 60 ms window against a 1/4-beat slot of `15000/bpm` ms is
+75 % of a slot at 188 bpm and 38 % at 93 bpm. ⇒**on fast songs part of the `onset_precision` gain is
+a different SELECTION, not a realignment** (the P0.4 caveat). ⚠️The *event-level* validation is
+unaffected — it runs before selection.
+🔴🔴**THE COHORT MEDIAN HID A PER-SONG HAZARD**: `idiom_coverage` reads 0.990 → 0.988, but **four**
+songs move −0.19 to −0.54 (`1f333` 0.989 → **0.570** and still PASSes). ★**Report per-song spread,
+not just the median, for any axis a change can gut locally.**
+⬜**NEXT (well-posed): should `SNAP_WINDOW_S` scale with the grid slot instead of a fixed 60 ms?**
+**DoD**: a bpm-relative window raises survival on fast songs **without** giving back the event-level
+alignment gain, measured on the cohort with the per-song `idiom_coverage` spread reported.
+⚠️Also unmeasured: the second Demucs pass a NON-corpus song pays (the sweep ran corpus-warm).
 🔴**Do not "fix" the ±1-frame drift between a fresh detector run and the stored cache** — it is
 environment drift, and the cache is the fixed point every alignment number is measured against.
 
