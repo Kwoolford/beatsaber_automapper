@@ -162,6 +162,35 @@ def main() -> int:
         print("  " + line)
     report["elements"] = j["summary"]
 
+    # ---- EFFORT ------------------------------------------------------------
+    # ★Kyle: "difficulty isn't always just NPS, it's how hard are the notes to get to
+    # from the last note as well." mapjudge scores travel/angle_change as AGGREGATES;
+    # this points at the individual transitions a player would feel.
+    print("\n## EFFORT — what the wrists do (vs 224 485 human transitions)")
+    import effort as EF
+    ref_e = EF.load_reference()
+    es = EF.summary(elems, ref_e)
+    if es:
+        print(f"  reach speed  median {es['speed_median']:.2f}  p95 {es['speed_p95']:.2f}"
+              + (f"   (human median {ref_e['speed']['median']:.2f}, "
+                 f"p95 {ref_e['speed']['p95']:.2f})" if ref_e else ""))
+        print(f"  wrist rotation beyond the natural swing: median "
+              f"{es['rotation_median']:.0f}°   reset share {es['reset_share']:.1%}")
+        if ref_e:
+            ab = es.get("share_above_human_p95_speed", 0.0)
+            # Humans put 5 % of their own transitions above their p95 by definition.
+            note = ("asks MORE of the wrists than human mappers" if ab > 0.10
+                    else ("in the human range" if ab >= 0.02
+                          else "asks LESS of the wrists than human mappers"))
+            print(f"  {ab:.1%} of transitions above the human p95 (humans: 5.0%) — {note}")
+        for r in EF.hard_transitions(elems, 3, ref_e):
+            hp = r.get("hardness")
+            print(f"    hardest: {r['t']:6.1f}s {'L' if r['color']==0 else 'R'} "
+                  f"{r['from']}→{r['to']}  {r['dt']*1000:.0f}ms  "
+                  f"speed {r['speed']:.1f}  rot {r['rotation']:.0f}°"
+                  + (f"  (human pct {100*hp:.0f}%)" if hp else ""))
+        report["effort"] = es
+
     # ---- PLAYABILITY -------------------------------------------------------
     print("\n## PLAYABILITY")
     cols = EL.collisions(elems)
