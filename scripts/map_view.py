@@ -49,6 +49,9 @@ ARROW = {0: "↑", 1: "↓", 2: "←", 3: "→", 4: "↖", 5: "↗", 6: "↙", 7
 BEATS_PER_BAR = 4.0
 SUB = 4          # rows per beat (1/16-note resolution)
 BLOCKS = " ▁▂▃▄▅▆▇█"
+# Six stems as `events.py` sees them. ⚠️Order is fixed so columns line up
+# between two printings of different songs.
+_STEM_ORDER = ("drums", "bass", "other", "vocals", "guitar", "piano")
 
 
 class _BM:
@@ -134,7 +137,7 @@ def _bar_range(spec: str) -> tuple[float, float]:
 
 def render(notes, bpm: float, b0: float, b1: float,
            feats=None, names=None, label: str = "", idioms: bool = False,
-           elems=None, onsets=None, offset: float = 0.0) -> list[str]:
+           elems=None, onsets=None, offset: float = 0.0, stems=None) -> list[str]:
     """★`elems` adds the THREE ELEMENTS NOTHING COULD READ (see agent_mapper/elements.py).
 
     Without it this sheet shows a `[FULL]` map -- 89 walls, 90 arcs, 16 chains -- as if
@@ -171,6 +174,8 @@ def render(notes, bpm: float, b0: float, b1: float,
     w = 19 if idioms else 10
 
     head = f"{'bar':>4s} {'beat':>7s} │ {'L':<{w}s} │ {'R':<{w}s}"
+    if stems:
+        head += " │ " + " ".join(s[:2] for s in _STEM_ORDER)
     if align:
         head += " │  ±ms"
     if elems:
@@ -207,6 +212,18 @@ def render(notes, bpm: float, b0: float, b1: float,
         if not any(c.strip() for c in cells) and s % SUB != 0:
             continue
         row = f"{bar:>4d} {beat:>7.2f} │ {cells[0]} │ {cells[1]}"
+        if stems:
+            # ★What the PLAYER HEARS here, across all six stems. `--audio` shows only
+            # kick/snare/hat + bass/lead from the ML feature set; `events.py` sees six
+            # stems INCLUDING guitar, piano and vocals -- which are usually what the
+            # map is actually built around, and were invisible in the score.
+            tsec = offset + beat * 60.0 / bpm
+            marks = []
+            for st_name in _STEM_ORDER:
+                loud = stems.get(st_name, {}).get(round(beat * SUB), None)
+                marks.append(" ·" if loud is None
+                             else " " + BLOCKS[min(int(loud * 8), 8)])
+            row += " │" + "".join(marks)
         if align:
             d = align.get(round(beat, 3))
             if d is None:
@@ -341,6 +358,12 @@ def main() -> None:
     ap.add_argument("--sections", action="store_true", help="whole-song overview")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"),
                     help="two bar ranges to print side by side")
+    ap.add_argument("--stems", action="store_true",
+                    help="what the player HEARS: one lane per stem from events.py's "
+                         "six-stem view (drums bass other vocals guitar piano), block "
+                         "height = loudness. --audio shows only kick/snare/hat+bass/"
+                         "lead from the ML features and cannot see guitar, piano or "
+                         "vocals — the lines maps are usually built around")
     ap.add_argument("--align", action="store_true",
                     help="per-note distance to the nearest detected onset, in ms "
                          "(● within 50ms · ○ 50-120ms · ✗ beyond). Answers 'is this "
@@ -405,6 +428,25 @@ def main() -> None:
         feats, names = _stem_lanes(pathlib.Path(a.audio), bpm, b1)
     el = _EL.load_elements(pathlib.Path(a.map)) if a.elements else None
     ons = off = None
+    stem_lanes = None
+    if a.stems:
+        sid_s = pathlib.Path(a.map).stem.split("__")[-1].split("_")[0]
+        ec = REPO / "outputs" / "event_cache" / f"{sid_s}.6s.json"
+        if not ec.exists():
+            print(f"⚠️--stems: no event cache for '{sid_s}' — run events.py on the song "
+                  f"first; stem lanes omitted")
+        else:
+            import json as _json
+            d = _json.loads(ec.read_text())
+            _bpm = float(d["bpm"])
+            stem_lanes = {}
+            for ev in d["events"]:
+                slot = round(float(ev["t"]) * _bpm / 60.0 * SUB)
+                lane = stem_lanes.setdefault(ev["stem"], {})
+                # loudness is relative to each stem's own median, so the same block
+                # height means the same thing on every stem and every song.
+                v = min(max((float(ev.get("loud", 0.0)) + 20.0) / 30.0, 0.0), 1.0)
+                lane[slot] = max(lane.get(slot, 0.0), v)
     _align_all = None
     if a.align:
         sys.path.insert(0, str(REPO))
@@ -419,7 +461,8 @@ def main() -> None:
                   "alignment column omitted")
         off = _EL.load_elements(pathlib.Path(a.map))["offset"] if ons is not None else 0.0
     print("\n".join(render(notes, bpm, b0, b1, feats, names, idioms=a.idioms,
-                           elems=el, onsets=ons, offset=off or 0.0)))
+                           elems=el, onsets=ons, offset=off or 0.0,
+                           stems=stem_lanes)))
     if ons is not None and len(ons):
         # ★Whole-map alignment, so the page and the cohort agree. The bars on screen
         # are a sample; this is the map. `READING.md` rule 0: the page proposes, the
