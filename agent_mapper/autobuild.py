@@ -242,6 +242,22 @@ def main() -> int:
     ap.add_argument("--no-idiomize", action="store_true")
     ap.add_argument("--out", type=pathlib.Path, default=None)
     ap.add_argument("--seed", type=int, default=0)
+    # ★**A CUT-DIRECTION / VARIETY LEVER** (2026-08-24). `idiomize`'s `width` keeps
+    # only the N highest-COUNT candidates before drawing, and human idiom frequency is
+    # vertical-dominated -- so the truncation is what strips our diagonals. Measured
+    # over 23 songs x 3 seeds (arm gaps >> the ±0.005-0.021 seed spread):
+    #   width  diagonal   idiom_top50   idiom_coverage   (human 0.415 / 0.404 / 0.909)
+    #     3     0.237        0.557          0.990   <- default
+    #     5     0.303        0.449          0.929
+    #     8     0.394        0.325          0.783
+    # ⚠️**The default stays 3 deliberately.** It was chosen by READING two maps side by
+    # side, and a decision made by eye is not one to reverse on axis numbers alone
+    # (the same rule that keeps BEAT_GRID_PHASE off). This flag exists so the
+    # alternative can be PLAYED -- see LISTENING.md.
+    ap.add_argument("--width", type=int, default=None,
+                    help="idiom candidate-pool width (default 3). Higher = more "
+                         "diagonals and a broader local vocabulary; 5 sits closest "
+                         "to the human idiom_top50/idiom_coverage.")
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--pulse", action="store_true",
                     help="hold one interval per phrase, from a single merged pass "
@@ -332,6 +348,9 @@ def main() -> int:
             kw["top_k"] = sargs["top_k"]
         if "width" in sargs:
             kw["width"] = sargs["width"]
+        # An explicit --width beats the style's choice: it is the knob being A/B'd.
+        if a.width is not None:
+            kw["width"] = a.width
         n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
 

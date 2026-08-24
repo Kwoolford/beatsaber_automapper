@@ -218,9 +218,26 @@ verticals, so a top-3-by-frequency truncation strips diagonals by construction.
 ⚠️**`width=3` became the default 2026-08-21** on recurrence evidence (top-5 cell share 0.342 → 0.492,
 human 0.577) — **its effect on cut direction was never measured**, so raising it trades P1.2 against
 that gain.
-⬜**NEXT**: sweep `width` ∈ {0, 3, 5, 8, 12} measuring `diagonal_share` AND the recurrence axes
-together. **DoD**: |Δdiagonal| ≤ 0.125 without `viol` rising and without recurrence returning to its
-pre-2026-08-21 value.
+✅**SWEPT (23 songs × 3 seeds, `scripts/sweep_width_cutdir.py`)** — arm gaps far exceed the
+±0.005–0.021 seed spread, and each song is BUILT ONCE then re-dressed per arm, so note times and
+budget are identical across arms:
+
+| width | diagonal | `idiom_top50` | `idiom_coverage` | `idiom_local` | viol |
+|---|---|---|---|---|---|
+| **3 (default)** | 0.237 | 0.557 (p85) | 0.990 (p93) | 0.794 (p15) | 0 |
+| **5** | **0.303** ✅DoD | **0.449** (p61) | **0.929** (p65) | 0.831 (p27) | 0 |
+| 8 | 0.394 ✅DoD | 0.325 (p29) | 0.783 (p13) | 0.861 (p45) | 0 |
+
+*human: diagonal 0.415 · `idiom_top50` **0.404** · `idiom_coverage` **0.909***
+★★**`width=5` MEETS P1.2's DoD (|Δ| 0.112) AND IS CLOSER TO HUMAN ON BOTH VOCABULARY AXES.**
+🔴**`width=3` overshoots them** (`idiom_coverage` 0.990 vs human 0.909) — that is the *"more human
+than human"* over-purity `VOCAB_DEPTH=1000` was specifically tuned to avoid, **reintroduced
+downstream by the truncation**. Cost of w5: `idiom_local` p15 → p27.
+🔴🔴**DEFAULT DELIBERATELY NOT CHANGED — THIS IS KYLE'S CALL.** `width=3` was chosen by **reading
+two maps side by side**, and an ear/eye-derived decision is not reversed on axis numbers alone (the
+rule that keeps `BEAT_GRID_PHASE` off). ✅**Exposed as `--width` and an A/B is built and installed**:
+`outputs/width_ab_2026-08-24/` (`W3__` vs `W5__`, 4 songs, identical times/notes/walls/arcs/chains —
+only directions differ). ⇒**See `LISTENING.md`; play `1f767` first, where w5 overshoots to 0.492.**
 ⚠️**NOT the refuted "width mapping"** — that landmine is about mapping `width` to STYLES for
 `travel`/`angle_change` (measured three times, don't retry). Sweeping it for cut direction is a
 different question and has never been done.

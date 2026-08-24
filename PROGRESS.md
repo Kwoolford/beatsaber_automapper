@@ -218,6 +218,43 @@ next step is a sweep that measures both together.
 `travel`/`angle_change`, measured three times and dead. Sweeping `width` for cut direction is a
 different question that has never been asked.
 
+### ✅ THE SWEEP: `width=5` MEETS THE DoD *AND* IS MORE HUMAN THAN THE DEFAULT
+23 songs × **3 seeds** (`scripts/sweep_width_cutdir.py`). ★**Each song is BUILT ONCE with
+`--no-idiomize` and then re-dressed at every width**, so note times, budget, hand assignment and
+section plan are byte-identical across arms — the only thing varying is the truncation. (It also
+costs 23 builds instead of 115.)
+
+| width | diagonal (±sd) | `idiom_top50` | `idiom_coverage` | `idiom_local` | PASS | viol |
+|---|---|---|---|---|---|---|
+| **3 (default)** | 0.237 ±0.005 | 0.557 (p85) | **0.990 (p93)** | 0.794 (p15) | 68/69 | 0 |
+| **5** | **0.303 ±0.009** ✅ | **0.449 (p61)** | **0.929 (p65)** | 0.831 (p27) | 67/69 | 0 |
+| 8 | 0.394 ±0.021 ✅ | 0.325 (p29) | 0.783 (p13) | 0.861 (p45) | 69/69 | 0 |
+
+*human: diagonal **0.415** · `idiom_top50` **0.404** · `idiom_coverage` **0.909***
+
+★★**Arm gaps dwarf the seed spread** (0.237 → 0.303 → 0.394 against ±0.005–0.021), so this is a real
+lever, not a seed lottery. A single-seed run on one song had suggested `width=5` was wildly unstable
+(±0.113); at 23 songs × 3 seeds that was noise. ★*A spread estimated from one song is not a spread.*
+
+🔴**`width=3` OVERSHOOTS THE VOCABULARY AXES**: `idiom_coverage` **0.990** against human 0.909, at
+the 93rd percentile. That is precisely the *"more human than human"* over-purity that `VOCAB_DEPTH`
+was set to 1000 to avoid — `idiomize.py`'s own comment says sampling only the top 500 "forces
+`idiom_coverage` to ~1.0 … which is the 'more human than human' tell, not a win". **The `width`
+truncation reintroduced downstream exactly what the vocabulary depth was tuned to prevent.**
+⇒`width=5` is closer to human on **both** vocabulary axes than the default, while also meeting
+P1.2's DoD. Its only cost is `idiom_local` p15 → p27.
+
+### 🔴 THE DEFAULT WAS NOT CHANGED — DELIBERATELY
+`width=3` was chosen on 2026-08-21 by **reading two maps side by side**. ★**A decision made by eye is
+not one to reverse on axis numbers alone** — the same rule that keeps `BEAT_GRID_PHASE` off after it
+"fixed" 18 songs on the metric and Kyle still heard the defect. Every number above is a number.
+✅**Instead: exposed as `--width` and built the A/B.** `outputs/width_ab_2026-08-24/` holds `W3__`
+and `W5__` for the four standing review songs, with **identical note times, note counts, and all
+89 walls / 90 arcs / 16 chains** — only cut directions differ, so anything felt is the directions.
+Per-song the knob varies a lot: `1f767` 0.223 → **0.492** (overshooting human 0.415), `1f333` only
+0.252 → 0.281. ⇒`LISTENING.md` says play `1f767` first, because that is where it does the most and
+where it overshoots.
+
 ---
 
 ## 2026-08-22 — DENSITY: THE DIAL WAS BLOCKED BY A HARDCODED TWO-STREAM LIMIT, AND THE REMAINING

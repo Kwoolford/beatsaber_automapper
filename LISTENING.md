@@ -4,6 +4,44 @@
 > four matter and what question each one settles. Everything else is superseded or from an older
 > line of work; a proposed cleanup is at the bottom.
 
+## ⭐ ADDED 2026-08-24 — `[W3]` vs `[W5]`: the cut-direction A/B
+
+**The question**: we play **vertical** where humans play **diagonal** (vertical 0.77 vs human 0.48;
+diagonal 0.24 vs 0.42) — P1.2, the largest non-circular gap. **Do the diagonals actually feel
+better, or only measure better?**
+
+**What was found**: the cause is located. The candidate pool the sampler draws from is already at
+the **human** diagonal share (0.404 vs 0.415) on all 23 songs — then `_pick` keeps only the
+`width`(=3) **most FREQUENT** candidates, and human idiom frequency is vertical-dominated, so the
+truncation strips diagonals **by construction**. Raising `width` puts them back.
+
+`outputs/width_ab_2026-08-24/` — four songs, **`W3__` = today's default, `W5__` = the candidate**.
+★**The note TIMES, the note COUNT and all 89 walls / 90 arcs / 16 chains are identical between the
+two.** Only cut directions differ, so anything you feel is the directions.
+
+| song | diagonal share W3 → W5 |
+|---|---|
+| `1f767` | 0.223 → **0.492** (biggest change — and it overshoots human 0.415) |
+| `1f8d6` | 0.250 → 0.362 |
+| `1f913` | 0.200 → 0.326 |
+| `1f333` | 0.252 → 0.281 (barely moves — read this one last) |
+
+⚠️**Play `1f767` first**: it is where the knob does the most, and where it overshoots. If W5 feels
+*worse* there but better on `1f8d6`, the answer is an intermediate or per-song setting, not a new
+default.
+
+🔴**Why the default was NOT changed**: `width=3` was chosen by **reading two maps side by side** —
+by eye — and a decision made by eye should not be reversed by axis numbers alone. On the numbers
+`width=5` is the better arm (closest to human on **both** `idiom_top50` 0.449 vs human 0.404 and
+`idiom_coverage` 0.929 vs 0.909, where `width=3` overshoots to 0.557/0.990 — the *"more human than
+human"* over-purity the vocabulary depth was tuned to avoid). Its only cost is `idiom_local`
+p15 → p27. ★**Reproducible**: 23 songs × 3 seeds, arm gaps far larger than the ±0.005–0.021 seed
+spread. **But that is still only numbers — this A/B is the decision.**
+
+Try it on any song: `--width 5`.
+
+---
+
 ## The 4 that matter, in order
 
 ### 1. `AUTO Fallen Kingdom (2022 Remap) [V2]` vs `[FULL]` ← **most valuable**
