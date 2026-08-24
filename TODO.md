@@ -49,6 +49,29 @@ map. Two humans agree on the climax only 43 % of the time — much of "different
    differ **2–4×** on a note-level property (measured 2026-08-22 via `diag_pendulum`), so a
    number taken from one **does not describe** another. ★Name the directory, never just the arm.
 
+## 🎯 CURRENT FOCUS (Kyle, 2026-08-24) — THE AGENT MUST BE ABLE TO AUDIT ITS OWN MAP
+> *"I'd like a big focus to be on the manual agent building skill. Like beefing up the tooling so
+> the agent calling the skill has as much visibility as a person playing and listening at the same
+> time note sheet level. That task would be complete when you call the skill and are confident in
+> the map you build and feel you can evaluate the map correctly and don't need to rely on me to
+> audit."*
+
+**DoD (his words): call `/buildmap`, be confident in the map, evaluate it correctly, no audit from
+Kyle.** ⇒Every gap below is "something a player perceives that the agent cannot".
+
+| # | what a player perceives | status |
+|---|---|---|
+| 1 | **walls/arcs/chains** — where they are, what they block | ✅**DONE** `map_view --elements` + `agent_mapper/elements.py`, judged vs **2 688** human maps |
+| 2 | **is this note on a sound I hear** | ✅**DONE** `map_view --align` (● ≤50ms · ○ 50–120 · ✗ nothing), whole-map split |
+| 3 | **effort / strain** — reach, wrist reset, comfort per transition | ⬜ parity `F/B` exists; distance-in-time and reset cost do not |
+| 4 | **a verdict on ONE map** | ⬜🔴`mapjudge` is a COHORT statistic — **all six axes are `nan` at n=1 and n=2**, so the agent cannot score the map it just built |
+| 5 | **emptiness** — the song is busy here and the map is not | ⬜ `overlay` has HIT/MISSED/WASTED; there is no "the song asked and we did not answer" contour |
+| 6 | **what it sounds like** — vocals/guitar/piano lanes in the sheet | 🟡 `--audio` gives drums+bass+lead only; `events.py` sees 6 stems |
+
+★**Method that is working**: do not speculate about gaps — try to answer a real question with the
+tools and record where you cannot. Gap 1 was found by asking *"is `[FULL]` less empty than `[V2]`?"*
+and discovering **nothing could read a wall**.
+
 ### ▶️ START THE NEXT SESSION HERE
 1. ⬜**His verdict on `[V2]` vs `[FULL]`** (Fallen Kingdom) — see `LISTENING.md`. Settles a
    three-day-old question no metric can touch.

@@ -75,6 +75,25 @@ Look down each hand's column, not across the row. What I look for, in the order 
 5. **Is there ever a double?** `L … │ R …` on one row. Humans use them on ~18 % of instants as
    accents. A map with none is missing a gesture.
 
+### c2. ★NEW 2026-08-24 — read the two channels that used to be invisible
+```bash
+python scripts/map_view.py <map.zip> --bars a-b --align --elements
+```
+**`--align` is how you hear the map.** Per note: **●** on a sound (≤50 ms) · **○** near-miss
+(50–120 ms) · **✗** nothing there. A run of ✗ is the player's *"why am I hitting this?"*, and it is
+invisible in every aggregate. The whole-map ●/○/✗ split prints underneath — ★read that too, because
+a passage is a sample and rule 0 below is that the page proposes while the cohort disposes.
+
+**`--elements` is how you see the other three.** 🔴**Until this date no reading tool could see
+walls, arcs or chains at all** — `mapjudge`'s 23 metrics move by exactly **0.000** when 89 walls +
+90 arcs + 16 chains are added, so a `[FULL]` map read as notes-only. Now the sheet carries a
+`lanes` column (`██··` = which columns are blocked *right now* — the dodge decision), gesture marks,
+and an audit: **notes trapped inside walls** (this has shipped — 12 of them), and **dodge windows in
+seconds** (how long the player had to leave the lane).
+Both are scored against **2 688 human maps**, so the output is a percentile, not a bare number.
+⚠️Presence is tracked separately from amount: 90 % of human maps have walls but only 31 % have
+chains, so "we have 16 chains" is only meaningful against the maps that use chains at all.
+
 ### d. Jump to the concrete failures
 ```bash
 python scripts/map_view.py <map.zip> --find violations   # unplayable, non-negotiable
