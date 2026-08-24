@@ -104,11 +104,27 @@ def corpus_title(song_id: str) -> tuple[str, str] | None:
 
 
 def parse_stem(stem: str) -> tuple[str, str, str, str]:
-    """`1f333_AFTER2_reach` -> (id, variant, rest, pretty title)."""
-    parts = stem.split("_")
-    song_id = parts[0]
-    variant = parts[1] if len(parts) > 1 else ""
-    rest = "_".join(parts[2:])
+    """`1f333_AFTER2_reach` -> (id, variant, rest, pretty title).
+
+    🔴**Also accepts `<arm>__<songid>`, the convention the REST of the repo requires.**
+    `scorecard.song_id()` parses the id from the START of a filename, so
+    `1f8d6_WALLS.zip` resolves to `'1f8d6_WALLS'`, finds no cached onsets, and returns
+    **`alignment = nan` with no error** — five axes scored instead of six. TODO's
+    landmine therefore mandates `<arm>__<songid>.zip` and every sweep in `scripts/`
+    writes that form. This function predates that rule and read the ARM as the song id,
+    so a correctly-named map installed as *"AUTO W3 [1f333]"* instead of
+    *"AUTO Hunger [W3]"* — findable only by accident among 152 installed maps.
+    ⚠️The DOUBLE underscore disambiguates: `A__B` is arm-first, `A_B` is id-first. Both
+    are supported so older output dirs still deploy unchanged.
+    """
+    if "__" in stem:
+        variant, tail = stem.split("__", 1)
+        song_id, _, rest = tail.partition("_")
+    else:
+        parts = stem.split("_")
+        song_id = parts[0]
+        variant = parts[1] if len(parts) > 1 else ""
+        rest = "_".join(parts[2:])
     if song_id in SONGS:
         title, artist = SONGS[song_id]
     else:
