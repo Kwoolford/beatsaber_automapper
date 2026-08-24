@@ -141,7 +141,7 @@ def main() -> int:
         print("    🔴needs onsets — pass --audio")
         report["coverage"] = None
     else:
-        import coverage as CV
+        import emptiness as CV
         jc = CV.judge(elems, onsets)
         for ln in jc["lines"]:
             print(f"  {ln['flag']} {ln['key']:24s}{ln['value']:>9.4g}"

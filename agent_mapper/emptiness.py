@@ -1,6 +1,15 @@
 #!/usr/bin/env python
 """EMPTINESS — where the song asks and the map does not answer.
 
+🔴🔴**DO NOT RENAME THIS BACK TO `coverage.py`.** It was called that for one commit and
+broke **8 tests** across four unrelated files. `agent_mapper/` goes on `sys.path`, so
+`agent_mapper/coverage.py` SHADOWS the installed `coverage` package for every importer
+in the process -- numba's `coverage_support` did `import coverage`, got this module,
+and died on `module 'coverage' has no attribute 'types'`. The traceback pointed at
+numba and named no file of ours.
+★**Never give a module on an importable path the name of a widely-installed package**
+(`coverage`, `types`, `json`, `parser`, `test`...). The failure surfaces far away.
+
 ★**The complaint this exists for.** Kyle on Fallen Kingdom: *"it feels really empty."*
 **Five separate note-based instruments failed to explain it**, and every one of them
 asked the same question: *was this NOTE motivated?* (`overlay.py`'s HIT/MISSED/WASTED).

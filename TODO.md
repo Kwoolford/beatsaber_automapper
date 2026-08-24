@@ -66,7 +66,7 @@ Kyle.** ⇒Every gap below is "something a player perceives that the agent canno
 | 3 | **effort / strain** — reach, wrist reset, comfort per transition | ⬜ parity `F/B` exists; distance-in-time and reset cost do not |
 | 4 | **a verdict on ONE map** | ✅**ALREADY SOLVED — I had this wrong.** `mapjudge.judge_zip` scores **23/23 metrics on a single map, zero `nan`**. The *"all six axes are `nan` at n=1"* landmine is about the OLDER six-axis `scorecard.score_cohort`, **not** `mapjudge`. ⇒The gap is not scoring one map; it is that **no single command assembles every channel into one verdict** — see gap 4b |
 | 4b | **one honest verdict, all channels** | ⬜`mapjudge` (notes) + `--align` + `--elements` + parity all exist and must each be remembered, run, and interpreted separately |
-| 5 | **emptiness** — the song is busy here and the map is not | ⬜ `overlay` has HIT/MISSED/WASTED; there is no "the song asked and we did not answer" contour |
+| 5 | **emptiness** — the song is busy here and the map is not | ✅**DONE** `agent_mapper/emptiness.py`, judged vs **975** human maps. 🔴🔴**ANSWER: we answer 69.5 % of Fallen Kingdom's onsets vs a human MEDIAN of 48.8 % — the 95th percentile. "Empty" is NOT note coverage**, which is why five note-based instruments could never find it |
 | 6 | **what it sounds like** — vocals/guitar/piano lanes in the sheet | 🟡 `--audio` gives drums+bass+lead only; `events.py` sees 6 stems |
 
 ★**Method that is working**: do not speculate about gaps — try to answer a real question with the
@@ -511,6 +511,14 @@ decode"* is **wrong at the root**: the draw happens before the model runs.
   `half`-tempo songs alike. The 2026-08-11 test re-scored the same beat numbers under a different bpm
   label, which is not a relabelled grid but **a different song**. ⇒The old "derive it from note times"
   fix would have changed nothing. **The real defect is below.**
+- 🔴🔴**NEVER NAME A MODULE AFTER AN INSTALLED PACKAGE.** `agent_mapper/emptiness.py` was called
+  `coverage.py` for one commit and broke **8 tests in four unrelated files**: `agent_mapper/` is on
+  `sys.path`, so it SHADOWED the `coverage` package for every importer, and numba's
+  `coverage_support` died on *"module 'coverage' has no attribute 'types'"*. **The traceback named
+  numba and no file of ours.** Same trap for `types`, `json`, `parser`, `test`.
+- 🔴**`pytest -q 2>&1 | tail -2` HIDES THE EXIT CODE** — the pipeline returns `tail`'s status, so
+  `pytest … | tail && git commit` COMMITS ON A RED SUITE. It did, 2026-08-24. Redirect to a file and
+  check `$?`. ★This is landmine "my filters hide the error I need to see", caught again.
 - ⚠️**Never edit a running bash script** — bash reads it incrementally and a one-byte shift corrupts
   its read offset. Kill, edit, relaunch.
 

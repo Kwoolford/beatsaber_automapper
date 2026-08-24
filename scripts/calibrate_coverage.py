@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """THE HUMAN REFERENCE FOR EMPTINESS — how much of a song do human mappers answer?
 
-`agent_mapper/coverage.py` measures the direction nothing measured before: not *"was
+`agent_mapper/emptiness.py` measures the direction nothing measured before: not *"was
 this note motivated?"* but *"was this musical moment answered?"* -- which is what
 *"it feels really empty"* means. Reading it is not judging it.
 
@@ -36,7 +36,7 @@ import numpy as np
 REPO = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO / "agent_mapper"))
 
-import coverage as CV  # noqa: E402
+import emptiness as CV  # noqa: E402
 import elements as EL  # noqa: E402
 
 KEYS = ("answered_overall", "answered_busy_windows", "n_gaps_over_2s",
