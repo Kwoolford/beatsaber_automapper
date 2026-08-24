@@ -151,12 +151,30 @@ Cohort-wide it buys **+0.025 `onset_precision`** for no density cost and no *med
 But the probe makes the case against defaulting it **stronger than the PASS count did**: it guts
 `idiom_coverage` on 4 of 23 songs, and on fast songs it rewrites most of the map rather than
 realigning it.
-⬜**The next question, now well-posed**: *should `SNAP_WINDOW_S` scale with the grid slot instead of
-being a fixed 60 ms?* The arithmetic says a fixed window is ~75 % of a slot at 188 bpm and ~38 % at
-93 bpm, and survival tracks that almost perfectly (r = −0.868).
-**DoD**: a bpm-relative window (e.g. a fixed fraction of `15000/bpm` ms) raises survival on fast
-songs **without** giving back the event-level alignment gain — measured on the cohort, and with the
-per-song `idiom_coverage` spread reported, not just its median.
+### 🔴 AND THE OBVIOUS REMEDY IS REFUTED — A BPM-RELATIVE WINDOW COSTS MORE THAN IT SAVES
+The arithmetic invited an obvious fix: scale `SNAP_WINDOW_S` with the slot instead of fixing it at
+60 ms. `scripts/diag_snap_window.py` swept it. **The event-level lift is monotonic in window width:**
+
+| window | lift (all events) | songs inside ½ slot |
+|---|---|---|
+| fixed 20 ms | +0.0019 | 23/23 |
+| fixed 40 ms | +0.0141 | 21/23 |
+| **fixed 60 ms (today)** | **+0.0345** | 7/23 |
+| fixed 120 ms | +0.0552 | 0/23 |
+| **0.5× slot** (best bpm-relative) | **+0.0253 = 73 %** | 23/23 |
+
+⇒**A window narrow enough to stay inside a slot on every song keeps only 73 % of the gain**, under
+the ≥90 % bar. ★★**THE RESELECTION IS THE PRICE OF THE GAIN, NOT A BUG**: the lift comes precisely
+from moving events that sit far out, and on a fast song "far out" **is** the neighbouring slot. They
+are the same mechanism and cannot be separated by narrowing the window.
+
+★**This cost seconds, not a cohort of rebuilds.** The DoD had two halves — event-level gain
+(arithmetic over cached events) and map-level survival (23 × 2 builds). Asking the arithmetic half
+first killed the idea before the expensive half was ever paid for.
+⚠️**A methodological correction made mid-probe**: the first pass measured lift over the MOVED events
+only, which gives every arm a different denominator and flatters wide windows by construction.
+Recomputed over ALL events the ranking held (73 % vs 76 %), but the comparable measure is the one
+recorded.
 ⚠️A non-corpus song additionally pays a full 4-stem Demucs pass, which this corpus-warm sweep
 cannot see; that cost is unmeasured.
 

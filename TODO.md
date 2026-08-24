@@ -161,9 +161,15 @@ unaffected — it runs before selection.
 🔴🔴**THE COHORT MEDIAN HID A PER-SONG HAZARD**: `idiom_coverage` reads 0.990 → 0.988, but **four**
 songs move −0.19 to −0.54 (`1f333` 0.989 → **0.570** and still PASSes). ★**Report per-song spread,
 not just the median, for any axis a change can gut locally.**
-⬜**NEXT (well-posed): should `SNAP_WINDOW_S` scale with the grid slot instead of a fixed 60 ms?**
-**DoD**: a bpm-relative window raises survival on fast songs **without** giving back the event-level
-alignment gain, measured on the cohort with the per-song `idiom_coverage` spread reported.
+🔴**A BPM-RELATIVE `SNAP_WINDOW_S` IS REFUTED — DO NOT BUILD IT** (`scripts/diag_snap_window.py`).
+The event-level lift is **monotonic in window width** (20 ms +0.002 · 40 ms +0.014 · **60 ms
++0.0345** · 120 ms +0.055), so a window narrow enough to stay inside a slot on all 23 songs
+(**0.5× slot**) keeps only **73 %** of the gain — under the ≥90 % bar.
+★★**THE RESELECTION ON FAST SONGS IS THE PRICE OF THE GAIN, NOT A BUG**: the lift comes precisely
+from moving events that sit far out, and on a fast song "far out" IS the neighbouring slot. The two
+cannot be separated by narrowing the window.
+★**Cost of learning this: seconds.** The alignment gain is an EVENT-level property, so it needed no
+map builds — ask the cheap half of a DoD first when one half is arithmetic.
 ⚠️Also unmeasured: the second Demucs pass a NON-corpus song pays (the sweep ran corpus-warm).
 🔴**Do not "fix" the ±1-frame drift between a fresh detector run and the stored cache** — it is
 environment drift, and the cache is the fixed point every alignment number is measured against.
