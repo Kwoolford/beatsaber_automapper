@@ -279,12 +279,38 @@ comparison and the shift sweep — now agree on the same number.
 ⇒**P0.4 is a genuine, quantified realignment: our bar grid is ~0.05 beats early, and correcting it
 improves both the axis and the independent human reference.**
 
-⬜**NEXT — build the correction properly, not as a blanket constant.** The 0.053 is a cohort median
-with sd 0.019, and it is per-song measurable (our fitted phase vs the human's grid). The fix is to
-correct the **phase estimator**, not to add +0.05 everywhere.
-**DoD**: a per-song phase correction derived WITHOUT reference to the human map (the human grid is
-the validation set, not an input) reproduces the +0.05 gain at ≥3 seeds, and `--phase-shift` becomes
-unnecessary.
+### 🔴 A TRAP CAUGHT BEFORE BUILDING: THE COHORT'S "TRUE PHASE" IS A FILE CONVENTION
+`data/eval_songset/<id>.ogg` is **byte-identical** to the audio inside `data/raw/<id>.zip` (verified
+by hash), and **all 23 human maps carry `_songTimeOffset` = 0**. ⇒On this cohort the correct phase
+is **0 by convention** — the audio was cut so beat 0 lands at t=0.
+★**So any rule that pushes our phase toward zero scores perfectly here and says nothing about a song
+Kyle brings**, which is the whole "map any song you'd like" goal. ⚠️**My own DoD was insufficient**:
+*"derived without reference to the human map"* does not exclude fitting the **convention**, because
+φ→0 references no map at all.
+
+### ✅ THE CONTROL: PAD THE AUDIO — BREAK THE CONVENTION, KEEP THE MUSIC
+`scripts/diag_phase_padded.py` prepends **137 ms** of silence, deliberately not a multiple of a slot
+at any cohort tempo, so the true downbeat moves to 0.137 s while the music is untouched. If the
+estimator tracks the music its phase moves with the pad; if it locks onto t=0 it does not.
+
+| | median \|residual\| (n=6) |
+|---|---|
+| if the estimator **TRACKS** the pad | **4.5 ms** |
+| if it **IGNORES** the pad (locks to t=0) | 29.9 ms |
+
+✅**It tracks, on 6 of 6 songs** (residuals −1, 5, −4, 10, 4, 7 ms). ⇒**the fit measures the song,
+not the file convention, so P0.4's bias is a REAL estimator error and correcting it should
+generalise to arbitrary audio.** The finding survived the control that would have killed it.
+
+★**A common root is now visible**: the fitted phase is negative on **6/6** songs (−19 to −36 ms) and
+our onsets independently read **0.033 beats early**. Two different front-end measurements both
+running early points at a single analysis/frame-centring latency, not two coincidences.
+
+⬜**NEXT — calibrate the estimator on HELD-OUT songs.** The correction is justified now, but 0.053
+was measured on the same 18 songs it would be applied to.
+**DoD**: fit the bias on one half of the cohort, apply it to the other half and reproduce the
+`onset_precision` and human-agreement gains there; then re-run the padded control to confirm the
+corrected estimator still tracks.
 ⚠️`--phase-shift` stays TEST ONLY. ⚠️**Any prior negative-shift measurement in this repo is suspect**
 until re-checked against displacement.
 

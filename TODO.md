@@ -218,10 +218,21 @@ offset, and the human grid is what distinguishes the two. **P0.4 is buildable.**
 ⚠️**The detector is separately biased 0.033 beats EARLY** (not late — the usual intuition is
 backwards). **Do not fix both with one shift**: correcting the grid alone leaves events 0.033 early
 instead of 0.020 late, i.e. further from slot centre.
-⬜**NEXT — fix the PHASE ESTIMATOR, not a blanket constant.** 0.053 is a cohort median (sd 0.019)
-and is per-song measurable. **DoD**: a per-song phase correction derived WITHOUT reference to the
-human map (the human grid is the VALIDATION set, never an input) reproduces the +0.05 gain at ≥3
-seeds, and `--phase-shift` becomes unnecessary. ⚠️Do not ship "+0.05 everywhere".
+🔴**A TRAP CAUGHT BEFORE BUILDING**: `eval_songset` audio is **byte-identical** to the human zips'
+audio and **all 23 human maps have `_songTimeOffset` = 0** ⇒ on this cohort the true phase is **0 by
+FILE CONVENTION**. ★**Any rule pushing our phase toward zero scores perfectly here and says nothing
+about a song Kyle brings.** ⚠️*"Derived without reference to the human map"* was an INSUFFICIENT DoD
+— φ→0 references no map at all yet still fits the convention.
+✅**CONTROL PASSED — pad the audio 137 ms** (`scripts/diag_phase_padded.py`): median |residual|
+**4.5 ms if the estimator TRACKS** the pad vs **29.9 ms if it locks to t=0**, tracking on **6/6**
+songs. ⇒**the fit measures the MUSIC, not the convention; the bias is a real estimator error and a
+correction should generalise.**
+★**Common root visible**: fitted phase negative on 6/6 (−19…−36 ms) *and* onsets read 0.033 beats
+early ⇒ suspect ONE analysis/frame-centring latency, not two coincidences.
+⬜**NEXT — calibrate on HELD-OUT songs.** 0.053 was measured on the same 18 songs it would apply to.
+**DoD**: fit the bias on half the cohort, reproduce the `onset_precision` + human-agreement gains on
+the other half, then re-run the padded control on the corrected estimator.
+⚠️Do not ship "+0.05 everywhere".
 ⚠️**Per-song sanity gates, not cohort medians**: `1fa32`/`1f9a0` fail "human notes on their own grid"
 (0.109 / 0.062) — song offset or BPM changes — and would have measured reconstruction error.
 ⚠️`--phase-shift` stays TEST ONLY.
