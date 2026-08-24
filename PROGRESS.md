@@ -230,14 +230,44 @@ which is exactly why the bad verdict printed. ★*An instrument that reports `na
    references improve — `onset_precision` on **21/23** songs and human agreement on 21/23. Notes are
    not being realigned; different notes are being chosen, and the different ones are better placed.
 
-### ⚠️ THE OPEN QUESTION, AND THE LANDMINE IT SITS ON
-"Events sit late in their slots" has an obvious suspect: **onset-detector latency**. C2's landmine
-says exactly this — *"never apply a blanket global shift; that part is an onset-detector offset, and
-fixing it is the `h_dist` failure."*
-★**But a pure detector offset should not improve agreement with the HUMAN MAPPER'S OWN note times**,
-which our detector never touched — and that improves on 21/23 songs. ⇒Either the lateness is real
-musical placement rather than detector latency, or the human reference shares the bias. **Resolving
-that is the next step, and it decides whether a phase correction may ever be shipped.**
+### ✅ AND THE DECIDING QUESTION IS ANSWERED: OUR GRID IS EARLY, BY EXACTLY THE OPTIMAL SHIFT
+`scripts/diag_grid_vs_human.py`. ★**The human mapper's own grid settles it, because it is an
+INDEPENDENT reference**: a human placed those notes by ear and they are grid-quantised by
+construction, so their bpm+grid is a musically-correct ruler for that song — and our detector never
+touched it. Measured modulo one 1/4-beat slot, wrapped to ±half a slot, on the **18** songs that are
+bpm-matched *and* pass the sanity gate:
+
+| | median | unanimity |
+|---|---|---|
+| **1. sanity** — human notes vs their own grid | **0.0000** ✅ | reconstruction is correct |
+| **2. our ONSETS vs the human grid** | **−0.033 beats (EARLY)** | 0/18 late |
+| **3. our GRID vs the human grid** | **−0.053 beats (EARLY)** | 0/18 late |
+| 4. derived — onsets inside OUR slots (2−3) | **+0.020 (LATE)** | = what P0.4 observes |
+
+★★**THE GRID ERROR IS THE LARGER TERM AND IT MATCHES THE OPTIMAL SHIFT.** Our bar grid sits
+**0.053 beats early** of the human's, on **18 of 18** songs (sd 0.019), and the empirically best
+phase shift is **+0.05**. The shift is not a tuned nuisance parameter — **it moves our grid onto the
+grid a human used for the same song.**
+⇒**C2's landmine does NOT bind.** It forbids a blanket shift that chases an *onset-detector* offset;
+this is a correction toward an independent musical grid, and the human reference is what
+distinguishes them. **P0.4 goes from "no known mechanism" to buildable.**
+⚠️**The detector IS separately biased** — 0.033 beats early on 18/18 (sd 0.011). That is a smaller,
+distinct defect. **Do not try to fix both with one shift**; correcting the grid by 0.053 would leave
+events sitting 0.033 early rather than 0.020 late, which is further from slot centre, not nearer.
+★Also note the direction: the detector runs **early**, not late — the usual "librosa reports onsets
+late" intuition is backwards here.
+⚠️**Two songs were dropped by a per-song sanity gate** (`1fa32` 0.109, `1f9a0` 0.062 on measurement 1)
+— their human notes do not sit on their own reconstructed grid, so those maps carry a song offset or
+BPM change this model does not handle, and their phases would have measured *my* error. ★*A cohort
+median passing a sanity check does not mean every song passed it.*
+
+### ⚠️ WHAT IS STILL UNEXPLAINED
+The grid error says *why a shift of that size is right*. It does **not** yet explain *how the gain
+arrives*: at +0.05 the surviving notes do not move at all, so the improvement is entirely in **which
+events get selected**, not in where notes sit. A grid correction that moves the grid onto the human's
+should also move note TIMES — and it does not, because the exported times re-quantise onto the same
+absolute slots. ⇒**The next build step is not "apply +0.05"; it is to make the corrected grid
+actually carry through to note placement**, and then re-measure.
 ⚠️`--phase-shift` stays TEST ONLY. ⚠️**Any prior negative-shift measurement in this repo is suspect**
 until re-checked against displacement.
 

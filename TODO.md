@@ -195,13 +195,30 @@ than +δ. If events sat centred in their slots, ±δ would displace symmetricall
 systematically LATE within their slots; the bar grid is early relative to them by ~0.05 beats.**
 ✅**And the gain is still SELECTION** (retraction confirmed): at +0.05 surviving notes move **0.0 ms**
 on 18/23 while note count rises 978 → 1009, and BOTH references improve on 21/23 songs.
-⬜**NEXT — the question that decides whether a phase fix may ever ship**: is the lateness
-**onset-detector latency** (C2's landmine: *"never apply a blanket global shift… fixing it is the
-`h_dist` failure"*) or real musical placement? ★**Evidence against pure latency**: agreement with the
-HUMAN MAPPER'S OWN note times — which our detector never touched — improves on 21/23 songs.
-**DoD**: measure where human notes sit inside their own slots. If humans are late too, the lateness
-is musical and a grid correction is legitimate; if only we are late, it is detector offset and C2's
-landmine binds.
+✅★★**ANSWERED — OUR GRID IS EARLY BY EXACTLY THE OPTIMAL SHIFT** (`scripts/diag_grid_vs_human.py`,
+n=18 bpm-matched + sanity-passing songs; the human's grid is an INDEPENDENT ruler our detector never
+touched):
+
+| | median | unanimity |
+|---|---|---|
+| sanity: human notes vs their own grid | **0.0000** ✅ | reconstruction correct |
+| our ONSETS vs the human grid | **−0.033 (early)** | 0/18 late |
+| **our GRID vs the human grid** | **−0.053 (early)** | **0/18 late** |
+| derived: onsets inside OUR slots | **+0.020 (late)** | = what P0.4 sees |
+
+★★**The grid error is the larger term and equals the empirically optimal +0.05 shift** ⇒ the shift
+moves our grid ONTO the human's. ⇒**C2's landmine does NOT bind** — it forbids chasing a *detector*
+offset, and the human grid is what distinguishes the two. **P0.4 is buildable.**
+⚠️**The detector is separately biased 0.033 beats EARLY** (not late — the usual intuition is
+backwards). **Do not fix both with one shift**: correcting the grid alone leaves events 0.033 early
+instead of 0.020 late, i.e. further from slot centre.
+⬜**NEXT — the gain does not arrive the way the mechanism suggests.** At +0.05 surviving note times
+do not move at all (they re-quantise onto the same absolute slots); the gain is entirely in WHICH
+events are selected. **DoD**: make the corrected grid carry through to note PLACEMENT, then
+re-measure `onset_precision` and human agreement — if the gain survives when notes actually move,
+the correction is real; if it vanishes, the +0.05 was only ever a selection re-roll.
+⚠️**Per-song sanity gates, not cohort medians**: `1fa32`/`1f9a0` fail "human notes on their own grid"
+(0.109 / 0.062) — song offset or BPM changes — and would have measured reconstruction error.
 ⚠️`--phase-shift` stays TEST ONLY.
 
 ## 🟡 P1.2 — WE USE SIX CUT DIRECTIONS, HUMANS USE NINE
