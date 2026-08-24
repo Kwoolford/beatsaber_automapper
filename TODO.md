@@ -55,6 +55,13 @@ map. Two humans agree on the climax only 43 % of the time — much of "different
 2. 🔴**P0.1 and P0.2 are his decisions** — both change what a PASS means.
 3. 🟡**P0.4** — a grid-phase change reliably selects a better map on 16/23 songs, cause unknown.
 4. ⬜**Approve the map cleanup** in `LISTENING.md` — 78 arms are installed, ~40 superseded.
+5. ⬜**P0.7: make `--snap-onsets` default?** Now validated and available on any song; the open
+   question is whether the second Demucs pass is worth it by default.
+
+★**2026-08-24 adds a reusable technique**: `scripts/diag_snap_independent.py` scores a change
+against the **human mapper's own note times** with **shifted and random negative controls**. That is
+the shape to reach for whenever a fix is measured by a metric it directly manipulates — it caught
+that the snap was defensible, and it would have caught the opposite.
 
 ---
 
@@ -126,12 +133,21 @@ grid-representability result (+0.106 headroom still unused at SUBDIV 4).
 alone; or let the pulse lattice prefer phases whose points carry onsets.
 **DoD**: `onset_precision` rises on the affected songs **without** `pulse_stability` leaving 25–75 %.
 
-## 🟡 P0.7 — DETECTOR MISMATCH: HALF FIXED, RESIDUAL IS A COVERAGE BIAS IN THE AXIS
-✅**Built**: `agent_mapper/refonsets.py` + `--snap-onsets` (opt-in). `onset_precision`
-**0.856 → 0.890** (human 0.919), p median 0.655 → 0.680, ng every alignment number recorded so far. **A deliberate decision, not a chore.**
-⬜**Generalise `--snap-onsets` to any song** — it needs cached reference onsets, which exist only for
-corpus songs, so it cannot be the default while "map any song" is the goal.
-⚠️Cost: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
+## 🟢➡️ P0.7 — SNAP VALIDATED AND GENERALISED; ONE DECISION LEFT (2026-08-24)
+✅**The gain is NOT circular.** `onset_precision` 0.856 → 0.890 was measured against the very cache
+the snap moves notes onto. Re-tested against the **human mapper's own note times**: 17/23 songs move
+closer (p=0.035), near-human@50 ms 0.627 → 0.665, sign stable at every tolerance 20–100 ms.
+★**Negative controls settle it** — the same onsets shifted +200 ms score **−0.034** and random times
+**−0.061**, though both concentrate event times identically. The lift is musical, not discretisation.
+✅**Works on any song now** (`refonsets` falls back to a content-hashed key and runs the judge's own
+detector). Verified end-to-end on audio with no corpus identity. See PROGRESS 2026-08-24.
+⬜**LEFT: should `--snap-onsets` become the DEFAULT?** It costs a **second Demucs pass** on any
+non-corpus song (4-stem `htdemucs` on top of the `htdemucs_6s` already run for events).
+⚠️Cost to weigh: `nps` 3.43 → 3.29; snapping collapses events sharing one onset (88 of 833 on 1f767).
+**DoD**: build-time on a fresh song measured, and the density cost re-checked at the current
+carrier-recruitment defaults (the 3.43 → 3.29 predates the two-stream fix).
+🔴**Do not "fix" the ±1-frame drift between a fresh detector run and the stored cache** — it is
+environment drift, and the cache is the fixed point every alignment number is measured against.
 
 ## 🟡 P0.4 — A DIFFERENT GRID PHASE SELECTS A BETTER MAP (cause unknown)
 **Effect CONFIRMED n=23**: shifting the bar grid +0.05–0.10 beats improves `onset_precision`

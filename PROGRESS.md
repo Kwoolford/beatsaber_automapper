@@ -7,6 +7,89 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-24 — THE ONSET SNAP IS A REAL REALIGNMENT, NOT A GOODHART, AND IT NOW WORKS ON ANY SONG
+
+**Why this first.** The stack's top four items all need Kyle (his ear on `[V2]` vs `[FULL]`, the
+P0.1 and P0.2 decisions, the map cleanup). Of the items that do not, P0.7's open half —
+*"generalise `--snap-onsets` to any song"* — is the one that serves the stated focus directly:
+`--snap-onsets` is the largest confirmed alignment gain we have (`onset_precision` 0.856 → 0.890)
+and it was unavailable on exactly the songs *"map any song you'd like"* means.
+
+### 🔴 FIRST: THE GAIN WAS OPEN TO A CIRCULARITY CHARGE, AND HAD NEVER BEEN TESTED
+`onset_precision` **is** the share of our notes within 50 ms of `outputs/onset_cache`. The snap
+**moves notes onto that same cache**. Scoring distance-to-X after snapping to X is close to
+circular by construction, so the +0.034 could have been bought entirely by the act of snapping.
+★It was never *fully* circular — the human map scores 0.919 on the same onsets **without** being
+snapped, so the ceiling is real — but our gain had never been checked against anything the snap
+does not itself define. **Generalising it to every song would have shipped that everywhere.**
+
+✅**TESTED against the HUMAN MAPPER'S OWN NOTE TIMES** (`scripts/diag_snap_independent.py`), a
+reference the snap knows nothing about. Paired over only the events the snap actually **moves** —
+an unmoved event has `d_before == d_after` by construction and would dilute the effect toward zero.
+
+| | result |
+|---|---|
+| songs where moved events land **closer** to a human note | **17/23**, sign test **p = 0.035** |
+| near-human @50 ms | **0.627 → 0.665** (+0.038), **21/23** songs positive |
+| Δ median distance | −1.53 ms (mean) |
+
+★**Swept the free parameter before believing it** — the pendulum axis died at exactly this step
+(decisive at MINRUN=6, sign-reversed by MINRUN=10). Δ is **positive at every tolerance 20–100 ms**
+and inverts only at 120 ms (−0.006), which is **past saturation**: 0.821 of events are already that
+close before the snap runs, and a ≤60 ms move cannot help them. Mechanical, not a threshold artifact.
+
+### ★★ THE NEGATIVE CONTROLS ARE WHAT SETTLE IT
+A snap **concentrates** event times onto a discrete set, and the human's own times are
+grid-quantised — so *any* discretisation might score better and the lift could be pure geometry.
+Both controls concentrate identically; only the real onsets are musically placed:
+
+| reference | lift @50 ms | win % |
+|---|---|---|
+| **real onsets** | **+0.0377** | **53.8** |
+| same onsets, shifted +200 ms | **−0.0344** | 45.1 |
+| uniform random, same count | **−0.0610** | 45.1 |
+
+⇒**Both controls make alignment WORSE.** Concentration is refuted; the lift is musical.
+**P0.7's gain is CONFIRMED as genuine.**
+
+### ✅ THEN THE GENERALISATION — IT WAS A CACHE-KEY PROBLEM, NOT A DETECTOR PROBLEM
+The reason `--snap-onsets` was songset-only was never that the detector needs a corpus:
+`build_onset_cache.compute_onsets` takes a **plain audio path**. Only the *cache* is keyed by corpus
+song id. `refonsets.reference_onsets` now falls back to a **content-hashed** key and, with
+`compute=True`, runs the judge's own detector on the audio.
+⚠️**Reuses `compute_onsets` rather than reimplementing it** — a second implementation that drifted
+would reintroduce the exact detector disagreement this module exists to close.
+⚠️**Costs a second Demucs pass** (4-stem `htdemucs`, on top of the `htdemucs_6s` already run for
+events), which is why it stays opt-in.
+
+🔴**THE KEY IS PREFIXED `audio_<hash>` ON PURPOSE.** A non-corpus song must never be able to write
+`<song_id>.npz` — that file is the fixed point every alignment number in TODO.md is measured
+against, and a collision would move the human baseline **silently**.
+
+### ⚠️ A REPRODUCIBILITY FINDING THAT JUSTIFIES PREFERRING THE CACHE
+`build_onset_cache` claims *"seeded, two runs are bit-identical"*. **Within one process that holds**
+(verified: two seeded calls on 1f767 → `array_equal` True, 2355 onsets both). **Against the stored
+cache it does not**: a fresh run gives the same *count* but **861 of 2355 values differ**, at
+p50 **0.0 ms** / p75 **11.6 ms** / p99 75 ms, with 98 % within 50 ms.
+★**11.6 ms is exactly one librosa analysis frame (512/44100)** — this is environment drift (torch /
+Demucs / GPU) shifting some onsets by a single frame, not nondeterminism.
+⇒**So `reference_onsets` prefers the CACHED corpus entry over recomputing**: for a songset song the
+cache *is* the scored reference, and recomputing it would quietly shift the baseline by a frame.
+
+### Verified end to end
+Built a map from audio with **no corpus identity** (`unknown_tune.ogg`): the detector ran, cached to
+`audio_12bc883c61edd50f.npz`, and the map **PASSed** (925 notes, 0 violations). Corpus cache entries
+untouched. On identical audio the two paths agree closely — corpus snaps **2199/2463** events, the
+generalised path **2224/2463**, resulting times median **0.0 ms** apart (82 % within one frame); the
+p90 34.8 ms is the environment drift above, not the generalisation.
+**573 tests pass** (8 new, covering the corpus-preference, the prefix guard, and that `compute=False`
+never launches Demucs).
+
+⬜**Still open**: `--snap-onsets` remains **opt-in**, not default. Making it default costs every
+non-corpus build a second Demucs pass, and that is a build-time decision worth taking deliberately.
+
+---
+
 ## 2026-08-22 — DENSITY: THE DIAL WAS BLOCKED BY A HARDCODED TWO-STREAM LIMIT, AND THE REMAINING
 CEILING IS THE SONG, NOT THE CODE
 

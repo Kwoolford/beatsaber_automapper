@@ -612,15 +612,21 @@ def cmd_auto(a) -> int:
             if not getattr(a, "snap_onsets", False):
                 return ts
             import refonsets as RO
-            out, moved, n_in = RO.snap(ts, s.get("song", ""))
+            # ★Pass the audio so a song OUTSIDE the corpus can be snapped too: the
+            # cache is keyed by corpus song id, which is the only reason this was
+            # ever songset-only. On a cache miss the judge's own detector runs on
+            # this audio (a second Demucs pass, cached by audio content hash).
+            out, moved, n_in = RO.snap(ts, s.get("song", ""),
+                                       audio=s.get("audio"), compute=True)
             if not quiet:
                 if moved:
                     print(f"snap-onsets: moved {moved}/{n_in} events onto the judge's "
                           f"own onsets ({n_in - len(out)} collapsed onto a shared "
                           f"onset)")
                 else:
-                    print(f"⚠️snap-onsets: no cached reference onsets for "
-                          f"'{s.get('song', '')}' — times UNCHANGED")
+                    print(f"⚠️snap-onsets: no reference onsets for "
+                          f"'{s.get('song', '')}' and none could be computed — "
+                          f"times UNCHANGED")
             return out
 
         if not getattr(a, "target_notes", 0):
