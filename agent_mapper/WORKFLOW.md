@@ -88,8 +88,16 @@ python agent_mapper/mapctl.py init <audio> --name drive --fresh
 
 python agent_mapper/mapctl.py auto drive --bars 9-16 \
     --follow "drums,piano/mid-stab" --wide \
-    --pulse --lead-bias 0.2 --target-notes 62
+    --pulse --lead-bias 0.2 --target-notes 62 \
+    --doubles --doubles-rate 0.3 --accent-slots "0,2,4,6,8,10,12,14"
 ```
+
+🔴🔴**`--doubles` IS REQUIRED HERE AND THE TWO BUILD PATHS DISAGREE ABOUT IT.** `mapctl auto`
+defaults doubles **OFF** (`--doubles` is `store_true`) while `autobuild.py` defaults them **ON**
+(it exposes `--no-doubles`). A hand-built map that omits the flag ships **0.000** doubles against a
+human median of **0.144**, and only **2.0 %** of 250 human maps have none — a whole gesture missing,
+in a map that otherwise passes everything. Caught 2026-08-24 on a cold-cache build, by the ABSENCE
+block of `scripts/audit_map.py`; the command above had omitted it for weeks.
 
 ⚠️**`--fresh` is not optional for a rebuild.** Without it `init` KEEPS existing notes and
 a second build silently appends a whole second map onto the first. No error, just a worse

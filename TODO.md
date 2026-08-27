@@ -11,85 +11,54 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 
 ---
 
-## 📍 CURRENT STATE (2026-08-22, after the agent-suite session)
+## 📍 CURRENT STATE (2026-08-27)
 
-> ★★**FOCUS (Kyle, 2026-08-20):** *"focus solely on building an agentic map building suite… map any
-> song you'd like and customize them to whatever style you want."* ML work is in `🧊 BACKLOGGED`.
-> ★**2026-08-22 goal:** *"be confident people will want to play the maps."*
+> ★★**FOCUS (Kyle, 2026-08-24):** *"a big focus on the manual agent building skill… beefing up the
+> tooling so the agent calling the skill has as much visibility as a person playing and listening at
+> the same time note sheet level… complete when you call the skill and are confident in the map you
+> build and feel you can evaluate the map correctly and don't need to rely on me to audit."*
+> ML work stays in `🧊 BACKLOGGED`.
 
-**One command:** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2 [--walls 89
---arcs 90 --chains 16]`  → 📖`agent_mapper/WORKFLOW.md` · 📖`agent_mapper/READING.md` (how to JUDGE
-by reading) · 📖`LISTENING.md` (what to play).
+**Build:** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2 [--walls 89 --arcs 90
+--chains 16]`, or the per-section loop in 📖`agent_mapper/WORKFLOW.md` (which beats autobuild).
+**Judge:** `python scripts/audit_map.py <map.zip> [--audio <song>]` — every channel, one verdict.
+**Read:** `python scripts/map_view.py <map.zip> --bars a-b --align --elements --stems`.
+📖`agent_mapper/READING.md` (judge by reading) · 📖`LISTENING.md` (what to play).
 
-**Measured, 23-song songset, 23-metric judge:** 23/23 PASS · 0 parity violations · 565 tests pass.
+**Measured:** 23/23 PASS on the songset · 0 parity violations · **573 tests**.
 
-★★**THE BAR IS THE SPREAD BETWEEN TWO HUMAN MAPPERS** (163 different-mapper pairs), not the human
-map. Two humans agree on the climax only 43 % of the time — much of "different" is taste.
+### ✅ THE VISIBILITY SUITE IS BUILT (2026-08-24, PROGRESS 2026-08-24f/g)
+All six "what a player perceives" gaps are closed, each scored against a human corpus:
+elements (**2 688** maps) · alignment · emptiness (**975**) · effort (**224 485** transitions) ·
+6-stem lanes · one assembled verdict.
+✅**DoD tested for real** on a COLD-CACHE song (`24e6c`): everything except *"is it fun"* was
+judgeable alone — PASS p=0.438, 91.3 % on-sound, zero gaps, all elements in range.
+🔴**What still needs Kyle: taste.** That is not a tooling gap.
 
-| property | ×human-human spread | |
-|---|---|---|
-| legibility / recurrence / crossover | 0.72 – 0.81× | ✅ inside |
-| travel | 1.12× | 🟡 marginal |
-| `vertical_share` | 1.32× | 🟡 marginal, largest non-circular gap |
-| doubles | 1.40× | 🟡 near the taste floor |
-| density | — | ceiling is the song's own event supply |
-
-**Nothing exceeds 1.5×.** All five map elements now ship (notes + walls + arcs + chains + bombs-capable).
+★★**THE BAR IS THE SPREAD BETWEEN TWO HUMAN MAPPERS** (163 pairs), not the human map. Two humans
+agree on the climax only **43 %** of the time — much of "different" is taste. Nothing we ship
+exceeds 1.5× that spread.
 
 ### 🔴 The limits that bound all of it
-1. 🔴🔴**A PASS DOES NOT MEAN THE NOTES ARE ON THE MUSIC** — the judge accepts **65 %** of maps
-   shifted a quarter-beat off. Read `onset_precision` yourself. ⇒**P0.2, needs Kyle.**
+1. 🔴🔴**A PASS DOES NOT MEAN THE NOTES ARE ON THE MUSIC** — the judge accepts **65 %** of maps a
+   quarter-beat off. ⇒**Read the ALIGNMENT block of `audit_map` yourself.** (P0.2 needs Kyle.)
 2. 🔴**A PASS = NOT DEFECTIVE, not GOOD**; a **FAIL can mean NOT TYPICAL, not bad** (P0.1).
-   Never rank by `p` — human maps score p median 0.455, ours 0.5–0.75; **high p means blander**.
-3. 🔴**Walls, arcs and chains are invisible to all 23 metrics** — only his ear can judge them.
-4. 🔴**Nothing here has reached his ear.** Every number above is a number.
-5. ⚠️**THE OUTPUT DIRS ARE NOT INTERCHANGEABLE — check the date before quoting or queueing one.**
-   `outputs/review_2026-08-22/V2__*` (newest, **the build to judge**), `outputs/final_verify2/`
-   (2026-08-21), `outputs/kyle_review_2026-08-19/*_FULL` (2026-08-19). On the same 4 songs these
-   differ **2–4×** on a note-level property (measured 2026-08-22 via `diag_pendulum`), so a
-   number taken from one **does not describe** another. ★Name the directory, never just the arm.
-
-## 🎯 CURRENT FOCUS (Kyle, 2026-08-24) — THE AGENT MUST BE ABLE TO AUDIT ITS OWN MAP
-> *"I'd like a big focus to be on the manual agent building skill. Like beefing up the tooling so
-> the agent calling the skill has as much visibility as a person playing and listening at the same
-> time note sheet level. That task would be complete when you call the skill and are confident in
-> the map you build and feel you can evaluate the map correctly and don't need to rely on me to
-> audit."*
-
-**DoD (his words): call `/buildmap`, be confident in the map, evaluate it correctly, no audit from
-Kyle.** ⇒Every gap below is "something a player perceives that the agent cannot".
-
-| # | what a player perceives | status |
-|---|---|---|
-| 1 | **walls/arcs/chains** — where they are, what they block | ✅**DONE** `map_view --elements` + `agent_mapper/elements.py`, judged vs **2 688** human maps |
-| 2 | **is this note on a sound I hear** | ✅**DONE** `map_view --align` (● ≤50ms · ○ 50–120 · ✗ nothing), whole-map split |
-| 3 | **effort / strain** — reach, wrist reset, comfort per transition | ✅**DONE** `agent_mapper/effort.py` — a **LOCATOR, not another aggregate** (`mapjudge` already scores travel/angle_change): ranks individual transitions with timestamps against **224 485 human transitions**. **Finding: our maps ask LESS of the wrists than humans** — 1.4 % of transitions above the human p95 where humans sit at 5.0 % |
-| 4 | **a verdict on ONE map** | ✅**ALREADY SOLVED — I had this wrong.** `mapjudge.judge_zip` scores **23/23 metrics on a single map, zero `nan`**. The *"all six axes are `nan` at n=1"* landmine is about the OLDER six-axis `scorecard.score_cohort`, **not** `mapjudge`. ⇒The gap is not scoring one map; it is that **no single command assembles every channel into one verdict** — see gap 4b |
-| 4b | **one honest verdict, all channels** | ⬜`mapjudge` (notes) + `--align` + `--elements` + parity all exist and must each be remembered, run, and interpreted separately |
-| 5 | **emptiness** — the song is busy here and the map is not | ✅**DONE** `agent_mapper/emptiness.py`, judged vs **975** human maps. 🔴🔴**ANSWER: we answer 69.5 % of Fallen Kingdom's onsets vs a human MEDIAN of 48.8 % — the 95th percentile. "Empty" is NOT note coverage**, which is why five note-based instruments could never find it |
-| 6 | **what it sounds like** — vocals/guitar/piano lanes in the sheet | ✅**DONE** `map_view --stems` — one lane per stem from `events.py`'s six-stem view, block height = loudness relative to that stem's own median. ★Combined with `--align` you can see a note placed where **nothing is sounding**, or a guitar hit the onset detector missed |
-
-★★**ALL SIX GAPS CLOSED (2026-08-24).** The remaining question is not another channel — it is whether the channels are ENOUGH. ⇒**The honest test of the DoD is to run `/buildmap` end to end on a song with cold caches and see whether the map can be judged without Kyle.** Anything that cannot be answered in that run is the next gap, discovered the same way these six were.
-
-★**Method that is working**: do not speculate about gaps — try to answer a real question with the
-tools and record where you cannot. Gap 1 was found by asking *"is `[FULL]` less empty than `[V2]`?"*
-and discovering **nothing could read a wall**.
+   Never rank by `p` — human band 0.28–0.57; **high `p` means BLANDER**.
+3. ⚠️**The 23 note metrics are still blind to walls/arcs/chains** — `audit_map`'s ELEMENTS block is
+   what sees them now, but it scores *typicality*, not whether they feel good.
+4. ⚠️**`onset_precision` scores our notes against OUR onsets**, both downstream of our grid, so a
+   self-consistent-but-shifted grid can score well. The human-note-time check catches that on a
+   corpus song and **does not exist on a new one**.
+5. ⚠️**OUTPUT DIRS ARE NOT INTERCHANGEABLE** — name the directory, never just the arm.
+   Newest: `outputs/phase_ab_2026-08-24/` · `outputs/width_ab_2026-08-24/` · `outputs/dod_test/`.
 
 ### ▶️ START THE NEXT SESSION HERE
-1. ⬜**His verdict on `[V2]` vs `[FULL]`** (Fallen Kingdom) — see `LISTENING.md`. Settles a
-   three-day-old question no metric can touch.
+1. 🔴**FOUR THINGS NEED KYLE'S EAR** — all installed and playable:
+   `[V2]` vs `[FULL]` (walls/arcs/chains) · `[W3]` vs `[W5]` (cut directions, play `1f767` first) ·
+   `[PBASE]` vs `[PCAL]` (grid phase, play Hunger first) · `AUTO Shut Up [DOD]` (cold-cache build).
 2. 🔴**P0.1 and P0.2 are his decisions** — both change what a PASS means.
-3. 🟡**P0.4** — a grid-phase change reliably selects a better map on 16/23 songs, cause unknown.
-4. ⬜**Approve the map cleanup** in `LISTENING.md` — 78 arms are installed, ~40 superseded.
-5. ⬜**P0.7: make `--snap-onsets` default?** Now validated and available on any song; the open
-   question is whether the second Demucs pass is worth it by default.
-
-★**2026-08-24 adds a reusable technique**: `scripts/diag_snap_independent.py` scores a change
-against the **human mapper's own note times** with **shifted and random negative controls**. That is
-the shape to reach for whenever a fix is measured by a metric it directly manipulates — it caught
-that the snap was defensible, and it would have caught the opposite.
-
----
+3. 🟡**DOUBLES: a real defect, now visible.** `double_share` **0.000** vs human median **0.144**;
+   only **2.0 %** of human maps have none. See P1.3.
 
 ## 🔴 P0.1 — THE JUDGE CANNOT VALIDATE A DELIBERATELY-HARD MAP (needs Kyle's call)
 `--nps 9.0` on `1f65d` produces a map whose only problem is **`nps` at the 97.1st human
@@ -159,190 +128,74 @@ grid-representability result (+0.106 headroom still unused at SUBDIV 4).
 alone; or let the pulse lattice prefer phases whose points carry onsets.
 **DoD**: `onset_precision` rises on the affected songs **without** `pulse_stability` leaving 25–75 %.
 
-## 🟢➡️ P0.7 — SNAP VALIDATED AND GENERALISED; ONE DECISION LEFT (2026-08-24)
-✅**The gain is NOT circular.** `onset_precision` 0.856 → 0.890 was measured against the very cache
-the snap moves notes onto. Re-tested against the **human mapper's own note times**: 17/23 songs move
-closer (p=0.035), near-human@50 ms 0.627 → 0.665, sign stable at every tolerance 20–100 ms.
-★**Negative controls settle it** — the same onsets shifted +200 ms score **−0.034** and random times
-**−0.061**, though both concentrate event times identically. The lift is musical, not discretisation.
-✅**Works on any song now** (`refonsets` falls back to a content-hashed key and runs the judge's own
-detector). Verified end-to-end on audio with no corpus identity. See PROGRESS 2026-08-24.
-✅**PRICED (n=23)**: `onset_precision` **0.866 → 0.891**, and 🔴**the recorded `nps` 3.43 → 3.29 cost
-is REFUTED as an artifact** — it predated the two-stream carrier fix, and at current defaults
-density *rises* (4.412 → 4.464). ★*A cost measured against a supply-starved build is not a property
-of the change.*
-🔴**Stays OPT-IN — DoD not met: PASS falls 23 → 21.** Both losses are **idiom/geometry** while
-`onset_precision` ROSE, and both songs were already marginal in BASE (`1f9a0` 0.450→0.478 with
-`diagonal_share` p=0.998; `1fb3f` `idiom_coverage` 0.675→0.350).
-🔴**A P1.2 lead died here**: those two songs move cut directions exactly the way P1.2 wants, but the
-**cohort does not move at all** (`vertical_share` 0.754→0.760, `diagonal_share` 0.243→0.239).
-**Do not revive "the snap fixes cut directions".**
-🔴**The reselection explanation is REFUTED** — the two failing songs are the **least** reselected
-(survival 0.822 / 0.937 vs cohort median **0.701**).
-★★**BUT `corr(bpm, survival) = −0.868`: THE SNAP RESELECTS FAST SONGS.** 188 bpm → 0.413 survival,
-95 bpm → 0.937. **Arithmetic**: a fixed 60 ms window against a 1/4-beat slot of `15000/bpm` ms is
-75 % of a slot at 188 bpm and 38 % at 93 bpm. ⇒**on fast songs part of the `onset_precision` gain is
-a different SELECTION, not a realignment** (the P0.4 caveat). ⚠️The *event-level* validation is
-unaffected — it runs before selection.
-🔴🔴**THE COHORT MEDIAN HID A PER-SONG HAZARD**: `idiom_coverage` reads 0.990 → 0.988, but **four**
-songs move −0.19 to −0.54 (`1f333` 0.989 → **0.570** and still PASSes). ★**Report per-song spread,
-not just the median, for any axis a change can gut locally.**
-🔴**A BPM-RELATIVE `SNAP_WINDOW_S` IS REFUTED — DO NOT BUILD IT** (`scripts/diag_snap_window.py`).
-The event-level lift is **monotonic in window width** (20 ms +0.002 · 40 ms +0.014 · **60 ms
-+0.0345** · 120 ms +0.055), so a window narrow enough to stay inside a slot on all 23 songs
-(**0.5× slot**) keeps only **73 %** of the gain — under the ≥90 % bar.
-★★**THE RESELECTION ON FAST SONGS IS THE PRICE OF THE GAIN, NOT A BUG**: the lift comes precisely
-from moving events that sit far out, and on a fast song "far out" IS the neighbouring slot. The two
-cannot be separated by narrowing the window.
-★**Cost of learning this: seconds.** The alignment gain is an EVENT-level property, so it needed no
-map builds — ask the cheap half of a DoD first when one half is arithmetic.
-⚠️Also unmeasured: the second Demucs pass a NON-corpus song pays (the sweep ran corpus-warm).
-🔴**Do not "fix" the ±1-frame drift between a fresh detector run and the stored cache** — it is
-environment drift, and the cache is the fixed point every alignment number is measured against.
+## ✅ P0.7 — CLOSED 2026-08-24 (see PROGRESS 2026-08-24)
+Snap **validated as a real realignment** (human note times, +shifted/random controls), **generalised
+to any song**, **priced** (`onset_precision` 0.866→0.891, and the recorded `nps` cost was an artifact
+of the pre-two-stream build), and its obvious remedy — a **bpm-relative window — REFUTED** (keeps
+only 73 % of the gain; the reselection IS the gain).
+⬜**Only open**: `--snap-onsets` stays **opt-in**; DoD not met because PASS fell 23→21.
+🔴**Do not rebuild**: bpm-relative window, or a "snap fixes cut directions" story (cohort: 0.000).
 
-## 🟡 P0.4 — A DIFFERENT GRID PHASE SELECTS A BETTER MAP (cause unknown)
-**Effect CONFIRMED n=23**: shifting the bar grid +0.05–0.10 beats improves `onset_precision`
-0.866 → 0.916 **and** agreement with the human's own note times 0.645 → 0.686, on **16/23 songs**,
-inverted-U on both references.
-🔴🔴**BUT IT IS NOT A REALIGNMENT — RETRACTED.** Only **45.9 %** of note beat positions survive the
-shift and counts move ±14 %: the shift changes **which events snap to which slot**, so this is two
-different maps rather than one map realigned. **"Every note is placed early" was wrong.**
-🔴**And the phase criterion is not biased**: `R`-optimal vs minimum-snap-distance-optimal differ by
-a median **signed** +0.002 beats (random directions). ⇒**a fix aimed at the phase estimator would be
-aimed at nothing.**
-✅★★**A MECHANISM AT LAST (2026-08-24, `scripts/diag_phase_sign.py`, n=23).**
-🔴**First: `--phase-shift` note times do NOT move continuously.** Negative shifts displace the
-median note by a **FULL SLOT** on **19/23** songs at −0.10 and 10/23 at −0.05 (positives: 5/23).
-⇒**any negative-arm comparison measures quantisation, not phase**, and a naive sign test reads the
-collapse as a signed offset. ⚠️**Any prior negative-shift number in this repo is suspect until
-re-checked against displacement.**
-★★**THE DISPLACEMENT ASYMMETRY IS THE MECHANISM**: −δ crosses a slot boundary **2–4× more often**
-than +δ. If events sat centred in their slots, ±δ would displace symmetrically. ⇒**events sit
-systematically LATE within their slots; the bar grid is early relative to them by ~0.05 beats.**
-🔴🔴**RETRACTED (same session): "the notes do not move" was MY INSTRUMENT'S BUG** — it ignored
-**`_songTimeOffset`**, which is exactly where `mapctl export` writes the fitted phase, dropping the
-only term that moves when the phase shifts. ★***If a knob appears to change nothing, suspect the
-instrument before concluding the knob is inert.***
-✅**Re-measured correctly (n=23): `onset_precision` 0.857 → 0.894 at +0.05, back to 0.820 at +0.10;
-human agreement 0.610 → 0.678.** ★★**The inverted-U peaks at +0.05 — exactly the independently
-measured 0.053-beat grid error**, and overshooting HURTS, which a selection lottery would not do.
-⇒**P0.4 is a genuine quantified realignment.**
-✅★★**ANSWERED — OUR GRID IS EARLY BY EXACTLY THE OPTIMAL SHIFT** (`scripts/diag_grid_vs_human.py`,
-n=18 bpm-matched + sanity-passing songs; the human's grid is an INDEPENDENT ruler our detector never
-touched):
+## ✅ P0.4 — ANSWERED AND SHIPPED 2026-08-24 (see PROGRESS 2026-08-24c)
+**Our bar grid sits 0.053 beats EARLY of a human mapper's** (18/18 songs, against a reference our
+detector never touched), and that is exactly the empirically optimal shift. Held-out validated
+(`onset_precision` 0.888→0.917, human agreement 0.642→0.709, **99 % of the per-song oracle from one
+constant**). Shipped as **`--phase-calibrate`**, `mapctl.PHASE_BIAS_BEATS = 0.053`.
+🔴**DEFAULT OFF — Kyle's call.** Every note moves ~20 ms and this targets his *"slightly off beat"*
+complaint directly. A/B installed: `AUTO <song> [PBASE]` vs `[PCAL]` — **Hunger 0.768→0.917**.
+⚠️`PHASE_BIAS_BEATS` is a property of the CURRENT tempo/phase fit — re-derive with
+`scripts/sweep_phase_heldout.py` if that fit changes.
+⚠️**A weak `grid_r` does NOT imply bad alignment** (24e6c: r=0.32, phase 43 % of a slot from the
+human's, yet 91.3 % on-sound) — **comparing grid ANCHORS is not comparing where notes LAND.**
+🔴**Do not rebuild**: the negative-shift sign test (arms displace a full slot; it measures
+quantisation), or a blanket "+0.05 everywhere".
 
-| | median | unanimity |
-|---|---|---|
-| sanity: human notes vs their own grid | **0.0000** ✅ | reconstruction correct |
-| our ONSETS vs the human grid | **−0.033 (early)** | 0/18 late |
-| **our GRID vs the human grid** | **−0.053 (early)** | **0/18 late** |
-| derived: onsets inside OUR slots | **+0.020 (late)** | = what P0.4 sees |
+## 🔴 P1.3 — THE TWO BUILD PATHS DISAGREE ON DOUBLES, AND THE HAND PATH SHIPS ZERO
+**CONFIRMED — a defaults divergence, verified by running both:**
 
-★★**The grid error is the larger term and equals the empirically optimal +0.05 shift** ⇒ the shift
-moves our grid ONTO the human's. ⇒**C2's landmine does NOT bind** — it forbids chasing a *detector*
-offset, and the human grid is what distinguishes the two. **P0.4 is buildable.**
-⚠️**The detector is separately biased 0.033 beats EARLY** (not late — the usual intuition is
-backwards). **Do not fix both with one shift**: correcting the grid alone leaves events 0.033 early
-instead of 0.020 late, i.e. further from slot centre.
-🔴**A TRAP CAUGHT BEFORE BUILDING**: `eval_songset` audio is **byte-identical** to the human zips'
-audio and **all 23 human maps have `_songTimeOffset` = 0** ⇒ on this cohort the true phase is **0 by
-FILE CONVENTION**. ★**Any rule pushing our phase toward zero scores perfectly here and says nothing
-about a song Kyle brings.** ⚠️*"Derived without reference to the human map"* was an INSUFFICIENT DoD
-— φ→0 references no map at all yet still fits the convention.
-✅**CONTROL PASSED — pad the audio 137 ms** (`scripts/diag_phase_padded.py`): median |residual|
-**4.5 ms if the estimator TRACKS** the pad vs **29.9 ms if it locks to t=0**, tracking on **6/6**
-songs. ⇒**the fit measures the MUSIC, not the convention; the bias is a real estimator error and a
-correction should generalise.**
-★**Common root visible**: fitted phase negative on 6/6 (−19…−36 ms) *and* onsets read 0.033 beats
-early ⇒ suspect ONE analysis/frame-centring latency, not two coincidences.
-✅★★**HELD-OUT VALIDATED AND BUILT** (`scripts/sweep_phase_heldout.py`, n=18). Constant fitted on one
-fold, applied to the other; both directions run (folds gave **+0.0569** and **+0.0513** independently):
-
-| | none | held-out | oracle (ceiling) |
+| | `--doubles` | `--accent-slots` | result |
 |---|---|---|---|
-| `onset_precision` | 0.8882 | **0.9170** (+0.029) | 0.9172 |
-| human agreement | 0.6422 | **0.7086** (+0.067, 15/18) | 0.7101 |
+| `autobuild.py` | **ON** (exposes `--no-doubles`) | `0,2,4,6,8,10,12,14` | 10.2 %–20.4 % ✅ human range |
+| `mapctl auto` (what `WORKFLOW.md`/`SKILL.md` document) | **OFF** (`store_true`) | **`0,8`** only | **0.000** 🔴 |
 
-★★**A single constant captures 99 % of the per-song ORACLE gain** ⇒ the bias really is constant.
-✅**Shipped as `--phase-calibrate`** (`mapctl.PHASE_BIAS_BEATS = 0.053`), **default OFF**.
-✅**A/B built + installed**: `AUTO <song> [PBASE]` vs `[PCAL]`, 4 songs — Hunger `onset_precision`
-**0.768 → 0.917**, human agreement **0.484 → 0.667**. ⇒**`LISTENING.md`, play Hunger first.**
-🔴**Default stays OFF — Kyle's call.** Every note moves ~20 ms; `BEAT_GRID_PHASE` once "fixed" 18
-songs on the axis while he still heard the defect.
-⚠️`PHASE_BIAS_BEATS` is a property of the CURRENT tempo/phase fit — re-derive it with
-`sweep_phase_heldout.py` if that fit ever changes.
-⚠️**Per-song sanity gates, not cohort medians**: `1fa32`/`1f9a0` fail "human notes on their own grid"
-(0.109 / 0.062) — song offset or BPM changes — and would have measured reconstruction error.
-⚠️`--phase-shift` stays TEST ONLY.
+⇒**Following the skill by hand ships a map with a whole gesture missing**, while `autobuild` on the
+same repo lands in the human band (p25–p75 **0.089–0.212**; only **2.0 %** of 250 human maps have
+none).
+✅**Docs fixed 2026-08-24** — `WORKFLOW.md` and `buildmap/SKILL.md` now pass
+`--doubles --doubles-rate 0.3`.
+⚠️**PARTLY CONFIRMED, do not over-claim**: adding the flag **plus** `--accent-slots
+"0,2,4,6,8,10,12,14"` on `24e6c` yields only **0.010** (2 doubles), not the human 0.137. The gate is
+`slot ∈ accent_slots AND ≥2 stems agree`, so on a song whose stems rarely co-onset the doubles
+cannot be placed at all. **Whether the agent path can reach human doubles on THIS song is NOT
+established.**
+**Tasks**: make `mapctl auto`'s defaults match `autobuild`'s so the paths cannot diverge again;
+then measure `double_share` across the songset to see whether the `≥2 stems agree` gate is the real
+ceiling.
+**DoD**: a hand-built map following the documented command lands `double_share` inside p25–p75 on
+the songset median, `viol` unchanged and `nps` not inflated — doubles must not buy density.
+★**How this was found**: `audit_map`'s ABSENCE block flagged it, then Step-2 validation corrected the
+cause **twice** — first from "generator defect" to "docs omission", then to "defaults divergence
+plus a stem-agreement gate". ***A defect a tool finds still needs its cause verified before it is
+written down.***
 
-## 🟡 P1.2 — WE USE SIX CUT DIRECTIONS, HUMANS USE NINE
-**Largest non-circular gap** (1.32× the human-human spread — marginal, not urgent).
-`vertical 0.773 vs 0.480 · diagonal 0.223 vs 0.415 · horizontal 0.004 vs 0.094`.
-🔴**Four explanations refuted**: the vocabulary HAS the diagonals (34.4 % stationary); 0 fallbacks;
-`_reparity` changes 0 directions; doubles are not the cause (doubles and solo notes have the same
-diagonal share). ⇒**the loss is inside the sampler and is NOT yet explained.**
-★Reachability gradient: from a vertical only 18–31 % of reachable idioms are diagonal; from a
-diagonal, 42–66 %. **Diagonals sustain diagonals — the question is why we never accumulate them.**
-✅★★**MECHANISM LOCATED 2026-08-24 — IT IS THE `width` TRUNCATION** (`scripts/diag_diagonal_leak.py`,
-n=23, every song agrees). Tracing the diagonal share of the candidate pool through every sampler
-stage:
+## 🟡➡️ P1.2 — MECHANISM FOUND, FIX BUILT, AWAITING KYLE'S EAR (PROGRESS 2026-08-24b)
+**The `width` truncation strips the diagonals.** The candidate pool is already at the HUMAN diagonal
+share (0.404 vs 0.415) on all 23 songs; `_pick` then keeps only the `width`(=3) highest-COUNT
+candidates and human idiom frequency is vertical-dominated.
+🔴**Both previously-named suspects are dead**: crossover filter **exactly 0.000**, `REPEAT_P` 40 % of
+width's effect.
+✅**`width=5` meets the DoD** (|Δdiagonal| 0.112) **and is closer to human on BOTH vocabulary axes**
+than the default, which overshoots (`idiom_coverage` 0.990 vs human 0.909). 23 songs × 3 seeds.
+🔴**Default stays 3 — Kyle's call**: it was chosen by READING two maps side by side, and an
+eye-derived decision is not reversed on axis numbers. A/B installed: `AUTO <song> [W3]` vs `[W5]`,
+identical times/notes/elements. ⇒**play `1f767` first — w5 overshoots there (0.223→0.492).**
 
-| stage | diagonal share | Δ |
-|---|---|---|
-| A after `_candidates` (d_from + reachability + parity + cross) | **0.404** | — |
-| B after `REPEAT_P` | 0.363 | −0.041 |
-| C after the crossover filter | 0.363 | **+0.000** |
-| **D after the `width` truncation** | **0.261** | **−0.102** |
-| E picked | 0.242 | −0.019 |
-
-★★**THE CANDIDATE POOL IS AT THE HUMAN VALUE** (0.404 vs human **0.415**) on all 23 songs — the
-vocabulary AND the reachability match both offer diagonals at the human rate. `_pick` then keeps
-only the `width`(=3) **highest-COUNT** candidates, and human idiom frequency is dominated by
-verticals, so a top-3-by-frequency truncation strips diagonals by construction.
-🔴**BOTH TODO-NAMED SUSPECTS ARE DEMOTED**: the crossover filter contributes **exactly 0.000**
-(refuted), `REPEAT_P` −0.041 (40 % of `width`'s effect). The real cause was never on the list.
-⚠️**`width=3` became the default 2026-08-21** on recurrence evidence (top-5 cell share 0.342 → 0.492,
-human 0.577) — **its effect on cut direction was never measured**, so raising it trades P1.2 against
-that gain.
-✅**SWEPT (23 songs × 3 seeds, `scripts/sweep_width_cutdir.py`)** — arm gaps far exceed the
-±0.005–0.021 seed spread, and each song is BUILT ONCE then re-dressed per arm, so note times and
-budget are identical across arms:
-
-| width | diagonal | `idiom_top50` | `idiom_coverage` | `idiom_local` | viol |
-|---|---|---|---|---|---|
-| **3 (default)** | 0.237 | 0.557 (p85) | 0.990 (p93) | 0.794 (p15) | 0 |
-| **5** | **0.303** ✅DoD | **0.449** (p61) | **0.929** (p65) | 0.831 (p27) | 0 |
-| 8 | 0.394 ✅DoD | 0.325 (p29) | 0.783 (p13) | 0.861 (p45) | 0 |
-
-*human: diagonal 0.415 · `idiom_top50` **0.404** · `idiom_coverage` **0.909***
-★★**`width=5` MEETS P1.2's DoD (|Δ| 0.112) AND IS CLOSER TO HUMAN ON BOTH VOCABULARY AXES.**
-🔴**`width=3` overshoots them** (`idiom_coverage` 0.990 vs human 0.909) — that is the *"more human
-than human"* over-purity `VOCAB_DEPTH=1000` was specifically tuned to avoid, **reintroduced
-downstream by the truncation**. Cost of w5: `idiom_local` p15 → p27.
-🔴🔴**DEFAULT DELIBERATELY NOT CHANGED — THIS IS KYLE'S CALL.** `width=3` was chosen by **reading
-two maps side by side**, and an ear/eye-derived decision is not reversed on axis numbers alone (the
-rule that keeps `BEAT_GRID_PHASE` off). ✅**Exposed as `--width` and an A/B is built and installed**:
-`outputs/width_ab_2026-08-24/` (`W3__` vs `W5__`, 4 songs, identical times/notes/walls/arcs/chains —
-only directions differ). ⇒**See `LISTENING.md`; play `1f767` first, where w5 overshoots to 0.492.**
-⚠️**NOT the refuted "width mapping"** — that landmine is about mapping `width` to STYLES for
-`travel`/`angle_change` (measured three times, don't retry). Sweeping it for cut direction is a
-different question and has never been done.
-🔴**RETRACTED: the horizontal gesture is NOT a miss.** The 9.4 % figure came from ONE song; across
-109 human maps it is **3.2 %**, and on the 23-song cohort human 0.019 vs ours 0.001 = **|Δ| 0.016**,
-negligible. ★*The page proposes, only the cohort disposes* — generalised from one song again, one
-iteration after writing that rule down.
-🔴**AND THE DIAGONAL GAP IS INSIDE THE HUMAN SPREAD**: |Δ| 0.099 vs a 0.106 spread over 163 pairs.
-⇒**The ONLY real cut-direction quantity is vertical over-use** (|Δ| 0.164 vs spread 0.125 = 1.32×,
-marginal). Do not build a horizontal or diagonal lever.
-**DoD**: diagonal share inside the human-human spread (|Δ| ≤ 0.125) without `viol` rising.
-
-## 🟢➡️ P1 — LEG 3: 4 OF 6 ORDERINGS, AND `technical` IS OVER-SPECIFIED
-🔴**`travel` and `angle_change` anti-correlate on `width`** (width 1 → p51/p1; width 12 → p19/p73)
-**and `technical` asks for both at p75.** Three width mappings measured on 10 songs: none beats
-leaving `width` unset (4 of 6). ⇒**needs a SECOND lever that moves travel without touching cell
-variety** — lane spread is the candidate. Do not re-attempt a width mapping; it has been measured
-three times.
+## ✅ P1 — LEG 3: SECOND TRAVEL LEVER BUILT 2026-08-24 (PROGRESS 2026-08-24f)
+**`--travel-target`** (default 4.167) re-weights candidates by HOW FAR each move travels, where
+`width` sets how MANY are considered. On 1f767 `travel` **2.667 → 4.400 → 5.181** while
+`angle_change` moves only 11.4 → 14.7 — the orthogonal pair LEG 3 needed.
 ⚠️`ebpm_burst` remains 0/10 by design — the 150 ms per-hand floor correctly refuses.
+🔴**Do not re-attempt a width→STYLE mapping**; measured three times, dead.
 
 ## ⚠️ SEEDS ON THE AGENT PATH — READ BEFORE QUOTING ANY "n SEEDS" NUMBER
 **10 of 23 metrics are seed-INVARIANT by construction** — every time-domain one (`nps`, `peak_nps`,
@@ -513,6 +366,15 @@ decode"* is **wrong at the root**: the draw happens before the model runs.
   `half`-tempo songs alike. The 2026-08-11 test re-scored the same beat numbers under a different bpm
   label, which is not a relabelled grid but **a different song**. ⇒The old "derive it from note times"
   fix would have changed nothing. **The real defect is below.**
+- 🔴🔴**KNOBS ARE DEAD UNTIL PROVEN OTHERWISE — THREE IN ONE SESSION (2026-08-24).**
+  `idiomize --width` (accepted, threaded, never used for weeks), `--travel-target` (added to
+  `idiomize_zip`'s signature, never passed to `idiomize()` — caught because three arms printed
+  IDENTICAL rows), and `mapctl auto --doubles` (works, but gated behind `--accent-slots` defaulting
+  to `0,8` where `autobuild` uses eight positions, so it produced nothing).
+  ★***Change the knob and DIFF THE OUTPUT before building on it. A knob whose arms agree to three
+  decimals is not a weak lever, it is an unwired one.***
+  ⚠️And when two entry points wrap the same engine, **diff their defaults** — `autobuild` and
+  `mapctl auto` disagreed on both `--doubles` and `--accent-slots`.
 - 🔴🔴**NEVER NAME A MODULE AFTER AN INSTALLED PACKAGE.** `agent_mapper/emptiness.py` was called
   `coverage.py` for one commit and broke **8 tests in four unrelated files**: `agent_mapper/` is on
   `sys.path`, so it SHADOWED the `coverage` package for every importer, and numba's

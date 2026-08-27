@@ -7,6 +7,55 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-08-24f — THE VISIBILITY SUITE: SIX CHANNELS SO THE AGENT CAN AUDIT ITS OWN MAP
+
+★**Kyle redirected the session (2026-08-24):** *"a big focus on the manual agent building skill…
+beefing up the tooling so the agent calling the skill has as much visibility as a person playing and
+listening at the same time note sheet level… complete when you call the skill and are confident in
+the map you build and feel you can evaluate the map correctly and don't need to rely on me to
+audit."*
+
+★★**The method that found every gap: do NOT speculate — try to answer a real question with the
+tools and record where you cannot.** Gap 1 surfaced by asking *"is `[FULL]` less empty than
+`[V2]`?"* and discovering **nothing could read a wall**.
+
+| what a player perceives | tool built | human reference |
+|---|---|---|
+| walls / arcs / chains | `map_view --elements`, `agent_mapper/elements.py` | **2 688** maps |
+| is this note on a sound | `map_view --align` (● ≤50 ms · ○ 50–120 · ✗ nothing) | — |
+| did the song get answered | `agent_mapper/emptiness.py` | **975** maps |
+| effort per transition (a **LOCATOR**, not an aggregate) | `agent_mapper/effort.py` | **224 485** transitions |
+| what it sounds like (6 stems) | `map_view --stems` | — |
+| one assembled verdict | `scripts/audit_map.py` | all of the above |
+
+🔴🔴**THE HOLE THIS CLOSED**: the agent could **WRITE five map elements and READ one.** Walls, arcs
+and chains were invisible to every reading tool — `mapjudge`'s 23 metrics move by **exactly 0.000**
+when 89 walls + 90 arcs + 16 chains are added — so a `[FULL]` map's sheet printed as notes-only.
+
+**Findings only these could produce:**
+- **We answer 69.5 % of a song's onsets vs a human median of 48.8 %** ⇒*"empty" is not note coverage*.
+- `wall_duty` at the **16th–18th percentile**: right wall COUNT, far less of the song occupied.
+- **Our maps ask LESS of the wrists than humans** — 1.4 % of transitions above the human p95 where
+  humans put 5.0 % of their own there.
+
+⚠️**A 120-map sample said walls were "3.6× too short"; at 2 688 maps it is the 18th percentile.**
+★Scale the reference before recording the claim.
+
+### ✅ LEG 3's SECOND LEVER — AND IT ARRIVED DEAD
+LEG 3 needed *"a SECOND lever that moves `travel` without touching cell variety"*. It already
+existed unexposed: `idiomize.TRAVEL_TARGET` damps each candidate by how far its implied travel sits
+from the human median. `width` chooses **how many** candidates are considered; `travel_target`
+re-weights them by **how far** each move goes. Exposed as `--travel-target`.
+🔴**Caught inert on the first test**: targets 2.0 / 4.167 / 8.0 produced **byte-identical** maps,
+because the parameter was added to `idiomize_zip`'s signature and never threaded into its
+`idiomize()` call — *precisely* the bug that left `width` dead for weeks while advertised in
+`--help`. ★**A knob whose arms agree to three decimals is not a weak lever, it is an unwired one.**
+Wired correctly, on 1f767: `travel` **2.667 → 4.400 → 5.181** while `angle_change` moves only
+11.4 → 12.5 → 14.7 — the mirror of `width`, which moves `angle_change` 12→23 and leaves travel
+alone. **That is the orthogonal pair LEG 3 was missing.**
+
+---
+
 ## 2026-08-24g — THE DoD TEST: BUILT A COLD-CACHE SONG AND JUDGED IT WITHOUT KYLE
 
 ★**Kyle's DoD:** *"complete when you call the skill and are confident in the map you build and feel
