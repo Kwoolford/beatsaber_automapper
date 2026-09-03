@@ -228,13 +228,19 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
         # spends the budget the way the pulse path already does: search the percentile for the
         # one whose SURVIVING slots hit the target, over every recruited carrier.
         if density_search:
-            # ONE pass over drums + every recruited carrier, with the section's WHOLE budget.
-            # Splitting it two ways and searching each half independently still undershot
-            # (nps 5.0: 1082 of 1367 budgeted), because the halves collide on the shared grid
-            # and neither search can see the other's slots -- the same reason the pulse path
-            # merges. One search over the union is self-correcting.
+            # ONE pass over drums + the carrier, with the section's WHOLE budget. Splitting it
+            # two ways and searching each half independently still undershot (nps 5.0: 1082 of
+            # 1367 budgeted), because the halves collide on the shared grid and neither search
+            # can see the other's slots -- the same reason the pulse path merges. One search
+            # over the union is self-correcting.
+            # ★NO RECRUITMENT HERE (measured 2026-09-03). Adding the classes `plan` recruited
+            # buys NOTHING on density -- the percentile search alone meets the request on the
+            # same 3 of 4 songset songs -- and it costs quality: on 1f333 it pushed FLOW from
+            # 18 flagged bars to 22 (🟡 8 % -> 🔴 10 %) and the tutor from 25/49 down to 22/49.
+            # The recruited classes are extra instrument lines the search does not need once it
+            # can reach the budget by lowering the percentile on the carrier it already has.
             follow = ",".join(x for x in [("drums" if r["drums_n"] else None),
-                                          *(r.get("carriers") or [r["carrier"]])] if x)
+                                          r["carrier"]] if x)
             if follow:
                 run([str(AM / "mapctl.py"), "auto", name, "--bars", bars,
                      "--follow", follow, "--wide",
