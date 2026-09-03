@@ -144,7 +144,7 @@ def plan(audio: pathlib.Path, nps: float) -> list[dict]:
             "energy": round(float(s.get("energy") or 0), 2), "dur": round(dur, 1),
             "budget": int(budget),
             "carrier": carrier, "carrier_n": n_carrier,
-            "carriers": carriers, "pool_n": n_pool,
+            "carriers": carriers, "pool_n": n_pool, "share": share,
             "carrier_pct": _pct(want_melodic, n_pool),
             "drums_n": drums,
             "drums_pct": _pct(budget * (1 - share), drums),
@@ -166,7 +166,7 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           adaptive_subdiv: bool = False, seed: int = 0,
           doubles: bool = False, accent_slots: str = "0,2,4,6,8,10,12,14",
           doubles_rate: float = 0.3, phase_shift: float = 0.0,
-          phase_calibrate: bool = True) -> None:
+          phase_calibrate: bool = True, density_search: bool = False) -> None:
     init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
     if phase_shift:
         init += ["--phase-shift", str(phase_shift)]
@@ -218,6 +218,28 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
             continue
         # Drums first: the backbone defines the pulse, and `auto` assigns hands over
         # the MERGED timeline, so a later pass cannot hand one hand two fast swings.
+        # ★`--density-search` (2026-09-02j): the default path asks for a PERCENTILE of the
+        # event pool, and its own comment predicted what that costs -- "a percentile computed
+        # from the event count undershoots by whatever fraction of the two streams collides
+        # on the grid". Measured on 1f333: a plan budgeting 1367 notes delivered 972 (-29 %),
+        # and the miss grows with the request (--nps 9 asks 2465, lands 1347) because the
+        # percentile saturates at 1.0 while the pool it is a fraction OF is only the single
+        # top carrier -- the classes `plan` recruited are dropped on the floor here. The flag
+        # spends the budget the way the pulse path already does: search the percentile for the
+        # one whose SURVIVING slots hit the target, over every recruited carrier.
+        if density_search:
+            # ONE pass over drums + every recruited carrier, with the section's WHOLE budget.
+            # Splitting it two ways and searching each half independently still undershot
+            # (nps 5.0: 1082 of 1367 budgeted), because the halves collide on the shared grid
+            # and neither search can see the other's slots -- the same reason the pulse path
+            # merges. One search over the union is self-correcting.
+            follow = ",".join(x for x in [("drums" if r["drums_n"] else None),
+                                          *(r.get("carriers") or [r["carrier"]])] if x)
+            if follow:
+                run([str(AM / "mapctl.py"), "auto", name, "--bars", bars,
+                     "--follow", follow, "--wide",
+                     "--target-notes", str(max(int(r["budget"]), 1))], quiet=not verbose)
+            continue
         if r["drums_n"]:
             cmd = [str(AM / "mapctl.py"), "auto", name, "--bars", bars,
                    "--follow", "drums", "--wide"]
@@ -334,6 +356,12 @@ def main() -> int:
                          "measured n=23: rate 0.166 vs human 0.237, 23/23 PASS. 0.5 "
                          "matches the median better but is not resolvably closer "
                          "per-song (1.40x vs 1.55x human-human spread) and costs a PASS")
+    ap.add_argument("--density-search", action="store_true",
+                    help="spend the section budget by SEARCHING the accent percentile "
+                         "(what the pulse path already does) instead of asking for a "
+                         "fixed fraction of the top carrier's events, and follow every "
+                         "carrier `plan` recruited. Off by default: it changes the "
+                         "default build's note count.")
     ap.add_argument("--adaptive-subdiv", action="store_true",
                     help="1/8-beat slots below 150 bpm (P1.0)")
     ap.add_argument("--snap-onsets", action="store_true",
@@ -381,7 +409,7 @@ def main() -> int:
           adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,
           doubles=a.doubles, accent_slots=a.accent_slots,
           doubles_rate=a.doubles_rate, phase_shift=a.phase_shift,
-          phase_calibrate=a.phase_calibrate)
+          phase_calibrate=a.phase_calibrate, density_search=a.density_search)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

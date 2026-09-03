@@ -60,6 +60,34 @@ hand already had (1 → 0). **Not re-staged**: the shipped `LOOP__1f333.zip` dif
 note's direction (judge 0.814 vs 0.826) and `p` is typicality, never a rank — re-blinding a staged pair for that
 would be churn.
 
+**`--density-search` (`agent_mapper/autobuild.py`, OFF by default) — the undershoot is located and fixed, and the
+knob is NOT proven for quality.** Where the notes were going: `plan` budgets fine (nps 5.0 on 1f333 budgets 1367
+against a supply of 2242) and `idiomize` drops none (`--no-idiomize` gives the same 972), so the whole loss is in
+how `build` spends the budget. **The pulse path searches the accent percentile for the one whose surviving slots
+hit `--target-notes`; the default path instead asks for a fixed `--accent-pct` fraction of the events, and follows
+only `carrier` — the single top class — so every carrier `plan` recruited is dropped on the floor.** The code's own
+comment predicted the cost ("a percentile computed from the event count undershoots by whatever fraction of the two
+streams collides on the grid"). Splitting the budget two ways and searching each half still undershot (1082 of 1367)
+because the halves collide on the shared grid and neither search sees the other's slots; **ONE search over the union
+of drums + every recruited carrier is self-correcting.**
+
+| request 4.17 nps | 1f333 | 1f767 | 1f8d6 | 1f913 | met |
+|---|---|---|---|---|---|
+| default | −23 % | −19 % | −32 % | −14 % | **1/4** |
+| `--density-search` | **−0 %** | **+1 %** | −23 % | **−1 %** | **3/4** |
+
+⇒ **The TODO DoD is met** (`--nps 5.0 --density-search` on 1f333: 4.95 delivered, density line `met`, judge PASS), so
+`--nps` is now a real lever rather than a wish, which is what P6 needs. 1f8d6 still misses at −23 %: it is the sparse
+ballad (18 gaps > 1 s) and looks supply-limited, not search-limited — unconfirmed.
+
+🔴**But it does NOT make the maps better, and it stays off** ([[knobs are dead until proven]]): verdicts on the same
+four songs — 1f333 2 red → **3** (D1 fixed, FLOW + D3 introduced) though the tutor rises **15 → 22/49**; 1f767 2 red →
+**1**; 1f8d6 SHIP YES both ways but the tutor **falls 4 → 1/15**; 1f913 3 red → 3, tutor 5 → 4/19. So it buys density
+accuracy and pays in new grid defects on some songs. **PARTLY CONFIRMED: proven for honouring the request (n=4),
+refuted as a quality default (worse on 2 of 4 by the tutor).** The default path is byte-identical (876 notes on
+1f333, unchanged). Next question for P6: why does spending the full budget draw FLOW/D3 — is it the extra recruited
+carriers landing off the 8th grid?
+
 ## 2026-09-02i — LOOP__1f913 through the six-step loop: SHIP NO (3 red) → SHIP YES, staged as the 3rd blind pair
 
 **BEFORE** (`outputs/p4/NOPULSE__1f913.zip`, 745 notes): SHIP NO — 🔴EMPTY 1-8/33-40/69-72/77-80/117-120 (12 ev vs his 22 …),

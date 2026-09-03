@@ -287,11 +287,13 @@ staged as `for_review/D_verdict_loop` (`review.py next` #2).
   other foot. A per-beat cell match would make the TUTOR line an edit list.
 - The verdict is judged only by the bench's 13 rows + one loop; Kyle's answer on set D ("name the
   first WRONG bar in LOOP") is the next locator — record it with `review.py defect`.
-- **A `--nps`-style supply lever and the P0.1 requested-density gate contradict each other.** `--nps` is
-  undershot by 28→45 % as it rises and saturates (1f333, 2026-09-02j), so the request that BUYS the notes
-  always FAILs the ±15 % gate that JUDGES them. Either name the lever separately from the request
-  (`--target-notes`-style, ungated) or make the gate read delivered-vs-human. **DoD**: one flag reaches the
-  human's note supply on 1f333 and the judge's density line still reads `met`.
+- ✅**`--nps` is a real lever again** — `autobuild --density-search` (OFF by default) spends the section budget
+  with ONE `--target-notes` search over drums + every recruited carrier, and the request is met on 3 of the 4
+  standing songs (default: 1 of 4). PROGRESS 2026-09-02j. ⬜**It is NOT proven for quality and must not become
+  the default**: it introduced FLOW + D3 on 1f333 and dropped 1f8d6's tutor 4 → 1/15. **P6 needs it, so the open
+  question is why spending the full budget draws grid defects** — first suspect is the extra recruited carriers
+  landing off the 8th grid. **DoD**: `--density-search` at the human's nps on the songset with no NEW red vs the
+  default arm. ⬜1f8d6 still misses at −23 % (sparse ballad, looks supply-limited — unconfirmed).
 
 ## ✅→🔵 P4b — THE COMPETE TEST shipped 2026-09-02 (`scripts/compete.py`) — leftovers
 `stage <sid> | --songset` (blind X/Y pair, same Info.dat skeleton, one difficulty each, key in
