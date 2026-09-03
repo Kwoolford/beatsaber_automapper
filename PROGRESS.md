@@ -7,6 +7,42 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-03a — why `--density-search` drew FLOW: it was the RECRUITMENT, and dropping it makes the flag strictly better
+
+Four hypotheses, three refuted by measurement — arms `CTL` (default), `DS1C` (budget search, **top carrier only**)
+and `DS` (search + every recruited carrier), all `--nps 4.17`, in `outputs/density_search_2026-09-02/`.
+
+| hypothesis | test | verdict |
+|---|---|---|
+| the search digs into quieter, off-grid events | mean onset strength under our notes | 🔴**REFUTED** — 0.929 / 0.931 / 0.928, identical; 93 % of notes sit on a scored onset in every arm |
+| denser maps simply sit off-grid more | odd-16th share of events | 🔴**REFUTED as the cause** — 17.1 → 18.7 → 19.9 % (human 11.6 %), while the *isolated*-odd share FALLS 12.2 → 10.3 % |
+| a denominator artifact — sparse bars are too empty for `q_flow` to judge, so a thin map gets a free pass | flagged bars over ELIGIBLE bars instead of all bars | 🔴**REFUTED** — eligible bars only move 199 → 206, and the recruiting arm is still worst on that share (8.5 / 8.7 / **10.7 %**) |
+| the recruited carriers ARE the jitter | rebuild the same search with recruitment off | ✅**CONFIRMED** — flagged bars 17 (CTL) / **18** (DS1C) / **22** (DS) |
+
+★**Recruitment buys nothing and costs quality.** The percentile search alone meets the density request on the *same*
+3 of 4 songs (1f333 +0 %, 1f767 +1 %, 1f913 −1 %, 1f8d6 −24 % miss): once the search can reach the budget by lowering
+the percentile on the carrier it already has, the recruited classes are just more instrument lines landing off the
+8th grid.
+
+| song | CTL | **DS1C (shipped)** | DS |
+|---|---|---|---|
+| 1f333 | 2 red, tutor 15/49 | 2 red, tutor **25/49** (TUTOR ✅) | **3** red (FLOW 🔴), tutor 22/49 |
+| 1f767 | 2 red | **1 red** | 1 red |
+| 1f8d6 | SHIP YES, tutor 4/15 | SHIP YES, tutor 1/15 | SHIP YES, tutor 1/15 |
+| 1f913 | 3 red, tutor 5/19 | 3 red, tutor 5/19 | 3 red, tutor 4/19 |
+
+⇒ `--density-search` now follows drums + **the carrier only** — better than the recruiting version everywhere, and
+≥ the default on 3 of 4. Default path still byte-identical (876 notes on 1f333); 603 tests pass.
+
+⚠️**Also learned, and it changes how the page is read:** the verdict's **hit count is a merged SPAN count, not a
+defect count**, so it is NOT comparable across maps of different density (CTL 6 hits and DS1C 7 hits are both 8 % of
+bars). `RED_SHARE` reads **share-of-bars**, which is the comparable number. I compared arms by hit count in the
+2026-09-02j entry above and it made the search arm look worse than it is.
+
+**Still open — the DoD is NOT met:** DS1C trades D1 for **D3 on 1f333** (bars 90, 163), one NEW red code, so "no new
+red vs the default arm" fails on 1 of 4; and 1f8d6's tutor drops 4 → 1/15 while its density still misses at −24 %
+(the sparse ballad — looks supply-limited, unconfirmed). Both are the next read on the score.
+
 ## 2026-09-02j — LOOP__1f333 (Hunger) to SHIP YES: the 4th blind pair, and `--nps` is a request the builder undershoots
 
 **BEFORE** (`outputs/p4/NOPULSE__1f333.zip`, 876 notes — the best of four existing builds): SHIP NO — 🔴EMPTY ×13
@@ -85,8 +121,7 @@ four songs — 1f333 2 red → **3** (D1 fixed, FLOW + D3 introduced) though the
 **1**; 1f8d6 SHIP YES both ways but the tutor **falls 4 → 1/15**; 1f913 3 red → 3, tutor 5 → 4/19. So it buys density
 accuracy and pays in new grid defects on some songs. **PARTLY CONFIRMED: proven for honouring the request (n=4),
 refuted as a quality default (worse on 2 of 4 by the tutor).** The default path is byte-identical (876 notes on
-1f333, unchanged). Next question for P6: why does spending the full budget draw FLOW/D3 — is it the extra recruited
-carriers landing off the 8th grid?
+1f333, unchanged). Next question for P6: why does spending the full budget draw FLOW/D3 — **answered 2026-09-03a below: it was the recruitment.**
 
 ## 2026-09-02i — LOOP__1f913 through the six-step loop: SHIP NO (3 red) → SHIP YES, staged as the 3rd blind pair
 

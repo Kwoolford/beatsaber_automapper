@@ -290,10 +290,14 @@ staged as `for_review/D_verdict_loop` (`review.py next` #2).
 - ✅**`--nps` is a real lever again** — `autobuild --density-search` (OFF by default) spends the section budget
   with ONE `--target-notes` search over drums + every recruited carrier, and the request is met on 3 of the 4
   standing songs (default: 1 of 4). PROGRESS 2026-09-02j. ⬜**It is NOT proven for quality and must not become
-  the default**: it introduced FLOW + D3 on 1f333 and dropped 1f8d6's tutor 4 → 1/15. **P6 needs it, so the open
-  question is why spending the full budget draws grid defects** — first suspect is the extra recruited carriers
-  landing off the 8th grid. **DoD**: `--density-search` at the human's nps on the songset with no NEW red vs the
-  default arm. ⬜1f8d6 still misses at −23 % (sparse ballad, looks supply-limited — unconfirmed).
+  the default** — but ✅**the FLOW cost was the RECRUITMENT, and it is gone** (2026-09-03a): the search alone meets
+  the request on the same 3/4 songs, so `--density-search` now follows drums + the carrier only. It is now ≥ the
+  default on 3 of 4 (1f333 tutor 15 → **25/49**; 1f767 2 red → **1**). ⬜**DoD still NOT met**: it trades D1 for
+  **D3 on 1f333** (bars 90, 163) — one NEW red code — and drops 1f8d6's tutor 4 → 1/15. **Read those two on the
+  score next**; they are what stands between this flag and being what P6 builds on.
+  ⬜1f8d6 still misses at −24 % (sparse ballad, looks supply-limited — unconfirmed).
+- ⚠️**Never compare two maps by the verdict's HIT COUNT** — it is a merged SPAN count, so the same jitter scattered
+  reads as more hits. `RED_SHARE` uses share-of-bars; that is the comparable number (2026-09-03a).
 
 ## ✅→🔵 P4b — THE COMPETE TEST shipped 2026-09-02 (`scripts/compete.py`) — leftovers
 `stage <sid> | --songset` (blind X/Y pair, same Info.dat skeleton, one difficulty each, key in
