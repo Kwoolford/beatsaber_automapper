@@ -213,12 +213,26 @@ def _page(ours: pathlib.Path) -> dict | None:
 
 
 def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None,
-              with_page: bool = True) -> int:
+              with_page: bool = True, restage: bool = False) -> int:
     key = _key()
     if sid in key and key[sid].get("status") == "staged":
-        print(f"{sid}: already staged as {_rel(STAGE)}/{{X,Y}}__{sid}.zip "
-              f"(judge it: compete.py verdict {sid} X|Y|tie)")
-        return 0
+        if not restage:
+            print(f"{sid}: already staged as {_rel(STAGE)}/{{X,Y}}__{sid}.zip "
+                  f"(judge it: compete.py verdict {sid} X|Y|tie)"
+                  f"\n  our map changed since? re-blind it with --restage")
+            return 0
+        # ★A staged pair goes STALE the moment our map is edited (2026-09-03a: 1f333 was
+        # staged, then BREATHING was found in it and fixed). Spending a listening session on a
+        # map we already know is defective is the one thing this test cannot afford, so
+        # re-blinding is a first-class operation instead of hand-editing .key.json.
+        # Only a STAGED pair is stale-able. Once judged, the entry's status is the verdict and
+        # this branch is not reached at all -- staging that song again is a NEW comparison of a
+        # newer build, which is allowed and leaves the ledger's verdict untouched.
+        for letter in ("X", "Y"):
+            (STAGE / f"{letter}__{sid}.zip").unlink(missing_ok=True)
+        print(f"{sid}: re-blinding (the previous pair was never judged)")
+        key.pop(sid, None)
+        _save_key(key)
     human = HUMAN / f"{sid}.zip"
     if not human.exists():
         print(f"{sid}: no human map at {_rel(human)} — nothing to compete with")
@@ -281,7 +295,8 @@ def cmd_stage(a) -> int:
     rc = 0
     for sid in sids:
         ours = pathlib.Path(a.ours) if a.ours and not a.songset else None
-        rc |= stage_one(sid, ours, a.force, a.seed, with_page=not a.no_page)
+        rc |= stage_one(sid, ours, a.force, a.seed, with_page=not a.no_page,
+                        restage=a.restage)
     return rc
 
 
@@ -448,6 +463,9 @@ def main() -> int:
     p.add_argument("--songset", action="store_true", help="stage the four standing songs")
     p.add_argument("--ours", default=None, help="our map (default: first of BEST that exists)")
     p.add_argument("--force", action="store_true", help="stage even when our page is SHIP? NO")
+    p.add_argument("--restage", action="store_true",
+                   help="re-blind a pair that is already staged but not yet judged "
+                        "(use when our map changed after staging)")
     p.add_argument("--seed", type=int, default=None, help="shuffle seed (tests)")
     p.add_argument("--no-page", action="store_true", help="skip the verdict page (faster)")
     p.set_defaults(fn=cmd_stage)

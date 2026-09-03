@@ -7,6 +7,64 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
+
+**How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:
+
+| bar | 158 | 159 | 160 | 161 | 162 | **163** | 164 | 165 | 166 | 167 | 168 | 169 |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| energy | .85 | .86 | .88 | .87 | .80 | **.38** | .25 | .17 | .18 | .17 | .21 | .25 |
+| human | 5 | 7 | 8 | 8 | 5 | **0** | 0 | 0 | 0 | 0 | 0 | 0 |
+| `LOOP__1f333` (SHIPPED, clean page) | 8 | 4 | 2 | **3** | 3 | **2** | 3 | 3 | **8** | **7** | **8** | **6** |
+
+The human rests **seven bars**; the map I had staged that morning plays **37 events** through it and *ramps to 8/bar*
+at energy 0.17. Its page said **SHIP? YES — nothing located** (0 red, 0 yellow, judge 0.814, tutor 30/49).
+
+★**The D3 that looked like a `--density-search` regression was a knife-edge artifact** — one note's difference in
+bar 161 moved the ratio across `q_drops`' threshold. **Both arms had the same, far larger defect**, and so did the
+default build. Do not read 2026-09-03a's "new red on 1f333" as a density-search cost; it is not.
+
+**Why every existing read was blind to it:** `q_events` compares us to the human only where **he has notes**, so a bar
+he leaves empty has no ratio to be wrong about; `q_drops` looks two bars past an E-drop and never reaches the ramp
+back up; the judge scores whole-map typicality, and 7 bars is 3 % of the map.
+
+**The ordering that justifies the code** (bars 163-169, same song, maps Kyle has already graded):
+
+| map | events in his rest |
+|---|---|
+| human | 0 |
+| **A+ — Kyle: GOOD** | **2** |
+| AGENT — Kyle: DEFECT | 11 |
+| **`LOOP__1f333` — my clean page** | **37** |
+
+It separates his GOOD from his DEFECT in the right direction, and my "clean" map is **worse than the one he called
+defective** on this axis. His own words are the spec: *"when there is a slow spot we let the player breathe."*
+
+**Shipped:** `queries.py q_breathing` → code **BREATHING** (the name the label vocabulary already had — I first wrote
+BREATHE and renamed it rather than keep two words for one thing). A rest is ≥ 2 consecutive bars where the human plays
+nothing; it fires when we put ≥ 4 events there AND ≥ 2.0/bar, and it reads **only inside his mapped span** (before his
+first note or after his last we are mapping a different amount of song — `q_events`' job). **ALWAYS_RED in
+`verdict.py`**: a rest is a PLACE, not a share — no `RED_SHARE` threshold would ever have called 7 bars of 216.
+7 tests in `tests/test_queries_breathing.py`.
+
+**Bench: not refuted** — `bench.py score queries:q_breathing` = **1 strong hit, 0 false fires, 0 violations**; silent
+on all four human maps and on both 1f333 rows Kyle graded. New row **`1f333-breathe`** (`bars_from: "agent-read"` —
+the first bench row whose bars came from the score rather than his ear), fixture kept at
+`outputs/bench_fixtures/BREATHE__1f333.zip`. The whole reader is still not refuted (3 strong hits, 0 false fires).
+⚠️`audit_eval_suite.py` is the battery for the 21 typicality METRICS, not for locator queries — all six controls
+still CAUGHT; the bench is what validates a query.
+
+**The staged pair was fixed and re-blinded.** Deleting all 37 notes made the page clean again and *better*: tutor
+30 → **31/49**, onset 0.953 → **0.963** (judge 0.814 → 0.797, typicality, never a rank). The other three staged maps
+were checked and are **silent on BREATHING** — only 1f333 was affected. `compete.py` gained **`--restage`**, because a
+staged pair goes stale the moment our map is edited and the alternative was hand-editing `.key.json`; it re-blinds
+only an unjudged pair, and staging a judged song again is a new comparison that leaves the ledger untouched.
+
+🔴**What this says about the gate, and it is the important part:** the verdict page's "nothing located" was true and
+still wrong. A clean page means *no query fires*, and the queries only know the defects someone has already named.
+**This is the first defect the agent found in its own shipped map by reading the score rather than by Kyle hearing
+it** — which is the P1 DoD working as intended, one session after the map passed.
+
 ## 2026-09-03a — why `--density-search` drew FLOW: it was the RECRUITMENT, and dropping it makes the flag strictly better
 
 Four hypotheses, three refuted by measurement — arms `CTL` (default), `DS1C` (budget search, **top carrier only**)

@@ -476,6 +476,25 @@
    "verdict_id": null,
    "quote": "(never played by Kyle; the 2026-08-27 DoD test map)",
    "note": "Becomes a bench negative only after a clean P2 read; until then a locator firing here is neither a hit nor a false fire."
+  },
+  {
+   "id": "1f333-breathe",
+   "map": "outputs/bench_fixtures/BREATHE__1f333.zip",
+   "song": "1f333",
+   "name": "Hunger",
+   "label": "DEFECT",
+   "codes": [
+    "BREATHING"
+   ],
+   "must_not_flag": [],
+   "strength": "strong",
+   "bars": "163-169",
+   "bars_from": "agent-read",
+   "readable": true,
+   "date": "2026-09-03",
+   "verdict_id": "2026-09-03a/breathe-found-by-agent",
+   "quote": "when there is a slow spot we let the player breathe",
+   "note": "AGENT-FOUND, not a Kyle verdict — the first row whose bars came from the score rather than his ear. This map PASSED the whole verdict page (0 red, 0 yellow, judge 0.814, tutor 30/49) while playing 37 events across bars 163-169, where the human rests SEVEN bars and the song's energy is 0.23; it ramps to 8 events/bar at 166-168. No existing query could see it: q_events only compares us to him where he HAS notes, so a bar he leaves empty has no ratio to be wrong about, and q_drops looks two bars past an E-drop and never reaches the ramp back up. Ordering that justifies the code: on these seven bars the human plays 0, the map Kyle graded A+ plays 2, the map he called DEFECT plays 11, this one plays 37. Fixed in the shipped LOOP__1f333 by deleting all 37 (tutor 30 -> 31/49, onset 0.953 -> 0.963) and the pair was re-blinded with `compete.py stage --restage`. This zip is kept ONLY as the fixture for this row."
   }
  ]
 }

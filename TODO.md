@@ -80,6 +80,11 @@ with *"reach for this when…"* (P4), and the verdict names the tool for every r
    tool. Read the header before reading the page.
 
 ### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle
+▶️**2026-09-03: read `PROGRESS.md 2026-09-03b` FIRST — a map with a CLEAN page was playing through a seven-bar
+rest.** `BREATHING` is now a query and is ALWAYS_RED; the shipped 1f333 was fixed and re-blinded. The lesson sits
+above every P below: **a clean page means only that no query fires, and the queries know only the defects someone
+has already named.** Ask what the page CANNOT see before trusting a SHIP? YES.
+
 **P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ shipped, and P4b's DoD is MET** (the score, it is writable, the judge has its floor, the bench reads every verdict, the tutor is on the lattice, six queries answer with addresses, one page says SHIP?, and **all FOUR standing songs are looped to SHIP YES and staged blind** in `for_review/compete/` — `compete.py table` is the headline and reads 0 judged) → **P5 is now the only thing that moves the headline: Kyle plays ONE pair and answers** (`compete.py verdict <sid> X|Y|tie --because …`; a loss with a reason is a bench row the same day) → **P6**.
 🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
 
@@ -131,11 +136,8 @@ All seven shipped; `PROGRESS.md 2026-09-02c` has the numbers. What each became a
 | **`for_review/` cleanup** | set A (20 maps) filed to `outputs/reviewed/A_structure_crossover/` via `review.py done A --force`, CATALOG annotated; `review.py next` now lists **only set B** (the PCAL A/B, optional) | — |
 | **`[DOD]` cold-cache map** | no listening; P2 reads it and files it as a bench negative | — |
 
-**DoD read** (23-song set, `outputs/p0_songset_2026-09-02/{OLD,NEW}__<sid>.zip`): under the new gate
-the OLD defaults pass **13/23** (10 "off the music", pooled gate said 23/23) and the NEW defaults
-pass **21/23**; `onset_precision` median 0.866→**0.901**; `offbeat` control 68 %→**7.7 %**. The two
-NEW fails are `1f335` (0.735) and `1f9a0` (0.475, the known P1.0 song) — both real, both now named
-by the judge instead of hidden by it.
+**DoD read** → `PROGRESS.md 2026-09-02c` (NEW defaults pass 21/23; `offbeat` 68 %→7.7 %). Forward part: the two
+real fails **`1f335` (0.735)** and **`1f9a0` (0.475**, the P1.0 song) are still unfixed and now named by the judge.
 
 **Leftovers:** ⬜`audit_mapjudge` human bar reads the `no-floor` column (documented) — the pooled
 guarantee is unchanged, the floor's cost is on top. ⬜`calibrate_mapjudge.py` drops `align_floor`
@@ -151,7 +153,8 @@ corpus songs), every path verified, a written read for every strong row + set A 
 (events / doubles / hand roles / streams per row) · `score module:func` (any P3 query →
 HIT / MISS / FALSE / VIOLATION per row, counts not rates, same-notes pair must agree).
 
-**What the reads found — P3 starts from these, not from the old locator list:**
+**What the reads found** → `PROGRESS.md 2026-09-02d` for the full read (doubles = EMPTY/D1/D6; FLOW = no hand
+role + bursts-between-rests; D4 inside EMPTY; grid phase must be read against the KIT columns). Still load-bearing:
 - ★★**EMPTY, D1 "very slow" and D6 "nps wasted" are ONE number: doubles.** Every agent map on
   the bench is 51–70 % two-hand doubles (humans 7–34 %); doubles double the note count while
   halving the *events* — 1f8d6 has MORE notes than its human (788 vs 725) and fewer things to do
@@ -192,10 +195,7 @@ python agent_mapper/score.py x.zip --song 1f8d6 --vs 1f8d6   # --vs now takes a 
 genre only) and holds ONE map per id; the crawl was rating-sorted with upvote ratio ≥ 0.8 ⇒
 `data/raw/<sid>.zip` IS the top-rated human map we have. "Highest-rated" = that. Logged in
 `tutor.py`'s docstring and `score.resolve_vs`.
-**DoD met (PROGRESS 2026-09-02e):** `NOTUTOR__1f8d6` (autobuild defaults) answers **4/15**
-situations the tutor's way; `TUTOR__1f8d6` (same build + `mapedit.py from` at bars 62-63,
-102-103, 110-111, 135-136 copied from the tutor's rows) answers **9/15**. Both PASS the judge
-(p 0.572 → 0.604). READING.md §0b "Studying a map" written.
+**DoD met** → `PROGRESS.md 2026-09-02e` (4/15 → 9/15 after copying four situations). READING.md §0b written.
 **What the tutors teach (`--vocab`, 99 situations over 1f333/1f767/1f913/1f8d6):** vox-in →
 alt-8ths at 0 % doubles; drums-in / bass-in → DOUBLES (the entry accent — 4/6 and 3/5);
 E-drop → rest 5/10; the bar before an E-jump is rest 4/5; repeats echo the first figure; first
@@ -257,8 +257,10 @@ notes-under-full-walls as an ELEMENTS playability read. ⬜arc/chain playability
 reference (songset humans have none). ⬜KIT-empty songs: `q_flow` falls back to onsets only when
 there is no human; add "no percussion cache" to the score header. ⬜`bench.py` "fires MORE on the
 maps he liked" now counts forbidden codes only. ⬜`q_events` D1 is map-wide (one fire) — a
-per-section D1 needs the request (P6). ⬜ONBEAT_MAIN/HANDROLE/BREATHING codes exist in the label
-file with no query — they were the typicality instruments; only write one if a verdict names it.
+per-section D1 needs the request (P6). ✅**BREATHING now HAS a query** (2026-09-03b — a verdict
+named it: `LOOP__1f333` passed a clean page while playing 37 events through a 7-bar rest). `q_breathing`,
+ALWAYS_RED, bench row `1f333-breathe`. ⬜ONBEAT_MAIN/HANDROLE still have none; same rule — only write one if a
+verdict names it.
 
 ## ✅→🔵 P4 — THE VERDICT AND THE SIX-STEP LOOP shipped 2026-09-02 (scripts/verdict.py, /buildmap) — leftovers
 Shipped (PROGRESS 2026-09-02g): `verdict.py <map>` = queries + tutor + judge on one page, every red
@@ -292,9 +294,10 @@ staged as `for_review/D_verdict_loop` (`review.py next` #2).
   standing songs (default: 1 of 4). PROGRESS 2026-09-02j. ⬜**It is NOT proven for quality and must not become
   the default** — but ✅**the FLOW cost was the RECRUITMENT, and it is gone** (2026-09-03a): the search alone meets
   the request on the same 3/4 songs, so `--density-search` now follows drums + the carrier only. It is now ≥ the
-  default on 3 of 4 (1f333 tutor 15 → **25/49**; 1f767 2 red → **1**). ⬜**DoD still NOT met**: it trades D1 for
-  **D3 on 1f333** (bars 90, 163) — one NEW red code — and drops 1f8d6's tutor 4 → 1/15. **Read those two on the
-  score next**; they are what stands between this flag and being what P6 builds on.
+  default on 3 of 4 (1f333 tutor 15 → **25/49**; 1f767 2 red → **1**). ⚠️**CORRECTED 2026-09-03b: the "new D3" was a knife-edge artifact** —
+  one note's difference in bar 161 crossing a `q_drops` threshold, NOT a density-search cost; both arms and the
+  default shared the same, much larger BREATHING defect underneath it. ⬜Genuinely left before this flag can be
+  what P6 builds on: **1f8d6's tutor drops 4 → 1/15** (unexplained) and its density still misses at −24 %.
   ⬜1f8d6 still misses at −24 % (sparse ballad, looks supply-limited — unconfirmed).
 - ⚠️**Never compare two maps by the verdict's HIT COUNT** — it is a merged SPAN count, so the same jitter scattered
   reads as more hits. `RED_SHARE` uses share-of-bars; that is the comparable number (2026-09-03a).
@@ -322,6 +325,22 @@ timestamp and the word"*; `review.py defect --at` appends to the P2 bench automa
 rule: a Kyle verdict that disagrees with the agent's read is a bench row AND a P3 task, never a
 TODO opinion. **DoD**: bench grows ≥ 1 row per listening session with no JSON editing; pending
 list ≤ 4 maps.
+
+## 🔴 P5b — WHAT ELSE CAN THE PAGE NOT SEE? (opened 2026-09-03b, and it outranks P6)
+**Evidence**: `LOOP__1f333` shipped with **SHIP? YES — nothing located** while playing 37 events through a rest the
+human holds for seven bars, worse on that axis than the map Kyle graded DEFECT. Not one of the eight reads could see
+it, because each answers a defect **someone had already named**, and no one had named this one in a query.
+⇒ **A clean page is evidence about the queries, not about the map.** BREATHING was found by reading the score for
+what the map does where the human does NOTHING — an ABSENCE, which no read was pointed at.
+**Tasks** — hunt the remaining absences the same way, each against the same song's human map:
+- ⬜**He plays, we do not, for a run of bars** — the mirror of BREATHING, and `q_events`' 4-bar window can average
+  over it. (`EMPTY` fires on ratios, not on runs.)
+- ⬜**Gestures we never use at all**: `audit_map`'s ABSENCE block already prints two (lead-hand passages 0 vs human
+  median 10; doubles, now fixed) and **nothing on the verdict page reads it** — wire ABSENCE into `verdict.py`.
+- ⬜**Sustained/held sections, walls as cover, the last chorus** — places where the map's SHAPE, not its rate, is
+  what differs.
+**DoD**: one more named, queried, bench-scored code that fires on a map the current page calls clean — and
+`audit_map`'s ABSENCE lines appear on the verdict page so absence can never again be invisible to the gate.
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·

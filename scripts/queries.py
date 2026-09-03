@@ -353,8 +353,64 @@ def q_elements(arrs: dict, human_min_walls: int = 5) -> list[tuple]:
 q_elements.codes = {"ELEMENTS"}
 
 
+def q_breathing(arrs: dict, min_rest_bars: int = 2, per_bar: float = 2.0,
+              min_events: int = 4) -> list[tuple]:
+    """BREATHING — playing through the rest the human leaves.
+
+    Kyle named this himself as the thing to protect: *"when there is a slow spot we let the
+    player breathe."* It had a label code and no query until a map with a CLEAN page was
+    caught doing it (2026-09-03a): `LOOP__1f333` plays 46 notes in bars where the human rests,
+    ramping to 8 events/bar across 166-169 where the song's energy is 0.17 and he plays
+    nothing for seven bars. Every other read missed it -- `q_events` compares us to him only
+    where he HAS notes, so a bar he leaves empty has no ratio to be wrong about, and `q_drops`
+    looks two bars past an E-drop and never sees the ramp back up.
+
+    A rest is a run of >= `min_rest_bars` consecutive bars in which the human plays nothing.
+    We fire on one when we put >= `min_events` there AND >= `per_bar` per bar -- a couple of
+    notes tailing into his silence is a phrase ending, not a failure to breathe.
+
+    ★Read INSIDE his map only (his first note bar to his last). Before or after that we are
+    not ignoring a rest, we are mapping a different amount of song, which is `q_events`' job.
+    Needs the human map; silent without one.
+    """
+    if not has_human(arrs):
+        return []
+    bar = arrs["bar"]
+    L, R = hands(arrs["map"]); ev = L | R
+    hL, hR = hands(arrs["human"]); hev = hL | hR
+    if not hev.any():
+        return []
+    nb = int(bar.max())
+    ours = np.array([int(ev[bar == b].sum()) for b in range(1, nb + 1)])
+    hum = np.array([int(hev[bar == b].sum()) for b in range(1, nb + 1)])
+    lo, hi = int(bar[hev][0]), int(bar[hev][-1])          # his mapped span, in bars
+    energy = col(arrs, "energy")
+
+    hits, b = [], lo
+    while b <= hi:
+        if hum[b - 1] != 0:
+            b += 1
+            continue
+        b1 = b
+        while b1 + 1 <= hi and hum[b1] == 0:
+            b1 += 1
+        n_bars = b1 - b + 1
+        n_ours = int(ours[b - 1:b1].sum())
+        if n_bars >= min_rest_bars and n_ours >= min_events and n_ours / n_bars >= per_bar:
+            s0 = int(np.argmax(bar == b))
+            e = float(np.mean(energy[(bar >= b) & (bar <= b1)]))
+            hits.append(("BREATHING", float(arrs["t_sec"][s0]), b,
+                         f"bars {b}-{b1}: the human rests {n_bars} bar(s) and we play "
+                         f"{n_ours} events ({n_ours / n_bars:.1f}/bar) at energy {e:.2f}"))
+        b = b1 + 1
+    return hits
+
+
+q_breathing.codes = {"BREATHING"}
+
+
 # ----------------------------------------------------------------------------- q_all
-QUERIES = [q_events, q_flow, q_vocals, q_drops, q_elements]
+QUERIES = [q_events, q_flow, q_vocals, q_drops, q_elements, q_breathing]
 
 
 def q_all(arrs: dict) -> list[tuple]:

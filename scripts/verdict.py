@@ -62,8 +62,12 @@ CODES = [
     ("D4", "not following the main vocals", "mapctl auto --bars a-b --follow vocals; the why names the unanswered words"),
     ("D3", "drop at the wrong time", "mapedit.py: first note on the bar line, density step like the tutor's (tutor.py --bars)"),
     ("ELEMENTS", "walls / arcs / chains", "autobuild --walls N (default on); mapctl walls --bars a-b"),
+    ("BREATHING", "playing through the rest he leaves",
+     "mapedit.py delete the notes in his rest (the score shows E and an empty KIT there); or mapctl clear --bars a-b"),
 ]
-ALWAYS_RED = {"D1", "D3", "ELEMENTS"}
+# ★BREATHING is ALWAYS_RED: a rest is a PLACE, not a share. The seven bars of 1f333 are 3 % of
+# the map and no share threshold would ever have called them -- Kyle names them by ear.
+ALWAYS_RED = {"D1", "D3", "ELEMENTS", "BREATHING"}
 RED_SHARE = 0.10
 
 

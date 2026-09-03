@@ -128,3 +128,35 @@ def test_second_stage_is_refused_and_win_counts(tmp_path):
     out = C.table(C.compete_verdicts(json.loads(C.LEDGER.read_text())))
     assert "WIN RATE 1/1" in out
     assert not C.BENCH.exists()                                   # a win is not a bench row
+
+
+def test_restage_reblinds_an_unjudged_pair_but_never_a_judged_one(tmp_path):
+    """2026-09-03a: a staged pair goes STALE the moment our map is edited. 1f333 was staged,
+    then BREATHING was found in it and fixed, and spending Kyle's listening session on a map we
+    already know is defective is the one thing this test cannot afford."""
+    _redirect(tmp_path)
+    _zip(C.HUMAN / "ef789.zip", "T", "h", ["Expert"], 20)
+    ours = tmp_path / "LOOP__ef789.zip"
+    _zip(ours, "AGENT", "agent", ["Expert"], 25, audio_name="song.ogg")
+    assert C.stage_one("ef789", ours, False, 3, with_page=False) == 0
+    first = json.loads(C.KEY.read_text())["ef789"]["blind"]
+
+    # our map changed: re-blind it, and the pair is staged fresh
+    _zip(ours, "AGENT", "agent", ["Expert"], 31, audio_name="song.ogg")
+    assert C.stage_one("ef789", ours, False, 3, with_page=False, restage=True) == 0
+    again = json.loads(C.KEY.read_text())["ef789"]
+    assert again["status"] == "staged"
+    ol = next(L for L in "XY" if again["blind"][L]["role"] == "OURS")
+    assert again["blind"][ol]["notes"] != first[next(L for L in "XY" if first[L]["role"] == "OURS")]["notes"], \
+        "the re-blinded pair carries the EDITED map, not the stale one"
+    for L in "XY":
+        assert (C.STAGE / f"{L}__ef789.zip").exists()
+
+    # Once judged, the entry is the verdict and staging that song again is a NEW comparison of
+    # a newer build -- allowed, and it must not touch the verdict already in the ledger.
+    C.cmd_verdict(types.SimpleNamespace(song="ef789", pick=ol, because="", code=None,
+                                        bars=None, note=""))
+    judged = json.loads(C.LEDGER.read_text())
+    assert C.stage_one("ef789", ours, False, 3, with_page=False) == 0
+    assert json.loads(C.LEDGER.read_text()) == judged, "a later staging rewrites no verdict"
+    assert json.loads(C.KEY.read_text())["ef789"]["status"] == "staged"
