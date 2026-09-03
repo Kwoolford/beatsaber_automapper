@@ -15,7 +15,7 @@ bottom→top). Cuts are arrows `↑↓←→↖↗↙↘•` or names `U D L R U
     mapedit.py <map.zip> move   45.2.1 R 45.3.0 [2,1] [↙] # move (optionally re-cell / re-cut)
     mapedit.py <map.zip> flip   45.2.1 R [↗]             # reverse the cut, or set it
     mapedit.py <map.zip> delete 45.2.1 [R]               # one hand, or the whole slot
-    mapedit.py <map.zip> double 45.3.0                   # add the other hand, mirrored
+    mapedit.py <map.zip> double 45.3.0                   # add the other hand (arrow from ITS flow)
     mapedit.py <map.zip> mirror 44-47                    # swap hands + x across a bar range
     mapedit.py <map.zip> wall   44.1.0 45.1.0 lane 0 [--width 1] [--crouch]
     mapedit.py <map.zip> bomb   45.2.1 1,0
@@ -63,6 +63,8 @@ DIRS = {"U": 0, "D": 1, "L": 2, "R": 3, "UL": 4, "UR": 5, "DL": 6, "DR": 7, "X":
 ARROW = {0: "↑", 1: "↓", 2: "←", 3: "→", 4: "↖", 5: "↗", 6: "↙", 7: "↘", 8: "•"}
 REVERSE = {0: 1, 1: 0, 2: 3, 3: 2, 4: 7, 5: 6, 6: 5, 7: 4, 8: 8}
 H_MIRROR = {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4, 6: 7, 7: 6, 8: 8}
+# the arrow that swings BACK — what a hand does next if it is not to re-cock
+OPPOSITE = {0: 1, 1: 0, 2: 3, 3: 2, 4: 7, 7: 4, 5: 6, 6: 5, 8: 8}
 HAND = {"L": 0, "R": 1}
 
 
@@ -277,7 +279,18 @@ def op_delete(m: Map, args: list[str], sub: int) -> str:
     return f"deleted {len(victims)} note(s) at {args[0]}"
 
 
+def _hand_resets(m: Map, color: int) -> int:
+    """How many of `color`'s swings are resets. Used to CHOOSE the added hand's arrow."""
+    return sum(1 for _, c, _, _ in reset_swings(m) if c == color)
+
+
 def op_double(m: Map, args: list[str], sub: int) -> str:
+    """Add the other hand at this instant. ★The arrow comes from the ADDED hand's own flow,
+    not from a mirror of the note that is already there: mirroring is a reset ~94 % of the
+    time (49 doubles drew 46 resets on 1f333, 2026-09-02j) because the two hands are not
+    swinging in step. Candidates in order — the mirror (keeps the visual symmetry when it
+    happens to alternate), the opposite of that hand's previous arrow, then a dot, which has
+    no direction to re-cock and so can never reset. The first that adds no reset wins."""
     if len(args) != 1:
         raise EditError("double <addr>")
     beat = parse_addr(args[0], sub)
@@ -285,9 +298,23 @@ def op_double(m: Map, args: list[str], sub: int) -> str:
     if len(have) != 1:
         raise EditError(f"double needs exactly one note at {args[0]} (found {len(have)})")
     n = have[0]
-    m.notes.append({"b": beat, "x": 3 - n["x"], "y": n["y"], "c": 1 - n["c"],
-                    "d": H_MIRROR[n["d"]], "a": 0})
-    return f"doubled {args[0]}: added {'LR'[1 - n['c']]} {3 - n['x']},{n['y']}{ARROW[H_MIRROR[n['d']]]}"
+    color = 1 - n["c"]
+    x, y = 3 - n["x"], n["y"]
+    before = _hand_resets(m, color)
+    prev = max((o for o in m.notes if o["c"] == color and o["b"] < beat),
+               key=lambda o: o["b"], default=None)
+    cands = [H_MIRROR[n["d"]]]
+    if prev is not None and OPPOSITE[prev["d"]] not in cands:
+        cands.append(OPPOSITE[prev["d"]])
+    if 8 not in cands:
+        cands.append(8)
+    note = {"b": beat, "x": x, "y": y, "c": color, "d": cands[-1], "a": 0}
+    m.notes.append(note)
+    for d in cands:
+        note["d"] = d
+        if _hand_resets(m, color) <= before:
+            break
+    return f"doubled {args[0]}: added {'LR'[color]} {x},{y}{ARROW[note['d']]}"
 
 
 def op_mirror(m: Map, args: list[str], sub: int) -> str:

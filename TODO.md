@@ -287,10 +287,6 @@ staged as `for_review/D_verdict_loop` (`review.py next` #2).
   other foot. A per-beat cell match would make the TUTOR line an edit list.
 - The verdict is judged only by the bench's 13 rows + one loop; Kyle's answer on set D ("name the
   first WRONG bar in LOOP") is the next locator — record it with `review.py defect`.
-- **`mapedit double` mirrors the second hand, and the mirror is a reset ~94 % of the time** (49 doubles →
-  46 resets on 1f333, 2026-09-02j). `flip <addr> <hand> X` absorbs them all in one pass, but the tool should
-  not create the mess: take the added note's direction from **that hand's** flow, or default it to a dot.
-  **DoD**: 49 doubles on 1f333 land with ≤ 5 new resets and no `--force`.
 - **A `--nps`-style supply lever and the P0.1 requested-density gate contradict each other.** `--nps` is
   undershot by 28→45 % as it rises and saturates (1f333, 2026-09-02j), so the request that BUYS the notes
   always FAILs the ±15 % gate that JUDGES them. Either name the lever separately from the request

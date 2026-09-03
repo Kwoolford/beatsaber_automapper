@@ -48,6 +48,18 @@ the P4b DoD is met**; `table` still reports no win rate (0 judged).
 **Not chased:** `lead-hand passages 0` (human median 10) stays 🟡 — it is the open P1 "no column names hand role" item,
 not a located defect, and `audit_map` itself says 7.6 % of human maps also have none.
 
+**Fixed the same session (`agent_mapper/mapedit.py`, `tests/test_mapedit_double.py`, 3 tests):** `double` no longer
+mirrors the note that is already there — it takes the added hand's arrow from **that hand's own flow**, trying the
+mirror, then the opposite of that hand's previous arrow, then a dot, and keeping the first that adds no reset.
+**DoD met and beaten**: replaying the 1f333 loop onto a fresh fixture (1302 notes, verified identical to the recorded
+pre-doubles state), the same 49 doubles land with **0 new resets** (the DoD allowed ≤ 5), no `--force`, and no
+dot-flip pass afterwards. ⚠️**Honest scope**: the dot share barely moves (70 vs 71 of 1351) because when both
+neighbours box the hand in, a dot IS the right answer — the win is one command instead of two and no chance of
+forgetting the reconcile, not a different map. A bonus the test pins: adding the note can *resolve* a reset the
+hand already had (1 → 0). **Not re-staged**: the shipped `LOOP__1f333.zip` differs from the rebuilt version by one
+note's direction (judge 0.814 vs 0.826) and `p` is typicality, never a rank — re-blinding a staged pair for that
+would be churn.
+
 ## 2026-09-02i — LOOP__1f913 through the six-step loop: SHIP NO (3 red) → SHIP YES, staged as the 3rd blind pair
 
 **BEFORE** (`outputs/p4/NOPULSE__1f913.zip`, 745 notes): SHIP NO — 🔴EMPTY 1-8/33-40/69-72/77-80/117-120 (12 ev vs his 22 …),
