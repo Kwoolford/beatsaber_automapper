@@ -7,244 +7,352 @@
 
 **Rule:** when an item finishes, its *outcome and what it taught* moves to PROGRESS.md and the
 item is **deleted** from here. A completed item is history, not work. Curated 2026-08-02 (from
-4,076 lines) and again 2026-08-14 (from 652).
+4,076 lines), 2026-08-14 (from 652), and **2026-09-02 (re-planned around the audit in
+[`docs/audit_2026-09-02_buildmap.md`](docs/audit_2026-09-02_buildmap.md))**.
 
 ---
 
-## 📍 CURRENT STATE (2026-08-27)
+## 📍 CURRENT STATE (2026-09-02)
 
-> ★★**FOCUS (Kyle, 2026-08-24):** *"a big focus on the manual agent building skill… beefing up the
-> tooling so the agent calling the skill has as much visibility as a person playing and listening at
-> the same time note sheet level… complete when you call the skill and are confident in the map you
-> build and feel you can evaluate the map correctly and don't need to rely on me to audit."*
-> ML work stays in `🧊 BACKLOGGED`.
+> ★★**THE GOAL (Kyle, 2026-09-02):** *"a tool suite that empowers the LLM to create a map like the
+> best mappers, and a user can make requests to have specific mapping styles… the eval suite still
+> to this day requires my approval and oversight… the errors are pretty obvious from my
+> perspective."* And the fix, in his words: *"**The model doesn't have the visibility that I do**
+> when evaluating a map. Convert the map to text or code or a numpy array where the rows are
+> possible note placements and the columns are the notes, matched with another text or number
+> array of the song in note-sheet format with lyrics and all. This granular visibility with deep
+> timings is what the model does not have. This would catch the obvious errors more than a metric.
+> **This is the eval suite.**"*
 
-**Build:** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2 [--walls 89 --arcs 90
---chains 16]`, or the per-section loop in 📖`agent_mapper/WORKFLOW.md` (which beats autobuild).
-**Judge:** `python scripts/audit_map.py <map.zip> [--audio <song>]` — every channel, one verdict.
-**Read:** `python scripts/map_view.py <map.zip> --bars a-b --align --elements --stems`.
-📖`agent_mapper/READING.md` (judge by reading) · 📖`LISTENING.md` (what to play).
+**What the audit found** (`docs/audit_2026-09-02_buildmap.md`): the build half works; the judge
+half measures *typicality*; his verdicts were never kept as labels; and — the finding this plan is
+built on — **the model-facing view of a map is sparse, song-blind and partly broken** while the
+rich score (VOX pitch + lyric, LEAD, BASS, KIT, sections) exists only as HTML drawn for Kyle's eye
+(`notesheet.py`). Every perception cache the score needs is already on disk
+(`outputs/{event,percussion,melody,lyrics,structure,chords,onset}_cache/`). The missing thing is
+**one join: song and map on ONE time lattice, as text and as arrays.**
 
-**Measured:** 23/23 PASS on the songset · 0 parity violations · **573 tests**.
+**Build:** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
+chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), or the
+per-section loop in 📖`agent_mapper/WORKFLOW.md` (beats autobuild).
+**Judge (today):** `python -m beatsaber_automapper.evaluation.mapjudge <map.zip> [--nps N]` — parity
+→ alignment floor → requested density → typicality, and `why:` names which gate failed;
+`scripts/audit_map.py` for the handover page.
+**Judge (now):** `python scripts/verdict.py <map.zip>` (P4 ✅ — queries + tutor + judge on one
+page; every red = bars + tool; `SHIP?`; exit 1) then READ `python agent_mapper/score.py <map.zip>
+--song <id> --vs auto --bars a-b` where it fires and fix with `agent_mapper/mapedit.py` (`tutor.py
+--copy/--thin` emit the ops, `mapedit resets` names the parity leftovers). Loop until SHIP? YES.
+📖`agent_mapper/READING.md` · 📖`LISTENING.md`.
 
-### ✅ THE VISIBILITY SUITE IS BUILT (2026-08-24, PROGRESS 2026-08-24f/g)
-All six "what a player perceives" gaps are closed, each scored against a human corpus:
-elements (**2 688** maps) · alignment · emptiness (**975**) · effort (**224 485** transitions) ·
-6-stem lanes · one assembled verdict.
-✅**DoD tested for real** on a COLD-CACHE song (`24e6c`): everything except *"is it fun"* was
-judgeable alone — PASS p=0.438, 91.3 % on-sound, zero gaps, all elements in range.
-🔴**What still needs Kyle: taste.** That is not a tooling gap.
+### ★★ THE DoD FOR THE WHOLE PLAN
+> The agent opens the **score** of its own map — every slot of the song, with what the song is
+> doing (kick/snare/hat, bass and lead pitch, vocal pitch + lyric syllable, section, energy) beside
+> what the map is doing (both hands, walls, arcs, chains) at the **same** timestamp — and, reading
+> it the way Kyle listens, names the same defects at the same places he does on the labelled bench.
+> A map ships when the read is clean. Kyle spot-checks; every disagreement becomes a bench label.
+> **And the target above "clean": the map wins a blind A/B against the top human map of the same
+> song (P4b) — "competes with top mappers" is a win rate, not a PASS count.**
 
-★★**THE BAR IS THE SPREAD BETWEEN TWO HUMAN MAPPERS** (163 pairs), not the human map. Two humans
-agree on the climax only **43 %** of the time — much of "different" is taste. Nothing we ship
-exceeds 1.5× that spread.
+### ★★ HOW THE AGENT IS EXPECTED TO WORK (Kyle, 2026-09-02)
+> *"It does not need to one-shot build a map, or build it quickly. I want to give it the tools so
+> it can achieve a great map in the end. If it doesn't call all the tools off start that's fine.
+> It may not need extremely granular details for every note, but should be able to call more
+> tools and know it can, and recognise which parts need more tooling and attention to detail."*
 
-### 🔴 The limits that bound all of it
-1. 🔴🔴**A PASS DOES NOT MEAN THE NOTES ARE ON THE MUSIC** — the judge accepts **65 %** of maps a
-   quarter-beat off. ⇒**Read the ALIGNMENT block of `audit_map` yourself.** (P0.2 needs Kyle.)
-2. 🔴**A PASS = NOT DEFECTIVE, not GOOD**; a **FAIL can mean NOT TYPICAL, not bad** (P0.1).
-   Never rank by `p` — human band 0.28–0.57; **high `p` means BLANDER**.
-3. ⚠️**The 23 note metrics are still blind to walls/arcs/chains** — `audit_map`'s ELEMENTS block is
-   what sees them now, but it scores *typicality*, not whether they feel good.
-4. ⚠️**`onset_precision` scores our notes against OUR onsets**, both downstream of our grid, so a
-   self-consistent-but-shifted grid can score well. The human-note-time check catches that on a
-   corpus song and **does not exist on a new one**.
-5. ⚠️**OUTPUT DIRS ARE NOT INTERCHANGEABLE** — name the directory, never just the arm.
-   Newest: `outputs/phase_ab_2026-08-24/` · `outputs/width_ab_2026-08-24/` · `outputs/dod_test/`.
+⇒ The loop is **many passes, no clock**: build coarse → read the overview → **triage** which
+sections deserve slot-level attention (main-instrument entries, drops, vocal phrases, anything a
+query flags, anything the human map treats differently) → zoom the score there → edit at the
+slot (P1b) → re-read → next section. Sections that read clean at the overview stay coarse.
+⇒ The agent must **know its toolbox**: `SKILL.md` carries a one-screen manifest of every tool
+with *"reach for this when…"* (P4), and the verdict names the tool for every red line.
+⇒ Time and token budget are spent where the score says the map is weak, not evenly.
 
-### ▶️ START THE NEXT SESSION HERE
-1. 🔴**FOUR THINGS NEED KYLE'S EAR** — all installed and playable:
-   `[V2]` vs `[FULL]` (walls/arcs/chains) · `[W3]` vs `[W5]` (cut directions, play `1f767` first) ·
-   `[PBASE]` vs `[PCAL]` (grid phase, play Hunger first) · `AUTO Shut Up [DOD]` (cold-cache build).
-2. 🔴**P0.1 and P0.2 are his decisions** — both change what a PASS means.
-3. 🟡**DOUBLES: a real defect, now visible.** `double_share` **0.000** vs human median **0.144**;
-   only **2.0 %** of human maps have none. See P1.3.
+### 🔴 Limits that still bound everything
+1. 🟡**A PASS now means the notes are at least ON the music** (P0.2 floor: `offbeat` 68 %→7.7 %
+   accepted) — but only when the song has cached onsets; without them the report says
+   `no floor applied`. The score still shows *where* per slot; the floor only says *whether*.
+2. 🔴**A PASS = NOT DEFECTIVE, not GOOD; a FAIL can mean NOT TYPICAL.** Never rank by `p`.
+3. ⚠️**"Humans do it too" is NOT a no-defect verdict** for anything Kyle named by ear — the
+   corpus median is a floor (`feedback-target-is-best-mappers`).
+4. ⚠️**OUTPUT DIRS ARE NOT INTERCHANGEABLE** — name the directory, never just the arm.
+5. ⚠️The score's song side is only as good as the caches: `melody` coverage (printed in the
+   header) and whisper's language probability decide whether a blank VOX lane is the song or the
+   tool. Read the header before reading the page.
 
-## 🔴 P0.1 — THE JUDGE CANNOT VALIDATE A DELIBERATELY-HARD MAP (needs Kyle's call)
-`--nps 9.0` on `1f65d` produces a map whose only problem is **`nps` at the 97.1st human
-percentile** — 0 violations, nothing else out of range. The gate asks *"is this typical?"*, so a
-map Kyle would enjoy is one it calls defective.
-**Human corpus (n=1100):** 5th 2.73 · median 4.16 · 95th 6.77 · 99th 8.53 nps; the gate starts
-rejecting near **7.18**.
-★**His stated taste is the conflict**: *"I like playing fast songs… map whatever difficulty we
-want."* ⇒**A FAIL here means NOT TYPICAL, not BAD** — the mirror of the standing rule that a PASS
-means not-defective rather than good.
-**Options** (his choice, not mine): (a) keep gating `nps` against the corpus; (b) exempt
-`nps`/`peak_nps` when a density is explicitly requested; (c) gate conditioned on the requested
-difficulty. ⚠️**(b) is easiest and most dangerous** — it removes the only guard against runaway
-density, and 6.18 nps is the number he once called unplayable.
-**DoD**: a requested-difficulty map is judged on everything EXCEPT the density it was asked for,
-without that exemption silently applying to maps where no density was requested.
-
-## 🟡 P0.2 — SOLVED IN PRINCIPLE, ONE DECISION LEFT (Kyle's)
-**The judge accepts 65 % of maps a quarter-beat off the music** (`offbeat` control; 21 of 23 metrics
-score AUC 0.500, only alignment sees it). ✅**The fix is an UNDILUTED alignment floor** — the one
-thing pooling structurally cannot do.
-**Measured trade (real combined gate, n=200):**
-
-| alignment floor | human | `offbeat` |
-|---|---|---|
-| none (today) | 0.870 | 0.650 |
-| 93rd pct | 0.850 | 0.315 |
-| **90th pct** | **0.825** | **0.080** |
-
-⇒**A floor at the 90th human percentile takes `offbeat` 65 % → 8 %, and costs human accept
-0.870 → 0.825.** My bar was human ≥0.85, so it misses by **0.025**.
-★★**THAT 0.025 IS THE DECISION**: reject ~17.5 % of human maps instead of 13 %, to catch 92 % of
-off-beat maps instead of 35 %. ⚠️His *"target is the best mappers"* makes the corpus median a FLOOR,
-so rejecting a few more median-ish human maps may be right — **but it changes what a PASS means, so
-it is his call.**
-🔴**FOUR ALTERNATIVES ELIMINATED** (all worse than today's gate on `offbeat`): per-metric bound,
-per-axis mean, per-axis max, **Fisher / higher criticism**. ★The current aggregate beat every
-replacement I built — the fix is to ADD a term, not replace the combination.
-⚠️**Not Goodharting**: alignment answers a *qualitatively different* question the other 21 metrics
-cannot; `alignment.py` records five axes passing a map 5/5 while it sat off the beat.
-
-## 🟡➡️ P0.6 — HAND ROLE: LEVER CONFIRMED, OPERATING POINT UNDER-CONSTRAINED
-✅**The lever is real at 3 seeds**: `role_asymmetry` arm gap 60.8 pts vs a 47.5-pt seed spread;
-`handedness` 3.1 → ~32 (gap 2.7× spread). `mapctl auto --lead-bias 0.3`, default 0.
-⚠️**But the OPERATING POINT is not reliable**: at bias 0.3 `role_asymmetry` lands between the **37th
-and 85th percentile** depending on seed. The "39.6 %, human median exactly" I reported was **seed 0,
-the lowest of three**. Honest claim: *moves it into the human body*, not *onto the median*.
-🔴**A cost I reported is REFUTED**: `role_swap_rate` 58 → 81 % is **inside the seed spread**
-(gap 8.8, spread 10.1) ⇒ not a result. Do not treat it as a trade.
-✅**DONE — `--lead-mode cyclic` is the default and the seed spread is 0.0.** Re-tuned:
-**`--lead-bias 0.20`** (not 0.30 — that was tuned against the sampled lead and overshoots to the
-77.9th percentile under `cyclic`). ★**An operating point is not portable across a change in how the
-knob works.** 🔴0.30 has the higher `p` median and is still the wrong choice: `p` is a
-distance-from-typical and ranking by it Goodharts toward the average map.
-
-## 🔴 P1.0 — `1f9a0` STILL FAILS, AND THE OBVIOUS REMEDY IS REFUTED
-**The constraint is real**: below 150 bpm a 1/4-beat slot is `15000/bpm` ms, so the grid snap alone
-is worst-case ±`7500/bpm` — outside the axis' 50 ms tolerance. `1f9a0` (93 bpm) fails on
-`onset_precision` 0.474.
-🔴🔴**BUT A FINER GRID IS REFUTED** (`--adaptive-subdiv`, kept default-OFF as the measurement):
-`onset_precision` falls on **10 of 10** affected songs (0.899 → 0.846) and `pulse_stability`
-0.591 → 0.376. ★**`1f9a0`'s FAIL→PASS is NOT the defect being fixed** — its `onset_precision` moved
-only 0.474 → 0.499. **A PASS without the named defect moving is not a fix.**
-⇒**The binding constraint is note SELECTION, not what the grid permits** — agreeing with the
-grid-representability result (+0.106 headroom still unused at SUBDIV 4).
-**Next candidates** (none tried): choose events by *distance to a scored onset* rather than by accent
-alone; or let the pulse lattice prefer phases whose points carry onsets.
-**DoD**: `onset_precision` rises on the affected songs **without** `pulse_stability` leaving 25–75 %.
-
-## ✅ P0.7 — CLOSED 2026-08-24 (see PROGRESS 2026-08-24)
-Snap **validated as a real realignment** (human note times, +shifted/random controls), **generalised
-to any song**, **priced** (`onset_precision` 0.866→0.891, and the recorded `nps` cost was an artifact
-of the pre-two-stream build), and its obvious remedy — a **bpm-relative window — REFUTED** (keeps
-only 73 % of the gain; the reselection IS the gain).
-⬜**Only open**: `--snap-onsets` stays **opt-in**; DoD not met because PASS fell 23→21.
-🔴**Do not rebuild**: bpm-relative window, or a "snap fixes cut directions" story (cohort: 0.000).
-
-## ✅ P0.4 — ANSWERED AND SHIPPED 2026-08-24 (see PROGRESS 2026-08-24c)
-**Our bar grid sits 0.053 beats EARLY of a human mapper's** (18/18 songs, against a reference our
-detector never touched), and that is exactly the empirically optimal shift. Held-out validated
-(`onset_precision` 0.888→0.917, human agreement 0.642→0.709, **99 % of the per-song oracle from one
-constant**). Shipped as **`--phase-calibrate`**, `mapctl.PHASE_BIAS_BEATS = 0.053`.
-🔴**DEFAULT OFF — Kyle's call.** Every note moves ~20 ms and this targets his *"slightly off beat"*
-complaint directly. A/B installed: `AUTO <song> [PBASE]` vs `[PCAL]` — **Hunger 0.768→0.917**.
-⚠️`PHASE_BIAS_BEATS` is a property of the CURRENT tempo/phase fit — re-derive with
-`scripts/sweep_phase_heldout.py` if that fit changes.
-⚠️**A weak `grid_r` does NOT imply bad alignment** (24e6c: r=0.32, phase 43 % of a slot from the
-human's, yet 91.3 % on-sound) — **comparing grid ANCHORS is not comparing where notes LAND.**
-🔴**Do not rebuild**: the negative-shift sign test (arms displace a full slot; it measures
-quantisation), or a blanket "+0.05 everywhere".
-
-## 🔴 P1.3 — THE TWO BUILD PATHS DISAGREE ON DOUBLES, AND THE HAND PATH SHIPS ZERO
-**CONFIRMED — a defaults divergence, verified by running both:**
-
-| | `--doubles` | `--accent-slots` | result |
-|---|---|---|---|
-| `autobuild.py` | **ON** (exposes `--no-doubles`) | `0,2,4,6,8,10,12,14` | 10.2 %–20.4 % ✅ human range |
-| `mapctl auto` (what `WORKFLOW.md`/`SKILL.md` document) | **OFF** (`store_true`) | **`0,8`** only | **0.000** 🔴 |
-
-⇒**Following the skill by hand ships a map with a whole gesture missing**, while `autobuild` on the
-same repo lands in the human band (p25–p75 **0.089–0.212**; only **2.0 %** of 250 human maps have
-none).
-✅**Docs fixed 2026-08-24** — `WORKFLOW.md` and `buildmap/SKILL.md` now pass
-`--doubles --doubles-rate 0.3`.
-⚠️**PARTLY CONFIRMED, do not over-claim**: adding the flag **plus** `--accent-slots
-"0,2,4,6,8,10,12,14"` on `24e6c` yields only **0.010** (2 doubles), not the human 0.137. The gate is
-`slot ∈ accent_slots AND ≥2 stems agree`, so on a song whose stems rarely co-onset the doubles
-cannot be placed at all. **Whether the agent path can reach human doubles on THIS song is NOT
-established.**
-**Tasks**: make `mapctl auto`'s defaults match `autobuild`'s so the paths cannot diverge again;
-then measure `double_share` across the songset to see whether the `≥2 stems agree` gate is the real
-ceiling.
-**DoD**: a hand-built map following the documented command lands `double_share` inside p25–p75 on
-the songset median, `viol` unchanged and `nps` not inflated — doubles must not buy density.
-★**How this was found**: `audit_map`'s ABSENCE block flagged it, then Step-2 validation corrected the
-cause **twice** — first from "generator defect" to "docs omission", then to "defaults divergence
-plus a stem-agreement gate". ***A defect a tool finds still needs its cause verified before it is
-written down.***
-
-## 🟡➡️ P1.2 — MECHANISM FOUND, FIX BUILT, AWAITING KYLE'S EAR (PROGRESS 2026-08-24b)
-**The `width` truncation strips the diagonals.** The candidate pool is already at the HUMAN diagonal
-share (0.404 vs 0.415) on all 23 songs; `_pick` then keeps only the `width`(=3) highest-COUNT
-candidates and human idiom frequency is vertical-dominated.
-🔴**Both previously-named suspects are dead**: crossover filter **exactly 0.000**, `REPEAT_P` 40 % of
-width's effect.
-✅**`width=5` meets the DoD** (|Δdiagonal| 0.112) **and is closer to human on BOTH vocabulary axes**
-than the default, which overshoots (`idiom_coverage` 0.990 vs human 0.909). 23 songs × 3 seeds.
-🔴**Default stays 3 — Kyle's call**: it was chosen by READING two maps side by side, and an
-eye-derived decision is not reversed on axis numbers. A/B installed: `AUTO <song> [W3]` vs `[W5]`,
-identical times/notes/elements. ⇒**play `1f767` first — w5 overshoots there (0.223→0.492).**
-
-## ✅ P1 — LEG 3: SECOND TRAVEL LEVER BUILT 2026-08-24 (PROGRESS 2026-08-24f)
-**`--travel-target`** (default 4.167) re-weights candidates by HOW FAR each move travels, where
-`width` sets how MANY are considered. On 1f767 `travel` **2.667 → 4.400 → 5.181** while
-`angle_change` moves only 11.4 → 14.7 — the orthogonal pair LEG 3 needed.
-⚠️`ebpm_burst` remains 0/10 by design — the 150 ms per-hand floor correctly refuses.
-🔴**Do not re-attempt a width→STYLE mapping**; measured three times, dead.
-
-## ⚠️ SEEDS ON THE AGENT PATH — READ BEFORE QUOTING ANY "n SEEDS" NUMBER
-**10 of 23 metrics are seed-INVARIANT by construction** — every time-domain one (`nps`, `peak_nps`,
-`pulse_stability`, `dominant_share`, `ioi_*`, `ebpm_burst`, `onset_precision`, `offset_mad_ms`,
-`offgrid_frac`). The agent builds from **cached events**, so note TIMES are deterministic.
-★**This is the opposite of the ML path**, where a seed re-draws the Demucs stems.
-⇒**Running 3 seeds for a time-domain metric is wasted GPU and a false sense of rigour.** Seeds matter
-only for **geometry and hand-role**.
-✅**Fixed 2026-08-21**: `--seed` reached `idiomize` only, never `mapctl auto`, so the lead-hand RNG
-always ran at seed 0. Hand-role numbers recorded before this are single-seed.
-
-## 📦 AWAITING KYLE'S EAR
-- ★⚠️**`[CROSSOVER]` HAS NEVER BEEN PLAYED** — crossover 0.000 → 0.112 vs a human 0.183, `flow`
-  0.37 → 0.23, and **`mapjudge` now ranks the CROSSOVER arms top of 34 independently.**
-- ⬜**The autobuilt maps** (`outputs/autobuild_*.zip`, and the song (our times match a human's better than two humans match each other). ⚠️**Untested**: we may be *too* quantised for a song with groove |
-| **D3** | *"drops at wrong time"* | Confirmed (0.347 vs human-human 0.49). 🔴Its obvious fix is refuted — `structure.py` locates his moves *worse* than our map does |
-| **D4** | *"not following the main vocals"* | ★**Biggest ML-side defect**: we play **0.385** of the sung line vs human **0.743**. Route is training-side (P1 below) |
-| **D5** | *"random bursts"* | 🔴Refuted/inverted — the human bursts *more*. **Do not build a burst-suppressor** |
-| **D6** | *"nps wasted on non main notes"* | = **C5 doubles**, priced at **21 %** of the vocal budget. ★Gated on **his** definition of "main" — change `overlay.MAIN_DEFAULT`, not the map |
-
-## 🔴 P1 — THE SIX DEFECTS HE NAMED (2026-08-17): what is still open
-| # | his words | still open |
-|---|---|---|
-| **D1** | *"very slow"* | = D4's budget lever. ⇒P0.5 + `--beat-threshold 0.25` |
-| **D2** | *"slightly off beat"* | 🔴Refuted as note placement (our times match a human's better than two humans match each other). ⚠️**Untested**: we may be *too* quantised for a song with groove |
-| **D3** | *"drops at wrong time"* | Confirmed (0.347 vs human-human 0.49). 🔴Its obvious fix is refuted — `structure.py` locates his moves *worse* than our map does |
-| **D4** | *"not following the main vocals"* | ★**Biggest ML-side defect**: we play **0.385** of the sung line vs human **0.743**. Route is training-side (P1 below) |
-| **D5** | *"random bursts"* | 🔴Refuted/inverted — the human bursts *more*. **Do not build a burst-suppressor** |
-| **D6** | *"nps wasted on non main notes"* | = **C5 doubles**, priced at **21 %** of the vocal budget. ★Gated on **his** definition of "main" — change `overlay.MAIN_DEFAULT`, not the map |
-
-## 🔵 P1 — W2 / W6, still open and NOT covered by D1–D6
-- **W2** — Fallen Kingdom *"really empty"*. 🔴Cause unidentified; five instruments failed, and every
-  one looked at notes. ⚠️**Ask him**: empty vs what our model *used to do*, or vs what the *song
-  wants*?
-- **W6** — **we ship one of the five elements human maps use.** Walls 93 % of human maps (median
-  86, we emit 0), arcs 88 % of v3-capable maps, chains 50 % of v3. ✅All three now **built** as
-  post-processors, notes byte-identical, installed as a ladder `[BASE]→[DENSER]→[WALLS]→[FULL]→
-  [CHAINS]`. 🔴**The eval suite is BLIND to all three** (adding 84+48+16 moves every axis by
-  **0.000**) ⇒ only his ear can judge them. ⬜`BEAT_SIM_CHAINS=1` must be flipped **and** the human
-  reference recalibrated in the same change.
-- **W5** — dot blocks as decoration: ⏸️**he deferred this himself.** Do not revive unprompted.
-
-⚠️**Protect these — he named them by ear**: A6 hand-role division; the density pacing (*"when there
-is a slow spot we let the player breathe"*); and *"there is a good deal of notes that are on beat
-and I can tell play part of the song"* — **that half works.**
+### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle
+**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ shipped** (the score, it is writable, the judge has its floor, the bench reads every verdict, the tutor is on the lattice, six queries answer with addresses, one page says SHIP? and one map went through the loop, and THREE blind pairs wait in `for_review/compete/` — `compete.py table` is the headline) → **P4b leftover: loop 1f333 to SHIP? YES and stage it** (1f913 done 2026-09-02: `tutor --fill` + `--thin` + 4 one-note reconciles, SHIP YES, staged) → **P5** (`review.py defect --at` already exists; the DoD is the bench growing without JSON edits) → **P6**.
+🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
 
 ---
 
-## 🔵 P2 — CARRIED FORWARD
+## ✅→🔵 P1 — THE SCORE shipped 2026-09-02 (`agent_mapper/score.py`) — what is left of it
+Read `PROGRESS.md 2026-09-02b` for the DoD read. Commands: `--sections` (triage, one row per bar)
+· `--bars a-b` (every 1/16 slot: KIT/BASS/LEAD/VOX+lyric/gt pn/E/ON/MAIN │ L/R/B/W/A/C/DBL/TRV/
+ROT/ALT/±ms) · `--vs auto` (human answer key + `H±ms`) · `--npz` (song[T,F], map[T,C], human[T,C]).
+📖`READING.md §2.0` is how to read it. `map_view --stems/--audio` are retired (print a pointer).
+
+**Still open inside P1 (do alongside P3, none blocks P1b/P0/P2):**
+- **FLOW has no column that names it.** Hunger AGENT (odd flow) vs A+ (preferred): the page shows
+  it (bar 34: six singles on off-beat 16ths vs kit-aligned strikes) but bar-level counts barely
+  differ (on-KIT 85 % vs 78 %); what differs is on-beat share 36 % vs 57 % and the per-hand cut
+  sequence. Candidate columns before any metric: the hand's **gap-ms since its previous note**
+  (swing speed) and a **3-cut path glyph** per hand (`↙→↗`). P2's read (2026-09-02d) named it
+  from `bench.py stats`: no hand role + bursts-between-rests. A column is still wanted so it is
+  visible at the bar, not only in the whole-map histogram.
+- `notesheet.py --map` should draw Kyle's HTML from `score.to_arrays()` so the two never disagree
+  (today notesheet has its own join).
+- `--sub 12` (triplets) is untested on a triplet song; `--perceive` runs the tools but the
+  `lyrics` entry point name is guessed (`transcribe`) — verify on a cache-less song.
+- `E` is whole-mix RMS; a per-stem energy (drums vs rest) would make "the drop" a two-column
+  step rather than one. Add only if a D3 read needs it.
+
+## ✅→🔵 P1b — THE SCORE IS WRITABLE shipped 2026-09-02 (`agent_mapper/mapedit.py`) — leftovers
+`mapedit.py <map.zip> place|move|flip|delete|double|mirror|wall|bomb|arc|chain|from|undo|log`
+in the score's `bar.beat.sub` addresses; refuses NEW parity violations / <150 ms same-hand gaps /
+notes in walls / cell collisions with the reason (`--force`); snapshots + `edits.log` in
+`<dir>/.mapedit/<stem>/`; `--song` re-prints the touched bars. **Edits the ZIP, not the session**
+(decided: everything after `mapctl export` is zip surgery, so the zip is the map).
+DoD met on Hunger AGENT bar 34 (`PROGRESS.md 2026-09-02b`).
+
+**Leftovers:** v2 (human) maps are refused — add a v2→v3 convert so a tutor map can be edited
+into a variant; `mapctl edit` alias is NOT provided (sessions have no dressed map); no
+`--dry-run` (undo is the dry run); chain/arc ops don't validate that the tail cell is reachable.
+
+## ✅→🔵 P0 — PARKED DECISIONS CLEARED 2026-09-02 (decide-and-log; nothing waited on an ear)
+All seven shipped; `PROGRESS.md 2026-09-02c` has the numbers. What each became and how to undo it:
+
+| item | shipped as | reverse with |
+|---|---|---|
+| **P0.2 alignment floor** | `mapjudge` FAILs any map with `onset_precision` below the **human 10th pct (0.822)** regardless of the pooled p — `reference["align_floor"]`, written by `scripts/calibrate_align_floor.py` (one-sided, one metric: two-sided / +`offset_mad_ms` measured worse). Priced on 300 held-out humans: human 0.877→**0.793**, `offbeat` 0.680→**0.077** | `MAPJUDGE_ALIGN_FLOOR=0` or `judge(..., align_floor=False)` |
+| **P0.1 requested density** | `judge(nps_request=…)` / `mapjudge --nps` / autobuild `--nps` or a style preset: `nps` gated ±15 % against the request, `nps`/`peak_nps` leave the pool; report prints `density … met/MISSED` | omit the request |
+| **`[PCAL]`** | `--phase-calibrate` **default ON** in `mapctl init` and `autobuild` | `--no-phase-calibrate` |
+| **`[FULL]`** | autobuild default `--walls 89 --arcs 90 --chains 16`; crossover stays a knob at 0 | `--notes-only` |
+| **width** | default 3 unchanged; `--width` is the cut-variety knob for P6 | — |
+| **`for_review/` cleanup** | set A (20 maps) filed to `outputs/reviewed/A_structure_crossover/` via `review.py done A --force`, CATALOG annotated; `review.py next` now lists **only set B** (the PCAL A/B, optional) | — |
+| **`[DOD]` cold-cache map** | no listening; P2 reads it and files it as a bench negative | — |
+
+**DoD read** (23-song set, `outputs/p0_songset_2026-09-02/{OLD,NEW}__<sid>.zip`): under the new gate
+the OLD defaults pass **13/23** (10 "off the music", pooled gate said 23/23) and the NEW defaults
+pass **21/23**; `onset_precision` median 0.866→**0.901**; `offbeat` control 68 %→**7.7 %**. The two
+NEW fails are `1f335` (0.735) and `1f9a0` (0.475, the known P1.0 song) — both real, both now named
+by the judge instead of hidden by it.
+
+**Leftovers:** ⬜`audit_mapjudge` human bar reads the `no-floor` column (documented) — the pooled
+guarantee is unchanged, the floor's cost is on top. ⬜`calibrate_mapjudge.py` drops `align_floor`
+on a rebuild and says so; re-run `calibrate_align_floor.py` after it. ⬜The floor needs cached
+onsets: `autobuild` now warns loudly when a song has none (`scripts/build_onset_cache.py`).
+⬜`1f335` deserves a score read (P3 locator candidate: which sections are off?).
+
+## ✅→🔵 P2 — THE BENCH shipped 2026-09-02 (`scripts/bench.py`, `docs/eval_references/labelled_maps.json`)
+`PROGRESS.md 2026-09-02d` has the reads. **17 rows** (8 strong, 9 weak, 4 unreadable set-B
+corpus songs), every path verified, a written read for every strong row + set A + the DoD map in
+`docs/eval_references/bench_reads.json`. Commands: `bench.py list` · `read <id> [--bars a-b]`
+(score at the labelled bars, human alongside) · `note <id> --codes … --text …` · `stats`
+(events / doubles / hand roles / streams per row) · `score module:func` (any P3 query →
+HIT / MISS / FALSE / VIOLATION per row, counts not rates, same-notes pair must agree).
+
+**What the reads found — P3 starts from these, not from the old locator list:**
+- ★★**EMPTY, D1 "very slow" and D6 "nps wasted" are ONE number: doubles.** Every agent map on
+  the bench is 51–70 % two-hand doubles (humans 7–34 %); doubles double the note count while
+  halving the *events* — 1f8d6 has MORE notes than its human (788 vs 725) and fewer things to do
+  (497 vs 646 rows); Hunger A+ has 1328 notes / 809 events vs human 1434 / 1242 = half the
+  event rate at equal nps. This is why 69.5 % onset coverage was blind to "empty".
+- ★**FLOW (Hunger AGENT) = no hand role + bursts-between-rests.** Both hands have identical
+  16th-position histograms (29–30 % on 16th-offbeats each) where the human's blue hand takes
+  the beat (62 % on-beat, 6 % 16ths) and red fills (14 %); L-R-L 80 ms bursts at 34.2/34.4/36.1
+  are each followed by ≥ a beat of nothing, where the human streams 8ths.
+- ★**D4 sits inside EMPTY**: 1f8d6 bars 121–130 (the sung climax) answer 1–3 of 5–8 vox
+  onsets per bar as doubles on the kick; the human puts 4–6 notes on the words.
+- ⚠️**The A+ and "very slow" verdicts are the SAME NOTES** (1f333_AFTER2 = Hunger_BEFORE):
+  A+ was relative to the older builds, D1–D6 relative to the human. Labels record both; only
+  FLOW is forbidden on the A+ row.
+- ★**Grid phase must be read against the KIT columns, never the map lattice**: `DOD__24e6c`
+  (built before `[PCAL]`) has kick/snare on `.3` of its own grid — 78 % of its notes "on
+  16th-offbeats" while the judge (rightly) says on the music.
+- Clean-side facts a query must survive: a human map with 34 % doubles (1f767), one with 18
+  gaps > 1 s (1f8d6, a ballad), one whose kick sits on the offbeat 8th (1f913), hand asymmetry
+  everywhere.
+- `smoke:density` (bars with < ½ the human's notes) is the worked example: fires 22× on the maps
+  he liked vs once on the empty map — the bench says so in one line.
+
+**Leftovers:** ⬜set B ids for FLASH/GOCRYGO unresolved (rows deliberately absent); set-B rows
+are unreadable until corpus songs get perception caches. ⬜`bars_from: "kyle"` exists on no row
+yet — P5 is where his finger lands on a bar. ⬜`24e6c-dod` stays UNLABELLED (clean note-level
+read, grid-phase fact recorded); flip to CLEAN when a P3 pass agrees.
+
+## ✅→🔵 P2b — STUDY MODE shipped 2026-09-02 (`scripts/tutor.py`) — leftovers
+```bash
+python scripts/tutor.py 1f8d6                      # situation → the tutor's pattern (2 bars from each)
+python scripts/tutor.py 1f8d6 --map x.zip          # ours beside it: SAME / differs, count at the end
+python scripts/tutor.py 1f8d6 --bars 102-103       # the rows, to copy cells + cuts with mapedit
+python scripts/tutor.py --vocab [ids…]             # pooled situation → pattern counts (default: songset)
+python agent_mapper/score.py x.zip --song 1f8d6 --vs 1f8d6   # --vs now takes a corpus id
+```
+**Decided-and-logged:** the corpus stores NO per-map rating (manifest has category/requirements/
+genre only) and holds ONE map per id; the crawl was rating-sorted with upvote ratio ≥ 0.8 ⇒
+`data/raw/<sid>.zip` IS the top-rated human map we have. "Highest-rated" = that. Logged in
+`tutor.py`'s docstring and `score.resolve_vs`.
+**DoD met (PROGRESS 2026-09-02e):** `NOTUTOR__1f8d6` (autobuild defaults) answers **4/15**
+situations the tutor's way; `TUTOR__1f8d6` (same build + `mapedit.py from` at bars 62-63,
+102-103, 110-111, 135-136 copied from the tutor's rows) answers **9/15**. Both PASS the judge
+(p 0.572 → 0.604). READING.md §0b "Studying a map" written.
+**What the tutors teach (`--vocab`, 99 situations over 1f333/1f767/1f913/1f8d6):** vox-in →
+alt-8ths at 0 % doubles; drums-in / bass-in → DOUBLES (the entry accent — 4/6 and 3/5);
+E-drop → rest 5/10; the bar before an E-jump is rest 4/5; repeats echo the first figure; first
+answer is `+0b` almost everywhere. ⚠️The current autobuild defaults produce **0 % doubles**
+(699 notes / 699 rows on 1f8d6; human 7 %, and the human puts them exactly at entries) — the
+08-03 maps' 51–70 % and today's 0 % are two wrong settings of one lever; P3's doubles query
+should locate BOTH (doubles where no stem enters; no double where drums/bass enter).
+**Leftovers:**
+- The copy is manual (`mapedit.py from`); no `tutor.py --copy 102-103` yet. Parity has to be
+  re-footed by hand (reverse the tutor's cut sequence when our hand enters on the other foot).
+- Nothing feeds `idiomize.py` / `mapctl reuse` yet. The recurring patterns are now countable
+  (`--vocab -v`), so the feed is a table lookup: situation kind → pattern word → lever
+  (`--doubles-rate` at entries, rest before a jump). Do it after P3 names the queries.
+- Situations miss: chorus-repeat *variation* (glyph-identical at 1f913 43/83 — measure the
+  echo distance), phrase starts inside a section (lyric line breaks), fills before a drop.
+- `lead-in/out` is noisy on sparse melody stems (coverage < 0.5) — the 15 % stay-rule trims
+  it; a header caveat would be better.
+- `1f767`'s tutor answers `vox-in` with 1–2 events/bar inside walls (sparse×3) — a whole
+  different style from 1f333's alt-8ths. `--vocab` pools styles; a per-song read is the
+  vocabulary, the pool is the prior.
+
+## ✅→🔵 P3 — QUERIES OVER THE ARRAYS shipped 2026-09-02 (`scripts/queries.py`) — leftovers
+`PROGRESS.md 2026-09-02f` has the measurements. **Six queries, one file, every hit is an address**
+(`code mm:ss bar why`): `python scripts/queries.py <map.zip> [--song id] [--vs auto|id|zip]`
+(a zip, or a `score.py --npz` file; `--query q_flow` for one). Bench: `python scripts/bench.py
+score queries:q_all` → **not refuted: 2 strong hits (1f8d6-empty EMPTY, Hunger AGENT FLOW at the
+labelled bars), 0 false fires, 0 violations, 4 humans CLEAN, all 4 set-A rows hit, the A+/BEFORE
+pair agrees, AGENT>BEFORE ordering holds (19 % vs 2 % of bars FLOW).**
+| query | codes | reads |
+|---|---|---|
+| `q_events` | EMPTY D1 D6 | events (a double = 1) per 4 bars vs the human's: < 0.6× → EMPTY; ≥ 2× → D6 over-dense; map-wide doubles ≥ 50 % and 20 pts over the human → D6; median ratio < 0.7 → D1 |
+| `q_flow` | FLOW D2 | 2-bar sliding: ≥ 30 % of events start on an odd 16th from silence (and ≥ 20 pts over the reference's share) while ≥ 30 % sit on the 8th grid → FLOW; ≥ 80 % odd 16ths where the reference has < 35 % → D2 shifted grid |
+| `q_vocals` | D4 | per 4 bars: vox-MAIN slots answered (note within ±1 slot) ≥ 25 pts under the human, human ≥ 60 % |
+| `q_drops` | D3 | at song E-jumps (≥ 0.25/bar): first note > 1 beat after the human's, or step < 0.8× his AND density after < 0.8× his; at E-drops: he halves, we don't |
+| `q_elements` | ELEMENTS | 0 walls where the human has ≥ 5 (arcs/chains reported, never fired: songset humans are v2, 0 of either) |
+**Decided-and-logged (measured, 2026-09-02):** ★**every reference is the same song's human map**
+(or the song's onsets without one) — absolute rules were refuted twice in one afternoon: an
+absolute D3 step floor fired on human 1f913 (its own jumps are 0.6–1.1× steps), and an absolute
+"odd-16th = shifted" called 20 spans of `1f335` shifted when the human sits on the odd 16th 35 % of
+the time (195 bpm: the odd 16th IS the felt 8th). Bench rows grew two fields: `tolerance` (Kyle
+said "the VAST MAJORITY is A+" ⇒ FLOW may cover ≤ 10 % of bars — q_flow finds real jitter at A+
+152-157, 2 %) and `worse_than` (AGENT must draw more FLOW than BEFORE — the comparison he made);
+`1f333-agent-flow` bars widened 33-36 → 29-47 (agent-read; the jitter surrounds the fold).
+**Refuted reads (do not retry without a new column):** hand-role histogram distance (AGENT 0.54 >
+A+ 0.16 — backwards); 16th bursts followed by rest (0 at the labelled bars); `±ms` alignment
+(humans 4–13 % of notes > 40 ms, agents 2–15 % — no separation, D2 is the shifted grid); D5
+"random bursts" as 16th-runs-without-onsets (humans 4–7, AGENT 1) or isolated fast clusters
+(3–5 on every map) — **D5 has no locator**; notes-inside-walls (human 1f767 has 4 under crouch
+walls — the arrays carry no wall height).
+**First customers:** `NEW__1f335` (judge 0.735): EMPTY ×16 incl. **bars 77-88: 1 event vs 31**,
+FLOW ×16, D2 ×6 (reference 0–20 %), D3 ×4, D4 ×2. `NEW__1f9a0` (0.475): **D6 over-dense ×5 —
+2.0–2.6× the human's events in every chorus** (657 vs 271 map-wide), D2 at 2-3 and 74-80. Both
+songs have **empty KIT columns** (no percussion cache) — the score's header should say so.
+`NOTUTOR__1f8d6` and `TUTOR__1f8d6` (today's defaults): **0 hits** — event ratio 0.6–1.5, walls,
+vox 84 % vs 88 %: by these six reads the default build has no located defect, while the tutor
+says it answers 4/15 situations his way. Queries measure *wrong*; the tutor measures *like him*.
+**Leftovers:** ⬜D5 no locator (three reads refuted). ⬜wall HEIGHT into the arrays, then
+notes-under-full-walls as an ELEMENTS playability read. ⬜arc/chain playability needs a v3 human
+reference (songset humans have none). ⬜KIT-empty songs: `q_flow` falls back to onsets only when
+there is no human; add "no percussion cache" to the score header. ⬜`bench.py` "fires MORE on the
+maps he liked" now counts forbidden codes only. ⬜`q_events` D1 is map-wide (one fire) — a
+per-section D1 needs the request (P6). ⬜ONBEAT_MAIN/HANDROLE/BREATHING codes exist in the label
+file with no query — they were the typicality instruments; only write one if a verdict names it.
+
+## ✅→🔵 P4 — THE VERDICT AND THE SIX-STEP LOOP shipped 2026-09-02 (scripts/verdict.py, /buildmap) — leftovers
+Shipped (PROGRESS 2026-09-02g): `verdict.py <map>` = queries + tutor + judge on one page, every red
+= bars + tool, `SHIP?`, exit 1; `/buildmap` = THE TOOLBOX + THE LOOP (study → coarse → triage →
+zoom & edit → verdict → compete); doubles contradiction root-caused (two entry points; default
+stays non-pulse, `--pulse` draws FLOW/D2 jitter 21+8 spans vs 8+1); `mapedit resets`, `tutor
+--copy/--thin`; **AliceBlue 1f767 went through the loop to SHIP? YES in 172 guarded ops** and is
+staged as `for_review/D_verdict_loop` (`review.py next` #2).
+**Leftovers** (decide-and-log candidates, none blocking P4b):
+- **Reset reconciliation is manual**: `mapedit resets` names the pair; the fix (ONE note per hand:
+  place / delete / flip … X) is chosen by reading the score. Flipping the second note cascades.
+  A `mapedit reconcile <bar>` that tries the three one-note fixes and keeps the first with 0 new
+  resets and no guard refusal would close the last hand step of the thinning path.
+- `--thin` keeps the survivor's cut direction; after a move the note may want re-cutting (the
+  human's arrow at that slot is known — `_cells(h[j])`).
+- The verdict does not read D5 (no locator, P3), and does not yet say "no percussion cache" when
+  KIT is empty (1f335, 1f9a0) — the score header should.
+- `mapctl clear` + `auto` on a section is still the SESSION workflow; once `export` has run the zip
+  is the artefact (idiomize / walls / arcs / chains are zip surgery), so a section rebuild today
+  means re-running the whole dress. A `mapctl reauto --zip z --bars a-b` that rebuilds one range
+  and re-dresses only those bars would give the loop its second section tool.
+- The pulse path's odd-16th interval choice (1f8d6 bars 2-4, notes on `.3` between the lead's
+  8ths) is a bug to locate in `mapctl auto --pulse`, not a reason the path exists.
+- Tutor `same_way` is coarse (pattern word + ev/bar ±35 % + first answer within a beat): bar 85
+  reads `differs` with both first beats copied verbatim because our 8ths at 85.3-85.4 are on the
+  other foot. A per-beat cell match would make the TUTOR line an edit list.
+- The verdict is judged only by the bench's 13 rows + one loop; Kyle's answer on set D ("name the
+  first WRONG bar in LOOP") is the next locator — record it with `review.py defect`.
+
+## ✅→🔵 P4b — THE COMPETE TEST shipped 2026-09-02 (`scripts/compete.py`) — leftovers
+`stage <sid> | --songset` (blind X/Y pair, same Info.dat skeleton, one difficulty each, key in
+`for_review/compete/.key.json`) · `list` · `verdict <sid> X|Y|tie --because … [--code] [--bars]`
+(unblinds, ledger `kind: compete`, **a loss with a reason = a bench row the same day**, pair
+filed to `outputs/reviewed/compete/`) · `table` (★the headline: win rate, n, every loss with its
+reason). Staged: **AliceBlue (LOOP) and Fallen Kingdom (NOPULSE)** — `review.py next` lists them
+FIRST because set D unblinded would spoil them (AliceBlue_HUMAN moved out of set D).
+**Leftovers:**
+- ✅ 1f913 looped (PROGRESS 2026-09-02i) and staged; ⬜ 1f333 (2 red: EMPTY, D1) still REFUSED by `stage` — its
+  page is red and losing with a known red teaches nothing. Run the six-step loop on each
+  (`/buildmap`), then `compete.py stage --songset` again. DoD "four staged" is 2/4 until then.
+- ⬜ Note counts differ visibly in ArcViewer (771 vs 632 on AliceBlue) — a tell only to someone
+  who knows our count; accepted, logged. The audio bytes differ too (ours re-encoded).
+- ⬜ `table` has no per-song "ours page at staging" column yet — the key carries it; print it
+  when n > 0 so a loss can be read against what the page already said.
+- ⬜ The DoD's target (what win rate is "competes") is Kyle's to set; until then the number is
+  reported, not gated. ⚠️One pair per listening session (P5 rule).
+
+## 🟡 P5 — THE LABEL CHANNEL: his remaining oversight, cheap and cumulative
+`review.py next` asks **one thing per session** — *"play X; if anything is wrong, give me the
+timestamp and the word"*; `review.py defect --at` appends to the P2 bench automatically; `/close`
+rule: a Kyle verdict that disagrees with the agent's read is a bench row AND a P3 task, never a
+TODO opinion. **DoD**: bench grows ≥ 1 row per listening session with no JSON editing; pending
+list ≤ 4 maps.
+
+## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
+`docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·
+one hand leads · follow the piano · breathe before the drop · more walls*) with the lever, its safe
+range, and the score column that shows it moved; `mapctl auto --style {flow,tech,dance}`;
+`verdict.py --style` judges against the preset where P0.1 uses the nps request.
+**DoD**: three presets build clean on the songset with the named column moved. ⚠️Levers stay
+monotone and default-off — they ship in a UI (`feedback-levers-are-user-facing`).
+
+---
+
+## 🔵 CARRIED FORWARD — still live, lower than P0–P6
+
+### P1.3 — the two build paths disagree on doubles; the hand path can still ship ~zero
+`autobuild` (doubles ON, 8 accent slots) lands 10–20 %; `mapctl auto` with the documented flags
+reached **0.010** on `24e6c` because the gate is `slot ∈ accent_slots AND ≥ 2 stems agree`.
+**Tasks**: make `mapctl auto`'s defaults equal `autobuild`'s; measure `double_share` across the
+songset. **DoD**: the documented command lands p25–p75 (0.089–0.212), `viol` unchanged.
+
+### P1.0 — `1f9a0` (93 bpm) fails `onset_precision` 0.474; a finer grid is REFUTED
+Binding constraint is note **selection**, not the grid (`--adaptive-subdiv` hurt 10/10). Untried:
+choose events by distance to a scored onset; pulse lattice prefers onset-carrying phases.
+**DoD**: `onset_precision` rises without `pulse_stability` leaving 25–75 %.
+
+### P0.6 — hand role: `--lead-bias 0.20` under `cyclic`. Landmine only
+An operating point is not portable across a change in how the knob works.
+
+### W6 — walls/arcs/chains built and installed; no metric sees them
+`[FULL]` IS the autobuild default since P0 (2026-09-02); P3 adds playability. ⬜`BEAT_SIM_CHAINS=1` must be flipped
+**and** the human reference recalibrated in the same change.
+
+### The six defects (2026-08-17) → P3 queries
+D1 · D2 · D3 · D4/D6 · D5 · FLOW · EMPTY. ⚠️**Protect — he named them by ear**: hand-role
+division; breathing pacing; *"notes on beat that play part of the song"*. They are the bench's
+must-not-flag rows.
+
+### Doc debt from the audit (do in the P4 session)
+`CLAUDE.md` V6-era, no `agent_mapper/`; `buildmap/SKILL.md` contradicts itself on doubles;
+`/todo` Step 4 checks ML-era key notes.
+
+## 🔵 C — ML-SIDE DIAGNOSES CARRIED FORWARD (landmines only; not being worked)
 
 ### C1 — Precision sits at the greedy optimum; gains need better probabilities, not better picking
 Three decode levers moved onset precision by nothing; the IOI prior moved it *down* to 0.769.
@@ -261,26 +369,27 @@ an **onset-detector offset**, and "fixing" it is the `h_dist` failure.
 ★**2026-08-20 adds**: `mapjudge` cannot adjudicate this at all — its only response to a global shift
 is `offgrid_frac`, which moves **by construction**.
 
-### C3 — ★NOW PROMOTED TO P0.5. You cannot thin your way to human density
+### C3 — You cannot thin your way to human density
 Humans at 3.9 nps have a pulse; we at 3.9 do not, and **2026-08-20 reproduced this on 23 maps built
-with no ML in the path at all**. See P0.5.
+with no ML in the path at all**. Now the D1 query's mechanism.
 
 ### C4 — Beat-domain axes LIE on tempo errors
 Every beat-domain axis buckets by the **map's own beats**, so on the **28 half-tempo songs** every
-interval lands one bucket off. `idiom` showed it loudest (0.663 → 2.955 under `BEAT_SUBDIV_AUTO`,
-**entirely an artifact** — rescaled to true tempo the timing distribution matches the human almost
-exactly). ⇒**When a beat-domain axis moves on a cohort containing tempo errors, check whether the
-BPM moved first.**
+interval lands one bucket off. ⇒**When a beat-domain axis moves on a cohort containing tempo errors,
+check whether the BPM moved first.**
 
 ### C5 — Doubles: root cause found · decode fix FAILED · priced against D4
 **Not too many notes — too few distinct times.** Stage-1's two hand channels correlate
 **0.985–0.993**. **39.6 % of the notes we spend on the vocal line are doubles** onto an onset the
-other hand already covered (human 20.7 %), so fixing doubling alone lifts vocal coverage
-**0.385 → ≈0.487** with no extra notes. `BEAT_HAND_DEAL` hit every structural target and degraded
-rhythm 6× ⇒ **not reachable by decode**; cost a **representational** fix instead.
-★A **chain** is the human's alternative — one swing carrying 4–5 segments, *density with no new
-distinct time*. `chains.py` builds them; they are installed and unjudged.
+other hand already covered (human 20.7 %). `BEAT_HAND_DEAL` hit every structural target and degraded
+rhythm 6× ⇒ **not reachable by decode**. ★A **chain** is the human's alternative — one swing carrying
+4–5 segments; `chains.py` builds them.
 
+### ⚠️ SEEDS ON THE AGENT PATH — read before quoting any "n seeds" number
+**10 of 23 metrics are seed-INVARIANT by construction** (every time-domain one). The agent builds
+from **cached events**, so note TIMES are deterministic — the opposite of the ML path, where a seed
+re-draws the Demucs stems. ⇒Seeds matter only for **geometry and hand-role**; `--seed` reaches
+`mapctl auto` since 2026-08-21.
 
 ---
 

@@ -177,11 +177,14 @@ def cmd_init(a) -> int:
     #   * it is NOT the corpus `t=0` convention: padding the audio by 137 ms moves the
     #     fitted phase with the music (residual 4.5 ms vs 29.9 ms if it locked to t=0,
     #     6/6 songs), so the correction should generalise to any audio.
-    # 🔴**DEFAULT OFF.** It changes where every note lands, and defaults that shape how
-    # a map feels are Kyle's call, not a metric's — the same rule that keeps
-    # `BEAT_GRID_PHASE` off after it "fixed" 18 songs on the axis and he still heard
-    # the defect. See LISTENING.md for the A/B.
-    if getattr(a, "phase_calibrate", False):
+    # ★**DEFAULT ON since 2026-09-02 (P0 [PCAL], decide-and-log).** It was held OFF
+    # because it changes where every note lands and that felt like Kyle's call; but it
+    # is held-out validated 18/18, corpus-independent (a measured estimator bias, not a
+    # fit to the axis), and *"slightly off beat"* is his named defect D2. Waiting on an
+    # ear for a correction that only moves notes TOWARD where humans put them was the
+    # wrong default. `--no-phase-calibrate` restores the raw estimate; set B in
+    # for_review/ is still the A/B if he wants to hear it.
+    if getattr(a, "phase_calibrate", True):
         g = dict(g, phase=g["phase"] + PHASE_BIAS_BEATS * g["spb"])
         print(f"  phase calibrated {PHASE_BIAS_BEATS:+.3f} beats "
               f"({PHASE_BIAS_BEATS * g['spb'] * 1000:+.1f} ms) — measured estimator bias")
@@ -1098,12 +1101,15 @@ def main() -> int:
     p.add_argument("--phase-shift", type=float, default=0.0,
                    help="TEST ONLY: slide every bar line by N beats to degrade the "
                         "grid on purpose. Never use for a real map")
-    p.add_argument("--phase-calibrate", action="store_true",
+    p.add_argument("--phase-calibrate", dest="phase_calibrate", action="store_true",
                    help=f"correct the measured {PHASE_BIAS_BEATS:+.3f}-beat bias in our "
                         "phase estimator (our grid sits that far early of a human "
                         "mapper's). Held-out validated: onset_precision 0.888->0.917, "
-                        "human agreement 0.642->0.709. Default OFF — it changes where "
-                        "every note lands")
+                        "human agreement 0.642->0.709. ★Default ON since 2026-09-02 "
+                        "(P0 [PCAL])")
+    p.add_argument("--no-phase-calibrate", dest="phase_calibrate", action="store_false",
+                   help="build on the raw, uncorrected phase estimate")
+    p.set_defaults(phase_calibrate=True)
     p.add_argument("--adaptive-subdiv", action="store_true",
                    help="🔴REFUTED 2026-08-21: 1/8-beat slots below 150 bpm make "
                         "onset_precision WORSE on 10 of 10 affected songs and cost "

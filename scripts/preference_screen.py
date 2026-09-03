@@ -78,7 +78,12 @@ def _load_pairs() -> list[dict]:
     for v in raw.get("verdicts", []):
         if v.get("kind") == "tie":
             continue
-        b, w = v["better"], v["worse"]
+        b, w = v.get("better"), v.get("worse")
+        # review.py / compete.py (2026-08-17 / 2026-09-02) write `better` as an arm NAME;
+        # this screen only knows the original {song, map} shape. Skip, do not crash — the
+        # headline for those verdicts is `compete.py table`.
+        if not (isinstance(b, dict) and isinstance(w, dict)):
+            continue
         out.append({"id": v["id"],
                     "better": (b["song"], b["map"]),
                     "worse": (w["song"], w["map"]),

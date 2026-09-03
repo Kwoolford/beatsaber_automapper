@@ -354,16 +354,13 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("map")
     ap.add_argument("--bars", help="bar range, e.g. 33-40")
-    ap.add_argument("--audio", help="song file, to add per-stem lanes")
+    ap.add_argument("--audio", help="RETIRED — use agent_mapper/score.py (song + map on one lattice)")
     ap.add_argument("--sections", action="store_true", help="whole-song overview")
     ap.add_argument("--compare", nargs=2, metavar=("A", "B"),
                     help="two bar ranges to print side by side")
     ap.add_argument("--stems", action="store_true",
-                    help="what the player HEARS: one lane per stem from events.py's "
-                         "six-stem view (drums bass other vocals guitar piano), block "
-                         "height = loudness. --audio shows only kick/snare/hat+bass/"
-                         "lead from the ML features and cannot see guitar, piano or "
-                         "vocals — the lines maps are usually built around")
+                    help="RETIRED — agent_mapper/score.py shows KIT/BASS/LEAD/VOX+lyric/"
+                         "energy/onset/main on every slot beside the map")
     ap.add_argument("--align", action="store_true",
                     help="per-note distance to the nearest detected onset, in ms "
                          "(● within 50ms · ○ 50-120ms · ✗ beyond). Answers 'is this "
@@ -388,6 +385,16 @@ def main() -> None:
     ap.add_argument("--secs", default="60-75",
                     help="time range for --vs, e.g. 60-75")
     a = ap.parse_args()
+
+    if a.stems or a.audio:
+        # ★Retired 2026-09-02 (P1). The song side here was six loudness blocks on sparse
+        # rows, keyed on the map's FILENAME (Hunger_AGENT.zip found nothing), and the
+        # --audio lanes crashed. `agent_mapper/score.py` draws every slot with
+        # KIT/BASS/LEAD/VOX+lyric/E/ON/MAIN beside the map, plus `--vs` and `--npz`.
+        print("⚠️ --stems/--audio are retired: use\n"
+              "   python agent_mapper/score.py <map.zip> --song <id|audio> --bars a-b [--vs auto]\n"
+              "   (song and map on one lattice, every slot). Continuing without song lanes.\n")
+        a.stems, a.audio = False, None
 
     notes, bpm = load(pathlib.Path(a.map))
     print(f"# {a.map}  —  {len(notes)} notes @ {bpm:.1f} bpm\n")

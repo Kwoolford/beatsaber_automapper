@@ -205,6 +205,10 @@ def main() -> int:
     a.out.write_text(json.dumps(ref) + "\n")
     print(f"\nwrote {a.out}  ({len(ref['distributions'])} metrics, "
           f"{len(ref['calib_scores']['mean'])} calibration scores)")
+    # ★The P0.2 alignment floor lives in the same file and is deliberately NOT carried
+    # over: it is a percentile of the distribution just rebuilt, so it must be
+    # re-derived against it. Until then the judge runs without the floor.
+    print("⚠️ align_floor dropped — re-derive it: python scripts/calibrate_align_floor.py")
 
     a.heldout_json.parent.mkdir(parents=True, exist_ok=True)
     a.heldout_json.write_text(json.dumps(held_recs) + "\n")

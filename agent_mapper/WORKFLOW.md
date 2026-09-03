@@ -92,12 +92,16 @@ python agent_mapper/mapctl.py auto drive --bars 9-16 \
     --doubles --doubles-rate 0.3 --accent-slots "0,2,4,6,8,10,12,14"
 ```
 
-🔴🔴**`--doubles` IS REQUIRED HERE AND THE TWO BUILD PATHS DISAGREE ABOUT IT.** `mapctl auto`
-defaults doubles **OFF** (`--doubles` is `store_true`) while `autobuild.py` defaults them **ON**
-(it exposes `--no-doubles`). A hand-built map that omits the flag ships **0.000** doubles against a
-human median of **0.144**, and only **2.0 %** of 250 human maps have none — a whole gesture missing,
-in a map that otherwise passes everything. Caught 2026-08-24 on a cold-cache build, by the ABSENCE
-block of `scripts/audit_map.py`; the command above had omitted it for weeks.
+★**DOUBLES — the truth as of 2026-09-02 (P4).** `mapctl auto` defaults doubles OFF, and
+`autobuild.py` passes `--doubles` ONLY inside its `--pulse` branch — its default two-pass path
+ships 0 % and its `--no-doubles` help used to claim "ON by default". Two settings have both been
+wrong: 51–70 % (08-03 maps, D6 "nps wasted") and 0 % (2 % of human maps have none). Measured on
+the songset with the P3 queries + the tutor: default path 43 hits / 25 of 99 situations his way;
+`--pulse --lead-bias 0.2` 53 hits (FLOW 21, D2 8 — notes on the odd 16th between the lead's
+8ths) / 19 of 99. So `--pulse` is a request, not the default, and doubles go **where the tutor
+puts them** (drums-in / bass-in → `D` on the bar line; vox-in → none): `--doubles --doubles-rate
+0.3` on a section that wants them, or `mapedit.py double <bar>.1.0` at the entry. Run
+`scripts/verdict.py` either way — it is the gate now.
 
 ⚠️**`--fresh` is not optional for a rebuild.** Without it `init` KEEPS existing notes and
 a second build silently appends a whole second map onto the first. No error, just a worse
@@ -108,7 +112,7 @@ score. It faked a PASS-rate regression on 2026-08-20.
 | lever | what it does | operating point | why |
 |---|---|---|---|
 | `--follow "a,b"` | ONE pass over merged streams | comma-separated | two layered passes cost the pulse: drums alone 0.387, drums+carrier union 0.329 (human 0.514) |
-| `--pulse` | each phrase holds ONE interval | on | `pulse_stability` 6th → 56th percentile |
+| `--pulse` | each phrase holds ONE interval; the only path with doubles + a lead hand | a request (off in `autobuild`) | `pulse_stability` 6th → 56th percentile, but FLOW/D2 jitter 21+8 spans vs 8+1 on the songset (2026-09-02) |
 | `--lead-bias` | a hand leads a passage | **0.2** | `role_asymmetry` 1st → 33rd pct. **0.3 overshoots**; mode is `cyclic` (deterministic) |
 | `--target-notes N` | search the accent percentile until N **distinct grid slots** survive | the section's budget | the budget is spent in SLOTS, not events; colliding events collapse |
 | `--doubles-rate` | fraction of eligible accent slots that become doubles | **0.3** | rate and placement are separate: `--accent-slots` sets WHERE (eighth-notes match the human 0.635 on-beat share), this sets HOW MANY |
@@ -164,7 +168,14 @@ added **after** it. Doing it the other way produced **12 trapped notes** on a ma
 duration and width statistics all still matched the human idiom perfectly.
 `tests/test_walls_playable.py` pins this; run it after touching wall placement.
 
-## 4. VALIDATE — check, then judge
+## 4. VALIDATE — verdict first, then the raw checks
+
+```bash
+python scripts/verdict.py out.zip          # queries (wrong) + tutor (like him) + judge (typical); SHIP?
+```
+★**Since 2026-09-02 this is the gate.** Every 🔴 names the bars to open in the score and the
+tool that fixes them; go back to the section, fix, run it again. The lines below are what it
+reads underneath.
 
 ```bash
 python agent_mapper/mapctl.py check  drive     # parity, doubles, violations
@@ -289,7 +300,7 @@ document: **274 notes, 3.95 nps, PASS p=0.878 on 23 metrics, 0 parity violations
 percentile** — choosing the carrier per section from `events.py` is what did it.
 
 ## 8. `autobuild.py` IS NOT THIS WORKFLOW
-`python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` drives these same tools
+`python agent_mapper/autobuild.py <audio>` (`--pulse --lead-bias 0.2` on request) drives these same tools
 with **fixed heuristics** in place of the prose plan. It is a consumer of the framework,
 useful as a baseline and for bulk runs. **It scores worse on alignment than a planned build
 because it cannot choose the carrier by ear.**

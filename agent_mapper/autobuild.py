@@ -166,12 +166,11 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           adaptive_subdiv: bool = False, seed: int = 0,
           doubles: bool = False, accent_slots: str = "0,2,4,6,8,10,12,14",
           doubles_rate: float = 0.3, phase_shift: float = 0.0,
-          phase_calibrate: bool = False) -> None:
+          phase_calibrate: bool = True) -> None:
     init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
     if phase_shift:
         init += ["--phase-shift", str(phase_shift)]
-    if phase_calibrate:
-        init += ["--phase-calibrate"]
+    init += ["--phase-calibrate" if phase_calibrate else "--no-phase-calibrate"]
     if adaptive_subdiv:
         init += ["--adaptive-subdiv"]
     run(init)
@@ -257,12 +256,16 @@ def main() -> int:
     # side, and a decision made by eye is not one to reverse on axis numbers alone
     # (the same rule that keeps BEAT_GRID_PHASE off). This flag exists so the
     # alternative can be PLAYED -- see LISTENING.md.
-    # ★See mapctl.PHASE_BIAS_BEATS. Default OFF: it moves every note, and a default
-    # that changes how a map feels is Kyle's call, not a metric's.
-    ap.add_argument("--phase-calibrate", action="store_true",
+    # ★See mapctl.PHASE_BIAS_BEATS. Default ON since 2026-09-02 (P0 [PCAL]): a
+    # measured estimator bias, held-out validated, corpus-independent. The rationale
+    # for the flip is on the mapctl side.
+    ap.add_argument("--phase-calibrate", dest="phase_calibrate", action="store_true",
                     help="correct the measured +0.053-beat bias in our phase estimator "
                          "(held-out: onset_precision 0.888->0.917, human agreement "
-                         "0.642->0.709). Default OFF")
+                         "0.642->0.709). Default ON")
+    ap.add_argument("--no-phase-calibrate", dest="phase_calibrate", action="store_false",
+                    help="build on the raw, uncorrected phase estimate")
+    ap.set_defaults(phase_calibrate=True)
     # ★LEG 3's second travel lever: re-weights candidates by HOW FAR each move
     # travels, where --width sets how MANY are considered. See idiomize.TRAVEL_TARGET.
     ap.add_argument("--travel-target", type=float, default=None,
@@ -273,18 +276,35 @@ def main() -> int:
                          "diagonals and a broader local vocabulary; 5 sits closest "
                          "to the human idiom_top50/idiom_coverage.")
     ap.add_argument("--verbose", action="store_true")
-    ap.add_argument("--pulse", action="store_true",
-                    help="hold one interval per phrase, from a single merged pass "
-                         "over drums+carrier (P0.5)")
+    # ★★TWO ENTRY POINTS, NOT ONE LEVER (P4 decide-and-log, 2026-09-02). Doubles, the
+    # lead hand and `--doubles-rate` are applied ONLY inside the `--pulse` branch of
+    # `build()`; the default two-pass path ships 0 % doubles while `--no-doubles`
+    # claimed "ON by default". The 08-03 maps' 51-70 % doubles came from the pulse
+    # path, the 09-02 tutor DoD's 0 % from this one. Measured on the songset with
+    # the P3 queries (Kyle's verdicts) and the tutor: NOPULSE 43 hits / 25 of 99
+    # situations his way; PULSE 53 hits (FLOW 21, D2 8: notes on the odd 16th between
+    # the lead's 8ths, the Hunger AGENT pattern) / 19 of 99; doubles bolted onto the
+    # drums pass 47 / 21. Only the judge (typicality, p 0.57 -> 0.66) prefers pulse,
+    # so the default stays here and `--pulse` is a request. WORKFLOW.md said "on".
+    ap.add_argument("--pulse", dest="pulse", action="store_true",
+                    help="hold one interval per phrase, from a single merged pass over "
+                         "drums+carrier (P0.5); the ONLY path with doubles and a lead "
+                         "hand. Off by default: it draws FLOW/D2 jitter (2026-09-02)")
+    ap.add_argument("--no-pulse", dest="pulse", action="store_false",
+                    help="the default two-pass path (drums, then carrier)")
+    ap.set_defaults(pulse=False)
     ap.add_argument("--phrase-bars", type=int, default=4)
     ap.add_argument("--lead-bias", type=float, default=0.0,
-                    help="probability a phrase's lead hand repeats (P0.6)")
+                    help="probability a phrase's lead hand repeats (P0.6); --pulse "
+                         "only. WORKFLOW.md's operating point is 0.2 (0.3 overshoots)")
     ap.add_argument("--lead-phrase-bars", type=int, default=4)
     ap.add_argument("--pulse-fill", type=int, default=1,
                     help="lattice points held across a quiet gap (P0.7)")
     ap.add_argument("--no-doubles", dest="doubles", action="store_false",
-                    help="disable both-hands accents; ON by default since 2026-08-21 "
-                         "(double_share 0.000 -> 0.127 against a human 0.205, n=23)")
+                    help="disable both-hands accents inside --pulse (there they are on "
+                         "by default since 2026-08-21: double_share 0.000 -> 0.127 vs "
+                         "human 0.205, n=23). The default path has NO doubles; "
+                         "add them with mapedit.py where a stem enters (tutor.py)")
     ap.set_defaults(doubles=True)
     ap.add_argument("--accent-slots", default="0,2,4,6,8,10,12,14",
                     help="slots eligible for doubles. The eighth-note set matches the "
@@ -292,16 +312,23 @@ def main() -> int:
                          "doubles exactly on a beat, which is the mechanical feel")
     ap.add_argument("--phase-shift", type=float, default=0.0,
                     help="TEST ONLY: degrade the grid by N beats (causal probe)")
-    ap.add_argument("--walls", type=int, default=0,
+    # ★[FULL] IS THE DEFAULT since 2026-09-02 (P0 decide-and-log): the absence of an
+    # element 96-100 % of human maps carry is a defect, and no metric can see it, so
+    # waiting on an ear to turn it on was the wrong default. 0 = notes only ([V2]).
+    ap.add_argument("--walls", type=int, default=89,
                     help="add N walls (0 = none). Human median is 89 and 96%% of human "
                          "maps have them; we shipped zero until 2026-08-22. ⚠️No metric "
-                         "in the suite can see walls — only his ear can judge them")
-    ap.add_argument("--arcs", type=int, default=0,
+                         "in the suite can see walls — only his ear can judge them. "
+                         "Default 89 (human median) since 2026-09-02")
+    ap.add_argument("--arcs", type=int, default=90,
                     help="add N arcs (v3 human median 90, present in 100%% of v3 maps). "
-                         "Purely additive — notes are untouched")
-    ap.add_argument("--chains", type=int, default=0,
+                         "Purely additive — notes are untouched. Default 90")
+    ap.add_argument("--chains", type=int, default=16,
                     help="add N chains (v3 human median 16, present in 71%%). Extends an "
-                         "existing swing, so parity is re-checked after")
+                         "existing swing, so parity is re-checked after. Default 16")
+    ap.add_argument("--notes-only", action="store_true",
+                    help="[V2] output: no walls, arcs or chains (same as --walls 0 "
+                         "--arcs 0 --chains 0)")
     ap.add_argument("--doubles-rate", type=float, default=0.3,
                     help="fraction of eligible accent slots that become doubles. 0.3 "
                          "measured n=23: rate 0.166 vs human 0.237, 23/23 PASS. 0.5 "
@@ -328,6 +355,11 @@ def main() -> int:
         sargs = ST.build_args(a.style, ref)
         print(f"=== STYLE `{a.style}` -> {sargs}")
     nps = a.nps if a.nps is not None else sargs.get("nps", HUMAN_NPS)
+    # P0.1: a density the CALLER asked for (flag or style preset) is a request the
+    # judge gates against; the corpus default is not a request.
+    nps_requested = a.nps if a.nps is not None else sargs.get("nps")
+    if a.notes_only:
+        a.walls = a.arcs = a.chains = 0
 
     print(f"=== SEE: {a.audio.name}")
     rows = plan(a.audio, nps)
@@ -410,7 +442,15 @@ def main() -> int:
         print(f"  added {n_chains} chains (v3 human median 16; 71 % of v3 maps)")
 
     print(f"\n=== JUDGE")
-    res = mj.judge_zip(out, reference=ref)
+    # ★The alignment axis needs the song's cached onsets. Without them the judge
+    # scores 21 metrics and the P0.2 floor (is the map ON the music?) cannot apply --
+    # which is the one question this loop most needs answered. Say so loudly.
+    from beatsaber_automapper.evaluation import scorecard as SC
+    onsets = SC.onsets_for(a.audio)
+    if onsets is None:
+        print("  ⚠️NO CACHED ONSETS for this song -> no alignment axis, no P0.2 floor. "
+              "Run scripts/build_onset_cache.py on it first.")
+    res = mj.judge_zip(out, reference=ref, onsets=onsets, nps_request=nps_requested)
     print(mj.report(res))
     if a.style:
         import style as ST

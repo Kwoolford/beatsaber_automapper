@@ -82,7 +82,37 @@ SETS = {
                     "map was built on rhythm alone.",
         "pairs": [("BEFORE", "AGENT")],
     },
+    # ★2026-09-02 (P4): the first map to go through the six-step loop (verdict ->
+    # score --bars -> mapedit -> verdict) until SHIP? YES. BEFORE is the coarse build
+    # the loop started from; HUMAN is misterlihao's map, the tutor it copied at the
+    # bass entry (9-12), the vocal run (51-52) and the E-jump (85). Every edit is in
+    # outputs/p4_loop/edits_*.txt and PROGRESS 2026-09-02g.
+    "D": {
+        "dir": "D_verdict_loop",
+        "src": "outputs/kyle_review_2026-09-02",
+        "doc": "PROGRESS.md",
+        "title": "the verdict loop (AliceBlue)",
+        "question": "Play [BEFORE] then [LOOP]. The page says LOOP has no located "
+                    "defect. Is it BETTER than BEFORE — and what is still wrong with it "
+                    "that no query named? That gap is the next locator to build. "
+                    "(LOOP vs the HUMAN map is the blind pair in for_review/compete/ — "
+                    "play that FIRST, or the blind is spoiled.)",
+        "pairs": [("BEFORE", "LOOP")],
+    },
 }
+
+# ★2026-09-02 (P4b): the blind A/B lives in for_review/compete/ and is run by
+# scripts/compete.py (stage / verdict / table). It is listed in the shortlist below because
+# it comes FIRST in a listening session: once he has heard AliceBlue_LOOP unblinded in set
+# D he can no longer judge X/Y blind. AliceBlue_HUMAN.zip was moved out of set D for the
+# same reason (outputs/p4_loop/AliceBlue_HUMAN.zip).
+
+
+def _compete_pairs() -> list[str]:
+    """Song ids with a blind pair staged (roles never leave compete.py's key)."""
+    d = STAGE / "compete"
+    return sorted({z.name.split("__", 1)[1][:-4] for z in d.glob("[XY]__*.zip")}) \
+        if d.exists() else []
 
 
 # ★THE SHORTLIST. 33 maps is not a review, it is a chore nobody does — and three sets
@@ -95,65 +125,72 @@ SETS = {
 # is unavoidable for the grid-phase question — the lever left his four standing songs
 # BYTE-IDENTICAL, so there is literally nothing to hear on them.
 SHORTLIST = [
+    # ★2026-09-02 (P0 decide-and-log): comparisons 1, 2 and 4 are gone from this list.
+    # Set C was answered ("Hunger BEFORE > AGENT", in the ledger). Set A was filed to
+    # outputs/reviewed/A_structure_crossover UNJUDGED: crossover became a knob at 0 and
+    # the [FULL] elements became the default without waiting on an ear (TODO P0), so
+    # the pending list holds only what still changes a decision.
     {
         "n": 1,
-        "set": "A",
-        "play": ["Hunger_BEFORE.zip", "Hunger_CROSSOVER.zip"],
-        "decides": "Flip COLOR_SEP_MODE=extreme (crossover) ON by default?",
-        "why": "The cleanest numbers on this project. We cross hands over on 0.000 of "
-               "notes; 150 human maps have a median of 0.183 and NOT ONE of them has "
-               "zero. Flow improves 0.37 -> 0.23 and two reachability measures land "
-               "exactly on the human value. It changes every song, not just repetitive "
-               "ones. If you play one thing, play this.",
-        "ask": "Do the crossovers feel natural, or do they feel like the map is "
-               "fighting you?",
+        "set": "COMPETE",
+        "play": ["X__1f767.zip", "Y__1f767.zip"],
+        "open": "python scripts/review.py open X__1f767   # then Y__1f767",
+        "decides": "★THE HEADLINE (P4b): does our best AliceBlue beat the top human map, blind?",
+        "why": "One is LOOP__1f767 (172 edits, SHIP? YES), the other is misterlihao's map, "
+               "both rewritten to the same skeleton (no names, no cover, one difficulty). "
+               "A win is a number; a LOSS WITH A REASON is a bench row and the next query.",
+        "ask": "Which is better? If one is worse, what did it do WRONG, and where (mm:ss "
+               "or bar)? -> python scripts/compete.py verdict 1f767 X|Y|tie --because \"...\"",
     },
     {
         "n": 2,
-        "set": "C",
-        "play": ["Hunger_AGENT.zip"],
-        "against": "Hunger_BEFORE.zip (set A) — the same song you just played",
-        "decides": "Is agent-authored mapping worth keeping as P0?",
-        "why": "A whole research direction rests on this one map. Every suite number on "
-               "it is either circular (it places notes on the onsets the metric scores) "
-               "or known not to track your ear, so nothing but you can answer it.",
-        "ask": "Better or worse than the generator's Hunger? Blunt is fine.",
+        "set": "COMPETE",
+        "play": ["X__1f8d6.zip", "Y__1f8d6.zip"],
+        "open": "python scripts/review.py open X__1f8d6   # then Y__1f8d6",
+        "decides": "Fallen Kingdom — the song you called \"really empty\": does today's "
+                   "default build (SHIP? YES, tutor 4/15) beat Joetastic's map, blind?",
+        "why": "NOPULSE__1f8d6 answers every query clean; if it still loses on emptiness, "
+               "EMPTY needs a locator the page does not have (four have failed before).",
+        "ask": "Which is better, and why? -> python scripts/compete.py verdict 1f8d6 "
+               "X|Y|tie --because \"...\" [--code EMPTY --bars a-b]",
     },
     {
         "n": 3,
         "set": "B",
         "play": ["BEcause_BEFORE.zip", "BEcause_PHASE.zip"],
-        "decides": "Flip BEAT_GRID_PHASE=search ON by default?",
+        "decides": "Keep --phase-calibrate ON by default (flipped 2026-09-02, P0 [PCAL])?",
         "why": "It passed its DoD at n=149 and made the alignment axis pass for the "
                "FIRST TIME EVER (0.62 FAIL -> 0.35 PASS), 74 songs better and 0 worse. "
-               "It is still default-OFF for one reason: it optimises the same onsets "
-               "the axis scores, so the axis cannot be trusted to judge it. Your ear is "
-               "the only thing outside that circle.",
+               "It is now default-ON on that evidence; the remaining doubt is that it "
+               "optimises the same onsets the axis scores, so the axis cannot be "
+               "trusted to judge it. Your ear is the only thing outside that circle.",
         "ask": "Does [PHASE] sit ON the beat better? \"Can't tell\" is a real answer "
                "and worth recording — it would mean the axis is measuring something "
                "inaudible.",
     },
     {
         "n": 4,
-        "set": "A",
-        "optional": True,
-        "play": ["Hunger_BEFORE.zip", "Hunger_BOTH.zip"],
-        "decides": "Does deliberate repetition read INTENTIONAL or LAZY?",
-        "why": "Only if you still have patience. Hunger's chorus is genuinely the same "
-               "music three times (bars 55/113/194, confirmed) so it is the sharpest "
-               "test. It matters because mapctl's new `reuse` defaults to varying 15 % "
-               "of a repeated section — if repetition reads LAZY that default is wrong. "
-               "⚠️[BOTH] stacks crossover AND structure reuse, so judge it only after "
-               "comparison 1 has told you what crossover alone feels like.",
-        "ask": "Does the repeat feel like a callback, or like I got lazy?",
+        "set": "D",
+        "play": ["AliceBlue_BEFORE.zip", "AliceBlue_LOOP.zip"],
+        "decides": "Does a clean verdict page (P4, 2026-09-02) mean a better map — and "
+                   "what does it still miss?",
+        "why": "LOOP is BEFORE after 172 logged edits driven only by the page: D6 "
+               "over-density thinned to his bar count (13-24, 61-64), the E-jump at 85 "
+               "re-footed, his bass-entry doubles copied at 9-12 and his vocal run at "
+               "51-52, 27 resets flipped back to 0. Judge p 0.57 -> 0.78, tutor 1 -> 6 "
+               "of 16 situations his way. Nothing on the page is red; your ear decides "
+               "whether the page is measuring the right things.",
+        "ask": "Better than BEFORE? Name the first bar that is WRONG in LOOP — that bar "
+               "is the next query.",
     },
 ]
 
 
 def cmd_next(a) -> int:
     """The shortlist: a few comparisons, each with the decision it unblocks."""
-    print("★ SHORTLIST — 4 comparisons, 6 distinct maps, 2 songs.\n"
-          "  (33 maps are staged; these are the ones whose answers change what I build.)\n")
+    staged = sum(1 for _ in STAGE.rglob("*.zip")) if STAGE.exists() else 0
+    print(f"★ SHORTLIST — {len(SHORTLIST)} comparison(s).\n"
+          f"  ({staged} maps are staged; these are the ones whose answers change what I build.)\n")
     for c in SHORTLIST:
         if c.get("optional") and not a.all:
             continue
@@ -167,14 +204,15 @@ def cmd_next(a) -> int:
             print(f"     against  {c['against']}")
         print(f"     why      {c['why']}")
         print(f"     ★ask     {c['ask']}")
-        print(f"     open     python scripts/review.py open "
-              f"{' '.join(c['play'][0].replace('.zip', '').split('_'))}")
+        print(f"     open     " + (c.get("open") or "python scripts/review.py open "
+              + ' '.join(c['play'][0].replace('.zip', '').split('_'))))
         print()
-    if not a.all:
-        print("A 4th optional comparison exists: python scripts/review.py next --all")
+    if not a.all and any(c.get("optional") for c in SHORTLIST):
+        print("An optional comparison exists: python scripts/review.py next --all")
     print("\nRecord an answer:\n"
-          "  python scripts/review.py verdict --set A --song 1f333 --name Hunger \\\n"
-          "      --better CROSSOVER --worse BEFORE --quote \"your words\"")
+          "  python scripts/compete.py verdict 1f767 X|Y|tie --because \"your words\"   # blind pairs\n"
+          "  python scripts/review.py verdict --set D --song 1f767 --name AliceBlue \\\n"
+          "      --better LOOP --worse BEFORE --quote \"your words\"")
     return 0
 
 
@@ -229,9 +267,17 @@ def _write_readme() -> None:
              "python scripts/review.py next          # ★ the 3 that matter, start here",
              "python scripts/review.py open Hunger CROSSOVER",
              "```", "",
-             "**33 maps are staged. You do not need to play 33 maps** — "
+             "**You do not need to play every staged map** — "
              "`review.py next` lists the handful whose answers change what gets built.",
              ""]
+    pairs = _compete_pairs()
+    if pairs:
+        lines += [f"## ★ COMPETE — blind pairs, play these FIRST  ({len(pairs)} songs)", "",
+                  "`compete/X__<sid>.zip` vs `compete/Y__<sid>.zip`: one is ours, one is the "
+                  "top human map. Which is better, and what did the worse one do wrong, where?",
+                  "", "```bash", "python scripts/compete.py list",
+                  "python scripts/compete.py verdict <sid> X|Y|tie --because \"...\"", "```", ""]
+        lines += [f"- `{sid}`" for sid in pairs] + [""]
     for sid, meta in SETS.items():
         d = STAGE / meta["dir"]
         if not d.exists():
@@ -259,6 +305,11 @@ def cmd_list(a) -> int:
         return 0
     print(f"PENDING REVIEW  ({STAGE.relative_to(REPO)}/)\n")
     total = 0
+    pairs = _compete_pairs()
+    if pairs:
+        print(f"  ★ COMPETE  blind pairs (play first)          {2 * len(pairs):>3} maps   "
+              f"{', '.join(pairs)}   -> python scripts/compete.py list\n")
+        total += 2 * len(pairs)
     for sid, meta in SETS.items():
         d = STAGE / meta["dir"]
         if not d.exists():

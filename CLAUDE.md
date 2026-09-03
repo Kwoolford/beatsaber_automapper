@@ -2,6 +2,28 @@
 
 This is the source-of-truth document for the beatsaber_automapper project. Read this file completely before starting any work.
 
+## ★ THE AGENT PATH (2026-09-02) — where the work is; the ML sections below are 🧊 backlogged
+Maps are built by the agent with `agent_mapper/` tools, judged by READING the song and the map
+on one lattice, and gated by Kyle's own verdicts. `TODO.md` "CURRENT STATE" is the plan.
+
+| step | tool | what it is |
+|---|---|---|
+| study | `scripts/tutor.py <sid>` | the top human map of THIS song at the song's situations (`--map z` = did we answer his way) |
+| build | `agent_mapper/autobuild.py <audio>` · `mapctl.py auto` | coarse whole-song build; per-section levers (`WORKFLOW.md`) |
+| see | `agent_mapper/score.py <z> --song <sid> --vs auto --bars a-b` | KIT/BASS/LEAD/VOX+lyric/E/ON/MAIN beside L/R/walls and the human's answer, every slot; `--npz` = arrays |
+| ask | `scripts/queries.py <z>` | six defect reads in Kyle's codes (EMPTY D1 D6 FLOW D2 D4 D3 ELEMENTS), each hit a bar |
+| edit | `agent_mapper/mapedit.py <z> place/move/double/wall/from/undo` | slot-level writes with parity guards |
+| gate | **`scripts/verdict.py <z>`** | queries + tutor + judge on one page; `SHIP?`; bench agreement computed each run |
+| bench | `scripts/bench.py score queries:q_all` | his verdicts as labels (`docs/eval_references/labelled_maps.json`) — a reader that drifts is refuted here |
+
+Rules that outrank everything below: **every reference is the same song's human map**
+(`data/raw/<sid>.zip`), never an absolute norm; the judge's `p` is typicality — a floor, never a
+rank; "humans do it too" is not a verdict (target = the best mappers); DECIDE-AND-LOG, never
+park a decision on Kyle; keep 1f767/1f913/1f333/1f8d6 as the listening set, AFTER beside BEFORE
+and the human. The skill `/buildmap` is the six-step loop (study → coarse → triage → zoom & edit
+→ verdict → compete); `agent_mapper/READING.md` is how to read; `agent_mapper/WORKFLOW.md` the
+levers. Every Bash call: `cd /home/kyle/repos/beatsaber_automapper && source .venv/bin/activate`.
+
 ## Key Documents
 
 | Document | Purpose | When to Read |

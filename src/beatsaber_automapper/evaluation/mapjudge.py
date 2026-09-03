@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import pathlib
 from dataclasses import dataclass, field
 
@@ -122,6 +123,30 @@ CANDIDATES: list[tuple[str, str, str, str]] = [
     ("onset_precision",  "alignment", "both", "share of notes on something audible"),
     ("offset_mad_ms",    "alignment", "both", "timing scatter against the music"),
 ]
+
+# ★P0.2 (2026-09-02) — THE UNDILUTED ALIGNMENT FLOOR. The pooled verdict accepted 65 %
+# of maps a quarter-beat off the music, because alignment is 2 of 23 metrics and every
+# pooled alternative measured worse (PROGRESS "P0.2 SOLVED IN PRINCIPLE"). So alignment
+# is ALSO gated on its own: FAIL when max(u) over the alignment metrics exceeds the
+# human percentile stored in the reference (`align_floor`, written by
+# scripts/calibrate_align_floor.py). Measured price at the 90th pct: human accept
+# 0.870 -> 0.825, `offbeat` accept 0.650 -> 0.080. Decide-and-log: Kyle's "target is
+# the best mappers" makes the corpus median a floor, so rejecting a few more median-ish
+# humans to catch 92 % of off-beat maps is the right trade.
+# ★The floor is ONE-SIDED and on `onset_precision` ALONE: a raw minimum at the human
+# 10th percentile of the reference distribution. The pooled metrics are two-sided (a
+# measured correction) but "off the music" has a direction. Measured 2026-09-02 on 300
+# held-out humans vs their `offbeat` twins, floor combined with the pooled gate:
+# two-sided max(u) over both alignment metrics let 38 % of `offbeat` through, one-sided
+# max over both 22 %, `onset_precision` alone ~9 %. `offset_mad_ms` stays pooled.
+# Reversible without a code change: MAPJUDGE_ALIGN_FLOOR=0 disables it.
+ALIGN_FLOOR_ENV = "MAPJUDGE_ALIGN_FLOOR"
+ALIGN_FLOOR_METRIC = "onset_precision"
+
+
+def align_floor_enabled() -> bool:
+    return os.environ.get(ALIGN_FLOOR_ENV, "1").strip().lower() not in ("0", "off", "no", "")
+
 
 # How many of the most extreme metrics the second aggregate averages. 3 was chosen
 # because `u` saturates at 1.0 and a plain max therefore ties every map that has any
@@ -269,6 +294,15 @@ class JudgeResult:
     missing: list[str] = field(default_factory=list)
 
     p_combined: float = float("nan")
+    # P0.2 undiluted alignment floor: the map's onset_precision and the raw minimum
+    # it is held to (nan = not scored / no floor applied), plus the human percentile
+    # that minimum sits at.
+    align_value: float = float("nan")
+    align_floor: float = float("nan")
+    align_floor_q: float = float("nan")
+    # P0.1: when the caller asked for a density, nps is gated against THAT request,
+    # not the corpus. (requested, actual, tolerance)
+    nps_request: tuple[float, float, float] | None = None
 
     @property
     def p_min(self) -> float:
@@ -292,8 +326,40 @@ class JudgeResult:
         """
         return self.p_combined
 
+    @property
+    def align_fail(self) -> bool:
+        """The map is off the music by the undiluted floor (P0.2)."""
+        return (not math.isnan(self.align_floor) and not math.isnan(self.align_value)
+                and self.align_value < self.align_floor)
+
+    @property
+    def nps_fail(self) -> bool:
+        """The map missed the density it was ASKED for (P0.1)."""
+        if self.nps_request is None:
+            return False
+        want, got, tol = self.nps_request
+        return want > 0 and abs(got - want) / want > tol
+
+    def why_fail(self, alpha: float = 0.10) -> list[str]:
+        """Every reason the verdict is FAIL, in gate order. Empty on PASS/UNSCORED."""
+        out = []
+        if self.viol is not None and self.viol > 0:
+            out.append(f"{int(self.viol)} parity violations")
+        if self.align_fail:
+            out.append(f"off the music: onset_precision {self.align_value:.3f} < floor "
+                       f"{self.align_floor:.3f} (human {self.align_floor_q*100:.0f}th pct)")
+        if self.nps_fail:
+            want, got, tol = self.nps_request
+            out.append(f"density {got:.2f} nps vs requested {want:.2f} "
+                       f"({(got-want)/want:+.0%}, tolerance ±{tol:.0%})")
+        if not math.isnan(self.p_value) and self.p_value < alpha:
+            out.append(f"not human-typical: p={self.p_value:.3f} < {alpha:.2f}")
+        return out
+
     def verdict(self, alpha: float = 0.10) -> str:
         if self.viol is not None and self.viol > 0:
+            return "FAIL"
+        if self.align_fail or self.nps_fail:
             return "FAIL"
         if math.isnan(self.p_value):
             return "UNSCORED"
@@ -324,8 +390,16 @@ def load_reference(path: pathlib.Path | None = None) -> dict:
 
 
 def judge(record: dict[str, float], reference: dict, *, label: str = "map",
-          exclude_axes: set[str] | None = None) -> JudgeResult:
-    """Score one map's raw metrics against the human reference."""
+          exclude_axes: set[str] | None = None, align_floor: bool | None = None,
+          nps_request: float | None = None, nps_tol: float = 0.15) -> JudgeResult:
+    """Score one map's raw metrics against the human reference.
+
+    `align_floor`: apply the undiluted alignment floor (P0.2). None = follow the
+    MAPJUDGE_ALIGN_FLOOR env (default on); the calibrator passes False.
+    `nps_request`: the density the caller ASKED for (P0.1). When given, `nps` is
+    gated against it (±`nps_tol`) instead of against the corpus, and `nps`/`peak_nps`
+    leave the pooled score -- a deliberately easy or hard map is not a defect.
+    """
     dists: dict[str, list[float]] = reference["distributions"]
 
     # ★Pick the calibration set that MATCHES how this map is being scored. A map
@@ -354,6 +428,9 @@ def judge(record: dict[str, float], reference: dict, *, label: str = "map",
     res.viol = record.get("viol")
     res.n_notes = record.get("n_notes", 0.0)
 
+    if nps_request is not None and "nps" in record:
+        res.nps_request = (float(nps_request), float(record["nps"]), float(nps_tol))
+
     us: list[float] = []
     for name, axis, tail, note in active_metrics(ex):
         if name not in dists:
@@ -368,7 +445,22 @@ def judge(record: dict[str, float], reference: dict, *, label: str = "map",
             continue
         res.metrics.append(MetricScore(name, axis, val,
                                        percentile_of(val, dists[name]), u, note))
+        if name == ALIGN_FLOOR_METRIC:
+            res.align_value = val
+        # P0.1: a requested density is judged against the request, not the corpus.
+        # ⚠️The pooled score then averages over 21 metrics against a 23-metric
+        # calibration set; the gate on nps is the request itself, and the small
+        # loss of calibration is accepted and logged (TODO P0.1).
+        if res.nps_request is not None and name in ("nps", "peak_nps"):
+            continue
         us.append(u)
+
+    if not math.isnan(res.align_value):
+        use_floor = align_floor_enabled() if align_floor is None else align_floor
+        af = reference.get("align_floor") if use_floor else None
+        if af and af.get("metric") == ALIGN_FLOOR_METRIC:
+            res.align_floor = float(af["min"])
+            res.align_floor_q = float(af.get("q", float("nan")))
 
     res.n_scored = len(us)
     if not us:
@@ -416,6 +508,21 @@ def report(res: JudgeResult, *, alpha: float = 0.10, top: int = 8) -> str:
     if res.viol is not None:
         vtxt = "clean" if res.viol == 0 else f"{int(res.viol)} PARITY VIOLATIONS - unplayable"
         out.append(f"  parity: {vtxt}")
+    if not math.isnan(res.align_value):
+        if math.isnan(res.align_floor):
+            out.append(f"  alignment: onset_precision {res.align_value:.3f}  (no floor applied)")
+        else:
+            state = "OFF THE MUSIC" if res.align_fail else "on the music"
+            out.append(f"  alignment: onset_precision {res.align_value:.3f} vs floor "
+                       f"{res.align_floor:.3f} (human {res.align_floor_q*100:.0f}th pct) - {state}")
+    if res.nps_request is not None:
+        want, got, tol = res.nps_request
+        state = "MISSED" if res.nps_fail else "met"
+        out.append(f"  density: {got:.2f} nps vs requested {want:.2f} "
+                   f"({(got-want)/want:+.0%}, ±{tol:.0%}) - {state}; "
+                   f"nps/peak_nps left out of the pooled score")
+    if v == "FAIL":
+        out.append("  why: " + "; ".join(res.why_fail(alpha)))
     if res.missing:
         out.append(f"  ⚠️ not scored ({len(res.missing)}): {', '.join(res.missing)}")
 
@@ -431,7 +538,8 @@ def report(res: JudgeResult, *, alpha: float = 0.10, top: int = 8) -> str:
 # CLI
 # --------------------------------------------------------------------------
 def judge_zip(path, *, difficulty: str = "Expert", onsets=None,
-              reference: dict | None = None, alpha: float = 0.10) -> JudgeResult:
+              reference: dict | None = None, alpha: float = 0.10,
+              nps_request: float | None = None) -> JudgeResult:
     """Judge one map zip -- ours or a human's -- at n=1."""
     import pathlib as _pl
     import sys as _sys
@@ -457,7 +565,8 @@ def judge_zip(path, *, difficulty: str = "Expert", onsets=None,
         raise RuntimeError(f"no notes found in {path}")
 
     rec = map_record(notes, bpm, onsets=onsets)
-    return judge(rec, reference or load_reference(), label=path.stem)
+    return judge(rec, reference or load_reference(), label=path.stem,
+                 nps_request=nps_request)
 
 
 def main() -> int:
@@ -472,18 +581,26 @@ def main() -> int:
     ap.add_argument("--audio", type=_pl.Path, default=None,
                     help="song audio, to score the alignment axis too")
     ap.add_argument("--brief", action="store_true", help="one line per map")
+    ap.add_argument("--nps", type=float, default=None,
+                    help="the density that was REQUESTED for these maps (P0.1): nps is "
+                         "gated against it ±15%% instead of against the corpus")
     a = ap.parse_args()
 
     ref = load_reference()
+    from beatsaber_automapper.evaluation import scorecard  # noqa: PLC0415
     onsets = None
     if a.audio is not None:
-        from beatsaber_automapper.evaluation import scorecard  # noqa: PLC0415
         onsets = scorecard.onsets_for(a.audio)
 
     rc = 0
     for mp in a.maps:
         try:
-            res = judge_zip(mp, onsets=onsets, reference=ref, alpha=a.alpha)
+            # No --audio: fall back to the song's cached onsets, resolved from the
+            # map name (`<arm>__<song>.zip` or `<song>.zip`), so the alignment axis
+            # and the P0.2 floor apply whenever the cache allows.
+            on = onsets if onsets is not None else scorecard.onsets_for(mp)
+            res = judge_zip(mp, onsets=on, reference=ref, alpha=a.alpha,
+                            nps_request=a.nps)
         except Exception as exc:  # noqa: BLE001
             print(f"{mp.name}: ERROR {exc}")
             rc = 1

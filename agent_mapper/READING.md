@@ -43,6 +43,123 @@ taste.** Do not "fix" a map because its climax is somewhere else.
 
 ## 2. THE READING PASS — what I actually look at, in order
 
+### 0. ★2026-09-02 — THE SCORE first: song and map on one lattice, every slot
+
+> **Kyle:** *"The model doesn't have the visibility that I do when evaluating a map… rows are
+> possible note placements, columns are the notes, matched with the song in note-sheet format
+> with lyrics and all. This granular visibility with deep timings is what the model does not
+> have. This would catch the obvious errors more than a metric. This is the eval suite."*
+
+```bash
+python agent_mapper/score.py <map.zip> --song 1f333 --sections            # triage: one row per bar
+python agent_mapper/score.py <map.zip> --song 1f333 --vs auto --bars 33-36 # zoom, human beside
+python agent_mapper/score.py <map.zip> --song 1f333 --vs auto --npz s.npz  # arrays for queries
+```
+
+**How to read a page.** Left of `│E ON MAIN│` is the song, right is the map, and with `--vs`
+the human map of the same song sits at the far right as the answer key. Every 1/16 slot is a row
+— **the empty rows are the point**: "VOX is singing and L/R are blank" is only visible when the
+silence is drawn.
+
+- Read `KIT` (K kick · S snare · h hat · C crash; upper = loud) against `L`/`R`: a good map's
+  notes sit on K and S. Notes with `●` in `±ms` but a blank KIT cell are on *something* (the
+  guitar 8ths) — that is what "notes flow in an odd way" looked like on Hunger AGENT bar 34.
+- Read `VOX pitch + lyric` against `L`/`R`: a syllable with nothing beside it is a missed vocal.
+  On 1f8d6 (Kyle: *"feels really empty"*) the agent struck only on the beat while "gave",
+  "every", "night", "go" fell between beats unanswered; the human answered them.
+- Read `DBL` and `ALT`: a column of `D … LR` is two-hand claps on every beat — 8 notes/bar that
+  feel like 4. That was the EMPTY map (59 % doubles vs the human's 7 %).
+- `TRV`/`ROT` per hand: cells travelled and degrees rotated from the hand's previous note.
+  `ALT R!` = the same hand twice within a beat.
+- `E` (0–9) is the audio's energy; a step in E with no step in `L`/`R` density is a drop the
+  map missed. `MAIN` names the line the player is following (vox > kik > snr > led-in-rests).
+- `±ms` is the note's distance to the nearest reference onset: `●` ≤50 · `○` ≤120 · `✗` nothing
+  there. `H±ms` is the same for the human note — if both are +20 the clock is 20 ms early, not
+  the notes.
+
+**The triage page (`--sections`)** flags per bar: `THIN-vs-human`, `DENSE-vs-human`,
+`MAIN-unanswered`, `VOX-silent-map`, `EMPTY-loud`, `BURST-no-onsets`, `✗n`. Flags are where to
+zoom, not verdicts — the A+ map of 1f333 carries 23 THIN flags and Kyle promoted it. Zoom with
+`--bars` and read the rows; clean bars stay coarse.
+
+**What the score does NOT see** (honest, 2026-09-02): a global signature for *flow* — the
+bar-level counts of Hunger AGENT (odd flow) and A+ (preferred) barely differ (on-KIT 85 % vs
+78 %); the difference is on-beat share (36 % vs 57 %) and the per-hand direction sequence, which
+the page shows but no query yet names. That is TODO P3 FLOW. Caveats printed in the header
+(melody coverage, lyric language probability, missing caches) are real — a blank VOX lane on a
+screamed vocal at cov 0.28 is the song.
+
+### 0b. ★2026-09-02 — STUDY the tutor before building (`scripts/tutor.py`)
+
+The corpus holds one human map per song, crawled rating-sorted with upvote ratio ≥ 0.8 ⇒
+`data/raw/<sid>.zip` is the best human map we have of it — **the tutor**. Read it BEFORE
+building, on the score, cut at the moments the song hands out:
+
+```bash
+python scripts/tutor.py 1f8d6                                # situation → what the human did there
+python scripts/tutor.py 1f8d6 --bars 102-103                 # the rows, to copy cells and cuts
+python scripts/tutor.py 1f8d6 --map outputs/x.zip            # ours beside the tutor, SAME / differs
+python scripts/tutor.py --vocab                              # the review songset's four tutors, pooled
+python agent_mapper/score.py x.zip --song 1f8d6 --vs 1f8d6   # --vs takes a corpus id now
+```
+
+**Situations come from the SONG columns only** (section changes and repeats, E jumps/drops ≥
+0.25, a stem entering after ≥ 2 silent bars and staying, a stem leaving), so the tutor and our
+build are cut at identical bars. A **pattern** is the 2 bars from that bar: a word (`rest sparse
+doubles stream burst alt-8ths 8ths alt-4ths 4ths mixed`), events/bar, doubles %, the first
+answer in beats after the bar line, the bar BEFORE (`pre rest` = the breath), and the glyphs
+per 1/16 (`L R D · w`). "Answered the tutor's way" = same word, events/bar within ±35 %, first
+answer within 1 beat — the count is the DoD, not a rate.
+
+**What the four tutors said (`--vocab`, 2026-09-02, 99 situations):** `vox-in` → alt-8ths
+10/17 at **0 % doubles**, first answer `+0b`; `drums-in` → **doubles 4/6** and `bass-in` →
+doubles 3/5 (a double is the human's ENTRY accent, not a texture); `E-drop` → **rest 5/10**;
+`E-jump` → the bar before is **rest 4/5**; `repeat` → alt-8ths/alt-4ths, the same figure as
+the first time (1f913 bars 43 and 83 are glyph-identical). Nearly every first answer is `+0b`:
+humans hit the moment on the bar line.
+
+**What copying looks like (1f8d6, PROGRESS 2026-09-02e):** at the breakdown (bar 102, A→C, E
+5→2) the tutor keeps **one hand on the lead's own notes** (`R··· R··· R··· R·R·`, every note a
+`led` MAIN row); at the drop (110) three **doubles + walls, then a wall-only bar**; at the
+section entry (62) a double on the bar line then **L on the lead's off-beats, R on the kit**;
+in the outro one note per bar inside full walls. Read the rows with `--bars`, place them with
+`mapedit.py from edits.txt` — reverse the tutor's cut sequence when our parity enters on the
+other foot, keep its cells. Then `--map` to confirm the count moved.
+
+### 0c. ★2026-09-02 — ASK the arrays (`scripts/queries.py`) — every hit is an address
+```bash
+python scripts/queries.py <map.zip>                 # song id from the file stem, --vs auto
+python scripts/queries.py <map.zip> --song 1f8d6 --query q_flow
+python scripts/bench.py score queries:q_all         # does the reader still agree with Kyle?
+```
+The score shows; the queries ASK, in Kyle's codes, and answer `code mm:ss bar why` so the next
+command is `score.py --bars a-b`. Six of them, bench-tested against 19 of his verdicts (0 false
+fires on the four songset humans, every labelled defect hit, AGENT > BEFORE on FLOW 19 % vs 2 %):
+
+| ask | code | the read |
+|---|---|---|
+| are we playing the song? | **EMPTY** / **D1** | player EVENTS (a double is ONE) per 4 bars vs the human's: < 0.6× is empty; median < 0.7 is "very slow" |
+| are we wasting nps? | **D6** | ≥ 2× the human's events in a window; or ≥ 50 % doubles map-wide and 20 pts over his |
+| does it flow? | **FLOW** | ≥ 30 % of events start on an odd 16th out of silence *while* ≥ 30 % sit on the 8th grid — jitter, not a grid |
+| is the grid shifted? | **D2** | ≥ 80 % odd 16ths where the reference has < 35 %. **Not ±ms alignment** — humans sit off-sound as often as we do |
+| are we singing? | **D4** | vox-MAIN slots with a note within ±1 slot, ≥ 25 pts under the human — it names the unanswered words |
+| did the drop land? | **D3** | at an E-jump: first note > 1 beat after his, or step and density both < 0.8× his; at an E-drop: he halves, we don't |
+| the other elements? | **ELEMENTS** | 0 walls where he has ≥ 5 (arcs/chains reported only — the songset humans are v2) |
+
+★★**The reference is the same song's human map (`--vs auto`), never an absolute norm.** Two
+absolute rules died in one afternoon: a D3 step floor fired on human 1f913 (its own jumps are
+0.6–1.1× steps) and "odd 16th = shifted" called 20 spans of 1f335 shifted — at 195 bpm the human
+sits on the odd 16th 35 % of the time, it IS the felt 8th. Without a human the queries that need
+one stay silent and say so; only FLOW/D2 fall back to the song's onsets.
+**Refuted reads — do not retry without a new column:** hand-role histogram distance (backwards:
+A+ 0.16 < AGENT 0.54), 16th bursts followed by rest, ±ms as D2, D5 "random bursts" as
+16th-runs-without-onsets or isolated fast clusters (humans do both as often) — **D5 has no
+locator**; notes-under-walls (no wall height in the arrays; human 1f767 has 4 under crouch walls).
+**What they said about today's defaults:** `TUTOR__1f8d6`/`NOTUTOR__1f8d6` → 0 hits (ratios
+0.6–1.5, vox 84 % vs 88 %) while the tutor scores 4/15 — the queries measure *wrong*, the tutor
+measures *like him*; both are needed. `NEW__1f335` → EMPTY ×16 (bars 77-88: 1 event vs 31);
+`NEW__1f9a0` → D6 ×5 (2–2.6× his events in every chorus).
+
 ### a. `--sections` first, and read the SHAPE not the level
 ```bash
 python scripts/map_view.py <map.zip> --sections
@@ -100,6 +217,24 @@ python scripts/map_view.py <map.zip> --find violations   # unplayable, non-negot
 python scripts/map_view.py <map.zip> --find oov          # outside the human vocabulary
 python scripts/map_view.py <map.zip> --find doubles      # read how they are placed, not how many
 ```
+
+### 0d. ★2026-09-02 — THE GATE (`scripts/verdict.py`) and the ops that clear a red
+```bash
+python scripts/verdict.py <map.zip>                       # queries + tutor + judge, one page, SHIP? — exit 1 = no
+python scripts/tutor.py <sid> --map <map.zip> --copy a-b  # ops: his cells replace ours in bars a-b
+python scripts/tutor.py <sid> --map <map.zip> --thin a-b  # ops: ours survive only beside his slots
+python scripts/tutor.py <sid> --map <map.zip> --fill a-b  # ops: his slots we skipped, his hand+cell, OUR parity-safe arrow (EMPTY/D4, not a paste)
+python agent_mapper/mapedit.py <map.zip> from ops.txt     # apply, guarded (parity, 150 ms gap, walls)
+python agent_mapper/mapedit.py <map.zip> resets           # same-parity repeats as addresses
+```
+The verdict is the only thing that decides. Every 🔴 carries bars and the tool that fixes them;
+`SHIP? YES` needs no red, and a PLAYABILITY 🟡 means resets above `2×human+2`. Three rules the
+1f767 loop (172 ops, 27 resets → 0, judge PASS) paid for: **the zip is the artefact once
+`mapctl export` has run** (walls/arcs/chains are zip surgery — `mapctl clear` + `auto` rebuilds
+the session, not the map); **reconcile a reset with ONE note per hand** (place back the kick you
+thinned, delete the stray, or `flip <addr> <hand> X` — a dot absorbs the flip); and **never flip
+the second note of the pair** — that error walks forward through every note after it. Reading
+order for a red: `score.py --bars a-b` first, ops second, re-read the same bars third.
 
 ---
 

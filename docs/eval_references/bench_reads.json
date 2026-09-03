@@ -1,0 +1,91 @@
+{
+ "1f333-agent-flow": [
+  {
+   "date": "2026-09-02",
+   "bars": "33-36",
+   "codes": [
+    "FLOW",
+    "D5"
+   ],
+   "text": "Read from the score with the human (HL/HR) alongside. Bars 34 and 36: the agent puts L-R-L 16th bursts (80 ms apart at 188 bpm: 34.2.0-34.2.3, 34.4.0-34.4.2, 36.1.1-36.1.3) and then nothing for a beat, where the human runs an even 8th stream (34.2.0 .. 36.4.2, every note on .0/.2). The hands have NO ROLE: over the whole map each hand's 16th-position histogram is the same (hand0 254/75/205/111, hand1 227/72/204/113 - 29-30 % of every hand's notes on 16th-offbeats) while the human's blue hand takes the beat (458 on .0 vs 235 on .2, 6 % on 16th-offbeats) and red fills the offbeat 8ths (14 %). At bars 33-36 the agent's hand1 lands on .0/.1/.2/.3 = 2/1/6/2, the human's 9/0/3/1. The score's own ROT column flags 35.2.2 (R 135 after up-left) and 35.4.0 (L up after down-right) with '!'. So 'flow in a really odd way' reads as: hand assignment is not periodic with the bar (a player cannot anticipate which hand comes next), and density arrives as 3-note 16th bursts bracketed by rests instead of a stream. Bar 33 is a near-empty bar (2 agent notes vs 3 human) - the human is also sparse there, not a defect."
+  }
+ ],
+ "1f333-aplus": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [],
+   "text": "Whole-map read (sections page + zoom 34-35 with the human alongside). This map is a METRONOME OF DOUBLES: 809 note-rows, 519 of them two-hand doubles (64 %; human 184/1242 = 15 %), 59 % of notes on the beat (.0), 6-7 % on 16th-offbeats (AGENT: 30 %). Each double lands on a snare/kick (34.2.0 snr, 34.4.0 snr, 35.2.0, 35.4.0 snr) and strictly alternates down-F / up-B, so rotation is 180 on both hands every beat and the player always knows what comes next. The score's flags are THIN-vs-human in the intro (bars 2-8, 0-2 notes vs human 2-4) and DENSE-vs-human through B (bars 21-31: +5..+8 notes/bar, which is the doubles doubling the count), plus MAIN-unanswered at 6/12/14/34/41/48. Alignment H+/-ms sits at +12..+23 in B, the same as the human's own. What it LACKS vs the human is a role split (human blue 458 on-beat vs 235 off; red fills the offbeat 8ths) and any 8th stream - but nothing here is off the music, bursty or hand-ambiguous, which is consistent with 'vast majority A+'. ⚠️ For a locator: 64 % doubles and a 180-degree same-hand swing every beat must NOT fire here (the P4 doubles contradiction is real: this is the map he promoted)."
+  }
+ ],
+ "1f333-before": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [],
+   "text": "Identical notes to 1f333-aplus (verified: 1328 notes, 809 rows, 519 doubles, same per-hand histograms) with offset -0.021 s instead of 0. Same read applies; the only question a locator can ask that differs is alignment, and 21 ms is under the human's own +12..+23 ms scatter. Preferred over Hunger_AGENT: the score explains why - AGENT has no hand role and 16th bursts (see 1f333-agent-flow); this has both hands on every beat."
+  }
+ ],
+ "1f8d6-empty": [
+  {
+   "date": "2026-09-02",
+   "bars": "121-130",
+   "codes": [
+    "EMPTY",
+    "D4"
+   ],
+   "text": "Whole-map sections page + zoom 122-123 with the human alongside. The map has MORE notes than the human (788 vs 725) and FEWER player events: 497 note-rows vs 646, because 59 % of its rows are two-hand doubles (human 7 %). Both maps have a median event gap of one beat (434 ms at 138 bpm) but the agent has 29 gaps over 1 s vs 18, and 2 same-hand runs of 4+ vs the human's 27 - the human's intro (bars 2-13) is one-hand streams alternating hands every two bars (HL/HR 0 5 / 5 0 ...), the agent's is doubles every beat or two with nothing between. In the D climax (bars 121-130, 'pick up my sword and wield the blade') the vox lane carries 5-8 onsets per bar and the map answers 1-3 of them (main hit/all 1/8, 3/9, 1/7, 1/8 at 123-127; THIN-vs-human on 121/123/126/127/128/130): its events sit on the kick/snare as doubles every two beats (122.3.0, 122.4.0, 123.3.0) while the sung words fall between them; the human puts 4-6 notes there. Bars 137-141 are the reverse: 3-5 notes/bar with no onset under them (the ✗ column) in a near-silent outro. So 'really empty' reads from the score as: doubles halve the event rate while inflating the note count (this is why the 69.5 % onset-coverage answer was blind to it), the hand path never streams, and the vocal line the song is built on goes unanswered at its climax."
+  }
+ ],
+ "human-1f333": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [],
+   "text": "CLEAN reference facts (bench stats + kit histogram): 1434 notes / 1242 events, 15 % doubles, median event gap 160 ms = straight 8ths at 188 bpm, 3 gaps over 1 s. Hand ROLE by beat: blue 62 % on-beat and 6 % on 16th-offbeats, red 46 % / 14 % - blue takes the beat, red fills. Kick/snare sit on .0/.2 of its lattice (grid phase right). A locator must not fire on: hand asymmetry, 15 % doubles, or a 3-note 16th run when it is part of a stream (98 such runs here vs the AGENT's 76 - bursts are not the defect, bursts-between-rests are)."
+  }
+ ],
+ "human-1f8d6": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [],
+   "text": "CLEAN reference facts: 725 notes / 646 events, 7 % doubles, median gap 435 ms = quarter notes at 138 bpm, 18 gaps over 1 s (a ballad breathes), 0 % on 16th-offbeats. Hand role here is by TIME not by beat: 27 same-hand runs of 4+, the intro (bars 2-13) alternates hands every two bars (HL/HR 0 5 / 5 0). It answers only 48.8 % of onsets and is NOT empty: 646 things to do, each a hand in motion. A locator must not fire on: long gaps in a slow song, one-hand streams, low onset coverage."
+  }
+ ],
+ "human-1f767": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [],
+   "text": "CLEAN reference facts: 767 notes / 557 events, 34 % DOUBLES (the highest human on the bench - doubles alone are not a defect; 59-70 % with no streams is), median gap 375 ms, 8 gaps over 1 s, 75/76 % on-beat both hands, 0-1 % on 16th-offbeats, 24 same-hand runs of 4+. Kick on .0 (322 of 453). A locator that fires on doubles at 34 % or on symmetric on-beat hands is refuted here."
+  }
+ ],
+ "human-1f913": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [],
+   "text": "CLEAN reference facts: 1272 notes / 891 events, 33 % doubles, median gap 188 ms (8ths), 2 gaps over 1 s, on-beat 55/54 %, red 14 % on 16th-offbeats vs blue 5 % (red fills, as in 1f333), 0 same-hand runs of 4+ (alternating streams, not one-hand ones). Snare on .0 (359), kick on .2 (220) - the kick sits on the offbeat 8th in this song, so 'on the beat' must be read against the KIT columns, not assumed."
+  }
+ ],
+ "24e6c-dod": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [],
+   "text": "Cold-cache DoD map, built 2026-08-27 under the OLD default (no phase calibration). Its lattice is one 16th off the drums: kick lands on .3 (100 of 138) and snare on .3 (80 of 116) of the map's own grid (every songset map has them on .0/.2), so 78/73 % of its notes read as 16th-offbeats while the judge says on the music (onset_precision 0.878 - the notes DO sit on the kicks: 20.1.3 kik->R, 20.2.3 snr->R, 20.3.3 kik->L). 0 % doubles, 599 events, median gap 273 ms. Not a bench negative yet: no defect read at the note level, but the grid-phase fact is real and is exactly what --phase-calibrate (now default) exists for. ★Rule for P3: beat position must be measured against the KIT/onset columns, never the map's lattice alone."
+  }
+ ],
+ "setA-1f333": [
+  {
+   "date": "2026-09-02",
+   "bars": null,
+   "codes": [
+    "D1",
+    "D6"
+   ],
+   "text": "Set-level read. These are the SAME NOTES as 1f333-aplus ('vast majority A+', 2026-08-03) and Kyle described this set two weeks later as 'very slow ... nps wasted on non-main notes'. Both verdicts are true of the notes and differ by comparison frame (A+ vs the older builds; slow vs the human). From the score: 1328 notes but 809 events (64 % doubles) against the human's 1434 / 1242 - the event rate is HALF the human's (median gap 319 ms vs 160 ms) at a near-equal note count, which is D1 and D6 in one number. 0 same-hand runs of 4+ vs 2. All four set-A songs share it: doubles 56-66 %, runs 0-3, vs human 7-34 % and 0-27."
+  }
+ ]
+}
