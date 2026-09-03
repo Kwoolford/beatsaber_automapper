@@ -7,6 +7,47 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-02j — LOOP__1f333 (Hunger) to SHIP YES: the 4th blind pair, and `--nps` is a request the builder undershoots
+
+**BEFORE** (`outputs/p4/NOPULSE__1f333.zip`, 876 notes — the best of four existing builds): SHIP NO — 🔴EMPTY ×13
+(**33 % of bars**, 17-20 nine events vs his 18, …), 🔴D1 map-wide (median window 0.68× his), 🟡FLOW ×6, 🟡D2 180-182,
+🟡D4 ×3; playability 0 violations / 1 reset; tutor 15/49; judge PASS p=0.562. The other three builds were worse:
+`PULSE`/`NEW` (identical files) 3 red incl. FLOW 19 % of bars, `NPDBL` 2 red and tutor 10/49.
+**AFTER** (`outputs/p4b_loop/LOOP__1f333.zip`, 1351 notes; human 1434 Expert): **every query ✅, playability 0/0
+(human 0), tutor 30/49, judge PASS p=0.814 onset 0.953.** Staged blind as the 4th pair — **`compete.py list` is 4/4,
+the P4b DoD is met**; `table` still reports no win rate (0 judged).
+
+**What did it, in order:**
+1. ★**The 0.5× deficit was map-wide, so it was fixed at the build, not with 13 local edits.** `--nps` raised the note
+   supply 876 → 972 → 1101 → 1201 → **1347** at requests 5/6/7/9. At `--nps 9` the page came back **SHIP YES with 3
+   yellow** before a single hand edit — the whole EMPTY×13 + D1 red pair was one wrong density lever.
+2. `tutor --thin` on the three D6 over-dense spans (25-32, 85-88, 109-112 — we played a flat 8 events/bar through a
+   snare section where he plays ~3.5 built from doubles). One op collided (a move onto a cell our other hand held at
+   26.2.0); **deleting the source instead of moving keeps the event count and clears it**.
+3. `tutor --fill 97-100` — bar 98 is a snare roll he streams 8ths across and we answered with 5 notes. 11 places.
+4. FLOW: 23 isolated odd-16th starts. Read against the arrays, **the previous even slot carried an onset and no note in
+   nearly every case** — we played the "e"/"a" instead of the beat before it. Moving each back onto that onset fixes
+   the jitter and the alignment at once. ★Where **the human plays that same 16th** (5 of 23) he *leads into* it, so the
+   fix there is to place the missing lead-in, not to move ours. 17 of 22 ops applied; 5 refused by the 150 ms same-hand
+   floor (one 16th at 188 bpm is 80 ms) and left alone. FLOW went 🟡→✅.
+5. Doubles: the page was clean but `audit_map` ABSENCE said **0.9 % of instants vs human median 14.4 %**, and every
+   tutor `differs` row read `0%dbl`. Placed a double only where **he has one and we had a single note, inside a tutor
+   situation bar** — 49 of 55 candidates applied. Doubles 0.9 % → **4.6 % (✅)**, tutor 27 → 30/49, judge 0.738 → 0.814.
+
+**Two findings worth keeping:**
+- ★**`--nps` is a REQUEST the builder increasingly undershoots, and it saturates.** Delivered vs requested on 1f333:
+  5.0→3.58 (−28 %), 6.0→4.05 (−32 %), 7.0→4.42 (−37 %), 9.0→4.96 (−45 %); the human sits at 5.2. ⇒ To reach a target
+  density, **request ~1.8×** it. 🔴**Consequence: you cannot both use `--nps` as a supply lever and judge with `--nps`**
+  — P0.1's ±15 % requested-density gate FAILs every high request (that is the only reason `autobuild` printed FAIL on
+  every arm of the sweep while `verdict.py`, which passes no request, said PASS). CONFIRMED, n=1 song.
+- ★**`mapedit double` mirrors the second hand, and the mirror is a reset ~94 % of the time**: 49 doubles took the map
+  from 0 → **46 resets**. `flip <addr> <hand> X` on the reset swing absorbs all 46 in one pass (a dot has no direction
+  to re-cock), leaving 0/0 and *raising* the judge. Dot share ends at 5.3 % vs the human's 2.8 % — high but not flagged.
+  CONFIRMED, n=1 map. ⇒ tool leftover below.
+
+**Not chased:** `lead-hand passages 0` (human median 10) stays 🟡 — it is the open P1 "no column names hand role" item,
+not a located defect, and `audit_map` itself says 7.6 % of human maps also have none.
+
 ## 2026-09-02i — LOOP__1f913 through the six-step loop: SHIP NO (3 red) → SHIP YES, staged as the 3rd blind pair
 
 **BEFORE** (`outputs/p4/NOPULSE__1f913.zip`, 745 notes): SHIP NO — 🔴EMPTY 1-8/33-40/69-72/77-80/117-120 (12 ev vs his 22 …),

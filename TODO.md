@@ -80,7 +80,7 @@ with *"reach for this when…"* (P4), and the verdict names the tool for every r
    tool. Read the header before reading the page.
 
 ### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle
-**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ shipped** (the score, it is writable, the judge has its floor, the bench reads every verdict, the tutor is on the lattice, six queries answer with addresses, one page says SHIP? and one map went through the loop, and THREE blind pairs wait in `for_review/compete/` — `compete.py table` is the headline) → **P4b leftover: loop 1f333 to SHIP? YES and stage it** (1f913 done 2026-09-02: `tutor --fill` + `--thin` + 4 one-note reconciles, SHIP YES, staged) → **P5** (`review.py defect --at` already exists; the DoD is the bench growing without JSON edits) → **P6**.
+**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ shipped, and P4b's DoD is MET** (the score, it is writable, the judge has its floor, the bench reads every verdict, the tutor is on the lattice, six queries answer with addresses, one page says SHIP?, and **all FOUR standing songs are looped to SHIP YES and staged blind** in `for_review/compete/` — `compete.py table` is the headline and reads 0 judged) → **P5 is now the only thing that moves the headline: Kyle plays ONE pair and answers** (`compete.py verdict <sid> X|Y|tie --because …`; a loss with a reason is a bench row the same day) → **P6**.
 🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
 
 ---
@@ -287,6 +287,15 @@ staged as `for_review/D_verdict_loop` (`review.py next` #2).
   other foot. A per-beat cell match would make the TUTOR line an edit list.
 - The verdict is judged only by the bench's 13 rows + one loop; Kyle's answer on set D ("name the
   first WRONG bar in LOOP") is the next locator — record it with `review.py defect`.
+- **`mapedit double` mirrors the second hand, and the mirror is a reset ~94 % of the time** (49 doubles →
+  46 resets on 1f333, 2026-09-02j). `flip <addr> <hand> X` absorbs them all in one pass, but the tool should
+  not create the mess: take the added note's direction from **that hand's** flow, or default it to a dot.
+  **DoD**: 49 doubles on 1f333 land with ≤ 5 new resets and no `--force`.
+- **A `--nps`-style supply lever and the P0.1 requested-density gate contradict each other.** `--nps` is
+  undershot by 28→45 % as it rises and saturates (1f333, 2026-09-02j), so the request that BUYS the notes
+  always FAILs the ±15 % gate that JUDGES them. Either name the lever separately from the request
+  (`--target-notes`-style, ungated) or make the gate read delivered-vs-human. **DoD**: one flag reaches the
+  human's note supply on 1f333 and the judge's density line still reads `met`.
 
 ## ✅→🔵 P4b — THE COMPETE TEST shipped 2026-09-02 (`scripts/compete.py`) — leftovers
 `stage <sid> | --songset` (blind X/Y pair, same Info.dat skeleton, one difficulty each, key in
@@ -296,9 +305,8 @@ filed to `outputs/reviewed/compete/`) · `table` (★the headline: win rate, n, 
 reason). Staged: **AliceBlue (LOOP) and Fallen Kingdom (NOPULSE)** — `review.py next` lists them
 FIRST because set D unblinded would spoil them (AliceBlue_HUMAN moved out of set D).
 **Leftovers:**
-- ✅ 1f913 looped (PROGRESS 2026-09-02i) and staged; ⬜ 1f333 (2 red: EMPTY, D1) still REFUSED by `stage` — its
-  page is red and losing with a known red teaches nothing. Run the six-step loop on each
-  (`/buildmap`), then `compete.py stage --songset` again. DoD "four staged" is 2/4 until then.
+- ✅**DoD "four staged" is 4/4** — 1f913 (PROGRESS 2026-09-02i) and 1f333 (2026-09-02j) both looped to SHIP YES
+  and staged. Nothing is left to build here: the next number comes from Kyle's ear, not from code.
 - ⬜ Note counts differ visibly in ArcViewer (771 vs 632 on AliceBlue) — a tell only to someone
   who knows our count; accepted, logged. The audio bytes differ too (ours re-encoded).
 - ⬜ `table` has no per-song "ours page at staging" column yet — the key carries it; print it
