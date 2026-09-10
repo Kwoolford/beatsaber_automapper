@@ -20,6 +20,12 @@ was a map with FLOW on 2 %), or ANY hit of D1 / D3 / ELEMENTS (one missed drop i
 wrong drop). **🟡** = hits under 10 % — ship, but read them. **✅** = asked, nothing.
 **⚪** = could not be asked (no human map of this song). SHIP? is NO on any red, and
 every red line ends with the bars to open in the score and the tool that fixes them.
+
+★**ABSENCE is on the page since 2026-09-10 (P5b)** and it is the one block that does not
+ask "is what is HERE out of range". `audit_map.py` had counted these two gestures since
+August and nothing that decides SHIP? ever read them, so two maps went to the compete test
+on a page that said *nothing located* while one of them used zero doubles and neither ever
+handed a passage to one hand. Absence does not raise a number; it has to be asked for.
 """
 
 from __future__ import annotations
@@ -64,10 +70,15 @@ CODES = [
     ("ELEMENTS", "walls / arcs / chains", "autobuild --walls N (default on); mapctl walls --bars a-b"),
     ("BREATHING", "playing through the rest he leaves",
      "mapedit.py delete the notes in his rest (the score shows E and an empty KIT there); or mapctl clear --bars a-b"),
+    ("SCATTER", "nothing comes back to lock into",
+     "tutor.py <song> --bars a-b then mapedit.py from — copy the figure the human REPEATS into "
+     "the blocks the why names, instead of drawing another new shape"),
 ]
 # ★BREATHING is ALWAYS_RED: a rest is a PLACE, not a share. The seven bars of 1f333 are 3 % of
 # the map and no share threshold would ever have called them -- Kyle names them by ear.
-ALWAYS_RED = {"D1", "D3", "ELEMENTS", "BREATHING"}
+# ★SCATTER is ALWAYS_RED for the mirror reason: it is one map-wide verdict, so its share of
+# bars is always ~0 and no share threshold could ever reach it.
+ALWAYS_RED = {"D1", "D3", "ELEMENTS", "BREATHING", "SCATTER"}
 RED_SHARE = 0.10
 
 
@@ -130,6 +141,70 @@ def tutor_line(sid: str | None, arrs: dict) -> tuple[str, list[dict]]:
     return word, diffs
 
 
+def _gestures(arr: np.ndarray) -> dict:
+    """The two gestures `audit_map.py`'s ABSENCE block counts, from the lattice arrays.
+
+    `doubles` = instants where both hands strike ÷ instants with any note. `lead_runs` =
+    passages of ≥ 4 consecutive notes belonging to ONE hand (a double breaks a run: both
+    hands are playing, so neither is leading).
+    """
+    import itertools
+    L, R = Q.hands(arr)
+    ev = L | R
+    n_ev = int(ev.sum())
+    seq = ["b" if (l and r) else ("L" if l else "R")
+           for l, r in zip(L, R) if l or r]
+    runs = sum(1 for k, g in itertools.groupby(seq) if k != "b" and len(list(g)) >= 4)
+    return dict(doubles=(int((L & R).sum()) / n_ev if n_ev else 0.0), lead_runs=runs,
+                events=n_ev)
+
+
+def absence_lines(arrs: dict) -> list[dict]:
+    """ABSENCE — gestures the map never uses at all, on the gate (P5b DoD, 2026-09-10).
+
+    ★**Why this is on the page.** `audit_map.py` has printed these two counts since
+    2026-08-24 and **nothing that decides SHIP? ever read them**: `LOOP__1f333` and
+    `NOPULSE__1f8d6` were staged for the compete test on a page that said *nothing located*
+    while one of them uses zero doubles and neither hands a passage to one hand. Every query
+    asks whether what is HERE is out of range, and `READING.md`'s rule is the opposite —
+    *"absence does not raise a number."* A gesture used on zero instants cannot be out of
+    range; it simply is not there.
+
+    The reference is **this song's human map** where there is one (the project's rule: the
+    corpus median is a floor, not the target) and the 250-map corpus percentiles otherwise.
+    🔴 = the gesture is effectively unused while the human of this song uses it materially;
+    🟡 = under the corpus 5th percentile. A red here is a red on the page: that is the whole
+    point of wiring it in.
+    """
+    ours = _gestures(arrs["map"])
+    his = _gestures(arrs["human"]) if Q.has_human(arrs) else None
+    ref = {}
+    p = REPO / "outputs" / "absence_reference.json"
+    if p.exists():
+        ref = json.loads(p.read_text())
+    out = []
+    for key, name, zero, corpus_key in (
+            ("doubles", "doubles (both hands on one instant)", 0.005, "double_share"),
+            ("lead_runs", "lead-hand passages (4+ notes, one hand)", 0.5, "lead_runs")):
+        mine = ours[key]
+        theirs = his[key] if his else None
+        c = ref.get(corpus_key, {})
+        fmt = (lambda v: f"{v:.1%}") if key == "doubles" else (lambda v: f"{v:g}")
+        # "materially" = the human of this song is at least at the corpus 25th percentile,
+        # so a ballad where he too uses almost none never turns this red.
+        his_uses = theirs is not None and theirs >= c.get("p25", 0)
+        state = "✅"
+        if mine < zero and (his_uses if theirs is not None else bool(c)):
+            state = "🔴"
+        elif "p5" in c and mine < c["p5"]:
+            state = "🟡"
+        out.append(dict(key=key, name=name, state=state, ours=mine, human=theirs,
+                        text=(f"{fmt(mine)}"
+                              + (f"   human of this song {fmt(theirs)}" if theirs is not None else "")
+                              + (f"   corpus median {fmt(c['median'])}" if "median" in c else ""))))
+    return out
+
+
 def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
             with_bench: bool = True) -> dict:
     arrs, built, song_obj = load_arrays(src, song, vs)
@@ -175,6 +250,9 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
             reds += 1
         elif play["reset_warn"]:
             yellows += 1
+    absence = absence_lines(arrs)
+    reds += sum(1 for a in absence if a["state"] == "🔴")
+    yellows += sum(1 for a in absence if a["state"] == "🟡")
     tut_word, tut_diffs = tutor_line(sid, arrs)
     jd = judge(src, sid) if src.suffix == ".zip" else None
     # P0's gate stands: parity -> alignment floor -> requested density -> typicality.
@@ -186,7 +264,7 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
         bench_res = bench.run_score(Q.q_all, "queries:q_all", echo=lambda *a, **k: None)
     ship = "NO" if reds else "YES"
     return dict(map=str(src), song=sid, n_bars=n_bars, human=human, lines=lines, reds=reds,
-                yellows=yellows, ship=ship, playability=play, tutor=tut_word,
+                yellows=yellows, ship=ship, playability=play, absence=absence, tutor=tut_word,
                 tutor_diffs=tut_diffs, judge=jd, header=(built["header"] if built else []),
                 bench=(None if bench_res is None else
                        dict(line=bench_res["line"], bad=bench_res["bad"],
@@ -233,6 +311,15 @@ def render(v: dict) -> str:
         if p.get("reset_warn"):
             L.append(f"{'':>13s}read:  mapedit.py <map> resets   — reconcile with ONE note per hand "
                      "(place / delete / flip … X), not a chain of flips")
+    for i, ab in enumerate(v.get("absence") or []):
+        L.append(f"{ab['state']} {'ABSENCE' if i == 0 else '':<13s}{ab['name']:<38s} {ab['text']}")
+        if ab["state"] != "✅":
+            L.append(f"{'':>13s}fix:   " + (
+                "the human puts doubles at STEM ENTRIES (tutor.py --vocab: drums-in / bass-in "
+                "→ doubles); autobuild --doubles-rate, or mapedit.py double at the entries"
+                if ab["key"] == "doubles" else
+                "give one hand a passage: mapedit.py flip the colour of a run, or "
+                "autobuild --lead-bias (P0.6 landmine: an operating point is not portable)"))
     L.append(f"{'✅' if v['tutor'].startswith(('⚪',)) or _tutor_ok(v['tutor']) else '🟡'} TUTOR"
              f"        {v['tutor']}"
              + ("" if not v["tutor_diffs"] else
@@ -262,6 +349,9 @@ def render(v: dict) -> str:
         j = v["judge"]
         if j and j.get("verdict") not in (None, "PASS"):
             order += (", " if order else "") + f"JUDGE ({'; '.join(j['why']) or 'p < 0.10'})"
+        gone = [a["name"].split(" (")[0] for a in (v.get("absence") or []) if a["state"] == "🔴"]
+        if gone:
+            order += (", " if order else "") + f"ABSENCE ({', '.join(gone)}: not used at all)"
         L.append(f"SHIP? NO — {v['reds']} red. Fix in this order: {order}. Then run verdict.py again.")
     else:
         note = (f" {v['yellows']} yellow — read them before shipping." if v["yellows"] else

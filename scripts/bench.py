@@ -292,13 +292,24 @@ def score_row(row: dict, hits: list[tuple], claims: set | None = None,
     wanting none of them is n/a for this query, not a MISS -- q_all scores the whole set.
     A negative row may carry `tolerance` (share of bars, 0-1): Kyle's "the VAST MAJORITY is
     A+" forbids a code on 90 % of the map, not on every bar -- a forbidden code covering
-    up to that share is 'tolerated', more is a VIOLATION."""
+    up to that share is 'tolerated', more is a VIOLATION.
+
+    A CLEAN row is strict: ANY code fired on it is a FALSE fire, including one nobody has
+    listed -- an unknown code on a top human's map is the most suspicious thing a locator
+    can do. The single exemption is `allows`, a per-row list of codes the label deliberately
+    permits, and it exists for one measured reason (P5b, 2026-09-10): on the `humanplus-*`
+    difficulty controls `q_events` fires D6 "over-dense" because an ExpertPlus IS denser than
+    the Expert it is read against. That is a true statement about density and a false one
+    about quality, and calling it a false fire would have read the whole suite as REFUTED for
+    doing exactly what it says on the tin. Exempting a code costs the row its power over that
+    code, so `allows` needs the row's `note` to say why."""
     codes = {h[0] for h in hits}
     if row["label"] == "UNLABELLED":
         return "n/a", f"{len(hits)} fire(s) -- unlabelled, neither hit nor false"
     if claims is not None and row["label"] not in NEGATIVE and not (claims & set(row["codes"])):
         return "n/a", f"query claims {sorted(claims)}, label wants {row['codes']}"
     if row["label"] in NEGATIVE:
+        allows = set(row.get("allows", []))
         viol = codes & set(row["must_not_flag"])
         if viol:
             tol = float(row.get("tolerance", 0.0))
@@ -308,10 +319,14 @@ def score_row(row: dict, hits: list[tuple], claims: set | None = None,
                                      f"({cov:.0%} of bars, tolerance {tol:.0%})")
             return "tolerated", (f"fired {sorted(viol)} on {cov:.0%} of bars -- label "
                                  f"tolerates {tol:.0%} ('vast majority')")
-        if hits and row["label"] == "CLEAN":
-            return "FALSE", f"{len(hits)} fire(s) {sorted(codes)} on a clean map"
+        unasked = codes - allows
+        if unasked and row["label"] == "CLEAN":
+            return "FALSE", (f"{len(hits)} fire(s) {sorted(unasked)} on a clean map"
+                             + (f" (allowed: {sorted(codes & allows)})" if codes & allows else ""))
+        if unasked:
+            return "fires", f"{len(hits)} fire(s) {sorted(unasked)} (label does not forbid)"
         if hits:
-            return "fires", f"{len(hits)} fire(s) {sorted(codes)} (label does not forbid)"
+            return "CLEAN", f"silent but for {sorted(codes)}, which the label allows"
         return "CLEAN", "silent"
     want = codes & set(row["codes"])
     if not want:

@@ -59,6 +59,27 @@ def has_human(arrs: dict) -> bool:
     return "human" in arrs and np.asarray(arrs["human"]).size > 0
 
 
+_ARROW = "↑↓←→↖↗↙↘·"
+
+
+def figures(arr: np.ndarray, bar: np.ndarray, b0: int, b1: int, hand: int) -> list[tuple]:
+    """Every note one hand plays in bars `b0..b1`, as `(x, y, dir)` — the FIGURE it draws.
+
+    A figure is *where the hand goes and which way it swings*, with the time thrown away
+    deliberately: the question `q_scatter` asks is whether the hand ever returns to a shape,
+    and a shape that comes back one 16th later in the phrase is still the same shape.
+    """
+    sel = (bar >= b0) & (bar <= b1)
+    g = arr[sel][:, :24].reshape(-1, 12, 2)
+    out = []
+    for s in range(g.shape[0]):
+        for i in range(12):
+            c, d = g[s, i]
+            if c and int(c) - 1 == hand:
+                out.append((i % 4, i // 4, int(d) - 1))
+    return out
+
+
 def _t(arrs: dict, b: int) -> float:
     sel = arrs["bar"] == b
     return float(arrs["t_sec"][sel][0]) if sel.any() else 0.0
@@ -409,8 +430,87 @@ def q_breathing(arrs: dict, min_rest_bars: int = 2, per_bar: float = 2.0,
 q_breathing.codes = {"BREATHING"}
 
 
+def _echo(arr: np.ndarray, bar: np.ndarray, B: int, min_notes: int) -> dict[int, float]:
+    """`{block first bar: how much of this block the map has ALREADY played}`.
+
+    A block is `B` bars of both hands as a bag of `(hand, x, y, dir)` figures; its echo is
+    the largest overlap share with any EARLIER block of the same map. 1.0 = this phrase is a
+    figure the map has played before; 0.0 = every swing in it is new. The first block has no
+    earlier block and is not scored.
+    """
+    from collections import Counter
+    nb = int(bar.max())
+    blocks = {}
+    for b0 in range(1, nb + 1, B):
+        f = []
+        for h in (0, 1):
+            f += [(h,) + x for x in figures(arr, bar, b0, b0 + B - 1, h)]
+        if len(f) >= min_notes:
+            blocks[b0] = Counter(f)
+    ks = sorted(blocks)
+    out = {}
+    for i, b in enumerate(ks[1:], 1):
+        A = blocks[b]
+        out[b] = max(sum((A & blocks[c]).values()) / max(sum(A.values()), sum(blocks[c].values()))
+                     for c in ks[:i])
+    return out
+
+
+def q_scatter(arrs: dict, B: int = 4, margin: float = 0.15, min_notes: int = 6,
+              min_blocks: int = 8) -> list[tuple]:
+    """SCATTER — nothing comes back; the map never plays a figure it has played before.
+
+    ★`READING.md`'s FIRST rule for finding an unfun map: *"Does a cell COME BACK? A scatter
+    has nothing to lock into — the single most reliable read for 'unfun', and invisible to
+    all 23 metrics."* It was invisible to the eight reads on the verdict page too, for the
+    same reason BREATHING was: every one of them asks whether what is HERE is out of range,
+    and a figure that never repeats is not out of range — there is nothing to lock into.
+    Found by P5b's absence hunt (2026-09-10) on the four SHIP? YES maps staged for compete.
+
+    The map is cut into `B`-bar blocks and each block is asked how much of itself the map has
+    **already played** (`_echo`). A mapper who locks into a figure and brings it back scores
+    high; a spreader scores ~0.4 no matter what the song does. The verdict is **map-wide**
+    (the mean over blocks), not per-block — measured 2026-09-10, the per-block version cannot
+    separate our 1f8d6 from a human's own harder difficulty (2/32 blocks each), and one block
+    that happens not to echo is a bridge, not a defect. The address in the `why` is the worst
+    three blocks, for the score.
+
+    ⚠️**Reference is the same song's human map, never an absolute** — the fourth absolute
+    rule this project would have got wrong. `1f767`'s human echoes 0.409, no better than our
+    0.388 on that song; `1f333`'s echoes 0.710 against our 0.417. An absolute floor would
+    have called a songset human a scatter and left our worst map clean.
+
+    Measured 2026-09-10 (mean block echo, ours − his): **1f333 −0.29 · 1f913 −0.20** fire;
+    1f8d6 −0.12 and 1f767 −0.02 stay silent. ★The clean-side control is the same human's
+    **other difficulty** of the same song (an ExpertPlus read against his Expert), which is
+    the first non-self-referential human negative this bench has had: **−0.06 (1f333) and
+    −0.08 (1f8d6), both silent**. Needs the human map; silent without it.
+    """
+    if not has_human(arrs):
+        return []
+    bar = arrs["bar"]
+    mine, his = (_echo(arrs["map"], bar, B, min_notes),
+                 _echo(arrs["human"], bar, B, min_notes))
+    both = sorted(set(mine) & set(his))
+    if len(both) < min_blocks:
+        return []
+    dm, dh = float(np.mean([mine[b] for b in both])), float(np.mean([his[b] for b in both]))
+    if dh - dm < margin:
+        return []
+    worst = sorted(both, key=lambda b: mine[b] - his[b])[:3]
+    b0 = worst[0]
+    return [("SCATTER", _t(arrs, b0), b0,
+             f"map-wide: {dm:.2f} of each {B}-bar block is a figure the map has played "
+             f"before, where the human's is {dh:.2f} -- nothing comes back to lock into. "
+             f"Worst blocks: " + ", ".join(f"{b}-{b + B - 1} ({mine[b]:.2f} vs {his[b]:.2f})"
+                                           for b in worst))]
+
+
+q_scatter.codes = {"SCATTER"}
+
+
 # ----------------------------------------------------------------------------- q_all
-QUERIES = [q_events, q_flow, q_vocals, q_drops, q_elements, q_breathing]
+QUERIES = [q_events, q_flow, q_vocals, q_drops, q_elements, q_breathing, q_scatter]
 
 
 def q_all(arrs: dict) -> list[tuple]:

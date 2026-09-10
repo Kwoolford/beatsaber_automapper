@@ -11,6 +11,8 @@
   "  label     GOOD | PREFERRED | DEFECT | CLEAN | UNLABELLED",
   "  codes     defect codes the label asserts are IN the map (D1..D6 EMPTY FLOW ELEMENTS)",
   "  must_not_flag  properties a locator must NOT fire on in this map (CLEAN rows)",
+  "  allows    (negative rows) codes the label deliberately PERMITS -- see score_row;",
+  "            used only on humanplus-* for D1/D6, which are difficulty claims",
   "  strength  strong = Kyle named THIS file; weak = set-level review, file not singled out",
   "  bars      where he pointed, if anywhere. `bars_from` says whose finger it was:",
   "            'kyle' or 'agent-read' (the agent located it from the score; Kyle named none)",
@@ -22,6 +24,9 @@
   "  D4 not following the main vocals  D5 random bursts of fast non-flowy notes",
   "  D6 nps wasted on non-main notes  EMPTY 'feels really empty'",
   "  FLOW 'the notes flow in a really odd way'  ELEMENTS no walls/arcs/chains",
+  "  BREATHING playing through the rest he leaves  SCATTER nothing comes back",
+  "  (BREATHING and SCATTER were named by the AGENT reading the score, not by",
+  "   Kyle's ear -- both fired on a map the verdict page called SHIP? YES)",
   "",
   "RULES:",
   "  * A weak row can REFUTE a locator (it fires on a CLEAN map, or never fires on a set",
@@ -35,6 +40,11 @@
   "    typicality, not wrongness, which is the audit's central finding.",
   "  * `1f333-aplus` and `1f333-before` are THE SAME NOTES at a different offset",
   "    (CATALOG A). A locator must give them the same answer.",
+  "  * ⚠️Those human rows are scored AGAINST THEMSELVES, so a query written as 'ours",
+  "    differs from his' is silent there by construction. The rows that actually test",
+  "    that shape are `humanplus-*`: the same mapper's ExpertPlus of the same song read",
+  "    against his Expert (scripts/make_bench_fixtures.py). Use them before believing a",
+  "    reference-relative query's clean side.",
   "  * Set A rows carry D1-D6 as a SET-LEVEL label: Kyle played BEFORE and AFTER for",
   "    the four songset songs and described the set. CROSSOVER and BOTH were never",
   "    played and are NOT rows.",
@@ -362,7 +372,8 @@
     "D5",
     "D6",
     "EMPTY",
-    "FLOW"
+    "FLOW",
+    "SCATTER"
    ],
    "strength": "strong",
    "bars": null,
@@ -391,7 +402,8 @@
     "D5",
     "D6",
     "EMPTY",
-    "FLOW"
+    "FLOW",
+    "SCATTER"
    ],
    "strength": "strong",
    "bars": null,
@@ -420,7 +432,8 @@
     "D5",
     "D6",
     "EMPTY",
-    "FLOW"
+    "FLOW",
+    "SCATTER"
    ],
    "strength": "strong",
    "bars": null,
@@ -449,7 +462,8 @@
     "D5",
     "D6",
     "EMPTY",
-    "FLOW"
+    "FLOW",
+    "SCATTER"
    ],
    "strength": "strong",
    "bars": null,
@@ -495,6 +509,89 @@
    "verdict_id": "2026-09-03a/breathe-found-by-agent",
    "quote": "when there is a slow spot we let the player breathe",
    "note": "AGENT-FOUND, not a Kyle verdict — the first row whose bars came from the score rather than his ear. This map PASSED the whole verdict page (0 red, 0 yellow, judge 0.814, tutor 30/49) while playing 37 events across bars 163-169, where the human rests SEVEN bars and the song's energy is 0.23; it ramps to 8 events/bar at 166-168. No existing query could see it: q_events only compares us to him where he HAS notes, so a bar he leaves empty has no ratio to be wrong about, and q_drops looks two bars past an E-drop and never reaches the ramp back up. Ordering that justifies the code: on these seven bars the human plays 0, the map Kyle graded A+ plays 2, the map he called DEFECT plays 11, this one plays 37. Fixed in the shipped LOOP__1f333 by deleting all 37 (tutor 30 -> 31/49, onset 0.953 -> 0.963) and the pair was re-blinded with `compete.py stage --restage`. This zip is kept ONLY as the fixture for this row."
+  },
+  {
+   "id": "1f333-scatter",
+   "map": "outputs/p4b_loop/LOOP__1f333.zip",
+   "song": "1f333",
+   "name": "Hunger",
+   "label": "DEFECT",
+   "codes": [
+    "SCATTER"
+   ],
+   "must_not_flag": [],
+   "strength": "strong",
+   "bars": "77-88",
+   "bars_from": "agent-read",
+   "readable": true,
+   "date": "2026-09-10",
+   "verdict_id": "2026-09-10/scatter-found-by-absence-hunt",
+   "quote": "Does a cell COME BACK? A scatter has nothing to lock into -- the single most reliable read for 'unfun', and invisible to all 23 metrics. (agent_mapper/READING.md, rule 1)",
+   "note": "AGENT-FOUND (P5b absence hunt), the second row whose bars came from the score rather than his ear. THIS IS THE MAP THAT SHIPPED: the BREATHING fix went in, verdict.py said SHIP? YES with 0 red / 0 yellow, and it is staged blind in for_review/compete as the 1f333 pair. It replays 0.42 of each 4-bar block where the human replays 0.71; at bars 77-88 the human is at 0.91-1.00 (he plays the chorus figure again, verbatim) and we are at 0.24-0.50. Nothing on the page could see it: every other read asks whether what is HERE is out of range, and a figure that never comes back is not out of range. Kyle has not played this map -- if he plays the 1f333 pair (P5) and prefers the human WITHOUT naming scatter, this row stays agent-read and does not become his verdict."
+  },
+  {
+   "id": "humanplus-1f333",
+   "map": "outputs/bench_fixtures/HUMANPLUS__1f333.zip",
+   "song": "1f333",
+   "name": "Hunger (human ExpertPlus vs his own Expert)",
+   "label": "CLEAN",
+   "codes": [],
+   "must_not_flag": [
+    "SCATTER",
+    "FLOW",
+    "D2",
+    "D4",
+    "D5",
+    "EMPTY",
+    "BREATHING",
+    "HANDROLE",
+    "ONBEAT_MAIN",
+    "ELEMENTS"
+   ],
+   "strength": "strong",
+   "bars": null,
+   "bars_from": null,
+   "readable": true,
+   "date": "2026-09-10",
+   "verdict_id": null,
+   "quote": "(negative by construction: a different, harder, indisputably good map of the same song by the same mapper -- a locator that fires here is reading DIFFICULTY, not a defect)",
+   "note": "THE DIFFICULTY CONTROL (P5b, 2026-09-10). The same mapper's ExpertPlus of the same song, read against his own Expert (data/raw/1f333.zip) -- the first NON-SELF-REFERENTIAL human negative on this bench. Every other CLEAN row is a human map scored against itself, where any 'ours differs from his' query is zero by construction, so their '0 false fires' was vacuous for every reference-relative query in queries.py. Rebuild with scripts/make_bench_fixtures.py (Info.dat + the one difficulty; audio comes from the songset by id). ⚠️D1/D6 are DELIBERATELY NOT FORBIDDEN here: they are density claims and a harder difficulty is legitimately denser. q_events fires D6 'over-dense' 6x on HUMANPLUS__1f333 (3.0x the events at bars 17-32) -- a true statement about density and a false one about quality, and the reason a density request (P0.1) and not the human's count has to be what D6 is judged against once P6 lets a user ask for a harder map.",
+   "allows": [
+    "D1",
+    "D6"
+   ]
+  },
+  {
+   "id": "humanplus-1f8d6",
+   "map": "outputs/bench_fixtures/HUMANPLUS__1f8d6.zip",
+   "song": "1f8d6",
+   "name": "Fallen Kingdom (human ExpertPlus vs his own Expert)",
+   "label": "CLEAN",
+   "codes": [],
+   "must_not_flag": [
+    "SCATTER",
+    "FLOW",
+    "D2",
+    "D4",
+    "D5",
+    "EMPTY",
+    "BREATHING",
+    "HANDROLE",
+    "ONBEAT_MAIN",
+    "ELEMENTS"
+   ],
+   "strength": "strong",
+   "bars": null,
+   "bars_from": null,
+   "readable": true,
+   "date": "2026-09-10",
+   "verdict_id": null,
+   "quote": "(negative by construction: a different, harder, indisputably good map of the same song by the same mapper -- a locator that fires here is reading DIFFICULTY, not a defect)",
+   "note": "THE DIFFICULTY CONTROL (P5b, 2026-09-10). The same mapper's ExpertPlus of the same song, read against his own Expert (data/raw/1f8d6.zip) -- the first NON-SELF-REFERENTIAL human negative on this bench. Every other CLEAN row is a human map scored against itself, where any 'ours differs from his' query is zero by construction, so their '0 false fires' was vacuous for every reference-relative query in queries.py. Rebuild with scripts/make_bench_fixtures.py (Info.dat + the one difficulty; audio comes from the songset by id). ⚠️D1/D6 are DELIBERATELY NOT FORBIDDEN here: they are density claims and a harder difficulty is legitimately denser. q_events fires D6 'over-dense' 6x on HUMANPLUS__1f333 (3.0x the events at bars 17-32) -- a true statement about density and a false one about quality, and the reason a density request (P0.1) and not the human's count has to be what D6 is judged against once P6 lets a user ask for a harder map.",
+   "allows": [
+    "D1",
+    "D6"
+   ]
   }
  ]
 }
