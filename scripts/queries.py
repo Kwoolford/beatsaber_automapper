@@ -381,8 +381,9 @@ q_drops.codes = {"D3"}
 
 
 # ----------------------------------------------------------------------------- q_elements
-def q_elements(arrs: dict, human_min_walls: int = 5) -> list[tuple]:
-    """ELEMENTS — no walls where the human built them.
+def q_elements(arrs: dict, human_min_walls: int = 5, cover_ratio: float = 0.5,
+               human_min_cover: int = 50) -> list[tuple]:
+    """ELEMENTS — no walls where the human built them, or far less WALL than he built.
 
     Counts wall starts (a lane going from free to walled). Fires once, at the human's
     first wall, when the map has none and the human has ≥ `human_min_walls`. Arcs and
@@ -390,6 +391,19 @@ def q_elements(arrs: dict, human_min_walls: int = 5) -> list[tuple]:
     either, so "the human has none" says nothing. Notes inside a walled lane are NOT read
     here -- the arrays carry no wall height, and human 1f767 has 4 such notes under crouch
     walls (measured 2026-09-02). Needs the human map; silent without it.
+
+    ★**The graded branch (P5b, 2026-09-10).** "Zero walls" is the extreme case and our maps
+    are never there -- so this query was silent while the wall COVERAGE told the same story
+    as SCATTER: **our builds cover 131-146 slots on every song** (the `--walls 89` default
+    doing the same thing regardless of the music) where the humans cover **83-667 and vary
+    with the song**. Fires when our covered slots are under `cover_ratio` of his and he
+    covers at least `human_min_cover`, addressed at the first bar he walls and we do not.
+
+    ⚠️Only the UNDER direction fires: 1f913's human barely walls (83 slots against our 132)
+    and building more than him is not a defect anyone has named. Covered-slot share is a
+    **SHAPE** claim and difficulty-fair -- the controls agree to within 3 % in both
+    directions (1f333 463 vs 471, 1f8d6 645 vs 667), so it is asked across difficulties.
+    Ours: 1f8d6 **0.20×**, 1f333 0.28×, 1f767 0.39×, 1f913 1.59× (silent).
     """
     if not has_human(arrs):
         return []
@@ -401,6 +415,27 @@ def q_elements(arrs: dict, human_min_walls: int = 5) -> list[tuple]:
         return lanes & ~np.r_[np.zeros((1, 4), bool), lanes[:-1]]
     ms, hs = starts(arrs["map"]), starts(arrs["human"])
     nm, nh = int(ms.sum()), int(hs.sum())
+    if nm > 0 and nh >= human_min_walls:
+        cov_m = (arrs["map"][:, li] > 0).any(axis=1)
+        cov_h = (arrs["human"][:, li] > 0).any(axis=1)
+        cm, ch = int(cov_m.sum()), int(cov_h.sum())
+        if ch >= human_min_cover and cm < cover_ratio * ch:
+            bar = arrs["bar"]
+            gap = cov_h & ~cov_m
+            s0 = int(np.argmax(gap)) if gap.any() else int(np.argmax(cov_h))
+            uncovered = sorted({int(b) for b in bar[gap]})
+            runs: list[list[int]] = []
+            for b in uncovered:
+                if runs and b == runs[-1][-1] + 1:
+                    runs[-1].append(b)
+                else:
+                    runs.append([b])
+            worst = sorted(runs, key=len, reverse=True)[:3]
+            return [("ELEMENTS", float(arrs["t_sec"][s0]), int(bar[s0]),
+                     f"walls cover {cm} slots vs the human's {ch} ({cm / ch:.2f}x) -- "
+                     f"{nm} wall starts vs his {nh}. His longest stretches with no wall of "
+                     f"ours: " + ", ".join(f"bars {r[0]}-{r[-1]}" for r in worst))]
+        return []
     if nm > 0 or nh < human_min_walls:
         return []
     s0 = int(np.argmax(hs.any(axis=1)))

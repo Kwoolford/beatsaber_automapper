@@ -285,6 +285,44 @@ difficulty. The fix stays what it was — build 1f913 at his difficulty on purpo
 
 ---
 
+## 2026-09-10g — the last third of the absence hunt: sustained sections are fine, WALLS are not
+
+**Sustained sections — NOT REPRODUCED.** The score has `vox_sus` / `lead_sus` / `bass_sus` columns and no query had
+ever touched them. Taking the top quartile of sustain and asking what each map does there **relative to its own
+overall rate** (a SHAPE claim, so difficulty-fair): ours **0.94-1.03×**, the humans **0.86-1.03×**, and the two
+control pairs agree with each other to within 0.04. We do not blindly keep placing 8ths through a held note. Null.
+
+**Walls — the same signature as SCATTER, and `q_elements` was silent through all of it.**
+
+| song | our covered slots | his | ratio |
+|---|---|---|---|
+| 1f8d6 | **131** | 667 | **0.20×** |
+| 1f333 | **132** | 471 | **0.28×** |
+| 1f767 | **146** | 370 | **0.39×** |
+| 1f913 | 132 | 83 | 1.59× (silent — his map barely walls) |
+
+★**Our builds cover 131-146 slots on every song** — the `--walls 89` default doing the same thing regardless of
+the music — where the humans cover **83 to 667 and vary with it**. `q_elements` only ever asked "do we have ZERO
+walls", the extreme case our maps are never in, so it said nothing while we built a fifth of the wall the best map
+of that song has. On 1f8d6 the human walls **24 % of sustained slots**; we wall 5 %.
+
+⇒ `q_elements` grew a graded branch: fires when covered slots are **< 0.5×** his and he covers ≥ 50, addressed at
+his three longest stretches with no wall of ours (1f8d6 bars 110-124, 134-144, 46-52). ⚠️**Only the UNDER
+direction fires** — 1f913 builds more wall than its human and nobody has called that a defect. Coverage share is
+difficulty-fair: the controls agree to within 3 % in **both** directions (1f333 463 vs 471, 1f8d6 645 vs 667), so
+it is asked across difficulties. Bench: **8 clean rows silent, 0 false fires**, the same-notes pair agrees.
+
+🔴**All four staged maps now fail their own gate** (1f767 was the last one shipping; it is red on ELEMENTS).
+The pre-registered prediction for 1f767 said it was *"the only pair the page still ships"* — that line is now
+wrong, and it is **kept unrewritten in `.key.json` with a `superseded` note beside it**, because a prediction
+edited after the fact is not a prediction.
+
+⚠️**A bug worth naming**: the first version of the address logic appended a run list and then `.clear()`ed it,
+so all three "longest stretches" printed the same bars. Caught by reading the output rather than the code —
+*three identical values are a construction, not a result*, the same tell as the `deepcopy` landmine.
+
+---
+
 ## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
 
 **How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:

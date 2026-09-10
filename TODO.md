@@ -250,8 +250,12 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   and every read says ✅ (ABSENCE reds only at *effectively zero*; D6 fires only the other way).
   ⛔The entry-accent locator is REFUTED (see the refuted list above). ⚠️Whatever comes next must
   not be "distance to the human's number" — that is the `h_dist` failure.
-- ⬜**The untouched third of the hunt**: sustained/held sections, walls as cover — places where
-  the map's SHAPE, not its rate, is what differs. (The last chorus is done: NOT REPRODUCED.)
+- ✅**The untouched third is done** (2026-09-10g). **Sustained/held sections: NOT REPRODUCED** — our rate inside
+  the top sustain quartile, relative to our own overall rate, is 0.94-1.03× against the humans' 0.86-1.03×.
+  **Walls: a real absence, now queried** — our builds cover **131-146 slots on every song** (the `--walls 89`
+  default) where humans cover 83-667 and vary with the music; `q_elements` grew a graded branch (< 0.5× his
+  coverage) and **1f767 went red, so all four staged maps now fail their own gate**. ⬜Left: the fix is
+  `mapctl walls --bars a-b` per song, which nothing automates against the human's coverage.
 - ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties; the
   per-song human is preferred on the page, so this bites only on a song with no human map.
 
