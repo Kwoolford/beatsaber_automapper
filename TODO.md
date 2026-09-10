@@ -80,12 +80,22 @@ with *"reach for this when…"* (P4), and the verdict names the tool for every r
    tool. Read the header before reading the page.
 
 ### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle
-▶️**2026-09-03: read `PROGRESS.md 2026-09-03b` FIRST — a map with a CLEAN page was playing through a seven-bar
-rest.** `BREATHING` is now a query and is ALWAYS_RED; the shipped 1f333 was fixed and re-blinded. The lesson sits
-above every P below: **a clean page means only that no query fires, and the queries know only the defects someone
-has already named.** Ask what the page CANNOT see before trusting a SHIP? YES.
+▶️**2026-09-10: read `PROGRESS.md 2026-09-10` FIRST — the bench's whole clean side was scored AGAINST ITSELF.**
+Every CLEAN row is a human map with `--vs auto`, which resolves to the same zip, so a query shaped *"ours differs
+from his"* — which is every query in `queries.py` — was zero there **by construction**. The rows that can actually
+fail are the new `humanplus-*`: the same mapper's ExpertPlus of the same song read against his Expert
+(`scripts/make_bench_fixtures.py`). ★**Run any reference-relative query on those before believing its clean side.**
+It refuted the first `q_scatter` inside an hour, and it shows `q_events` firing D6 on a top human's harder map.
+Together with 2026-09-03b: **a clean page is evidence about the queries; a clean bench row is evidence only if the
+row could have failed.**
 
-**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ shipped, and P4b's DoD is MET** (the score, it is writable, the judge has its floor, the bench reads every verdict, the tutor is on the lattice, six queries answer with addresses, one page says SHIP?, and **all FOUR standing songs are looped to SHIP YES and staged blind** in `for_review/compete/` — `compete.py table` is the headline and reads 0 judged) → **P5 is now the only thing that moves the headline: Kyle plays ONE pair and answers** (`compete.py verdict <sid> X|Y|tie --because …`; a loss with a reason is a bench row the same day) → **P6**.
+**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ · P5b ✅ — P5b's DoD is MET** (`SCATTER` is named,
+queried, ALWAYS_RED and bench-scored on `1f333-scatter`; `ABSENCE` is on the verdict page). 🔴**And it immediately
+cost us three of the four staged pairs: `LOOP__1f333` and `LOOP__1f913` now fail on SCATTER, `NOPULSE__1f8d6` on
+ABSENCE. They stay staged, blinded and UNCHANGED — decided-and-logged — with the prediction for each written into
+`.key.json` before he plays.** → **P5 is still the only thing that moves the headline: Kyle plays ONE pair**
+(`compete.py verdict <sid> X|Y|tie --because …`) → then **P6**, whose first task is now named by the control: the
+gate says SHIP? NO on a human's own ExpertPlus, so a density claim has to be judged against the REQUEST.
 🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
 
 ---
@@ -231,6 +241,8 @@ pair agrees, AGENT>BEFORE ordering holds (19 % vs 2 % of bars FLOW).**
 | `q_vocals` | D4 | per 4 bars: vox-MAIN slots answered (note within ±1 slot) ≥ 25 pts under the human, human ≥ 60 % |
 | `q_drops` | D3 | at song E-jumps (≥ 0.25/bar): first note > 1 beat after the human's, or step < 0.8× his AND density after < 0.8× his; at E-drops: he halves, we don't |
 | `q_elements` | ELEMENTS | 0 walls where the human has ≥ 5 (arcs/chains reported, never fired: songset humans are v2, 0 of either) |
+| `q_breathing` | BREATHING | a run of ≥ 2 bars the human leaves empty in which we play ≥ 4 events and ≥ 2/bar (2026-09-03b) |
+| `q_scatter` | SCATTER | map-wide: mean 4-bar-block echo (how much of each block the map has already played) ≥ 0.15 under the human's — addressed at the three worst blocks (2026-09-10) |
 **Decided-and-logged (measured, 2026-09-02):** ★**every reference is the same song's human map**
 (or the song's onsets without one) — absolute rules were refuted twice in one afternoon: an
 absolute D3 step floor fired on human 1f913 (its own jumps are 0.6–1.1× steps), and an absolute
@@ -326,21 +338,39 @@ rule: a Kyle verdict that disagrees with the agent's read is a bench row AND a P
 TODO opinion. **DoD**: bench grows ≥ 1 row per listening session with no JSON editing; pending
 list ≤ 4 maps.
 
-## 🔴 P5b — WHAT ELSE CAN THE PAGE NOT SEE? (opened 2026-09-03b, and it outranks P6)
-**Evidence**: `LOOP__1f333` shipped with **SHIP? YES — nothing located** while playing 37 events through a rest the
-human holds for seven bars, worse on that axis than the map Kyle graded DEFECT. Not one of the eight reads could see
-it, because each answers a defect **someone had already named**, and no one had named this one in a query.
-⇒ **A clean page is evidence about the queries, not about the map.** BREATHING was found by reading the score for
-what the map does where the human does NOTHING — an ABSENCE, which no read was pointed at.
-**Tasks** — hunt the remaining absences the same way, each against the same song's human map:
-- ⬜**He plays, we do not, for a run of bars** — the mirror of BREATHING, and `q_events`' 4-bar window can average
-  over it. (`EMPTY` fires on ratios, not on runs.)
-- ⬜**Gestures we never use at all**: `audit_map`'s ABSENCE block already prints two (lead-hand passages 0 vs human
-  median 10; doubles, now fixed) and **nothing on the verdict page reads it** — wire ABSENCE into `verdict.py`.
-- ⬜**Sustained/held sections, walls as cover, the last chorus** — places where the map's SHAPE, not its rate, is
-  what differs.
-**DoD**: one more named, queried, bench-scored code that fires on a map the current page calls clean — and
-`audit_map`'s ABSENCE lines appear on the verdict page so absence can never again be invisible to the gate.
+## ✅→🔵 P5b — WHAT ELSE CAN THE PAGE NOT SEE? DoD MET 2026-09-10 — what is left of it
+`PROGRESS.md 2026-09-10` has the measurements. Shipped: **`q_scatter`/SCATTER** (4-bar block echo, map-wide verdict
+addressed at the three worst blocks, ALWAYS_RED because one map-wide fire can never reach a share threshold),
+**ABSENCE on the verdict page**, the **`humanplus-*` difficulty control** + `scripts/make_bench_fixtures.py`, and
+`score_row`'s `allows`. 🔴**NOT REPRODUCED — do not re-open without a map that shows it**: the mirror of BREATHING
+("he plays a run of bars, we play nothing") is **zero on all four staged maps** at every threshold tried.
+
+**Still open inside P5b:**
+- ⬜**The gap that is not an absence and not over-density.** `LOOP__1f913` plays **4.2 % doubles against its human's
+  32.9 %** and reads ✅ on both: ABSENCE only reds at *effectively zero*, and `q_events`' D6 only fires the other way
+  (≥ 50 % doubles). Same on 1f333 (4.8 % vs 14.8 %) and 1f767 (3.3 % vs 34.3 %, a 🟡). One of the two reads should
+  grow a *below-his* branch — but ⚠️it must clear `humanplus-*` first, where doubles legitimately differ by
+  difficulty, and it must not become "distance to the human's number" (that is the `h_dist` failure).
+- ⬜**Sustained/held sections, walls as cover, the last chorus** — the untouched third of the original hunt: places
+  where the map's SHAPE, not its rate, is what differs.
+- ⬜**Run every existing query on the `humanplus-*` controls and read what fires.** Only `q_all` has been run
+  (D6 ×6 on 1f333+). A per-query pass is cheap and is the only clean-side evidence any of them has.
+- ⬜The two ABSENCE gestures come from `audit_map`'s block; its `outputs/absence_reference.json` (250 maps) is the
+  fallback and **this song's human is preferred**. A third gesture (chains? stacks? crouch walls?) needs a v3 human
+  reference the songset does not have (P3 leftover).
+
+## 🔴 P5c — THE GATE REFUSES A HUMAN'S OWN HARDER MAP (opened 2026-09-10; blocks P6)
+**Evidence**: `verdict.py outputs/bench_fixtures/HUMANPLUS__1f333.zip --vs 1f333` says **SHIP? NO**, on four D6
+"over-dense" reds — *"54 events vs human 18 (3.0×)"*. The map is a top mapper's own ExpertPlus of that song. P6's
+first request is *"make it harder"*, and today the gate calls that a defect.
+**Tasks**:
+- ⬜`q_events`' over-dense branch compares a window to the human's count with no notion of **intended difficulty**.
+  Two candidate fixes, both measurable today: (a) normalise the window ratio by the **map-wide** ratio, so a
+  uniformly denser map is silent and a locally 3× window still fires; (b) judge it against P0.1's `nps_request`
+  when there is one. (a) needs no new plumbing and is testable on the controls immediately.
+- ⬜Whichever ships, `humanplus-*` must go **silent on D6 without `allows`**, while `setA-*` and `NEW__1f9a0`
+  (2.0–2.6× the human in every chorus) keep firing. Then drop `allows` from the rows and say so in their notes.
+**DoD**: the two difficulty controls read SHIP? YES with `allows` removed, and no bench row regresses.
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·

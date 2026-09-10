@@ -62,7 +62,8 @@ NAMES = {"1f333": "Hunger", "1f8d6": "Fallen Kingdom",
 BEST = ["outputs/p4_loop/LOOP__{sid}.zip",
         "outputs/p4/NOPULSE__{sid}.zip",
         "outputs/p0_songset_2026-09-02/NEW__{sid}.zip"]
-CODES = ("D1", "D2", "D3", "D4", "D5", "D6", "EMPTY", "FLOW", "ELEMENTS")
+CODES = ("D1", "D2", "D3", "D4", "D5", "D6", "EMPTY", "FLOW", "ELEMENTS",
+         "BREATHING", "SCATTER")  # the two the agent named from the score, 2026-09-03/09-10
 QUESTION = ("Play X, then Y. Which is the better map of this song? If one is worse, say "
             "what it did WRONG and where (mm:ss or a bar) — that sentence is the next "
             "thing I build. \"Can't tell\" is a real answer.")

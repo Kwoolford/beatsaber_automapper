@@ -7,6 +7,84 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-10 — ★★SCATTER, and the discovery that the bench's clean side was vacuous
+
+**P5b's question was "what else can the page not see?"** BREATHING was found by reading for what the map does where
+the human does **nothing**. The same hunt, run over the four maps staged blind for compete (all four SHIP? YES),
+found the mirror is *not* there and the vocabulary is.
+
+**The mirror is NOT there — NOT REPRODUCED.** "He plays a run of bars, we play nothing" fires **zero times** on all
+four maps at every threshold tried (ours ≤ 0 or ≤ 1 event per bar, his ≥ 3, runs ≥ 2 bars). Our builds never go
+silent where the human plays. `q_events`' EMPTY covers the graded version of this; a run-based query would add
+nothing today. Do not re-open it without a map that shows it.
+
+**What IS there: nothing comes back.** `READING.md`'s FIRST rule — *"does a cell COME BACK? a scatter has nothing
+to lock into, the single most reliable read for 'unfun', and invisible to all 23 metrics"* — had never had a query.
+Cut the map into 4-bar blocks and ask each block how much of itself the map has **already played** anywhere earlier:
+
+| mean block echo | 1f767 | 1f8d6 | 1f913 | 1f333 |
+|---|---|---|---|---|
+| ours (all four SHIP? YES) | 0.388 | 0.454 | 0.423 | 0.417 |
+| the song's human (Expert) | 0.409 | 0.574 | 0.626 | **0.710** |
+| **his ExpertPlus (control)** | — | 0.490 | — | 0.646 |
+
+★**Ours is pinned at ~0.42 on every song; the humans move with the song.** 1f333's human replays bars 77-88
+verbatim (0.91-1.00) where we are at 0.24-0.50. `q_scatter` fires map-wide when the deficit is ≥ 0.15, addressed at
+the three worst blocks: **1f333 −0.29 and 1f913 −0.20 fire; 1f8d6 −0.12 and 1f767 −0.02 stay silent.**
+⚠️**Absolute thresholds refuted for the fourth time**: 1f767's human echoes 0.409, no better than our 0.388, so an
+absolute floor would have called a songset human a scatter and left our worst map clean.
+
+**★★THE BIGGER FINDING — every CLEAN row on the bench was scored against itself.** The first shape of this query
+(vocabulary breadth per hand-window, ours vs his) looked excellent — 76 % of 1f333's hand-windows over margin, never
+the reverse — and passed the bench 0 false fires. It was wrong. **Every CLEAN row is a human map with `--vs auto`,
+which resolves to the same zip**, so *any* query written as "ours differs from his" is zero there **by construction**.
+Their "0 false fires on 4 humans" line was vacuous for all six existing queries.
+
+The control the bench was missing: **two songset maps carry a second difficulty by the same mapper.** His ExpertPlus,
+read against his own Expert, is genuinely different notes, indisputably good mapping, same song, same author
+(`scripts/make_bench_fixtures.py`; rows `humanplus-1f333`, `humanplus-1f8d6`). It killed the first `q_scatter`
+immediately (5 fires on 1f8d6+, and rarefaction to equal note counts did not save it — the control fired *more* than
+our map on that song). The rewritten, reference-free version is silent on both controls.
+
+**It also caught a live defect in `q_events`.** D6 "over-dense" fires **six times** on `HUMANPLUS__1f333` — *"54
+events vs human 18 (3.0×)"* at bars 17-32 and five more. That is a true statement about density and a false one
+about quality: **an ExpertPlus is denser than the Expert it is read against.** The verdict page therefore says
+**SHIP? NO on a top human's own harder difficulty**, which is precisely what P6 will ask us to build ("make it
+harder"). Recorded, not patched: the rows carry `allows: [D1, D6]` (a new `score_row` field that costs a row its
+power over a code and so has to be argued in the row's note), and the fix is a TODO — judge the density claim
+against the **request** (P0.1's `nps_request`), not against the human's count.
+
+**ABSENCE is now on the gate.** `audit_map.py` has printed doubles-share and lead-hand passages since 2026-08-24 and
+**nothing that decides SHIP? ever read them**. `verdict.py` now computes both from the arrays, red when a gesture is
+effectively unused while *this song's* human uses it materially (his count ≥ the corpus p25, so a ballad where he
+uses none never turns red), yellow under the corpus p5.
+
+**What the new page says about the four maps staged for compete — all of which were staged as SHIP? YES:**
+
+| map | before | now | why |
+|---|---|---|---|
+| `LOOP__1f333` | YES | **NO** | SCATTER (0.42 vs 0.71; worst 85-88, 77-84) |
+| `LOOP__1f913` | YES | **NO** | SCATTER (0.42 vs 0.63; worst 21-36) |
+| `NOPULSE__1f8d6` | YES | **NO** | ABSENCE: **0** lead-hand passages against his 27, 🟡 0.0 % doubles against his 7 % |
+| `LOOP__1f767` | YES | YES | 🟡 doubles 3.3 % vs his 34.3 % |
+
+**Decided-and-logged: the pairs stay staged and blinded, unchanged.** Kyle has played none of them, and a listening
+session that ends in *"this one feels random / both hands do the same thing"* is worth more than a re-staged map —
+it turns an agent-read code into his word. The prediction for each song is **written into
+`for_review/compete/.key.json` before he plays** (`page_2026_09_10.predict`): the human wins 1f333, 1f913 and 1f8d6,
+and 1f767 is the pair where a loss would be the most informative result on the bench, because there the page is
+clean and only his ear is not. `compete.py --code` now accepts BREATHING and SCATTER.
+
+**Bench: 21 rows.** `1f333-scatter` is the second row whose bars came from the score rather than his ear (after
+`1f333-breathe`) — and it points at **the map that shipped**, not a fixture. `queries:q_all` = not refuted, 4 strong
+hits, 0 false fires, 0 violations.
+
+★**The rule this session adds to the one BREATHING added.** *A clean page is evidence about the queries.* And now:
+**a clean bench row is evidence only if the row could have failed.** Before trusting any reference-relative query's
+clean side, run it on `humanplus-*`.
+
+---
+
 ## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
 
 **How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:
