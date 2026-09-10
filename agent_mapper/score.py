@@ -114,6 +114,10 @@ class MapData:
     walls: list[dict]      # beat, dur, x, w
     arcs: list[dict]       # c, b, tb
     chains: list[dict]     # c, b, tb, sc
+    # ★The difficulty this map DECLARES ("Expert", "ExpertPlus", …). Kept since 2026-09-10
+    # because a density comparison between two difficulties is not a defect claim: the gate
+    # was calling a top mapper's own ExpertPlus over-dense against his Expert (TODO P5c).
+    difficulty: str = ""
 
     def t(self, beat: float) -> float:
         """Seconds on the game's clock. Same convention as map_view: offset + beat·60/bpm."""
@@ -160,6 +164,7 @@ def load_map(path: pathlib.Path) -> MapData:
               for s in bm.sliders],
         chains=[{"c": int(bs.color), "b": float(bs.beat), "tb": float(bs.tail_beat),
                  "sc": int(bs.slice_count)} for bs in bm.burst_sliders],
+        difficulty=re.sub(r"(?i)standard\.dat$", "", diff.split("/")[-1]) or "",
     )
 
 
@@ -748,7 +753,8 @@ def render_sections(m: MapData, sc: SongCols, mc: MapCols, lat: Lattice,
 
 
 # ----------------------------------------------------------------------------- arrays
-def to_arrays(m: MapData, sc: SongCols, mc: MapCols, lat: Lattice, hc: MapCols | None):
+def to_arrays(m: MapData, sc: SongCols, mc: MapCols, lat: Lattice, hc: MapCols | None,
+              human_difficulty: str = ""):
     T = lat.n
     song_cols = [
         ("kit_kick", sc.kit[:, 0]), ("kit_snare", sc.kit[:, 1]),
@@ -787,9 +793,13 @@ def to_arrays(m: MapData, sc: SongCols, mc: MapCols, lat: Lattice, hc: MapCols |
                song=song, song_names=np.array([n for n, _ in song_cols]),
                lyric=np.array([str(x) for x in sc.lyric]),
                map=mp, map_names=np.array(mnames),
-               bpm=m.bpm, offset=m.offset, sub=lat.sub)
+               bpm=m.bpm, offset=m.offset, sub=lat.sub,
+               # P5c: a query comparing densities has to know whether it is comparing two
+               # difficulties. "" when the file did not say.
+               difficulty=np.array(m.difficulty))
     if hc is not None:
         out["human"], _ = map_arr(hc)
+        out["human_difficulty"] = np.array(human_difficulty or "")
     return out
 
 
@@ -864,7 +874,8 @@ def main() -> int:
     print("\n".join(header_lines(m, song, sc, mc, lat, how, vsm)))
     n_bars = int(math.ceil(lat.n / (lat.sub * BEATS_PER_BAR)))
     if a.npz:
-        np.savez(a.npz, **to_arrays(m, sc, mc, lat, hc))
+        np.savez(a.npz, **to_arrays(m, sc, mc, lat, hc,
+                                   vsm.difficulty if vsm is not None else ""))
         print(f"# wrote {a.npz}  (song[T,F] map[T,C]{' human[T,C]' if hc is not None else ''}, T={lat.n})")
     if a.sections or not (a.bars or a.all or a.npz or a.csv):
         print()

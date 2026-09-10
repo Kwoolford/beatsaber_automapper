@@ -537,16 +537,18 @@
    "label": "CLEAN",
    "codes": [],
    "must_not_flag": [
-    "SCATTER",
-    "FLOW",
+    "BREATHING",
+    "D1",
     "D2",
     "D4",
     "D5",
+    "D6",
+    "ELEMENTS",
     "EMPTY",
-    "BREATHING",
+    "FLOW",
     "HANDROLE",
     "ONBEAT_MAIN",
-    "ELEMENTS"
+    "SCATTER"
    ],
    "strength": "strong",
    "bars": null,
@@ -555,11 +557,7 @@
    "date": "2026-09-10",
    "verdict_id": null,
    "quote": "(negative by construction: a different, harder, indisputably good map of the same song by the same mapper -- a locator that fires here is reading DIFFICULTY, not a defect)",
-   "note": "THE DIFFICULTY CONTROL (P5b, 2026-09-10). The same mapper's ExpertPlus of the same song, read against his own Expert (data/raw/1f333.zip) -- the first NON-SELF-REFERENTIAL human negative on this bench. Every other CLEAN row is a human map scored against itself, where any 'ours differs from his' query is zero by construction, so their '0 false fires' was vacuous for every reference-relative query in queries.py. Rebuild with scripts/make_bench_fixtures.py (Info.dat + the one difficulty; audio comes from the songset by id). ⚠️D1/D6 are DELIBERATELY NOT FORBIDDEN here: they are density claims and a harder difficulty is legitimately denser. q_events fires D6 'over-dense' 6x on HUMANPLUS__1f333 (3.0x the events at bars 17-32) -- a true statement about density and a false one about quality, and the reason a density request (P0.1) and not the human's count has to be what D6 is judged against once P6 lets a user ask for a harder map.",
-   "allows": [
-    "D1",
-    "D6"
-   ]
+   "note": "THE DIFFICULTY CONTROL (P5b, 2026-09-10). The same mapper's ExpertPlus of the same song, read against his own Expert (data/raw/1f333.zip) -- the first NON-SELF-REFERENTIAL human negative on this bench. Every other CLEAN row is a human map scored against itself, where any 'ours differs from his' query is zero by construction, so their '0 false fires' was vacuous for every reference-relative query in queries.py. Rebuild with scripts/make_bench_fixtures.py (Info.dat + the one difficulty; audio comes from the songset by id). ⚠️HISTORY (do not undo): when this row was added, q_events fired D6 'over-dense' 6x on HUMANPLUS__1f333 (3.0x the events at bars 17-32) and the verdict page said SHIP? NO on a top mapper's own map. It was parked behind `allows: [D1, D6]` for exactly as long as it took to fix (same session, P5c): score.py now carries each map's DECLARED difficulty and q_events does not make an over-dense claim across two of them. `allows` is gone from this row and D1/D6 are forbidden again, so the row has its full power back. If a change makes D6 fire here again, that change would call a human's harder map defective."
   },
   {
    "id": "humanplus-1f8d6",
@@ -569,16 +567,18 @@
    "label": "CLEAN",
    "codes": [],
    "must_not_flag": [
-    "SCATTER",
-    "FLOW",
+    "BREATHING",
+    "D1",
     "D2",
     "D4",
     "D5",
+    "D6",
+    "ELEMENTS",
     "EMPTY",
-    "BREATHING",
+    "FLOW",
     "HANDROLE",
     "ONBEAT_MAIN",
-    "ELEMENTS"
+    "SCATTER"
    ],
    "strength": "strong",
    "bars": null,
@@ -587,11 +587,7 @@
    "date": "2026-09-10",
    "verdict_id": null,
    "quote": "(negative by construction: a different, harder, indisputably good map of the same song by the same mapper -- a locator that fires here is reading DIFFICULTY, not a defect)",
-   "note": "THE DIFFICULTY CONTROL (P5b, 2026-09-10). The same mapper's ExpertPlus of the same song, read against his own Expert (data/raw/1f8d6.zip) -- the first NON-SELF-REFERENTIAL human negative on this bench. Every other CLEAN row is a human map scored against itself, where any 'ours differs from his' query is zero by construction, so their '0 false fires' was vacuous for every reference-relative query in queries.py. Rebuild with scripts/make_bench_fixtures.py (Info.dat + the one difficulty; audio comes from the songset by id). ⚠️D1/D6 are DELIBERATELY NOT FORBIDDEN here: they are density claims and a harder difficulty is legitimately denser. q_events fires D6 'over-dense' 6x on HUMANPLUS__1f333 (3.0x the events at bars 17-32) -- a true statement about density and a false one about quality, and the reason a density request (P0.1) and not the human's count has to be what D6 is judged against once P6 lets a user ask for a harder map.",
-   "allows": [
-    "D1",
-    "D6"
-   ]
+   "note": "THE DIFFICULTY CONTROL (P5b, 2026-09-10). The same mapper's ExpertPlus of the same song, read against his own Expert (data/raw/1f8d6.zip) -- the first NON-SELF-REFERENTIAL human negative on this bench. Every other CLEAN row is a human map scored against itself, where any 'ours differs from his' query is zero by construction, so their '0 false fires' was vacuous for every reference-relative query in queries.py. Rebuild with scripts/make_bench_fixtures.py (Info.dat + the one difficulty; audio comes from the songset by id). ⚠️HISTORY (do not undo): when this row was added, q_events fired D6 'over-dense' 6x on HUMANPLUS__1f333 (3.0x the events at bars 17-32) and the verdict page said SHIP? NO on a top mapper's own map. It was parked behind `allows: [D1, D6]` for exactly as long as it took to fix (same session, P5c): score.py now carries each map's DECLARED difficulty and q_events does not make an over-dense claim across two of them. `allows` is gone from this row and D1/D6 are forbidden again, so the row has its full power back. If a change makes D6 fire here again, that change would call a human's harder map defective."
   }
  ]
 }

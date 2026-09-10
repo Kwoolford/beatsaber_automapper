@@ -61,13 +61,13 @@ def arrays_for(sid: str, map_path: pathlib.Path | None = None, rebuild: bool = F
         if f.exists() and not rebuild:
             z = np.load(f, allow_pickle=True)
             return {k: z[k] for k in z.files}
-        m, song, _how, _vsm, lat, sc, mc, hc = S.build(tutor, sid, 4, None)
-        arrs = S.to_arrays(m, sc, mc, lat, hc)
+        m, song, _how, vsm, lat, sc, mc, hc = S.build(tutor, sid, 4, None)
+        arrs = S.to_arrays(m, sc, mc, lat, hc, vsm.difficulty if vsm is not None else "")
         arrs["tutor"] = str(tutor.relative_to(REPO))
         np.savez(f, **arrs)
         return arrs
-    m, song, _how, _vsm, lat, sc, mc, hc = S.build(map_path, sid, 4, "auto")
-    arrs = S.to_arrays(m, sc, mc, lat, hc)
+    m, song, _how, vsm, lat, sc, mc, hc = S.build(map_path, sid, 4, "auto")
+    arrs = S.to_arrays(m, sc, mc, lat, hc, vsm.difficulty if vsm is not None else "")
     arrs["tutor"] = str(tutor.relative_to(REPO))
     return arrs
 

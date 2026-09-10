@@ -90,7 +90,7 @@ def load_arrays(src: pathlib.Path, song: str | None, vs: str):
     from agent_mapper import score as S
     sid = song or next(iter(re.findall(r"[0-9a-f]{4,6}", src.stem)), None)
     m, song_obj, how, vsm, lat, sc, mc, hc = S.build(pathlib.Path(src), sid, 4, vs, False)
-    arrs = S.to_arrays(m, sc, mc, lat, hc)
+    arrs = S.to_arrays(m, sc, mc, lat, hc, vsm.difficulty if vsm is not None else "")
     header = S.header_lines(m, song_obj, sc, mc, lat, how, vsm)
     return arrs, dict(sid=sid, m=m, mc=mc, hc=hc, vs=vsm, header=header), song_obj
 
@@ -264,6 +264,8 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
         bench_res = bench.run_score(Q.q_all, "queries:q_all", echo=lambda *a, **k: None)
     ship = "NO" if reds else "YES"
     return dict(map=str(src), song=sid, n_bars=n_bars, human=human, lines=lines, reds=reds,
+                difficulty=str(arrs.get("difficulty", "")),
+                human_difficulty=str(arrs.get("human_difficulty", "")),
                 yellows=yellows, ship=ship, playability=play, absence=absence, tutor=tut_word,
                 tutor_diffs=tut_diffs, judge=jd, header=(built["header"] if built else []),
                 bench=(None if bench_res is None else
@@ -287,6 +289,13 @@ def render(v: dict) -> str:
     if not v["human"]:
         L.append("# ⚪ no human map of this song: EMPTY / D1 / D4 / D6 / ELEMENTS could not be asked; "
                  "only FLOW / D2 read against the song's onsets")
+    if v.get("difficulty") and v.get("human_difficulty") and \
+            v["difficulty"].lower() != v["human_difficulty"].lower():
+        # ★2026-09-10: nobody had noticed that 1f913's only human map is an ExpertPlus, so
+        # every density read on that song has been comparing two difficulties.
+        L.append(f"# ⚠️ CROSS-DIFFICULTY: ours is {v['difficulty']}, the reference human map is "
+                 f"{v['human_difficulty']} — D6 over-dense is NOT asked, and part of any EMPTY "
+                 f"gap is difficulty, not a defect")
     L.append("")
     for ln in v["lines"]:
         head = f"{ln['state']} {ln['code']:<8s} {ln['name']:<38s}"

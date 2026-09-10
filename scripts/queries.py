@@ -120,9 +120,20 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> lis
     D6 the other way (over-dense): window where the human has ≥ 8 events and ours ≥ `high`×
     — nps spent where the best mapper spent none (1f9a0 NEW: 657 events vs the human's 271;
     Hunger AGENT 5/52 windows; A+ 1/52). Needs the human map; silent without it.
+
+    ⚠️**The over-dense branch does not fire across difficulties** (P5c, 2026-09-10). It fired
+    six times on `HUMANPLUS__1f333` — a top mapper's own ExpertPlus read against his Expert,
+    *"54 events vs human 18 (3.0×)"* — and the verdict page said SHIP? NO on it. That is a
+    true claim about density and a false one about quality, and "make it harder" is the first
+    thing P6 has to serve. When the two maps DECLARE different difficulties the comparison is
+    not a defect claim, so the branch is skipped and the reason is reported. Nothing changes
+    for a build read against the same difficulty, which is every map we make.
     """
     if not has_human(arrs):
         return []
+    mine_d = str(arrs.get("difficulty", ""))
+    his_d = str(arrs.get("human_difficulty", ""))
+    cross = bool(mine_d and his_d and mine_d.lower() != his_d.lower())
     bar = arrs["bar"]
     L, R = hands(arrs["map"]); ev = L | R; dbl = L & R
     HL, HR = hands(arrs["human"]); hev = HL | HR; hdbl = HL & HR
@@ -131,7 +142,7 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> lis
     for b0 in range(1, int(bar.max()) + 1, W):
         sel = (bar >= b0) & (bar < b0 + W)
         e, h = int(ev[sel].sum()), int(hev[sel].sum())
-        if h >= 8 and e >= high * h:
+        if h >= 8 and e >= high * h and not cross:
             dense.append((b0, f"over-dense: {e} events vs human {h} ({e / h:.1f}x), "
                               f"notes {int(mn[sel].sum())} vs {int(hn[sel].sum())}"))
         if h < 12:
@@ -140,8 +151,14 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> lis
         d = int(dbl[sel].sum())
         dshare.append((d / max(e, 1), b0, e, d))
         if e < low * h:
+            # ⚠️EMPTY is kept across difficulties, unlike over-dense: it is the defect Kyle
+            # named by ear ("feels really empty") and 1f913's ONLY human map is an
+            # ExpertPlus, so suppressing it there would blind the read on that song
+            # entirely. The caveat rides along in the why instead.
             empty.append((b0, f"{e} events vs human {h} ({e / h:.2f}x), {d}/{max(e, 1)} doubles, "
-                              f"notes {int(mn[sel].sum())} vs {int(hn[sel].sum())}"))
+                              f"notes {int(mn[sel].sum())} vs {int(hn[sel].sum())}"
+                              + (f"  ⚠️his map is {his_d}, ours is {mine_d}: some of this "
+                                 f"gap is difficulty" if cross else "")))
     hits = merge(empty, "EMPTY", arrs, W) + merge(dense, "D6", arrs, W)
     ds, hds = dbl.sum() / max(ev.sum(), 1), hdbl.sum() / max(hev.sum(), 1)
     if ds >= 0.5 and ds - hds >= 0.2 and dshare:
@@ -546,7 +563,7 @@ def main() -> int:
         from agent_mapper import score as S
         sid = a.song or next(iter(re.findall(r"[0-9a-f]{4,6}", a.src.stem)), None)
         m, song, how, vsm, lat, sc, mc, hc = S.build(str(a.src), sid, 4, a.vs, False)
-        arrs = S.to_arrays(m, sc, mc, lat, hc)
+        arrs = S.to_arrays(m, sc, mc, lat, hc, vsm.difficulty if vsm is not None else "")
     hits = globals()[a.query](arrs)
     for h in hits:
         code, t, b, why = h[:4]

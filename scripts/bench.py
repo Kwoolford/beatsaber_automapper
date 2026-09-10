@@ -91,8 +91,8 @@ def arrays_for(row: dict, rebuild: bool = False) -> dict | None:
         z = np.load(f, allow_pickle=True)
         return {k: z[k] for k in z.files}
     from agent_mapper import score as S
-    m, song, _how, _vsm, lat, sc, mc, hc = S.build(REPO / row["map"], row["song"], 4, "auto")
-    arrs = S.to_arrays(m, sc, mc, lat, hc)
+    m, song, _how, vsm, lat, sc, mc, hc = S.build(REPO / row["map"], row["song"], 4, "auto")
+    arrs = S.to_arrays(m, sc, mc, lat, hc, vsm.difficulty if vsm is not None else "")
     np.savez(f, **arrs)
     return arrs
 
@@ -297,12 +297,13 @@ def score_row(row: dict, hits: list[tuple], claims: set | None = None,
     A CLEAN row is strict: ANY code fired on it is a FALSE fire, including one nobody has
     listed -- an unknown code on a top human's map is the most suspicious thing a locator
     can do. The single exemption is `allows`, a per-row list of codes the label deliberately
-    permits, and it exists for one measured reason (P5b, 2026-09-10): on the `humanplus-*`
-    difficulty controls `q_events` fires D6 "over-dense" because an ExpertPlus IS denser than
-    the Expert it is read against. That is a true statement about density and a false one
-    about quality, and calling it a false fire would have read the whole suite as REFUTED for
-    doing exactly what it says on the tin. Exempting a code costs the row its power over that
-    code, so `allows` needs the row's `note` to say why."""
+    permits. ⚠️**No row uses it today and that is the point**: it was added (P5b, 2026-09-10)
+    because `q_events` fired D6 "over-dense" on the `humanplus-*` difficulty controls -- an
+    ExpertPlus IS denser than the Expert it is read against -- and was removed from those rows
+    the same session, once `q_events` learned not to make an over-dense claim across two
+    DECLARED difficulties (P5c). Exempting a code costs the row its power over that code, so
+    `allows` is a place to park a known limitation while it is being fixed, with the reason in
+    the row's `note` -- never a way to quiet a row that is telling the truth."""
     codes = {h[0] for h in hits}
     if row["label"] == "UNLABELLED":
         return "n/a", f"{len(hits)} fire(s) -- unlabelled, neither hit nor false"

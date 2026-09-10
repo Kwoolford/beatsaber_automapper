@@ -94,8 +94,10 @@ queried, ALWAYS_RED and bench-scored on `1f333-scatter`; `ABSENCE` is on the ver
 cost us three of the four staged pairs: `LOOP__1f333` and `LOOP__1f913` now fail on SCATTER, `NOPULSE__1f8d6` on
 ABSENCE. They stay staged, blinded and UNCHANGED — decided-and-logged — with the prediction for each written into
 `.key.json` before he plays.** → **P5 is still the only thing that moves the headline: Kyle plays ONE pair**
-(`compete.py verdict <sid> X|Y|tie --because …`) → then **P6**, whose first task is now named by the control: the
-gate says SHIP? NO on a human's own ExpertPlus, so a density claim has to be judged against the REQUEST.
+(`compete.py verdict <sid> X|Y|tie --because …`) → then **P6**. ✅P5c closed the same day: the gate no longer calls
+a human's own ExpertPlus over-dense (the map DECLARES its difficulty and `q_events` reads it), which also surfaced
+that **1f913's only human map is an ExpertPlus while every build we make is an Expert** — that pair, and every
+density read on that song, has been cross-difficulty all along.
 🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
 
 ---
@@ -359,18 +361,21 @@ addressed at the three worst blocks, ALWAYS_RED because one map-wide fire can ne
   fallback and **this song's human is preferred**. A third gesture (chains? stacks? crouch walls?) needs a v3 human
   reference the songset does not have (P3 leftover).
 
-## 🔴 P5c — THE GATE REFUSES A HUMAN'S OWN HARDER MAP (opened 2026-09-10; blocks P6)
-**Evidence**: `verdict.py outputs/bench_fixtures/HUMANPLUS__1f333.zip --vs 1f333` says **SHIP? NO**, on four D6
-"over-dense" reds — *"54 events vs human 18 (3.0×)"*. The map is a top mapper's own ExpertPlus of that song. P6's
-first request is *"make it harder"*, and today the gate calls that a defect.
-**Tasks**:
-- ⬜`q_events`' over-dense branch compares a window to the human's count with no notion of **intended difficulty**.
-  Two candidate fixes, both measurable today: (a) normalise the window ratio by the **map-wide** ratio, so a
-  uniformly denser map is silent and a locally 3× window still fires; (b) judge it against P0.1's `nps_request`
-  when there is one. (a) needs no new plumbing and is testable on the controls immediately.
-- ⬜Whichever ships, `humanplus-*` must go **silent on D6 without `allows`**, while `setA-*` and `NEW__1f9a0`
-  (2.0–2.6× the human in every chorus) keep firing. Then drop `allows` from the rows and say so in their notes.
-**DoD**: the two difficulty controls read SHIP? YES with `allows` removed, and no bench row regresses.
+## ✅→🔵 P5c — THE GATE REFUSED A HUMAN'S OWN HARDER MAP — DoD MET 2026-09-10 (`PROGRESS.md 2026-09-10b`)
+Shipped: `MapData.difficulty` (the name of the `.dat` `load_map` picks, which was being thrown away) → arrays
+`difficulty` / `human_difficulty` → **`q_events` makes no over-dense claim across two declared difficulties**, and
+`verdict.py` prints a **CROSS-DIFFICULTY** header. The control went SHIP? NO → **YES**; `NEW__1f9a0` still fires
+D6 ×5; `allows` is gone from both control rows and D1/D6 are forbidden there again.
+
+**Leftovers:**
+- 🔴⚠️**`1f913`'s only human map is an ExpertPlus and every build we make declares Expert** — every density read on
+  that song, the tutor line, and **the staged blind pair** compare two difficulties. The pair stays staged
+  (`.key.json` carries the caveat) but a loss there is not purely a quality loss. ⬜Either build a 1f913 at
+  ExpertPlus density and re-stage, or accept it and say so in `compete.py table`.
+- ⬜EMPTY is deliberately still asked across difficulties (the caveat rides in its `why`). If a cross-difficulty
+  song ever fires EMPTY hard, decide then whether the read or the reference is wrong.
+- ⬜Nothing else consumes `difficulty` yet: the **tutor** compares our Expert to his ExpertPlus situations with no
+  caveat at all, and `compete.py stage` does not record the two difficulties in the key.
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·

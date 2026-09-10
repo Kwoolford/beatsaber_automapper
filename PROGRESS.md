@@ -85,6 +85,41 @@ clean side, run it on `humanplus-*`.
 
 ---
 
+## 2026-09-10b — P5c closed the same day it opened: the gate no longer calls a human's harder map defective
+
+**The defect** (opened this morning by the new difficulty control): `verdict.py HUMANPLUS__1f333.zip --vs 1f333`
+said **SHIP? NO** on four `q_events` D6 "over-dense" reds — *"54 events vs human 18 (3.0×)"*. The map is a top
+mapper's own ExpertPlus of that song. "Make it harder" is P6's first request and the gate called it a defect.
+
+**The fix is a fact the tools were throwing away: the map SAYS what difficulty it is.** `score.load_map` picked a
+difficulty file and discarded its name. `MapData.difficulty` now keeps it, `to_arrays` carries `difficulty` and
+`human_difficulty`, and **`q_events` does not make an over-dense claim across two declared difficulties.**
+
+⚠️**And that surfaced something nobody had noticed: `1f913`'s only human map is an ExpertPlus, and every build we
+make declares Expert.** Every density read on that song — and the blind compete pair — has been comparing two
+difficulties all along. The verdict page now prints a **CROSS-DIFFICULTY** header line naming both.
+
+**Asymmetric by choice, and this is the argued part.** Over-dense is *suppressed* across difficulties (it has a
+demonstrated false fire). EMPTY is *kept*, with the caveat written into its `why`: it is the defect Kyle named by
+ear, and 1f913 has no Expert human map at all, so suppressing it would blind the read on that whole song.
+
+| check | before | after |
+|---|---|---|
+| `HUMANPLUS__1f333` (human ExpertPlus vs his Expert) | SHIP? **NO**, D6 ×6 | **SHIP? YES**, silent |
+| `NEW__1f9a0` (ours Expert vs his Expert, judge 0.475) | D6 ×5 | **D6 ×5** — unchanged |
+| `bench score queries:q_all` | not refuted, 4 strong / 0 false | **unchanged** |
+
+`allows: [D1, D6]` is **gone from both control rows** and D1/D6 are forbidden there again, so the rows have their
+full power back: if a future change makes D6 fire on them, that change is calling a human's harder map defective.
+The `allows` mechanism stays in `score_row` with its history in the docstring — a place to park a known limitation
+while it is being fixed, never a way to quiet a row that is telling the truth. **P5c's DoD is MET.**
+
+**Decided-and-logged:** the 1f913 blind pair stays staged. That ExpertPlus is the top human map of the song and the
+thing the project is measured against — but the caveat is now in `.key.json`, so a loss there is not read as purely
+a quality loss.
+
+---
+
 ## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
 
 **How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:
