@@ -367,15 +367,24 @@ Shipped: `MapData.difficulty` (the name of the `.dat` `load_map` picks, which wa
 `verdict.py` prints a **CROSS-DIFFICULTY** header. The control went SHIP? NO → **YES**; `NEW__1f9a0` still fires
 D6 ×5; `allows` is gone from both control rows and D1/D6 are forbidden there again.
 
+✅**Extended the same day (`PROGRESS.md 2026-09-10c`) after running the control the OTHER WAY:** his Expert read
+against his ExpertPlus drew **7 EMPTY + 3 D4 + 1 D3** on 1f333 — the sparser direction was carrying the damage, and
+D4/D3 are not density claims at all. Normalising by the map-wide ratio was **refuted** (13 of 16 windows still
+fired; his Expert matches the ExpertPlus almost everywhere and thins only the hard sections). ⇒
+`queries.cross_difficulty()` now gates **every comparative-LEVEL read** (EMPTY · D1 · D4 · D6 over-dense · the
+density step at a drop), while SHAPE reads stay (doubles share · grid phase · the drop LAG · "did not come down" ·
+SCATTER · BREATHING). Both controls are silent in both directions; `humanexp-*` rows added (bench rows grew a `vs`
+field); 23 rows, not refuted.
+
 **Leftovers:**
-- 🔴⚠️**`1f913`'s only human map is an ExpertPlus and every build we make declares Expert** — every density read on
-  that song, the tutor line, and **the staged blind pair** compare two difficulties. The pair stays staged
-  (`.key.json` carries the caveat) but a loss there is not purely a quality loss. ⬜Either build a 1f913 at
-  ExpertPlus density and re-stage, or accept it and say so in `compete.py table`.
-- ⬜EMPTY is deliberately still asked across difficulties (the caveat rides in its `why`). If a cross-difficulty
-  song ever fires EMPTY hard, decide then whether the read or the reference is wrong.
-- ⬜Nothing else consumes `difficulty` yet: the **tutor** compares our Expert to his ExpertPlus situations with no
-  caveat at all, and `compete.py stage` does not record the two difficulties in the key.
+- 🔴⚠️**We can make NO density claim about `1f913`** — its only human map is an ExpertPlus, every build we make
+  declares Expert, and its page now prints ⚪ EMPTY · ⚪ D1 · ⚪ D4. This also means **the staged blind pair asks
+  Kyle to compare two difficulties**; it stays staged (`.key.json` carries the caveat) but a loss there is not
+  purely a quality loss. ⬜Fix by building 1f913 at his difficulty, or by finding an Expert human map of it.
+- ⬜**The tutor has no cross-difficulty notion at all** — `LOOP__1f913` is scored "6/19 situations his way" against
+  an ExpertPlus's situations. Same for `compete.py stage`, which does not record the two difficulties in the key.
+- ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties either; the per-song human
+  is preferred on the verdict page, so this bites only when a song has no human map.
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·

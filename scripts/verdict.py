@@ -217,9 +217,14 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
     human = Q.has_human(arrs)
     lines: list[dict] = []
     reds = yellows = 0
+    # ★Codes that compare our LEVEL to the reference's cannot be asked across two declared
+    # difficulties (queries.cross_difficulty) -- they show ⚪, the same state as "no human map
+    # of this song", because that is what they are: a reference that cannot answer this.
+    cross = Q.cross_difficulty(arrs)
+    LEVEL = {"EMPTY", "D1", "D4"}
     for code, name, tool in CODES:
         hs = by.get(code, [])
-        askable = human or code in ("FLOW", "D2")
+        askable = (human or code in ("FLOW", "D2")) and not (cross and code in LEVEL)
         if not askable:
             state = "⚪"
         elif not hs:
@@ -294,8 +299,9 @@ def render(v: dict) -> str:
         # ★2026-09-10: nobody had noticed that 1f913's only human map is an ExpertPlus, so
         # every density read on that song has been comparing two difficulties.
         L.append(f"# ⚠️ CROSS-DIFFICULTY: ours is {v['difficulty']}, the reference human map is "
-                 f"{v['human_difficulty']} — D6 over-dense is NOT asked, and part of any EMPTY "
-                 f"gap is difficulty, not a defect")
+                 f"{v['human_difficulty']} — EMPTY / D1 / D4 could not be asked (⚪), nor D6 "
+                 f"over-dense, nor the density step at a drop. Measured: a top mapper's own "
+                 f"Expert draws 7 EMPTY + 3 D4 + 1 D3 against his ExpertPlus")
     L.append("")
     for ln in v["lines"]:
         head = f"{ln['state']} {ln['code']:<8s} {ln['name']:<38s}"

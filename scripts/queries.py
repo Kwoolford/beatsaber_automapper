@@ -59,6 +59,30 @@ def has_human(arrs: dict) -> bool:
     return "human" in arrs and np.asarray(arrs["human"]).size > 0
 
 
+def cross_difficulty(arrs: dict) -> str:
+    """`"Expert vs ExpertPlus"` when the map and its reference DECLARE different difficulties.
+
+    ★**Why every comparative-LEVEL read has to check this** (P5c, measured 2026-09-10). A top
+    mapper's own **Expert**, read against his own **ExpertPlus** of the same song, draws
+    **7 EMPTY, 3 D4 and 1 D3** on 1f333 — eleven defect fires on an unquestionably good human
+    map. His Expert is not uniformly thinner: it matches the ExpertPlus in most windows
+    (median ratio 0.93) and drops to a third of it **in the hard sections**, which is what a
+    difficulty spread IS and is indistinguishable from "empty" to a query that only knows one
+    of the two maps. ⚠️Normalising the window ratio by the map-wide ratio was tried and
+    **refuted**: 13 of the 16 windows still fire.
+
+    ⇒ A read that compares our LEVEL to his (how many events, how much of the vocal answered,
+    how big the step at a drop) **cannot be asked across two difficulties** and is skipped, the
+    way it is skipped when there is no human map at all. Reads about SHAPE (doubles share,
+    grid phase, whether the map comes down when he does, whether a figure comes back) are
+    difficulty-fair and still asked. The cost is real and named: `1f913`'s only human map is an
+    ExpertPlus, so we can make no density claim about that song until it has an Expert
+    reference or we build one at his difficulty (TODO P5c leftover).
+    """
+    a, b = str(arrs.get("difficulty", "")), str(arrs.get("human_difficulty", ""))
+    return f"{a} vs {b}" if a and b and a.lower() != b.lower() else ""
+
+
 _ARROW = "↑↓←→↖↗↙↘·"
 
 
@@ -131,9 +155,7 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> lis
     """
     if not has_human(arrs):
         return []
-    mine_d = str(arrs.get("difficulty", ""))
-    his_d = str(arrs.get("human_difficulty", ""))
-    cross = bool(mine_d and his_d and mine_d.lower() != his_d.lower())
+    cross = cross_difficulty(arrs)
     bar = arrs["bar"]
     L, R = hands(arrs["map"]); ev = L | R; dbl = L & R
     HL, HR = hands(arrs["human"]); hev = HL | HR; hdbl = HL & HR
@@ -142,7 +164,7 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> lis
     for b0 in range(1, int(bar.max()) + 1, W):
         sel = (bar >= b0) & (bar < b0 + W)
         e, h = int(ev[sel].sum()), int(hev[sel].sum())
-        if h >= 8 and e >= high * h and not cross:
+        if h >= 8 and e >= high * h and not cross:   # a LEVEL claim: see cross_difficulty
             dense.append((b0, f"over-dense: {e} events vs human {h} ({e / h:.1f}x), "
                               f"notes {int(mn[sel].sum())} vs {int(hn[sel].sum())}"))
         if h < 12:
@@ -150,15 +172,12 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> lis
         ratios.append(e / h)
         d = int(dbl[sel].sum())
         dshare.append((d / max(e, 1), b0, e, d))
-        if e < low * h:
-            # ⚠️EMPTY is kept across difficulties, unlike over-dense: it is the defect Kyle
-            # named by ear ("feels really empty") and 1f913's ONLY human map is an
-            # ExpertPlus, so suppressing it there would blind the read on that song
-            # entirely. The caveat rides along in the why instead.
+        if e < low * h and not cross:
+            # ⚠️EMPTY was kept across difficulties for one morning, with the caveat in the
+            # why. The reverse control refuted that the same day: his own Expert draws SEVEN
+            # of these against his ExpertPlus. It is a LEVEL claim -- see cross_difficulty.
             empty.append((b0, f"{e} events vs human {h} ({e / h:.2f}x), {d}/{max(e, 1)} doubles, "
-                              f"notes {int(mn[sel].sum())} vs {int(hn[sel].sum())}"
-                              + (f"  ⚠️his map is {his_d}, ours is {mine_d}: some of this "
-                                 f"gap is difficulty" if cross else "")))
+                              f"notes {int(mn[sel].sum())} vs {int(hn[sel].sum())}"))
     hits = merge(empty, "EMPTY", arrs, W) + merge(dense, "D6", arrs, W)
     ds, hds = dbl.sum() / max(ev.sum(), 1), hdbl.sum() / max(hev.sum(), 1)
     if ds >= 0.5 and ds - hds >= 0.2 and dshare:
@@ -261,9 +280,11 @@ def q_vocals(arrs: dict, W: int = 4, gap: float = 0.25, min_slots: int = 6,
     we answer ≥ `gap` less. Humans answer 70-95 % of their own vox-main slots; set A
     60-73 % — 1f767's human is itself at 70 %, so a fixed floor would fire on him.
     Measured (W=4, gap 0.25): set A 1f767 6/30 windows, 1f913 14/33, 1f8d6 10/22, A+ 3/11,
-    Hunger AGENT 2/11. Needs the human map; silent without it.
+    Hunger AGENT 2/11. Needs the human map; silent without it, and silent **across
+    difficulties** -- how much of the vocal a map answers is a LEVEL, and a human's own Expert
+    draws three of these against his ExpertPlus (`cross_difficulty`).
     """
-    if not has_human(arrs):
+    if not has_human(arrs) or cross_difficulty(arrs):
         return []
     bar = arrs["bar"]
     vox = col(arrs, "main").astype(int) == 1
@@ -309,6 +330,7 @@ def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 
     nb = int(bar.max())
     emean = np.array([E[bar == b].mean() if (bar == b).any() else 0.0 for b in range(1, nb + 1)])
     L, R = hands(arrs["map"]); ev = L | R
+    cross = bool(cross_difficulty(arrs))
     hev = None
     if has_human(arrs):
         HL, HR = hands(arrs["human"]); hev = HL | HR
@@ -335,7 +357,10 @@ def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 
                 hstep = hafter / max(rate(hev, b - n_bars, b), 0.5)
                 hf = first(hev, b)
                 # under-stepped only if we also land short of his density after the jump
-                bad = ((step < 0.8 * hstep and after < 0.8 * hafter)
+                # ⚠️`step`/`after` compare LEVELS and are not asked across difficulties
+                # (his own Expert draws a D3 against his ExpertPlus); the LAG is fair, and so
+                # is the E-drop branch below -- coming down when he does is shape.
+                bad = ((not cross and step < 0.8 * hstep and after < 0.8 * hafter)
                        or (hf is not None and (f is None or f > hf + lag_beats)))
                 ref = f" (human ×{hstep:.1f}, first {'none' if hf is None else f'{hf:.2f}'})"
             else:

@@ -81,7 +81,10 @@ def arrays_for(row: dict, rebuild: bool = False) -> dict | None:
     """`score.to_arrays()` for a row, cached in outputs/bench_cache/<id>.npz.
 
     The human map is always loaded (`--vs auto`) so an EMPTY/D6 query can compare
-    against it; for the human rows themselves that is the same map twice.
+    against it; for the human rows themselves that is the same map twice. A row may name a
+    different reference with `vs` (a repo-relative zip, or a corpus id) -- the `humanexp-*`
+    difficulty controls read a mapper's Expert against his own ExpertPlus, which `auto`
+    (data/raw/<sid>.zip, where load_map prefers Expert) cannot express.
     """
     if not row.get("readable", True):
         return None
@@ -91,7 +94,10 @@ def arrays_for(row: dict, rebuild: bool = False) -> dict | None:
         z = np.load(f, allow_pickle=True)
         return {k: z[k] for k in z.files}
     from agent_mapper import score as S
-    m, song, _how, vsm, lat, sc, mc, hc = S.build(REPO / row["map"], row["song"], 4, "auto")
+    vs = row.get("vs", "auto")
+    if vs not in ("auto",) and (REPO / vs).exists():
+        vs = str(REPO / vs)
+    m, song, _how, vsm, lat, sc, mc, hc = S.build(REPO / row["map"], row["song"], 4, vs)
     arrs = S.to_arrays(m, sc, mc, lat, hc, vsm.difficulty if vsm is not None else "")
     np.savez(f, **arrs)
     return arrs

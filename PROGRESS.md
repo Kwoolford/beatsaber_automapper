@@ -120,6 +120,52 @@ a quality loss.
 
 ---
 
+## 2026-09-10c — the SPARSER direction was the dangerous one: eleven defect fires on a human's own Expert
+
+**The morning's fix was half a fix.** P5c stopped `q_events` calling a human's ExpertPlus over-dense against his
+Expert, and I argued *against* doing the same for EMPTY: it is the defect Kyle named by ear, and 1f913 has no
+Expert human map, so suppressing it there would blind that whole song. I wrote the caveat into the `why` and left
+the read in, with a TODO saying *"if a cross-difficulty song ever fires EMPTY hard, decide then."*
+
+**Then I ran the control the other way round.** The same mapper's **Expert**, read against his own **ExpertPlus**:
+
+| control (1f333) | fires |
+|---|---|
+| his ExpertPlus vs his Expert (the denser side) | 0 |
+| **his Expert vs his ExpertPlus (the sparser side)** | **7 EMPTY · 3 D4 · 1 D3** |
+
+Eleven defect fires on an unquestionably good human map, and two of the three codes are not density claims at all
+— D4 is *"not following the main vocals"* (47 % of the vocal answered vs his 95 %) and D3 is ALWAYS_RED. On 1f8d6
+both directions are silent: its two difficulties are within 5 % of each other, so **1f333 is the row with teeth**.
+
+**Why: his Expert is not uniformly thinner.** Median window ratio **0.93** — it matches the ExpertPlus almost
+everywhere and drops to a third of it **in the hard sections**. That IS a difficulty spread, and it is
+indistinguishable from "empty" to a query that knows only one of the two maps. ⚠️**Normalising each window by the
+map-wide ratio was tried and REFUTED**: 13 of the 16 windows still fire (the distribution is bimodal, not scaled).
+
+**So the rule is not "scale the reference", it is "do not ask".** `queries.cross_difficulty()` now gates every
+comparative-**LEVEL** read the way a missing human map already did:
+
+| asked across difficulties? | reads |
+|---|---|
+| ❌ **no — a LEVEL claim** | EMPTY · D1 · D4 · D6 over-dense · the density step at a drop |
+| ✅ **yes — a SHAPE claim** | doubles share (D6 map-wide) · FLOW / D2 grid phase · the drop LAG · "did not come down" · SCATTER · BREATHING · ELEMENTS |
+
+Both controls are now silent on all seven queries, in both directions, and are bench rows (`humanexp-*` join
+`humanplus-*`; `bench.py` rows grew a `vs` field, since `auto` cannot express "his other difficulty").
+**23 rows, still not refuted: 4 strong hits, 0 false fires, 0 violations.** `NEW__1f9a0` still fires D6 ×5 and the
+four staged maps are unchanged.
+
+**The cost is real and it is now visible on the page.** `LOOP__1f913` prints **⚪ EMPTY · ⚪ D1 · ⚪ D4** and a
+header saying why. We can make **no density claim about 1f913 at all** until it has an Expert human reference or
+we build at his difficulty — where before, the page quietly made three.
+
+★**The lesson, third in the series.** *A clean page is evidence about the queries* (09-03b). *A clean bench row is
+evidence only if the row could have failed* (09-10). And now: **when a control fires, run it in both directions
+before deciding which half of the tool is wrong** — the direction I did not test was the one carrying the damage.
+
+---
+
 ## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
 
 **How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:
