@@ -166,6 +166,49 @@ before deciding which half of the tool is wrong** — the direction I did not te
 
 ---
 
+## 2026-09-10d — two nulls worth keeping: the entry accent is not locatable, and the late-song collapse is gone
+
+Both of these are **negative results measured on purpose**, so nobody spends another session on them.
+
+**1. "He accents the entry with both hands and we do not" — NOT MEASURABLE.** P5b's open leftover was the gap that
+is neither an absence nor over-density: `LOOP__1f913` plays **4.2 % doubles against its human's 32.9 %** and both
+reads call it fine (ABSENCE only reds at effectively zero; `q_events` D6 only fires the other way). The tutor
+vocabulary said where to look — *drums-in / bass-in → DOUBLES, the entry accent* — so the read to try was the
+located one: at each stem entry, does he double and do we?
+
+| doubles at the entry, ours / his, of N entries | drums-in | bass-in | lead-in | vox-in |
+|---|---|---|---|---|
+| `LOOP__1f913` | 0/1 of 1 | **1/4 of 4** | — | 0/1 of 3 |
+| `NOPULSE__1f8d6` | 0/1 of 1 | — | 0/0 of 1 | 0/0 of 2 |
+| `LOOP__1f333` | 3/3 of 4 | — | 3/3 of 5 | 2/2 of 9 |
+| **control: his own Expert vs his ExpertPlus** | 3/3 of 4 | — | 3/3 of 5 | **2/7 of 9** |
+
+Two reasons to stop. **n is 1-9 per song per kind**, and the whole signal is six missed entries on two maps.
+And the control says the entry accent is **difficulty-dependent**: his own Expert doubles 2 of the 9 vox entries
+where his ExpertPlus doubles 7. That makes it a LEVEL claim under 2026-09-10c's rule, so the controls could not
+falsify it even in principle. ⇒ **The doubles gap does not localise to stem entries.** It stays open as a
+map-wide fact with no locator, which is where D5 has sat since August.
+
+**2. The LATE-SONG COLLAPSE is NOT REPRODUCED.** One of the four key notes `/todo` has re-checked every session
+since the ML era (*"late-song / final-chorus collapse ~160-164 s"*). Event ratio against the same song's human,
+in quintiles of his mapped span:
+
+| map | map-wide | Q1 | Q2 | Q3 | Q4 | Q5 |
+|---|---|---|---|---|---|---|
+| `LOOP__1f767` | 1.10 | 0.86 | 1.11 | 1.10 | 1.12 | 1.24 |
+| `NOPULSE__1f8d6` | 1.08 | 1.11 | 1.10 | 1.07 | 1.07 | 1.05 |
+| `LOOP__1f913` | 0.96 | 0.85 | 0.94 | 0.91 | 1.11 | 0.96 |
+| `LOOP__1f333` | 1.01 | 1.03 | 1.14 | 0.91 | 0.98 | 1.02 |
+| *(2026-08-03) `1f333_AFTER2`* | *0.65* | *0.73* | *0.67* | *0.76* | ***0.49*** | *0.60* |
+| *(set A) `FallenKingdom_BEFORE`* | *0.77* | *0.71* | *0.85* | *0.82* | *0.75* | *0.64* |
+
+**Every current build holds its ratio to the end** (0.85-1.24 across every quintile, last/first 0.95-1.45). The
+sag is visible only on the August maps, and even there it sits on top of a much larger map-wide deficit of
+0.65-0.77 — which is EMPTY/D1's job, not a separate late-song defect. ⇒ The note is **dead on the agent path**,
+and `/todo` Step 4 should stop asking for it (doc debt, TODO REFERENCE).
+
+---
+
 ## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
 
 **How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:

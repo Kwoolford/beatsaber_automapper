@@ -348,11 +348,14 @@ addressed at the three worst blocks, ALWAYS_RED because one map-wide fire can ne
 ("he plays a run of bars, we play nothing") is **zero on all four staged maps** at every threshold tried.
 
 **Still open inside P5b:**
-- ⬜**The gap that is not an absence and not over-density.** `LOOP__1f913` plays **4.2 % doubles against its human's
-  32.9 %** and reads ✅ on both: ABSENCE only reds at *effectively zero*, and `q_events`' D6 only fires the other way
-  (≥ 50 % doubles). Same on 1f333 (4.8 % vs 14.8 %) and 1f767 (3.3 % vs 34.3 %, a 🟡). One of the two reads should
-  grow a *below-his* branch — but ⚠️it must clear `humanplus-*` first, where doubles legitimately differ by
-  difficulty, and it must not become "distance to the human's number" (that is the `h_dist` failure).
+- 🔴**The gap that is not an absence and not over-density — STILL OPEN, and the obvious locator is REFUTED.**
+  `LOOP__1f913` plays **4.2 % doubles against its human's 32.9 %** and reads ✅ on both (ABSENCE only reds at
+  effectively zero; D6 only fires the other way). ⛔**Do not retry "he doubles the entry and we do not"** — measured
+  2026-09-10d: n is 1-9 entries per song per kind, the whole signal is six missed entries on two maps, and the
+  control says the entry accent is **difficulty-dependent** (his own Expert doubles 2 of 9 vox entries where his
+  ExpertPlus doubles 7), which makes it a LEVEL claim the controls cannot falsify. The doubles gap is now a
+  map-wide fact with **no locator**, alongside D5. ⚠️Whatever is tried next must not become "distance to the
+  human's number" (the `h_dist` failure).
 - ⬜**Sustained/held sections, walls as cover, the last chorus** — the untouched third of the original hunt: places
   where the map's SHAPE, not its rate, is what differs.
 - ⬜**Run every existing query on the `humanplus-*` controls and read what fires.** Only `q_all` has been run
@@ -421,9 +424,12 @@ D1 · D2 · D3 · D4/D6 · D5 · FLOW · EMPTY. ⚠️**Protect — he named the
 division; breathing pacing; *"notes on beat that play part of the song"*. They are the bench's
 must-not-flag rows.
 
-### Doc debt from the audit (do in the P4 session)
-`CLAUDE.md` V6-era, no `agent_mapper/`; `buildmap/SKILL.md` contradicts itself on doubles;
-`/todo` Step 4 checks ML-era key notes.
+### Doc debt from the audit
+`CLAUDE.md` V6-era, no `agent_mapper/`; `buildmap/SKILL.md` contradicts itself on doubles.
+✅`/todo` Step 4 rewritten 2026-09-10 around the agent path — and the note it was checking, the
+**late-song collapse, is NOT REPRODUCED**: all four current builds hold their event ratio to the
+end (0.85-1.24 across every quintile), and the sag is visible only on the August maps, on top of a
+map-wide deficit of 0.65-0.77 that is EMPTY/D1's job. `PROGRESS.md 2026-09-10d` has the table.
 
 ## 🔵 C — ML-SIDE DIAGNOSES CARRIED FORWARD (landmines only; not being worked)
 
