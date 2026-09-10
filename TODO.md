@@ -95,11 +95,16 @@ It refuted the first `q_scatter` inside an hour, and it shows `q_events` firing 
 Together with 2026-09-03b: **a clean page is evidence about the queries; a clean bench row is evidence only if the
 row could have failed.**
 
-**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ · P5b ✅ — P5b's DoD is MET** (`SCATTER` is named,
-queried, ALWAYS_RED and bench-scored on `1f333-scatter`; `ABSENCE` is on the verdict page). 🔴**And it immediately
-cost us three of the four staged pairs: `LOOP__1f333` and `LOOP__1f913` now fail on SCATTER, `NOPULSE__1f8d6` on
-ABSENCE. They stay staged, blinded and UNCHANGED — decided-and-logged — with the prediction for each written into
-`.key.json` before he plays.** → **P5 is still the only thing that moves the headline: Kyle plays ONE pair**
+**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ · P5b ✅ · P5c ✅ — all DoDs MET.**
+🔴🔴**ALL FOUR staged pairs now fail their own gate**: 1f333 + 1f913 on SCATTER, 1f8d6 on ABSENCE, and 1f767 on
+ELEMENTS once walls were read by coverage instead of by presence. **They stay staged, blinded and with their notes
+UNCHANGED** — decided-and-logged — and the per-song prediction is in `.key.json`, written *before* he plays, one of
+them now marked `superseded` rather than rewritten.
+❓**THE ONE DECISION THAT IS KYLE'S**: P4b's rule says a red map is not staged, because *"losing with a known red
+teaches nothing the page did not say"*. That rule was written when a red meant a cheap fix. Today's reds come from
+codes invented **after** these maps were built, with a written prediction riding on each — so playing them tests
+the codes, and rebuilding first tests the builder. **Both are defensible; the pairs are staged either way.** Say
+which and it takes one command. → **P5 is still the only thing that moves the headline: Kyle plays ONE pair**
 (`compete.py verdict <sid> X|Y|tie --because …`) → then **P6**. ✅P5c closed the same day: the gate no longer calls
 a human's own ExpertPlus over-dense (the map DECLARES its difficulty and `q_events` reads it), which also surfaced
 that **1f913's only human map is an ExpertPlus while every build we make is an Expert** — that pair, and every
