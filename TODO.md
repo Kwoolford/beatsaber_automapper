@@ -218,8 +218,13 @@ default**; 1f8d6's tutor drops 4 → 1/15 under it, unexplained, and its density
 **compete.py** — ⬜note counts differ visibly in ArcViewer (771 vs 632 on AliceBlue) and the audio
 is re-encoded: a tell only to someone who knows our count. Accepted, logged. ⬜`table` has no
 per-song "what the page said at staging" column; the key carries it — print it when n > 0.
-⬜`stage` does not record the two DIFFICULTIES in the key. ⬜The target win rate is Kyle's to set;
-until then the number is reported, not gated. ⚠️**One pair per listening session.**
+✅**The pair is harmonised** (2026-09-10f): both sides fly the HUMAN's difficulty label, NJS and offset, because
+ours emits a constant 16.0/0.0 that named our side in every pair — and 1f913 had gone out as ExpertPlus at NJS 19
+against Expert at 16. Each side's original values are kept as `own` in the key. ⬜The target win rate is Kyle's to
+set; until then the number is reported, not gated. ⚠️**One pair per listening session.**
+🔴⚠️**`BEST` resolves a bare song id and it silently downgraded 1f333 on a restage** (p4b_loop was missing from it:
+1 red → 5, tutor 31/49 → 15/49, with nothing in the output saying so). **Any new output dir holding a looped map
+goes at the FRONT of `BEST` the day it is made**, and a restage should be diffed against the key.
 
 
 ## 🟡 P5 — THE LABEL CHANNEL: his remaining oversight, cheap and cumulative

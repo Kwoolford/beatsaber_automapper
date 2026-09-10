@@ -244,6 +244,47 @@ does establish is that **50 % was not a threshold**, and that the two songs sit 
 
 ---
 
+## 2026-09-10f — the blind pairs were neither blind nor clean, and a restage nearly swapped a map
+
+**Found by asking what else the difficulty work touched.** `compete.py` staged each side of a pair with its OWN
+difficulty label, NJS and note-jump offset, on the stated reasoning that they are *"part of how a map plays"*.
+What the four staged pairs actually carried:
+
+| song | human side | our side |
+|---|---|---|
+| 1f767 | Expert · NJS 16 · offset −0.1 | Expert · NJS **16** · offset **0.0** |
+| 1f8d6 | Expert · NJS 15 · offset −0.1 | Expert · NJS **16** · offset **0.0** |
+| 1f913 | **ExpertPlus · NJS 19** · offset −0.5 | **Expert · NJS 16** · offset **0.0** |
+| 1f333 | Expert · NJS 18 · offset −0.25 | Expert · NJS **16** · offset **0.0** |
+
+Two problems, both fatal to the headline experiment and both found **before Kyle played any of them**.
+★**Our builds emit a constant NJS 16.0 and offset 0.0** — a pipeline default, not a mapper's choice — so the round
+numbers name our side in *every* pair to anyone who opens them in ArcViewer (which is how the pairs are opened).
+And on **1f913 the two sides went out as ExpertPlus at 19 against Expert at 16**: a difficulty label he can read in
+song select, and a flight speed that changes how a map plays before a single note is judged.
+
+⇒ `blind_zip` takes a `flight` dict and **both sides now fly the HUMAN's difficulty name, rank, NJS and offset**,
+so the only difference left in the pair is the notes. Each side's original values are kept in the key as `own`.
+All four pairs are restaged; the letters are re-randomised; **the maps themselves are unchanged**, so the
+predictions written before he plays still stand, with a line added saying what the restage did.
+
+⚠️**And the restage caught a landmine of its own.** `compete.py`'s `BEST` list — the fallback order for "our best
+map of this song" — **did not contain `outputs/p4b_loop/`**, the directory holding the 1f333 map that went through
+the loop and carries the BREATHING fix. A plain `--restage` silently swapped it for the coarse build: **1 red
+became 5 and the tutor line 31/49 became 15/49**, with nothing in the output saying a different map had been
+picked. Caught by diffing the key against its backup, restaged with the right map, and `BEST` now leads with
+`p4b_loop` and carries a comment: **any new output directory holding a looped map belongs at the front of that
+list the day it is created.** ★This is `OUTPUT DIRS ARE NOT INTERCHANGEABLE` (TODO limit 4) with teeth: the arm
+was named correctly everywhere *except* in the one list that resolves a bare song id.
+
+**Decided-and-logged: the SOURCE zips are not relabelled.** Our 1f913 build now flies as ExpertPlus *in the pair*,
+and its event rate is 0.96× his ExpertPlus — but the staged label was harmonised for the ear, and it licenses no
+density claim. `verdict.py` still prints ⚪ EMPTY · ⚪ D1 · ⚪ D4 on the source, correctly: a declared difficulty
+should describe intent, our builder has no intent, and renaming a file is not the same as building at a
+difficulty. The fix stays what it was — build 1f913 at his difficulty on purpose.
+
+---
+
 ## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
 
 **How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:

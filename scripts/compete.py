@@ -20,9 +20,13 @@ and the query that would have found it is the next thing to build (P3).
 **Blind means blind.** Both zips are rewritten to the same skeleton: `Info.dat` with the
 song name `X <sid>` / `Y <sid>`, the same author strings, no cover, no preview point, no
 `_customData` (editor names, bookmarks, difficulty labels), the audio as `song.ogg`, ONE
-difficulty each. What stays is the map: notes, walls, arcs, chains, NJS/offset (they are
-part of how a map plays). The key lives in `for_review/compete/.key.json` — a dotfile so a
-directory listing does not spoil it — and `verdict` is the only reader of it.
+difficulty each. What stays is the map: notes, walls, arcs, chains. ★**NJS, the offset and
+the difficulty LABEL are harmonised to the human's** (2026-09-10): they used to be kept per
+map as "part of how it plays", but ours emits a constant 16.0 / 0.0, so the round numbers
+named our side in every pair, and 1f913 went out as ExpertPlus at 19 against Expert at 16 —
+a label visible in song select and a flight speed that changes how a map plays before a note
+is judged. The key lives in `for_review/compete/.key.json` — a dotfile so a directory listing
+does not spoil it — and `verdict` is the only reader of it.
 
 **Which human map.** `data/raw/<sid>.zip`, the corpus's one rating-sorted map of the song
 (see `tutor.py`), and the SAME difficulty the tutor and queries read: `ExpertStandard`
@@ -59,7 +63,12 @@ SONGSET = ["1f767", "1f8d6", "1f913", "1f333"]
 NAMES = {"1f333": "Hunger", "1f8d6": "Fallen Kingdom",
          "1f913": "Digital Life Hacker", "1f767": "AliceBlue"}
 # Our best map of a song, in order of preference: the loop's output beats the coarse build.
-BEST = ["outputs/p4_loop/LOOP__{sid}.zip",
+# ⚠️2026-09-10: `outputs/p4b_loop/` was MISSING from this list, so a plain `--restage` of
+# 1f333 silently swapped the map that went through the loop (and carries the BREATHING fix)
+# for the coarse build — 1 red became 5 and the tutor line 31/49 became 15/49. Any new output
+# directory holding a looped map belongs at the FRONT of this list the day it is created.
+BEST = ["outputs/p4b_loop/LOOP__{sid}.zip",
+        "outputs/p4_loop/LOOP__{sid}.zip",
         "outputs/p4/NOPULSE__{sid}.zip",
         "outputs/p0_songset_2026-09-02/NEW__{sid}.zip"]
 CODES = ("D1", "D2", "D3", "D4", "D5", "D6", "EMPTY", "FLOW", "ELEMENTS",
@@ -109,16 +118,33 @@ def _read_zip(path: pathlib.Path) -> tuple[dict, dict, bytes, str, str]:
     return info, bm, audio, pick["_difficulty"], pick
 
 
-def blind_zip(src: pathlib.Path, letter: str, sid: str, out: pathlib.Path) -> dict:
-    """Write `out` = `src` with every tell removed. Returns what was kept (for the key)."""
+def blind_zip(src: pathlib.Path, letter: str, sid: str, out: pathlib.Path,
+              flight: dict | None = None) -> dict:
+    """Write `out` = `src` with every tell removed. Returns what was kept (for the key).
+
+    ★**`flight` harmonises the pair (2026-09-10).** The first four pairs were staged with each
+    map's OWN difficulty label and NJS, on the reasoning that they are "part of how a map
+    plays". Measured before Kyle played any of them, that made the pairs neither blind nor
+    clean: **our builds emit a constant `NJS 16.0` / offset `0.0`**, so the round numbers name
+    our map in every pair, and on `1f913` the two sides went out as **ExpertPlus at NJS 19
+    against Expert at NJS 16** — a label he can read in song select and a flight speed that
+    changes how a map plays before a single note is judged. ⇒ Both sides now take the HUMAN's
+    difficulty name, rank, NJS and offset, so **the only difference left in the pair is the
+    notes**. Ours never chose its 16.0 anyway; it is a pipeline default, not a mapper's call.
+    """
     info, bm, audio, diff_name, diff = _read_zip(src)
     keep_cd = {k: v for k, v in (diff.get("_customData") or {}).items()
                if k in ("_requirements", "_suggestions")}
+    own = {"difficulty": diff_name,
+           "njs": float(diff.get("_noteJumpMovementSpeed", 16.0)),
+           "offset": float(diff.get("_noteJumpStartBeatOffset", 0.0))}
+    f = flight or {}
+    diff_name = f.get("difficulty", diff_name)
     entry = {"_difficulty": diff_name,
-             "_difficultyRank": int(diff.get("_difficultyRank", 7)),
+             "_difficultyRank": int(f.get("rank", diff.get("_difficultyRank", 7))),
              "_beatmapFilename": f"{diff_name}Standard.dat",
-             "_noteJumpMovementSpeed": float(diff.get("_noteJumpMovementSpeed", 16.0)),
-             "_noteJumpStartBeatOffset": float(diff.get("_noteJumpStartBeatOffset", 0.0))}
+             "_noteJumpMovementSpeed": float(f.get("njs", own["njs"])),
+             "_noteJumpStartBeatOffset": float(f.get("offset", own["offset"]))}
     if keep_cd:
         entry["_customData"] = keep_cd
     new_info = {
@@ -150,6 +176,8 @@ def blind_zip(src: pathlib.Path, letter: str, sid: str, out: pathlib.Path) -> di
     n_notes = len(bm.get("colorNotes", bm.get("_notes", [])))
     return {"src": _rel(src),
             "difficulty": diff_name, "njs": entry["_noteJumpMovementSpeed"],
+            "offset": entry["_noteJumpStartBeatOffset"],
+            "own": own,   # what this map declared before the pair was harmonised
             "notes": n_notes, "kept_customData": sorted(keep_cd)}
 
 
@@ -254,9 +282,17 @@ def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None
     srcs = {"OURS": ours, "HUMAN": human}
     rec = {"status": "staged", "staged": _dt.date.today().isoformat(), "blind": {},
            "page": page}
+    # ★Both sides fly the HUMAN's difficulty label, NJS and offset (see blind_zip): ours
+    # emits a constant 16.0 / 0.0, which named it in every pair, and on 1f913 the two sides
+    # went out as ExpertPlus at 19 against Expert at 16.
+    _i, _bm, _a, h_diff, h_entry = _read_zip(human)
+    flight = {"difficulty": h_diff, "rank": int(h_entry.get("_difficultyRank", 7)),
+              "njs": float(h_entry.get("_noteJumpMovementSpeed", 16.0)),
+              "offset": float(h_entry.get("_noteJumpStartBeatOffset", 0.0))}
+    rec["flight"] = flight
     for letter, role in zip("XY", roles):
         out = STAGE / f"{letter}__{sid}.zip"
-        kept = blind_zip(srcs[role], letter, sid, out)
+        kept = blind_zip(srcs[role], letter, sid, out, flight)
         rec["blind"][letter] = {"role": role, **kept}
     key[sid] = rec
     _save_key(key)
@@ -267,9 +303,13 @@ def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None
     print(f"{sid} ({NAMES.get(sid, sid)}): staged X/Y -> {_rel(STAGE)}/  [{'/'.join(diffs)}]"
           + (f"  ours: {page['ship']}, {page['reds']} red, tutor {page['tutor']}"
              if page and "ship" in page else ""))
-    if rec["blind"]["X"]["difficulty"] != rec["blind"]["Y"]["difficulty"]:
-        print(f"   ⚠️different difficulties — the human map has no Expert; the pair is "
-              f"what the tutor and queries compared against")
+    moved = [L for L in "XY" if rec["blind"][L]["own"] != {k: flight[k] for k in
+                                                            ("difficulty", "njs", "offset")}]
+    if moved:
+        # ⚠️Not per letter: say only that the pair was harmonised, never which side moved.
+        print(f"   flight harmonised to the human's {flight['difficulty']} "
+              f"NJS {flight['njs']:g} offset {flight['offset']:g} "
+              f"({len(moved)} of 2 sides moved) — the pair differs only in the notes")
     return 0
 
 
