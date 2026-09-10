@@ -384,8 +384,11 @@ field); 23 rows, not refuted.
   declares Expert, and its page now prints ⚪ EMPTY · ⚪ D1 · ⚪ D4. This also means **the staged blind pair asks
   Kyle to compare two difficulties**; it stays staged (`.key.json` carries the caveat) but a loss there is not
   purely a quality loss. ⬜Fix by building 1f913 at his difficulty, or by finding an Expert human map of it.
-- ⬜**The tutor has no cross-difficulty notion at all** — `LOOP__1f913` is scored "6/19 situations his way" against
-  an ExpertPlus's situations. Same for `compete.py stage`, which does not record the two difficulties in the key.
+- ✅**The tutor's cross-difficulty exposure was measured (2026-09-10e) and it is NOT the `ev/bar` band** — the
+  failing field is the **pattern word** almost every time. What the control did refute is the **50 % threshold**:
+  a top mapper's own ExpertPlus answers only **16/49** of 1f333's situations the way his Expert does, against our
+  31/49, so the line is now 📖 uncoloured and the number is per-song. ⬜Still open: `compete.py stage` does not
+  record the two difficulties in the key, and no tool prints a *reference* tutor score alongside ours.
 - ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties either; the per-song human
   is preferred on the verdict page, so this bites only when a song has no human map.
 

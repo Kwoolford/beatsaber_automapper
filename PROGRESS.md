@@ -209,6 +209,41 @@ and `/todo` Step 4 should stop asking for it (doc debt, TODO REFERENCE).
 
 ---
 
+## 2026-09-10e — the TUTOR's percentage had no scale, and the control gave it one
+
+Chasing the leftover *"the tutor compares our Expert to his ExpertPlus with no caveat"*, I expected to find the
+`ev/bar ±35 %` band inside `same_way` doing the damage — a LEVEL comparison, the shape 2026-09-10c had just gated
+everywhere else. **It is not the problem.** Of the situations our maps answer differently, the failing field is the
+**pattern word** almost every time (1f8d6 11 of 11, 1f913 13 of 13, 1f333 14 of 18); `ev/bar` accounts for 4 across
+all four maps. Gating it on cross-difficulty would change nothing.
+
+**The real finding is the scale of the number itself.** Run the tutor with a top mapper's own other difficulty as
+the map:
+
+| map vs tutor | situations his way | failing field |
+|---|---|---|
+| human 1f333 vs **itself** | 49/49 | — |
+| **his ExpertPlus vs his Expert** | **16/49** | word 33 |
+| **his Expert vs his ExpertPlus** | **16/49** | word 33 |
+| `LOOP__1f333` (ours) vs his Expert | **31/49** | word 14, ev/bar 3, first 1 |
+| his ExpertPlus vs his Expert (1f8d6) | 13/15 | word 2 |
+| `NOPULSE__1f8d6` (ours) vs his Expert | 4/15 | word 11 |
+
+★**On 1f333 our map answers the song's situations "his way" nearly twice as often as his own other difficulty
+does.** So `31/49` is not a weak score there — and `_tutor_ok`'s invented **≥ 50 %** threshold was calling a top
+mapper's map 🟡. On 1f8d6, where his two difficulties agree 13/15, our 4/15 really is poor. **The percentage has no
+absolute scale; it is per-song, and the control is the only thing that has ever supplied one.**
+
+⇒ The TUTOR line on the verdict page is now **📖, uncoloured**. It never fed the yellow count, so no SHIP? verdict
+changes; what changes is that the page no longer implies a good score and a bad one where it cannot tell them
+apart. `_tutor_ok` stays only so an old `--json` reader does not break, with its retirement in the docstring.
+
+⚠️**Do not read the 1f333 line as "we beat the human".** The control is his *other difficulty*, so some of that
+gap is difficulty and not craft — the same contamination that killed the entry-accent read in 2026-09-10d. What it
+does establish is that **50 % was not a threshold**, and that the two songs sit at very different scales.
+
+---
+
 ## 2026-09-03b — ★★BREATHING: a map with a CLEAN page was playing through a seven-bar rest, and no query could see it
 
 **How it was found.** Chasing 2026-09-03a's leftover D3 on 1f333, the per-bar read across the E-drop showed this:

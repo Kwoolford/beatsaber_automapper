@@ -335,7 +335,13 @@ def render(v: dict) -> str:
                 if ab["key"] == "doubles" else
                 "give one hand a passage: mapedit.py flip the colour of a run, or "
                 "autobuild --lead-bias (P0.6 landmine: an operating point is not portable)"))
-    L.append(f"{'✅' if v['tutor'].startswith(('⚪',)) or _tutor_ok(v['tutor']) else '🟡'} TUTOR"
+    # ★No colour on this line since 2026-09-10d. The 50 % threshold that used to make it
+    # ✅/🟡 was invented, and the difficulty control refuted it: on 1f333 a top mapper's OWN
+    # other difficulty answers only **16/49** of the song's situations "his way" (both
+    # directions), while our map answers 31/49 -- so 31/49 is not a weak score there. On
+    # 1f8d6 his two difficulties agree 13/15 and our 4/15 really is poor. The number has no
+    # absolute scale; it is a pointer to the bars that differ.
+    L.append(f"📖 TUTOR"
              f"        {v['tutor']}"
              + ("" if not v["tutor_diffs"] else
                 "  — differs at bars " + ", ".join(str(d["bar"]) for d in v["tutor_diffs"][:8])
@@ -377,6 +383,13 @@ def render(v: dict) -> str:
 
 
 def _tutor_ok(word: str) -> bool:
+    """⚠️RETIRED 2026-09-10d -- kept only so an old --json consumer does not break.
+
+    "At least half the situations his way" was an invented threshold. Measured on the
+    difficulty controls: a top mapper's own ExpertPlus answers **16 of 49** of 1f333's
+    situations the way his Expert does (and 16/49 the other way round), against our map's
+    31/49 on the same song. A rule that calls a good human's map 🟡 and ours ✅ is not a rule.
+    """
     m = re.match(r"(\d+)/(\d+)", word)
     return bool(m) and int(m.group(2)) > 0 and int(m.group(1)) / int(m.group(2)) >= 0.5
 
