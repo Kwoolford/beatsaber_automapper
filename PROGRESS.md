@@ -7,6 +7,41 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12l — The pulse scoring fix: "coarsest wins" REFUTED, and `--pulse` is a TRADE not a defect
+
+Attempted the fix 2026-09-12k specified: make the period a real choice by accepting any
+`(period, phase)` whose emission lands within `COUNT_TOL` of the phrase's own event count — keeping
+the budget guard the 38 % overshoot bought — and preferring the **coarsest** among them.
+Shipped as `COUNT_TOL`, **default 0.0, which is the old behaviour exactly**. It is not on.
+
+### 🔴 "Coarsest wins" is refuted, and it fails in the worst possible direction
+On a phrase whose events sit exactly on the 8th grid — the case where a pulse pass must return an
+8th lattice — the new rule at tolerance 0.35 returns a **dotted-eighth** lattice (gaps of 3 slots,
+24 cells from 32). It manufactures precisely the off-grid figure FLOW exists to catch, because 3 is
+coarser than 2 and fits inside the tolerance. ⇒**Coarser is not better.** A correct score has to
+prefer the interval the *events* are on, not the longest one it can get away with; "hold an
+interval" and "hold the slowest interval" are different instructions.
+
+### 🔴 And there is a SECOND reason the pass is inert, not yet located
+On a jittery phrase (gaps 3,2,3,3,2) `quantise` returns its input unchanged at **every** tolerance
+and for **every** period set — so the `best is None` fallback is being taken there. That is a
+separate failure from the period-1-always-wins one, and it is not explained yet.
+
+### ★★ And the framing correction that matters most: `--pulse` is a TRADE
+| song | `--pulse` | `--no-pulse` |
+|---|---|---|
+| 1f913 | 1 red — **FLOW** | 1 red — **ABSENCE** (doubles unused) |
+| 1f8d6 | 1 red — **FLOW** | **2 reds** — ELEMENTS + lead-hand |
+
+⇒🔴**`--no-pulse` is not a fix and must not be recommended.** It removes FLOW by removing notes
+(1f913: 745 against pulse's 1013, human 1272) and the density-driven reads fire instead — on 1f8d6
+it is strictly worse. **The red moves; it does not clear.** ⚠️This corrects the direction
+2026-09-12j pointed in: the command in CURRENT STATE stays as it is, and the fix is the pass, not
+the flag. ⬜The pass is worth fixing only if a correct period choice beats both arms; until then
+`--pulse` is the better of two reds on 1f8d6 and a wash on 1f913.
+
+---
+
 ## 2026-09-12k — 🔴🔴The pulse pass never holds a pulse: `PERIODS` is the FOURTH unwired knob
 
 Chasing yesterday's `--pulse` → FLOW finding into the code. The suspect was `PERIODS`' entry

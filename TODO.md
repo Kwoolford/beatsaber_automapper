@@ -371,13 +371,26 @@ map is literally `NOPULSE__1f8d6`, and 1f767/1f913's are `LOOP__` from the per-s
 reproduces the input, and **period 1 phase 0 reproduces it perfectly** — so the finest lattice always wins and
 the coarser interval is never held. What `--pulse` actually changes is the `MAX_EMPTY_RUN` fill (1013 notes vs
 745), not the interval. ⚠️**Do not sweep `PERIODS`** until the score changes — it compares identical maps.
-**Tasks**: ⬜fix the SCORING (reward holding ONE interval — gap *uniformity*, with count match only as a
-tiebreak), not the constant. ⬜then re-ask whether `--pulse` still causes FLOW.
+**Tasks**: ⬜fix the SCORING, not the constant. ⬜then re-ask whether `--pulse` still causes FLOW.
 **DoD**: on a phrase whose events sit on the 8th grid the pass returns an 8th lattice, `PERIODS` provably
 changes the output, and FLOW on the songset drops toward the human's **3 %** of off-grid phrases.
-⚠️**The FLOW red is still UNEXPLAINED** — period 3 was the hypothesis and is refuted as the lever, because the
-lever does not exist. Established: `--pulse` doubles isolated-odd concentration (22 % vs 13 % of phrases off
-the 8th grid, human 3 %); the mechanism is in the fill, not the interval choice.
+🔴**2026-09-12l — "COARSEST WINS" IS REFUTED, in the worst direction.** `COUNT_TOL` shipped (default **0.0**
+= old behaviour, not on): accept any period inside a count tolerance, prefer the coarsest. On an 8th-grid
+phrase at tol 0.35 it returns a **dotted-eighth** lattice — it manufactures exactly the off-grid figure FLOW
+catches, because 3 is coarser than 2 and fits. ⇒**Coarser is not better**; the score must prefer the interval
+the EVENTS are on. ⬜**And a SECOND inertness is unlocated**: on a jittery phrase (gaps 3,2,3,3,2) `quantise`
+returns its input at every tolerance and every period set, i.e. the `best is None` fallback fires there.
+★★**AND THE FRAMING CORRECTION — `--pulse` IS A TRADE, NOT A DEFECT:**
+
+| song | `--pulse` | `--no-pulse` |
+|---|---|---|
+| 1f913 | 1 red — **FLOW** | 1 red — **ABSENCE** (doubles unused) |
+| 1f8d6 | 1 red — **FLOW** | **2 reds** — ELEMENTS + lead-hand |
+
+🔴**`--no-pulse` is NOT a fix and must not be recommended** — it removes FLOW by removing notes (1f913: 745 vs
+pulse's 1013, human 1272) and the density reads fire instead; on 1f8d6 it is strictly worse. **The red moves,
+it does not clear.** ⚠️This corrects 2026-09-12j's direction: **the command in CURRENT STATE stays as it is**,
+and the fix is the pass, not the flag.
 ⚠️**Do not compare a fresh `autobuild` against a staged map** — fresh + `repeat` gives 1f333 **5 reds** where
 the curated chain gives 1 red; `TODO` already says the per-section loop beats autobuild and this is its size.
 - 🔴🔴**FIXED 2026-09-12g — `idiomize --travel-target` WAS A DEAD CLI FLAG**: parsed, documented in `--help`,

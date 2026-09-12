@@ -60,6 +60,14 @@ PERIODS = (1, 2, 3, 4, 6, 8)
 # holding a pulse and staying on the music can be measured rather than assumed.
 MAX_EMPTY_RUN = 1
 
+# ★**How far the emitted note count may miss the phrase's own event count before a
+# period is rejected**, as a fraction. This is what makes the period a CHOICE: inside
+# the tolerance the COARSEST period wins, which is what "hold an interval" means.
+# ⚠️0.0 reproduces the pre-2026-09-12 behaviour exactly (period 1 always wins, the pass
+# is a no-op). The budget guard the 38 % overshoot bought is kept -- a period whose
+# emission blows the count is still rejected, it just no longer has to match exactly.
+COUNT_TOL = 0.0
+
 # How far off the lattice a source event must sit before it is restored as a
 # syncopation, as a fraction of the period. 0.5 = only events exactly between two
 # lattice points.
@@ -145,7 +153,8 @@ def _emit(cands: list[int], start: int, span: int, period: int,
 def quantise_phrase(cands: list[int], start: int, span: int,
                     periods: tuple[int, ...] = PERIODS,
                     max_empty: int = MAX_EMPTY_RUN,
-                    sync: float = SYNC_FRAC) -> list[int]:
+                    sync: float = SYNC_FRAC,
+                    count_tol: float = COUNT_TOL) -> list[int]:
     """Lattice points to play for one phrase, as absolute slot indices.
 
     Every emitted point sits on one lattice, so consecutive gaps are equal by
@@ -157,6 +166,17 @@ def quantise_phrase(cands: list[int], start: int, span: int,
     notes, so a period picked before those steps ran overshot the section's budget by
     38 % (1031 notes against a control's 748 and a human's 746). Scoring each period
     by its own emission closes that loop exactly, with no fitted correction factor.
+
+    🔴🔴**AND THAT SCORE MADE THE PASS A NO-OP — measured 2026-09-12k.** Ranking by
+    `(|len(got) - target|, dist)` is won outright by **period 1 phase 0**, which
+    reproduces every candidate exactly: miss 0, dist 0, unbeatable by any coarser
+    period. So the finest lattice always won, `PERIODS` was inert (removing the dotted
+    eighth gave a byte-identical map) and the module never held the interval its first
+    line promises. ⇒`count_tol` restores the CHOICE while keeping the budget guard the
+    38 % lesson bought: every `(period, phase)` whose emission lands within `count_tol`
+    of the candidate count is **acceptable**, and among those the **coarsest** period
+    wins, ties broken by distance to the events. `count_tol = 0` is the pre-2026-09-12
+    behaviour exactly.
     """
     if len(cands) < 3:
         return sorted(set(cands))
@@ -169,7 +189,11 @@ def quantise_phrase(cands: list[int], start: int, span: int,
                 continue
             miss = abs(len(got) - target)
             dist = sum(min(abs(c - g) for g in got) for c in cands) / len(cands)
-            score = (miss, dist)
+            if count_tol > 0 and miss <= count_tol * target:
+                # inside the budget: prefer the COARSEST hold, then the closest fit
+                score = (0, -period, dist, miss)
+            else:
+                score = (1, miss, dist, 0)
             if best is None or score < best[0]:
                 best = (score, got)
     return best[1] if best else sorted(set(cands))
@@ -179,7 +203,8 @@ def quantise(picks: list[tuple[int, int]], n_cells: int, bar0: int,
              phrase_bars: int = 4,
              periods: tuple[int, ...] = PERIODS,
              max_empty: int = MAX_EMPTY_RUN,
-             sync: float = SYNC_FRAC) -> list[tuple[int, int]]:
+             sync: float = SYNC_FRAC,
+             count_tol: float = COUNT_TOL) -> list[tuple[int, int]]:
     """Re-time `(bar, slot)` picks so each phrase holds one interval.
 
     `picks` are already snapped to the build grid; this decides WHICH of that grid's
@@ -198,6 +223,6 @@ def quantise(picks: list[tuple[int, int]], n_cells: int, bar0: int,
         cands = [i for i in idx if p0 <= i < p0 + span]
         if cands:
             out.extend(quantise_phrase(cands, p0, span, periods, max_empty,
-                                       sync))
+                                       sync, count_tol))
         p0 += span
     return sorted({(bar0 + i // n_cells, i % n_cells) for i in out})
