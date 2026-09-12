@@ -307,10 +307,24 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   the song's structure, he is repeating his own VOCABULARY** — a small set of shapes reused throughout, over
   music he has never played before. That is the entire remaining gap, and it is why 1f333 is the last red:
   **64 % of its bars are a first occurrence.**
-  ⬜**NEXT = the vocabulary feed.** `tutor.py --vocab` already counts a human's patterns and the tutor
-  leftovers have wanted a `situation kind → pattern word → lever` table since 2026-09-02; this read is the
-  justification. ⚠️Keep it a mechanism — *"reuse a shape you have already played when the situation repeats"* —
-  never *"raise echo to 0.60"*.
+  ✅**2026-09-12f — the vocabulary is PRICED, and it needs a PALETTE, not a knob** (`PROGRESS.md 2026-09-12f`).
+  CONFIRMED n=400: distinct shapes per hand human **28.5** (p10 18, p90 43) vs **ours 34–60**; top-10 share
+  human **0.82** (p10 0.70) vs **ours 0.53–0.65**; correlation with echo **r = +0.654**. ★The songset ranks by
+  it exactly — 1f767 is the one map whose vocabulary is tighter than its human's and the one whose echo *beats*
+  his. ⚠️Not the refuted read: vocabulary breadth was rejected as a **defect query**; this is the same quantity
+  as a **cohort-level builder target**.
+  🔴**Three routes measured, none works**: post-hoc **snapping** is REFUTED (human concentration costs 26 parity
+  violations + 179 resets); **`REPEAT_P`/`REPEAT_WINDOW`** NOT PROVEN (six settings span 0.473–0.504 unordered,
+  vocabulary unmoved — and its window is 6 NOTES while SCATTER is 4 BARS); **`VOCAB_DEPTH`** NOT RESOLVABLE
+  (depth 200's own seed spread 0.043 ≥ the whole between-depth range at n=2).
+  ★★**The structural reason**: at every depth 200→2000 the per-map vocabulary stayed 38–55 per hand. **`idiomize`
+  samples a fresh idiom PER NOTE, so the vocabulary tracks the NOTE COUNT, not the pool depth.** A human commits
+  to a **palette** and places from it all map.
+  ⬜**NEXT = draw a per-map palette (~28 shapes/hand, corpus p10–p90 18–43) BEFORE placing, and have `idiomize`
+  choose within it.** A change to the sampling structure, not a knob — which is why four knobs missed it.
+  ⚠️Keep it a mechanism: palette size from the corpus, placement still from what the song is doing; never drive
+  top-10 share to 0.82 directly. **DoD**: 1f333's SCATTER clears with parity violations and resets at 0, vocab
+  lands inside 18–43 per hand, and `bench.py score queries:q_all` stays not-refuted.
   ⚠️`repeat.py` is still **NOT wired into `autobuild`** — wire it the session 1f333 clears too, after
   re-running the songset end to end.
 - 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**

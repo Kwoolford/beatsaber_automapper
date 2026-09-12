@@ -7,6 +7,60 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12f — The vocabulary IS the mechanism, and no knob reaches it. It needs a PALETTE.
+
+2026-09-12e said the remaining echo gap is vocabulary rather than structure. This priced it.
+
+### ✅ CONFIRMED at n=400 — and the songset ranks perfectly by it
+| | human p10 | median | p90 | **ours** |
+|---|---|---|---|---|
+| distinct `(x,y,dir)` per hand | 18 | **28.5** | 43 | **34–60** |
+| top-10 shapes' share of notes | 0.70 | **0.82** | 0.93 | **0.53–0.65** |
+
+Correlation with block echo over 400 human Experts: top-10 share **r = +0.654**, distinct shapes
+**r = −0.572**. We are below the human p10 on concentration on **all four** songset maps.
+
+★**And the four songs rank by it exactly.** 1f767 is the one song where our vocabulary is
+*tighter* than the human's (47/34 against his 55/58) — and it is the one song where our echo
+**beats** his (0.508 vs 0.418). 1f8d6, 1f913, 1f333 follow in order of widening vocabulary and
+widening echo gap. The measure and the mechanism agree without being fitted to each other.
+
+⚠️This is **not** the refuted read: *vocabulary breadth per hand-window* was rejected in September
+as a **defect query** because it fired on a human's own harder map. This is the same quantity used
+as a **builder target at cohort level**, which is a different claim and a legitimate one.
+
+### 🔴 Three ways to reach it, all measured, none of them works
+1. 🔴**REFUTED — snap rare shapes onto frequent ones** (post-hoc re-cut, nearest same-direction
+   cell). It does narrow the vocabulary, and it destroys the map: reaching human concentration
+   (top-10 0.96) on 1f333 costs **26 parity violations and 179 resets**, and even the gentlest
+   setting takes resets 0 → 7 on both songs. Shape is not free to change — it is held by the swing
+   chain. ⇒**A human's tight vocabulary is not reachable by re-cutting a finished map.**
+2. 🔴**NOT PROVEN — `REPEAT_P` / `REPEAT_WINDOW`.** Six settings (window 6/16/32 × p 0.55–0.80) on
+   1f913 span echo **0.473–0.504 with no ordering by either knob**, and the vocabulary does not
+   move at all (40–55 per hand, top-10 57–64 % in every setting). ⚠️`REPEAT_P = 0.55` exists
+   because our maps were *more varied locally* than humans — but its window is **6 notes**, and
+   SCATTER is the **4-bar** question. Local repetition was already solved and is not this.
+3. 🔴**NOT RESOLVABLE at n=2 seeds — `VOCAB_DEPTH`.** Means 0.520 / 0.495 / 0.481 / 0.492 for
+   depth 200 / 500 / 1000 / 2000, but depth 200's own **seed spread is 0.043**, as large as the
+   whole between-depth range. No claim. ⚠️Consistent with this project's standing rule that a knob
+   is dead until proven.
+
+### ★★ Why none of them could work — the structural reason, and what to build instead
+Across **every** depth from 200 to 2000, the resulting per-map vocabulary stayed **38–55 shapes
+per hand** and the top-10 share **57–68 %**. Depth 200 draws from a pool an eighth the size and
+lands in the same place. ⇒**`idiomize` samples a fresh idiom per note, so the per-map vocabulary
+is a function of the NOTE COUNT, not the pool depth.** Drawing 887 notes with replacement from a
+200-idiom pool still touches ~50 distinct shapes per hand.
+
+A human does not sample per note. **He commits to a palette** — a couple of dozen shapes for this
+map — and places from it all night. ⬜**That is the change**: draw a per-map palette of ~the human
+median (28 per hand, its p10–p90 being 18–43) *before* placing, then have `idiomize` choose within
+it. It is a change to the sampling structure, not a knob, which is why four knobs could not find
+it. ⚠️Keep it a mechanism: the palette size comes from the corpus, but the map must still be
+placed by what the song is doing — *not* by driving top-10 share to 0.82.
+
+---
+
 ## 2026-09-12e — ★★SCATTER clears on 3 of 4, and the remaining gap is VOCABULARY, not structure
 
 ### Choosing the source, rather than assuming it
