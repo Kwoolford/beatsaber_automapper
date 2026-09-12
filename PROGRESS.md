@@ -7,6 +7,50 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12r — ★★★FLOW CLEARS ON ALL FOUR, and TWO maps ship from a fresh build
+
+The other half of the rule, which 2026-09-12o specified and I had only built one side of: where **no
+lead-in exists**, drop the orphan instead of playing it cold. That is the human's own answer — on
+1f8d6 and 1f767 he plays **~zero** odd 16ths — and it **pays back the density the lead-in spends**,
+which is what cost judge p on all four songs yesterday. `--drop-orphan`, default off; control arm
+still rebuilds byte-identical.
+
+| song | isolated share: baseline → lead-in → **+drop** | notes vs baseline | judge p (baseline) |
+|---|---|---|---|
+| 1f913 | 77.6 % → 31.7 % → **0.0 %** | 828 → 838 (**+1.2 %**) | 0.567 (0.572) |
+| 1f8d6 | 94.7 % → 73.0 % → **0.0 %** | 805 → 767 (−4.7 %) | **0.281** (0.655) |
+| 1f333 | 88.9 % → 35.0 % → **0.0 %** | 1109 → 1144 (+3.2 %) | 0.685 (0.692) |
+| 1f767 | 66.7 % → 44.4 % → **0.0 %** | 844 → 831 (−1.5 %) | 0.340 (0.293) |
+
+### ✅ The songset, fresh `autobuild` + `repeat.py`
+| song | before this sequence | **now** |
+|---|---|---|
+| **1f913** | 🔴 FLOW (16 % of bars) | **`SHIP? YES — nothing located`** |
+| **1f8d6** | 🔴 FLOW (12 %) | **`SHIP? YES` — 2 yellow** |
+| 1f767 | 🔴 D6 · 🔴 lead-hand · 🟡 FLOW | 🔴 D6 only |
+| 1f333 | 5 reds incl. FLOW (19 %) | 4 reds, **FLOW gone** |
+
+★★**FLOW is clear on all four** — it was red on three at the start of this sequence. **Two maps now
+ship from a fresh build**, where the session started with none. Note counts are all within ±5 %,
+parity violations and resets 0 everywhere, and judge p is at or above baseline on three of four.
+
+### 🔴 The two honest costs
+1. **We overshoot the target.** 0.0 % isolated against humans at **0–26 %** — on 1f913 his own map
+   is 25.8 % isolated and ours is now zero. The same *more human than human* shape this repo has
+   recorded for `idiom_coverage` and `idiom_local`. ⇒The rule should probably keep a small share
+   rather than drive it to zero.
+2. **1f8d6 pays for it**: judge p **0.655 → 0.281**, and `idiom_jsd` falls from the 4.0th to the
+   **0.8th** human percentile (`!!`) with `idiom_coverage` 91.1 → 95.1. Dropping notes changes the
+   transition mix. 1f913 and 1f333 have **no judge flags at all**; 1f767 gains none it did not have.
+
+⇒**Default stays OFF.** This is the strongest candidate of the session and the discipline that
+caught the palette applies here too: one axis regresses on one song. ⬜**To flip it on**: price
+`idiom_jsd` and the isolated share over **≥10 corpus songs**, and try keeping the human's ~10–25 %
+isolated share instead of zeroing it. **DoD**: FLOW stays clear, `idiom_jsd` does not fall below
+its baseline percentile on any song, note count within ±5 %.
+
+---
+
 ## 2026-09-12q — ★★Lead-in from the UNTHINNED supply: FLOW red on 3 of 4 → red on 1, and 1f913 SHIPS
 
 2026-09-12p's rule stopped halfway because it could only lead in from an event the **budget had

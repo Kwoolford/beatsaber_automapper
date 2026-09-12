@@ -346,11 +346,19 @@ Isolated share baseline → v1 → **v2**: 1f913 77.6→58.5→**31.7 %** (human
 **`handedness` 0.000 at the 1.5th human percentile** — the added lead-ins land evenly and make the
 map *more* balanced than any human. ⚠️A fix that overshoots a second axis, same family as the
 palette's `idiom_coverage`.
-⬜**Why 1f8d6 and 1f767 barely move**: their humans play ~0 odd 16ths and even the unthinned
-followed streams have nothing on the slot before ours — the onset is in the **audio**, in a stem we
-are not following. ⇒The rest would have to come from the onset cache, outside the follow set.
-**DoD for that**: isolated share into 0–26 % on all four, FLOW clears on 1f8d6, note count within
-±5 %, and `handedness` stays out of the judge's worst-3.
+✅✅**2026-09-12r — `--drop-orphan` CLEARS FLOW ON ALL FOUR, and TWO maps now SHIP from a fresh
+build.** Where no lead-in exists, drop the orphan rather than play it cold — the human's own answer
+(he plays ~0 odd 16ths on 1f8d6/1f767) — and it **pays back the density `--lead-in` spends**.
+Isolated share → **0.0 % on all four**; notes within **±5 %**; parity violations and resets 0.
+**`1f913` = `SHIP? YES — nothing located`** · **`1f8d6` = `SHIP? YES`, 2 yellow** · 1f767 down to
+D6 alone · 1f333 5 reds → 4, FLOW gone.
+🔴**Two costs, and the default stays OFF**: (a) we **overshoot** — 0.0 % isolated where humans sit
+at 0–26 % (1f913's own human is 25.8 %), the *more human than human* shape again; (b) **1f8d6 pays**
+— judge p 0.655→0.281 and `idiom_jsd` from the 4.0th to the **0.8th** percentile. 1f913 and 1f333
+have **no judge flags at all**.
+⬜**To flip it on**: price `idiom_jsd` and the isolated share over **≥10 corpus songs**, and try
+keeping the human's ~10–25 % isolated share instead of zeroing it. **DoD**: FLOW stays clear,
+`idiom_jsd` does not fall below its baseline percentile on any song, notes within ±5 %.
 
 
 ## 🔴 P0.7 — the pulse pass never holds a pulse, and `--pulse` is a TRADE

@@ -803,6 +803,17 @@ def cmd_auto(a) -> int:
         if added:
             picks = sorted(have | set(added))
             print(f"lead-in: +{len(added)} cells before an isolated odd 16th")
+    # ★The OTHER half of the same rule. Where no lead-in exists, the human's answer is not
+    # to play the note cold -- on 1f8d6 and 1f767 he plays ~ZERO odd 16ths at all. Dropping
+    # the orphan also pays back the density the lead-in spends, which is what made the
+    # add-only version cost judge p on all four songs (2026-09-12q).
+    if getattr(a, "drop_orphan", False):
+        have = set(picks)
+        orphan = [(b, sl) for b, sl in picks
+                  if sl % 2 == 1 and sl >= 1 and (b, sl - 1) not in have]
+        if orphan:
+            picks = sorted(have - set(orphan))
+            print(f"drop-orphan: -{len(orphan)} odd 16ths with nothing leading in")
     picks = [p for p in picks if p not in occupied]
     if not picks:
         print("nothing to place (no onsets in range, or all slots already taken)")
@@ -1293,6 +1304,10 @@ def main() -> int:
     p.add_argument("--runs", type=int, default=1,
                    help="notes one hand plays before the other takes over; 1 (strict "
                         "alternation) measured as the human burst rate")
+    p.add_argument("--drop-orphan", action="store_true",
+                   help="drop an odd 16th that still has nothing before it after --lead-in. "
+                        "The human's answer where no lead-in exists; also pays back the "
+                        "density --lead-in spends")
     p.add_argument("--lead-in", action="store_true",
                    help="when an odd 16th is taken and the slot before it carries a real "
                         "event we passed over, take that too -- so the hand leads into the "
