@@ -7,6 +7,53 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12m — ★★Lead-hand passages: the same defect shape a THIRD time, and `--lead-bias` cannot fix it
+
+1f8d6's ABSENCE red is **0 lead-hand passages against his 27**. Priced it.
+
+### The defect is the TAIL, not the mean
+| | ours | human p10 | median | p90 |
+|---|---|---|---|---|
+| mean hand-run length | **1.15–1.32** | 1.23 | 1.35 | 1.62 |
+| runs of ≥ 4 per map | **0–4** | 1 | **10** | 32 |
+
+★**Our mean run length is INSIDE the human range** (n=200 Expert maps) — we alternate about as often
+as a human does. What we never produce is the **tail**: a hand occasionally holding a run of four or
+more. Only **13 of 200** human maps (6 %) have none. Median 7 % of a human map's notes sit inside one.
+
+### 🔴 `--lead-bias` cannot fix it, and it saturates
+Swept on 1f8d6 at 0.2 / 0.4 / 0.6 / 0.8: **0 runs of ≥ 4 at every value**, and the mean run stops
+moving at 0.4 (1.50 for 0.4, 0.6 and 0.8 alike). The cause is one line in `mapctl`:
+
+    period = max(2, int(round(1.0 / max(a.lead_bias, 1e-6))))
+
+`max(2, …)` means the repeat counter is **2 for every bias ≥ 0.4**, so the lead hand repeats at most
+every other eligible note and **can never repeat twice in a row by construction**. ⇒A run of 4 is
+unreachable from this knob at any setting. `verdict.py` named it as the fix for this red; it no
+longer does.
+⬜`mapctl --runs` (default 1, "strict alternation") *does* hold a run — and **`autobuild` does not
+expose it**. But as a constant it would give *uniform* long runs, which is not the human shape
+either: humans sit at mean 1.35 **with a tail**.
+
+### 🔴 And there is no song-side placement signal — refuted at n=250
+Human hand-runs do **not** sit where the song plays a fast figure: local onset rate inside a run is
+**1.023** of the song's own rate against **1.091** outside, higher inside on only **41 %** of maps.
+⇒Same answer as the wall *instants*: no rule, so do not invent one.
+
+### ★★★ THE SHAPE THIS PROJECT KEEPS HITTING — three passes in one day
+| pass | reproduces | never produces |
+|---|---|---|
+| `walls.py` | the pooled duration marginal | the per-map **modes** (instant / corridor) |
+| `pulse.py` | some interval variety | a **held** interval (period 1 always wins) |
+| hand role | the human *mean* run length | the **tail** (a held run of 4+) |
+
+⇒**The builder reproduces marginals and never produces held structure.** `repeat.py` (figures) and
+the palette (shapes) are the same story from the other side. ★When a read says we are *inside* the
+human range on the mean and outside on the tail, the fix is never a rate knob — it is a
+**run/hold** mechanism, and a rate knob will saturate trying.
+
+---
+
 ## 2026-09-12l — The pulse scoring fix: "coarsest wins" REFUTED, and `--pulse` is a TRADE not a defect
 
 Attempted the fix 2026-09-12k specified: make the period a real choice by accepting any

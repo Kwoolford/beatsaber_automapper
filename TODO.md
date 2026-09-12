@@ -324,6 +324,30 @@ and every period set — the `best is None` fallback fires there, a second inert
 FLOW drops toward the human's **3 %** of off-grid phrases — *without* the ABSENCE reds `--no-pulse` buys.
 
 
+## 🔴 P0.10 — lead-hand passages: the tail, not the mean, and `--lead-bias` CANNOT fix it
+1f8d6 reads **0 lead-hand passages against his 27**. Measured over **200 human Experts**:
+
+| | ours | human p10 | median | p90 |
+|---|---|---|---|---|
+| mean hand-run length | **1.15–1.32** | 1.23 | 1.35 | 1.62 |
+| runs of ≥ 4 per map | **0–4** | 1 | **10** | 32 |
+
+★**Our MEAN is inside the human range** — we alternate about as often as he does. What we never
+produce is the **tail**. Only 6 % of human maps have no run of 4+; a median 7 % of a human map's
+notes sit inside one.
+🔴**`--lead-bias` is refuted as the fix**: swept 0.2/0.4/0.6/0.8 on 1f8d6 → **0 runs of ≥4 every
+time**, and the mean run saturates at 0.4. Cause, one line in `mapctl`:
+`period = max(2, int(round(1.0 / lead_bias)))` — that floor makes the counter **2 for every bias
+≥ 0.4**, so the lead hand **can never repeat twice in a row**. `verdict.py` no longer names it.
+🔴**No song-side placement signal** (n=250): human runs sit at local onset rate **1.023** of the
+song's own against **1.091** outside, higher inside on only 41 % of maps. ⇒Do not invent a rule.
+⬜**The fix is a RUN mechanism.** `mapctl --runs` holds a run (default 1 = strict alternation) and
+**`autobuild` does not expose it** — but as a *constant* it gives uniform long runs, which is not
+the human shape either. Draw the lead hand's run length **per swap** so the map gets a human tail.
+**DoD**: runs≥4 lands inside the human p10–p90 (1–32) with the mean run still inside 1.23–1.62,
+parity violations and resets stay 0, and the judge's worst-3 does not gain a new entry.
+
+
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·
 one hand leads · follow the piano · breathe before the drop · more walls*) with the lever, its safe

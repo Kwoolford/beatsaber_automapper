@@ -336,8 +336,14 @@ def render(v: dict) -> str:
                 "the human puts doubles at STEM ENTRIES (tutor.py --vocab: drums-in / bass-in "
                 "→ doubles); autobuild --doubles-rate, or mapedit.py double at the entries"
                 if ab["key"] == "doubles" else
-                "give one hand a passage: mapedit.py flip the colour of a run, or "
-                "autobuild --lead-bias (P0.6 landmine: an operating point is not portable)"))
+                # 🔴`autobuild --lead-bias` was named here until 2026-09-12m and CANNOT fix
+                # this: measured at 0.2 / 0.4 / 0.6 / 0.8 it yields **0 runs of 4+ every
+                # time**, because the repeat counter is `period = max(2, round(1/bias))`,
+                # which is 2 for every bias >= 0.4 — so the lead hand can never repeat twice
+                # in a row by construction, and the knob also saturates at 0.4.
+                "give one hand a passage: mapedit.py flip the colour of a run. ⚠️NOT "
+                "--lead-bias (0 runs of 4+ at every value); mapctl's --runs holds a run but "
+                "is a constant and autobuild does not expose it — see TODO P0.10"))
     # ★No colour on this line since 2026-09-10d. The 50 % threshold that used to make it
     # ✅/🟡 was invented, and the difficulty control refuted it: on 1f333 a top mapper's OWN
     # other difficulty answers only **16/49** of the song's situations "his way" (both
