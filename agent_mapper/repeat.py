@@ -151,6 +151,63 @@ def _swing_cost(notes: list[dict], bpm: float) -> tuple[int, int]:
     return int(card.violations), int(card.resets)
 
 
+OPPOSITE = {0: 1, 1: 0, 2: 3, 3: 2, 4: 7, 7: 4, 5: 6, 6: 5, 8: 8}
+
+
+def _repair(notes: list[dict], touched: dict[int, list[int]], bpm: float,
+            base: tuple[int, int], passes: int = 4) -> bool:
+    """Bring the swing cost back to `base` by inverting a RUN of one hand's new notes at a time.
+
+    ★★**A reset is a parity PHASE problem, not a bad note.** Parity alternates, so flipping one
+    note inverts every swing after it. That is why single-note repair is refuted in *both*
+    directions (2026-09-12c: neither reverting a note nor flipping one moved the count on any
+    failing block) and why `TODO`'s landmine says *flipping the second note cascades*. The repair
+    that matches the mechanism inverts a **run**: the copied figure swings the other way from the
+    break until it re-syncs.
+
+    Measured on 1f913's 14 planned blocks, all at zero reset cost:
+
+    | repair | blocks freed |
+    |---|---|
+    | revert one note / flip one note | **0** |
+    | invert a whole hand | 6 |
+    | invert a hand's **suffix** | 9 |
+    | invert an **interval** (this) | **14 of 14**, in 5 s |
+
+    A suffix cannot fix a break that re-syncs before the block ends, which is most of them.
+    Hands are searched one at a time and alternated, because the two hands' parity chains are
+    independent until they share an instant.
+    """
+    cur = _swing_cost(notes, bpm)
+    for _ in range(passes):
+        improved = False
+        for h in (0, 1):
+            L = touched.get(h, [])
+            best = None
+            for k in range(len(L)):
+                for j in range(k + 1, len(L) + 1):
+                    for i in L[k:j]:
+                        notes[i]["d"] = OPPOSITE.get(notes[i]["d"], notes[i]["d"])
+                    c = _swing_cost(notes, bpm)
+                    for i in L[k:j]:
+                        notes[i]["d"] = OPPOSITE.get(notes[i]["d"], notes[i]["d"])
+                    # ⚠️Shortest run wins at equal cost: every flipped note is a note whose
+                    # DIRECTION no longer matches the figure being brought back, and `figures()`
+                    # counts direction — so a bigger repair gives back more of the echo it was
+                    # applied to win. Measured 2026-09-12d: repairing to 0 resets costs ~0.10 of
+                    # the ~0.15 echo the copies gain.
+                    if c < cur and (best is None or (c, j - k) < (best[0], best[2] - best[1])):
+                        best = (c, k, j)
+            if best is not None:
+                c, k, j = best
+                for i in L[k:j]:
+                    notes[i]["d"] = OPPOSITE.get(notes[i]["d"], notes[i]["d"])
+                cur, improved = c, True
+        if cur <= base or not improved:
+            break
+    return cur <= base
+
+
 def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
                   bpm: float = 0.0) -> tuple[int, int]:
     """Rewrite each planned block's cells + cut directions from its source block.
@@ -188,7 +245,7 @@ def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
     base = _swing_cost(notes, bpm) if bpm else (0, 0)
     moved = kept = 0
     for b, src, _s in plan:
-        undo, n_moved = [], 0
+        undo, touched = [], {0: [], 1: []}
         for h, idxs in by_block.get(b, {}).items():
             srcs = by_block.get(src, {}).get(h, [])
             if not srcs:
@@ -201,38 +258,19 @@ def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
                     continue
                 undo.append((i, was))
                 notes[i]["x"], notes[i]["y"], notes[i]["d"] = now
-                n_moved += 1
+                touched.setdefault(h, []).append(i)
+        n_moved = len(undo)
         if not n_moved:
             continue
         if not bpm:
             moved += n_moved; kept += 1
             continue
-        # ⚠️Reverting the WHOLE block when it costs a swing was the first guard, and it threw the
-        # baby out: only 1 of 13 / 1 of 14 blocks survived on 1f767 and 1f913 and SCATTER came
-        # straight back. One note in a figure that does not swing should cost one note, not the
-        # figure. So revert note by note, greediest first, until the swing cost is back to base.
-        live = dict(undo)
-        while live and _swing_cost(notes, bpm) > base:
-            best, best_cost = None, None
-            for i, (x, y, dd) in live.items():
-                now = (notes[i]["x"], notes[i]["y"], notes[i]["d"])
-                notes[i]["x"], notes[i]["y"], notes[i]["d"] = x, y, dd
-                c = _swing_cost(notes, bpm)
-                notes[i]["x"], notes[i]["y"], notes[i]["d"] = now
-                if best_cost is None or c < best_cost:
-                    best, best_cost = i, c
-            if best is None or best_cost >= _swing_cost(notes, bpm):
-                break                              # no single revert helps — drop what is left
-            x, y, dd = live.pop(best)
-            notes[best]["x"], notes[best]["y"], notes[best]["d"] = x, y, dd
-            n_moved -= 1
-        if _swing_cost(notes, bpm) > base:         # still costs after the greedy pass
-            for i, (x, y, dd) in live.items():
+        if _swing_cost(notes, bpm) > base and not _repair(notes, touched, bpm, base):
+            for i, (x, y, dd) in undo:             # unrepairable here — put the figure back
                 notes[i]["x"], notes[i]["y"], notes[i]["d"] = x, y, dd
             continue
-        if n_moved:
-            moved += n_moved
-            kept += 1
+        moved += n_moved
+        kept += 1
     return moved, kept
 
 

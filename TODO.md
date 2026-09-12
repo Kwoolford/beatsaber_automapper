@@ -284,13 +284,23 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   fire). ✅**The mechanism works**: `--allow-resets` clears SCATTER on **all four** maps and makes 1f333 + 1f913
   read SHIP? YES. 🔴**And it costs resets: 0 → 15–24** against humans at 0–4. Violations stay 0, so nothing is
   unplayable, but flow is not tradeable for echo. **DoD NOT MET.**
-  🔴🔴**The blocker is measured, both ways**: on 1f913's four failing blocks, reverting **any single** moved
-  note leaves the reset count unchanged, and flipping **any single** moved note's cut direction leaves it
-  unchanged — while 5 of 12 random flips elsewhere in that map *do* move the cost, so the instrument is live.
-  ⇒**`mapedit reconcile` is now the thing standing between us and a clean songset**, and it has a much sharper
-  spec than this morning: a reset from a copied figure needs a **coordinated multi-note** repair, not one note.
-  ⚠️`repeat.py` is deliberately **NOT wired into `autobuild`** — guarded it clears SCATTER on no map that was
-  failing it, so defaulting it on would rewrite already-clean maps for nothing.
+  ✅**THE RESET BLOCKER IS SOLVED** (2026-09-12d). ★★**A reset is a parity PHASE problem, not a bad note** —
+  parity alternates, so flipping one note inverts every swing after it, which is why single-note repair failed
+  both ways and is what the landmine *"flipping the second note cascades"* has been saying since August. The
+  repair inverts a **run**. On 1f913's 14 blocks, all at zero reset cost: one-note **0**, whole-hand 6,
+  suffix 9, **interval 14 of 14 in 5 s**. ⇒Every planned block now applies with **resets and violations at 0**.
+  ✅**1f767 and 1f8d6 now echo at or above their own human** (0.463 vs his 0.418; 0.527 vs 0.574) and SCATTER
+  is clear on both.
+  🔴**1f333 (gap 0.226) and 1f913 (0.164, misses by 0.014) still fail, and the cause is exact**: the repair
+  costs echo because the cut DIRECTION is part of the figure `_echo` counts. Unrepaired the copies gain ~0.15;
+  repairing gives ~0.10 back. 🔴**The metric was NOT changed** — dropping direction from `figures()` clears
+  both maps instantly and is the forbidden move.
+  ⬜**NEXT, and better than repairing: a human never copies-then-repairs — he places the figure so it swings.**
+  Choose at COPY time between the source figure and its whole-hand parity mirror, whichever swings from the
+  incoming parity, and never cut into the middle of a run. The figure stays intact and most of the 0.10 should
+  come back. **DoD unchanged**: SCATTER clears on 1f333 + 1f913 at 0 resets and 0 violations.
+  ⚠️`repeat.py` is still **NOT wired into `autobuild`** — wire it the session the DoD is met, after re-running
+  the songset end to end.
 - 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**
   Regressing log10 total wall beats on song duration, onset rate, note count and note density over **600
   human maps** gives **R² = 0.089** (residual sd 0.515 against a total sd of 0.539 — a ~3.5× swing either

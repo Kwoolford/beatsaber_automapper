@@ -7,6 +7,66 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12d — ★★The reset repair: a parity PHASE fix, not a bad-note fix. Blocks freed 1 → all
+
+Yesterday's blocker was *"a copied figure costs 15–24 resets and no single-note repair helps."*
+It is solved, and the solving idea is one sentence.
+
+### ★★A reset is a parity PHASE problem
+Parity **alternates**, so flipping one note inverts every swing after it. That is why single-note
+repair failed in both directions — and it is exactly what `TODO`'s landmine has said since August:
+*flipping the second note cascades*. The repair that matches the mechanism inverts a **run**: the
+copied figure swings the other way from the break until it re-syncs. Measured on 1f913's 14
+planned blocks, all at **zero** reset cost:
+
+| repair | blocks freed |
+|---|---|
+| revert one note / flip one note | **0 of 14** |
+| invert a whole hand | 6 |
+| invert a hand's **suffix** | 9 |
+| invert an **interval** (shipped) | **14 of 14**, in 5 s |
+
+A suffix cannot fix a break that re-syncs before the block ends, which turns out to be most of
+them. The hands are searched one at a time and alternated, since their parity chains are
+independent until they share an instant.
+
+### Result: every planned block now applies at zero reset cost
+| song | blocks applied | resets | echo before → after | his | gap | SCATTER |
+|---|---|---|---|---|---|---|
+| **1f767** | 13 / 13 | **0** | 0.388 → **0.463** | 0.418 | **−0.045** | ✅ |
+| **1f8d6** | 10 / 10 | **0** | 0.454 → **0.527** | 0.574 | +0.047 | ✅ |
+| 1f333 | 14 / 19 | **0** | 0.420 → 0.484 | 0.710 | +0.226 | 🔴 |
+| 1f913 | 14 / 14 | **0** | 0.423 → 0.462 | 0.626 | +0.164 | 🔴 |
+
+✅**1f767 and 1f8d6 now echo at or above their own human's figure rate**, at zero reset cost.
+1f767 stays SHIP? YES; 1f8d6's remaining reds are ELEMENTS and lead-hand, not SCATTER.
+Parity violations 0 everywhere; bench `queries:q_all` not refuted, 4 strong hits, 0 false fires.
+
+### 🔴 And why the other two still fail — the cause is exact, and it is a real tension
+**The repair costs echo, because the cut DIRECTION is part of the figure `_echo` counts.**
+Applying every block unrepaired gains ~0.15 of echo; repairing it to zero resets gives ~0.10 of
+that back:
+
+| song | before | all blocks, **no** repair | all blocks, **repaired** |
+|---|---|---|---|
+| 1f333 | 0.420 | 0.570 (gap 0.140, clear) | 0.484 (gap 0.226) |
+| 1f913 | 0.423 | 0.576 (gap 0.050, clear) | 0.462 (gap **0.164**, misses by 0.014) |
+
+⇒There is no free lunch here: `figures()` is *"where the hand goes **and which way it swings**"*,
+so any parity repair is a change to the figure it just brought back. Preferring the **shortest**
+run at equal cost recovers a little (1f913 0.463 → 0.462, 1f333 0.480 → 0.484 — inside noise).
+
+🔴**The metric was NOT changed.** Dropping direction from `figures()` would clear both maps
+immediately and is exactly the forbidden move — the reference is the same human measured the same
+way, so the comparison is fair as it stands.
+⬜**The real next idea, and it is a better one than repairing**: a human never copies-then-repairs.
+He places the figure so it swings **in the first place**. So choose, at copy time, between the
+source figure and its whole-hand parity mirror — whichever swings from the incoming parity — and
+never cut into the middle of a run. That keeps the figure intact and should recover most of the
+0.10. **DoD unchanged**: SCATTER clears on 1f333 + 1f913 with resets and violations at 0.
+
+---
+
 ## 2026-09-12c — `repeat.py` clears SCATTER on all four maps and buys it with resets. DoD NOT MET
 
 The builder answer to SCATTER, built as a post-processor like `walls.py`: **when the song returns
