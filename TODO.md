@@ -10,7 +10,7 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 4,076 lines), 2026-08-14 (from 652), **2026-09-02 (re-planned around the audit in
 [`docs/audit_2026-09-02_buildmap.md`](docs/audit_2026-09-02_buildmap.md))**, and **2026-09-10
 (from 629: ten shipped P-sections collapsed to one toolbox table, one query table, and the open
-items grouped by tool)**. ⚠️Roughly a third of what is left is the permanent **REFERENCE** tail —
+items grouped by tool)**, and **2026-09-12 (from 671: the day's ten shipped findings collapsed into P0.7 / P0.8 / P0.9, three live builder items)**. ⚠️Roughly a third of what is left is the permanent **REFERENCE** tail —
 landmines that each cost a session. Curate the WORK half; leave those.
 
 📖**A read of any map is one command:** `python scripts/verdict.py <map.zip>`. Before believing a
@@ -39,8 +39,11 @@ rich score (VOX pitch + lyric, LEAD, BASS, KIT, sections) exists only as HTML dr
 **one join: song and map on ONE time lattice, as text and as arrays.**
 
 **Build:** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
-chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), or the
-per-section loop in 📖`agent_mapper/WORKFLOW.md` (beats autobuild).
+chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), then
+`agent_mapper/repeat.py <zip> --out <zip> --song <id>` (2026-09-12, not yet wired in) — or the
+per-section loop in 📖`agent_mapper/WORKFLOW.md`, which **beats autobuild** and by a wide margin:
+fresh autobuild + repeat gives 1f333 **5 reds** where the curated chain gives 1.
+⚠️**Never compare a fresh autobuild against a staged map** — they are different processes.
 **Judge (today):** `python -m beatsaber_automapper.evaluation.mapjudge <map.zip> [--nps N]` — parity
 → alignment floor → requested density → typicality, and `why:` names which gate failed;
 `scripts/audit_map.py` for the handover page.
@@ -86,37 +89,31 @@ with *"reach for this when…"* (P4), and the verdict names the tool for every r
    tool. Read the header before reading the page.
 
 ### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle
-▶️**2026-09-10: read `PROGRESS.md 2026-09-10` FIRST — the bench's whole clean side was scored AGAINST ITSELF.**
-Every CLEAN row is a human map with `--vs auto`, which resolves to the same zip, so a query shaped *"ours differs
-from his"* — which is every query in `queries.py` — was zero there **by construction**. The rows that can actually
-fail are the new `humanplus-*`: the same mapper's ExpertPlus of the same song read against his Expert
-(`scripts/make_bench_fixtures.py`). ★**Run any reference-relative query on those before believing its clean side.**
-It refuted the first `q_scatter` inside an hour, and it shows `q_events` firing D6 on a top human's harder map.
-Together with 2026-09-03b: **a clean page is evidence about the queries; a clean bench row is evidence only if the
-row could have failed.**
+**P1 · P1b · P0 · P2 · P2b · P3 · P4 · P4b · P5b · P5c — all shipped.** The toolbox is done; what is
+left is the builder and Kyle's ear.
 
-**P1 ✅ · P1b ✅ · P0 ✅ · P2 ✅ · P2b ✅ · P3 ✅ · P4 ✅ · P4b ✅ · P5b ✅ · P5c ✅ — all DoDs MET.**
-🔴🔴**ALL FOUR staged pairs now fail their own gate**: 1f333 + 1f913 on SCATTER, 1f8d6 on ABSENCE, and 1f767 on
-ELEMENTS once walls were read by coverage instead of by presence. **They stay staged, blinded and with their notes
-UNCHANGED** — decided-and-logged — and the per-song prediction is in `.key.json`, written *before* he plays, one of
-them now marked `superseded` rather than rewritten.
-★★**2026-09-12 — the ELEMENTS red on three of those four was ONE BUG in the builder, now fixed**: walls were drawn
-from the corpus's **pooled** duration marginal, so we emitted only its middle mode and covered a constant 23.8-28.9
-beats on every song against humans at 12.1-203.7. Corridors are now placed by the song (onsets thinning out) and
-**`W__1f767` is the first fully clean page this project has produced** (`outputs/walls_2026-09-12/`, the staged
-zips untouched). ⇒**SCATTER is now the last red on the songset** — 1f333 and 1f913, both map-wide, both "nothing
-comes back to lock into". 🔴And the new bound: **wall coverage has R² = 0.089 against the song** (600 maps), so it
-is mapper style, not song content — see the item under P5b before touching that threshold.
-❓**THE ONE DECISION THAT IS KYLE'S**: P4b's rule says a red map is not staged, because *"losing with a known red
-teaches nothing the page did not say"*. That rule was written when a red meant a cheap fix. Today's reds come from
-codes invented **after** these maps were built, with a written prediction riding on each — so playing them tests
-the codes, and rebuilding first tests the builder. **Both are defensible; the pairs are staged either way.** Say
-which and it takes one command. → **P5 is still the only thing that moves the headline: Kyle plays ONE pair**
-(`compete.py verdict <sid> X|Y|tie --because …`) → then **P6**. ✅P5c closed the same day: the gate no longer calls
-a human's own ExpertPlus over-dense (the map DECLARES its difficulty and `q_events` reads it), which also surfaced
-that **1f913's only human map is an ExpertPlus while every build we make is an Expert** — that pair, and every
-density read on that song, has been cross-difficulty all along.
+▶️**Read these three rules before believing any read.**
+1. **A clean page is evidence about the QUERIES, not the map** (2026-09-03b) — ask what is ABSENT.
+2. **A clean bench row is evidence only if the row COULD HAVE FAILED** (2026-09-10) — every human row is
+   scored against itself by `--vs auto`; the rows with teeth are `humanplus-*` / `humanexp-*`.
+3. **Four rows can refute a norm, never establish one** (2026-09-12b) — two songset readings reversed at
+   corpus scale in one session. Take mechanism claims to ≥100 maps.
+
+**Where the songset stands** (`outputs/repeat_2026-09-12/`, staged zips untouched):
+`1f913` **SHIP? YES — nothing located** · `1f767` SHIP? YES (1 yellow) · `1f8d6` ELEMENTS + lead-hand ·
+`1f333` **SCATTER — the last red**, and it is P0.8's 64 %-first-occurrence problem.
+
+❓**THE ONE DECISION THAT IS KYLE'S**: P4b's rule says a red map is not staged, because *"losing with a
+known red teaches nothing the page did not say"*. Today's reds come from codes invented **after** these
+maps were built, with a written prediction riding on each — so playing them tests the codes, and
+rebuilding first tests the builder. **Both are defensible; the pairs are staged either way.** Say which
+and it takes one command. → **P5 is still the only thing that moves the headline: Kyle plays ONE pair**
+(`compete.py verdict <sid> X|Y|tie --because …`) → then **P6**.
 🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
+
+⚠️**Two builder landmines found 2026-09-12, read before touching either**: `--pulse` is a **trade**, not a
+defect (it buys FLOW and pays ABSENCE; `--no-pulse` is strictly worse on 1f8d6) — see P0.7; and the
+**palette must not be turned on** — see P0.9.
 
 ---
 
@@ -246,192 +243,85 @@ rule: a Kyle verdict that disagrees with the agent's read is a bench row AND a P
 TODO opinion. **DoD**: bench grows ≥ 1 row per listening session with no JSON editing; pending
 list ≤ 4 maps.
 
-## ✅→🔵 P5b + P5c — THE ABSENCE HUNT AND THE DIFFICULTY CONTROL, DoD MET 2026-09-10
-`PROGRESS.md 2026-09-10 · b · c · d · e`. Shipped: **`q_scatter`/SCATTER** · **ABSENCE on the
-verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fixtures.py` ·
-`score_row`'s `allows` (used by no row, which is the point) · **`MapData.difficulty`** through to
-`queries.cross_difficulty` · the TUTOR line uncoloured.
+## 🔵 P5b/P5c — SHIPPED 2026-09-10. Open leftovers only
+`PROGRESS.md 2026-09-10 · b–g`. Shipped: `q_scatter`/SCATTER · ABSENCE on the verdict page ·
+the `humanplus-*` / `humanexp-*` difficulty controls + `make_bench_fixtures.py` · `MapData.difficulty`
+through to `queries.cross_difficulty` · the TUTOR line uncoloured.
 
-**Still open:**
-- 🔴**We can make NO density claim about `1f913`** — its only human map is an ExpertPlus, every
-  build we make declares Expert, so its page prints ⚪ EMPTY · ⚪ D1 · ⚪ D4. Its **blind pair
-  therefore asks Kyle to compare two difficulties**; it stays staged (`.key.json` carries the
-  caveat) but a loss there is not purely a quality loss. ⬜Fix by building 1f913 at his
-  difficulty, or by finding an Expert human map of it.
-- ⬜**NEXT 2026-09-12b — SCATTER is the last red on the songset, and it now has a candidate locator.**
-  At **n=400** human Experts, block echo tracks the **song's own** block echo (median r **0.502**, 83 % of maps
-  > 0.3) and the human distribution is **tight**: median 0.602, p10 0.505, **sd 0.075**. Our four maps sit at
-  **0.388–0.423** — below the human p10 on every song. ⚠️Unlike wall coverage this is an axis where humans agree
-  with each other, so the level gap is a defect, not a style difference. ⇒**Build a per-block SCATTER that flags
-  only the blocks where the SONG came back and the map did not** — a different question from the naive per-block
-  version that was rejected on 2026-09-10 (that one asked every block). 🔴**DoD before it may ship**: silent on
-  `humanplus-1f333` / `humanplus-1f8d6` / `humanexp-*`, and firing on 1f333 + 1f913 where the map-wide read
-  already does. 🔴**BUILT AND REFUTED THE SAME SESSION** — every threshold that fires on 1f333 + 1f913 also
-  fires on `humanplus-1f8d6`, and the song-echo conditioning was *anti*-enriched on two of our four maps while
-  **concentrating the control's false fires in the half meant to carry the signal**. ⛔Do not retry it.
-  **The map-wide read is the only SCATTER there is.** ✅By-product: a mapper's own two difficulties differ in
-  map-wide echo by **0.064–0.084**, so `q_scatter`'s 0.15 margin sits ~2× above the difficulty effect — the
-  first real validation of that threshold.
-  ★★**AND THE METHOD NOTE THAT COST TWO REVERSALS IN ONE DAY: stop drawing mechanism from the songset.** The
-  same four rows said "instants sit at high onset density" (n=3, refuted at n=484) and "song repetition does not
-  drive human echo" (n=4, reversed at n=400). Four rows can refute a norm; they cannot establish one.
-  ★★**AND: A CORRELATION IS NOT A LOCATOR.** r = 0.502 between human block echo and song echo, on 400 maps,
-  is real and still decides no individual block. Second instance of `AUC is not an operating point` (REFERENCE).
-- 🔴**THE SCATTER FIX IS BUILT AND BLOCKED ON RESET REPAIR** (`agent_mapper/repeat.py`, 2026-09-12c;
-  `PROGRESS.md 2026-09-12c`). When the song returns to a section, the hands return to the shape they played on
-  it — the song's **own section labels** decide, no threshold (a per-block fingerprint was tried and maxes out
-  at 0.47 *between two passes of the same section*, so any threshold under that is choosing how many blocks
-  fire). ✅**The mechanism works**: `--allow-resets` clears SCATTER on **all four** maps and makes 1f333 + 1f913
-  read SHIP? YES. 🔴**And it costs resets: 0 → 15–24** against humans at 0–4. Violations stay 0, so nothing is
-  unplayable, but flow is not tradeable for echo. **DoD NOT MET.**
-  ✅**THE RESET BLOCKER IS SOLVED** (2026-09-12d). ★★**A reset is a parity PHASE problem, not a bad note** —
-  parity alternates, so flipping one note inverts every swing after it, which is why single-note repair failed
-  both ways and is what the landmine *"flipping the second note cascades"* has been saying since August. The
-  repair inverts a **run**. On 1f913's 14 blocks, all at zero reset cost: one-note **0**, whole-hand 6,
-  suffix 9, **interval 14 of 14 in 5 s**. ⇒Every planned block now applies with **resets and violations at 0**.
-  ✅**1f767 and 1f8d6 now echo at or above their own human** (0.463 vs his 0.418; 0.527 vs 0.574) and SCATTER
-  is clear on both.
-  🔴**1f333 (gap 0.226) and 1f913 (0.164, misses by 0.014) still fail, and the cause is exact**: the repair
-  costs echo because the cut DIRECTION is part of the figure `_echo` counts. Unrepaired the copies gain ~0.15;
-  repairing gives ~0.10 back. 🔴**The metric was NOT changed** — dropping direction from `figures()` clears
-  both maps instantly and is the forbidden move.
-  ✅**2026-09-12e — SCATTER CLEARS ON 3 OF 4, at 0 resets and 0 violations.** The source is now *chosen*: each
-  block is offered every earlier occurrence of its section and keeps the one that survives with the most of its
-  figure intact (fewest notes flipped by the repair). Neither "always first" nor "always most recent" dominates,
-  so neither is hard-coded. **`R__1f913` reads `SHIP? YES — nothing located`: zero reds AND zero yellows, the
-  cleanest page this project has produced.** 1f767 ships with one yellow; 1f8d6's reds are ELEMENTS + lead-hand.
-  🔴**1f333 alone still fails** (gap 0.230) — and the reason is structural, see below.
-  ★★**AND THE READ THAT NAMES THE REST OF THE WORK.** Split every block by whether its section had an earlier
-  occurrence: **with** a source we now score 0.543–0.656 against humans at 0.435–0.766 (we *beat* him on 1f767
-  and 1f8d6); **without** one we score 0.231–0.446 against **his 0.359–0.674**. ⇒**The human is not repeating
-  the song's structure, he is repeating his own VOCABULARY** — a small set of shapes reused throughout, over
-  music he has never played before. That is the entire remaining gap, and it is why 1f333 is the last red:
-  **64 % of its bars are a first occurrence.**
-  ✅**2026-09-12f — the vocabulary is PRICED, and it needs a PALETTE, not a knob** (`PROGRESS.md 2026-09-12f`).
-  CONFIRMED n=400: distinct shapes per hand human **28.5** (p10 18, p90 43) vs **ours 34–60**; top-10 share
-  human **0.82** (p10 0.70) vs **ours 0.53–0.65**; correlation with echo **r = +0.654**. ★The songset ranks by
-  it exactly — 1f767 is the one map whose vocabulary is tighter than its human's and the one whose echo *beats*
-  his. ⚠️Not the refuted read: vocabulary breadth was rejected as a **defect query**; this is the same quantity
-  as a **cohort-level builder target**.
-  🔴**Three routes measured, none works**: post-hoc **snapping** is REFUTED (human concentration costs 26 parity
-  violations + 179 resets); **`REPEAT_P`/`REPEAT_WINDOW`** NOT PROVEN (six settings span 0.473–0.504 unordered,
-  vocabulary unmoved — and its window is 6 NOTES while SCATTER is 4 BARS); **`VOCAB_DEPTH`** NOT RESOLVABLE
-  (depth 200's own seed spread 0.043 ≥ the whole between-depth range at n=2).
-  ★★**The structural reason**: at every depth 200→2000 the per-map vocabulary stayed 38–55 per hand. **`idiomize`
-  samples a fresh idiom PER NOTE, so the vocabulary tracks the NOTE COUNT, not the pool depth.** A human commits
-  to a **palette** and places from it all map.
-  ✅**2026-09-12g — BUILT, and it is a real lever**: `idiomize --palette N` commits the map to N landing shapes
-  per hand (two passes; the first says what this song reaches, the top N become the palette, the second replays
-  inside it, falling back whenever no palette move is legal). **Default 0 = off.**
-  **1f333 at 3 seeds**: echo **0.490 ± 0.022 → 0.543 ± 0.016** at palette 20 (**+0.053, ~3 sd**), vocabulary
-  **46 → 33 per hand** (human 18–43, median 28.5), top-10 share **62–65 % → 71–76 %** (human p10 0.70), with
-  **0 violations, 0 resets, 0 fallbacks**. The first thing all session to move the vocabulary at all.
-  ★Asking for 20 *realises* ~33 shapes — the request is not the outcome, and 28 scores worse than 20.
-  🔴**1f333 still does not clear** (gap 0.167 vs 0.150; 1 of 3 seeds). His echo is **0.710, above the corpus
-  p90 of 0.694** — an outlier repeater. **DoD NOT MET.** No regression elsewhere; bench not refuted.
-  🔴🔴**2026-09-12i — THE DEFAULT WAS FLIPPED ON AND IS REVERTED. `--palette` is 0 again.** The 12-song sweep
-  was real (echo 0.423 → 0.486, better on 12/12; vocabulary 41.2 → 26.1 against a human 23.6) but the **first
-  full `autobuild` from audio** showed what it had not measured — on 1f913, same seed:
-  `palette 0` **coverage 0.992 / 94.1 pct / p 0.572** · `palette 20` hard filter **0.618 / 1.7 pct 🔴 / p 0.538`
-  · `palette 20` boost ×6 **0.998 / 97.5 pct 🔴 / p 0.333**. Both forms are named by the judge as furthest from
-  human, in **opposite directions**: filtering leaves the long tail, boosting overshoots past the human 0.909.
-  ★★**THE LESSON IS ABOUT METHOD: my DoD measured echo, vocabulary size, top-10 share and local variety — and
-  not `idiom_coverage`, the axis `idiomize` exists to move.** ⇒**When changing a pass, the DoD must include the
-  axis that pass was BUILT for, not only the axis the change is aiming at.** ★And the confirmation step that was
-  "still owed" is what caught it: **a sweep of a sub-pass is not a build.**
-  🔴**2026-09-12j — the BANDED form fails too, and the structural reason is now clear.** Three forms: filter →
-  `idiom_coverage` 0.618 (1.7 pct), flat boost → 0.998 (97.5), banded boost → 0.997 (96.9); all flagged.
-  ★★**`idiom_coverage` counts TRANSITIONS from the human top-500; the palette constrains LANDING SHAPES — two
-  different vocabularies, and we are wrong on both in OPPOSITE directions**: human **23.6 shapes/hand** with
-  coverage **0.909**, ours **41 shapes/hand** with coverage **0.992**. A human reuses *few shapes reached by
-  varied transitions* (~9 % outside the top-500); we use *many shapes reached by only the commonest
-  transitions*. Any frequency-boosting palette raises coverage further; the frequency-blind one drops it off a
-  cliff. ⬜**Next: the reverse pairing** — keep frequency weighting for the draw but *allow a tail transition
-  when it reaches a palette landing*, which is what the human profile actually looks like. **DoD**: echo gain on
-  ≥10 songs AND `idiom_coverage` inside the human IQR AND not in the judge's worst-3.
-  ✅**2026-09-12j — the owed full build is DONE for all four songs** (`outputs/full_2026-09-12/`).
+- 🔴**No density claim is possible about `1f913`** — its only human map is an ExpertPlus and every build
+  we make declares Expert, so its page prints ⚪ EMPTY · ⚪ D1 · ⚪ D4 and its blind pair asks Kyle to
+  compare two difficulties (`.key.json` carries the caveat). ⬜Build 1f913 at his difficulty, or find an
+  Expert human map of it.
+- 🔴**The doubles gap has no locator.** `1f913` plays 4.2 % doubles against his 32.9 % and every read says
+  ✅. ⛔The entry-accent locator is REFUTED. ⚠️Whatever comes next must not be "distance to his number".
+- ⬜**Walls**: `q_elements`' 0.5× coverage red asks a map to match an unpredictable quantity — wall coverage
+  has **R² = 0.089** against the song over 600 maps, so it is mapper style. The *systematic* under-walling was
+  real and is fixed (`walls.py`, 2026-09-12). 🔴**The threshold was NOT loosened.** DoD to revisit it: a
+  human-vs-human negative — two mappers' Expert maps of one song — showing how often 0.5× fires between two
+  people who both did it right. Centring the level also bought the opposite failure: over-walled on 24 %.
+- ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties; bites only on a song
+  with no human map.
 
-## 🔴 P0.7 — `--pulse` CAUSES FLOW, AND IT IS IN THE DOCUMENTED BUILD COMMAND (2026-09-12j)
-A/B on two songs, same seed, everything else held:
+## 🔴 P0.8 — SCATTER: the builder answer is built, and the last red is 1f333
+`agent_mapper/repeat.py` (2026-09-12c–e). When the song's own **section labels** say a phrase returns, the
+block's figure comes back — times and hands kept, cells and directions copied, **no threshold** (a per-block
+fingerprint maxes out at 0.47 *between two passes of the same section*, so any threshold under that chooses
+how many blocks fire). ★★**A reset is a parity PHASE problem**: one-note repair fails in both directions,
+inverting a RUN frees every block. Source is **chosen** per block from every earlier occurrence, keeping the
+one that survives with most of its figure intact.
+**Now**: SCATTER clears on **3 of 4** at 0 resets and 0 violations; `1f913` reads `SHIP? YES — nothing
+located`. 🔴**1f333 alone still fails** (echo 0.480 vs his 0.710) because **64 % of its bars are a first
+occurrence** — structure-driven repetition has the least to work with there.
+★★**The remaining gap is VOCABULARY, not structure**: where a section repeats we match or beat the human;
+where it does not we are 0.13–0.27 below him and he still echoes 0.36–0.67. He reuses a small set of shapes
+over music he has never played before.
+⬜**Tasks**: a palette form that raises echo while leaving `idiom_coverage` in the human band (see P0.9);
+wire `repeat.py` into `autobuild` the session 1f333 clears.
+
+## 🔴 P0.9 — the vocabulary palette: real lever, no safe form yet
+Human maps use **28.5 shapes/hand** (p10 18, p90 43) with the top ten covering **82 %** of notes; ours use
+34–60 at 53–65 %, and concentration correlates with block echo at **r = +0.654** (n=400). `idiomize --palette N`
+commits the map to N landing shapes and raises echo on **12 of 12** corpus songs (+0.063, sd 0.020).
+🔴**But all three forms damage `idiom_coverage`**, the axis `idiomize` exists to move — filter **0.618**
+(1.7 pct), flat boost 0.998 (97.5), banded boost 0.997 (96.9), against **0.992 (94.1)** with it off.
+**Default is 0. Do not turn it on.**
+★★**Why**: `idiom_coverage` counts **transitions**; the palette constrains **landing shapes**. Two different
+vocabularies, and we are wrong on both in opposite directions — human 23.6 shapes/hand at coverage 0.909,
+ours 41 at 0.992. A human reuses *few shapes reached by varied transitions* (~9 % outside the top-500); we use
+*many shapes reached by only the commonest transitions*.
+⬜**Next**: the reverse pairing — keep frequency weighting for the draw but **allow a tail transition when it
+reaches a palette landing**. **DoD**: echo gain on ≥10 songs AND `idiom_coverage` inside the human IQR AND not
+in the judge's worst-3.
+★★**AND THE METHOD RULE THIS COST**: *when changing a pass, the DoD must include the axis that pass was BUILT
+for, not only the axis the change aims at* — and **a sweep of a sub-pass is not a build**; only a full
+`autobuild` from audio caught this.
+
+## 🔴 P0.7 — the pulse pass never holds a pulse, and `--pulse` is a TRADE
+★★**`--pulse` is not a defect to remove — it buys FLOW and pays ABSENCE:**
 
 | song | `--pulse` | `--no-pulse` |
 |---|---|---|
-| 1f913 | 🔴 4 hits, **16 % of bars** | 🟡 2 hits, 3 % |
-| 1f8d6 | 🔴 2 hits, **12 % of bars** | ✅ **clean** |
+| 1f913 | 1 red — FLOW | 1 red — ABSENCE (doubles unused) |
+| 1f8d6 | 1 red — FLOW | **2 reds** — ELEMENTS + lead-hand |
 
-⇒Confirms and widens the open *"pulse path's odd-16th interval choice (1f8d6 bars 2-4)"* item — it is not one
-song's opening bars. 🔴**CURRENT STATE's command is `autobuild <audio> --pulse --lead-bias 0.2`, so the
-documented invocation produces a FLOW red.** ★The maps that read clean were not built that way — 1f8d6's staged
-map is literally `NOPULSE__1f8d6`, and 1f767/1f913's are `LOOP__` from the per-section workflow.
-🔴🔴**2026-09-12k — THE PULSE PASS NEVER HOLDS A PULSE, AND `PERIODS` IS THE FOURTH UNWIRED KNOB**
-(`width`, `travel_target` in `idiomize_zip`, `--travel-target` at the CLI, now this). Removing the dotted-eighth
-`3` and rebuilding both songs from audio gives **the same md5**, the same note counts, the same FLOW hits and
-**23 period-3 phrases still in the output**; `quantise` returns its input **unchanged** for every period set,
-`(2,)` included. ★★**The cause is the SCORE**: `quantise_phrase` ranks `(period, phase)` by how exactly it
-reproduces the input, and **period 1 phase 0 reproduces it perfectly** — so the finest lattice always wins and
-the coarser interval is never held. What `--pulse` actually changes is the `MAX_EMPTY_RUN` fill (1013 notes vs
-745), not the interval. ⚠️**Do not sweep `PERIODS`** until the score changes — it compares identical maps.
-**Tasks**: ⬜fix the SCORING, not the constant. ⬜then re-ask whether `--pulse` still causes FLOW.
-**DoD**: on a phrase whose events sit on the 8th grid the pass returns an 8th lattice, `PERIODS` provably
-changes the output, and FLOW on the songset drops toward the human's **3 %** of off-grid phrases.
-🔴**2026-09-12l — "COARSEST WINS" IS REFUTED, in the worst direction.** `COUNT_TOL` shipped (default **0.0**
-= old behaviour, not on): accept any period inside a count tolerance, prefer the coarsest. On an 8th-grid
-phrase at tol 0.35 it returns a **dotted-eighth** lattice — it manufactures exactly the off-grid figure FLOW
-catches, because 3 is coarser than 2 and fits. ⇒**Coarser is not better**; the score must prefer the interval
-the EVENTS are on. ⬜**And a SECOND inertness is unlocated**: on a jittery phrase (gaps 3,2,3,3,2) `quantise`
-returns its input at every tolerance and every period set, i.e. the `best is None` fallback fires there.
-★★**AND THE FRAMING CORRECTION — `--pulse` IS A TRADE, NOT A DEFECT:**
+🔴**`--no-pulse` must NOT be recommended** — it removes FLOW by removing notes (1f913: 745 vs 1013,
+human 1272). **The red moves; it does not clear.** The build command in CURRENT STATE stays as it is.
 
-| song | `--pulse` | `--no-pulse` |
-|---|---|---|
-| 1f913 | 1 red — **FLOW** | 1 red — **ABSENCE** (doubles unused) |
-| 1f8d6 | 1 red — **FLOW** | **2 reds** — ELEMENTS + lead-hand |
+🔴🔴**And the pass is inert. `PERIODS` is the FOURTH unwired knob in this repo** (`width`,
+`travel_target` in `idiomize_zip`, `--travel-target` at the CLI, now this). Removing the dotted eighth
+and rebuilding two songs from audio gives **the same md5**. ★**The cause is the SCORE**:
+`quantise_phrase` ranks `(period, phase)` by how exactly it reproduces the input, and **period 1 phase 0
+reproduces it perfectly**, so the finest lattice always wins. What `--pulse` actually changes is the
+`MAX_EMPTY_RUN` fill. ⚠️**Do not sweep `PERIODS`** until the score changes — it compares identical maps.
 
-🔴**`--no-pulse` is NOT a fix and must not be recommended** — it removes FLOW by removing notes (1f913: 745 vs
-pulse's 1013, human 1272) and the density reads fire instead; on 1f8d6 it is strictly worse. **The red moves,
-it does not clear.** ⚠️This corrects 2026-09-12j's direction: **the command in CURRENT STATE stays as it is**,
-and the fix is the pass, not the flag.
-⚠️**Do not compare a fresh `autobuild` against a staged map** — fresh + `repeat` gives 1f333 **5 reds** where
-the curated chain gives 1 red; `TODO` already says the per-section loop beats autobuild and this is its size.
-- 🔴🔴**FIXED 2026-09-12g — `idiomize --travel-target` WAS A DEAD CLI FLAG**: parsed, documented in `--help`,
-  never passed to `idiomize_zip`. **Any sweep of it before today swept nothing.** ★**Third time this exact bug
-  has shipped in that one file** (`width` 2026-08-21, `travel_target` inside `idiomize_zip`, now the CLI).
-  ⇒The standing rule gains a line: **a knob whose arms are identical to 3 decimals is UNWIRED, not weak — and
-  check the CLI as well as the function.**
-  ⚠️`repeat.py` is still **NOT wired into `autobuild`** — wire it the session 1f333 clears too, after
-  re-running the songset end to end.
-- 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**
-  Regressing log10 total wall beats on song duration, onset rate, note count and note density over **600
-  human maps** gives **R² = 0.089** (residual sd 0.515 against a total sd of 0.539 — a ~3.5× swing either
-  side). ⇒Coverage is mostly a **mapper's style choice**. Two things follow. (a) ⛔**Do not chase the
-  remaining per-song spread** — ours is still ~4× narrower than the humans' (log10 sd 0.126 vs 0.548) and
-  the correlation only moved 0.152 → 0.230, but there is almost nothing there to predict. (b) ⚠️**the 0.5×
-  coverage red asks a map to match an unpredictable quantity.** The *systematic* version (under-walled on
-  every song) was real and is fixed; a **per-song** red at 2× on an axis with a 3.5× human spread is weakly
-  grounded. 🔴**The threshold was deliberately NOT loosened** — loosening a gate to pass our own map is the
-  one move that must never be made. **DoD for reopening it**: a human-vs-human negative — two different
-  mappers' Expert maps of the same song — showing how often 0.5× fires between two people who both did it
-  right. Until that exists the red stands as written. Centring the level also bought the opposite failure:
-  **over-walled (>2× his) on 24 % of maps, up from 10 %**.
-- 🔴**The doubles gap has no locator.** `LOOP__1f913` plays **4.2 % doubles against his 32.9 %**
-  and every read says ✅ (ABSENCE reds only at *effectively zero*; D6 fires only the other way).
-  ⛔The entry-accent locator is REFUTED (see the refuted list above). ⚠️Whatever comes next must
-  not be "distance to the human's number" — that is the `h_dist` failure.
-- ✅**The untouched third is done** (2026-09-10g). **Sustained/held sections: NOT REPRODUCED** — our rate inside
-  the top sustain quartile, relative to our own overall rate, is 0.94-1.03× against the humans' 0.86-1.03×.
-  **Walls: a real absence, now queried** — our builds cover **131-146 slots on every song** (the `--walls 89`
-  default) where humans cover 83-667 and vary with the music; `q_elements` grew a graded branch (< 0.5× his
-  coverage) and **1f767 went red, so all four staged maps now fail their own gate**.
-  ✅**FIXED 2026-09-12 — it was one bug, and it was the DURATION, not the count** (`PROGRESS.md 2026-09-12`).
-  `plan_walls` drew every wall from the corpus's **pooled** duration marginal, which has one mode and can emit
-  neither the human's instant marker nor his corridor, so we sat in the rarest 8.5 % cohort on every song.
-  It now emits all three modes and places **corridors in the note-free outer-lane gaps where the onsets thin
-  out** — the one song-side signal that survived 567 corpus maps (instants-at-high-density did NOT: 0.98×,
-  n=484). Control on 300 human maps re-walled from their own notes at the production budget: median ratio to
-  that human **0.40× → 0.98×**, ELEMENTS would fire on **59 % → 21 %**. **1f767 is now a fully clean page**;
-  1f8d6 stays red at exactly 0.50× against a p90-waller human. Zero notes inside walls; bench not refuted.
-- ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties; the
-  per-song human is preferred on the page, so this bites only on a song with no human map.
+🔴**"Coarsest wins" is REFUTED** (2026-09-12l). `COUNT_TOL` shipped, **default 0.0 = old behaviour, not
+on**: accept any period inside a count tolerance, prefer the coarsest. On an 8th-grid phrase it returns a
+**dotted-eighth** lattice — it manufactures exactly the off-grid figure FLOW catches. ⇒Coarser is not
+better; the score must prefer the interval the **events** are on.
+⬜**Also unlocated**: on a jittery phrase (gaps 3,2,3,3,2) `quantise` returns its input at every tolerance
+and every period set — the `best is None` fallback fires there, a second inertness.
+**DoD**: on an 8th-grid phrase the pass returns an 8th lattice, `PERIODS` provably changes the output, and
+FLOW drops toward the human's **3 %** of off-grid phrases — *without* the ABSENCE reds `--no-pulse` buys.
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
