@@ -7,6 +7,60 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12b — SCATTER: the song-repetition hypothesis, refuted at n=4 and then rescued at n=400
+
+**With ELEMENTS fixed, SCATTER is the last red on the songset** (1f333 and 1f913, both map-wide).
+The obvious mechanism to test: *a human brings a figure back because the SONG comes back.* If so,
+the blocks where the song repeats and our map does not are the locator SCATTER has never had.
+
+**Song echo** was defined to mirror `_echo` exactly — the song cut into the same 4-bar blocks, each
+a bag of rhythmic figures, scored by its largest overlap with any earlier block.
+
+### On the four songset songs the hypothesis looked dead
+| song | song echo | his echo | r(his, song) | our echo | r(our, song) |
+|---|---|---|---|---|---|
+| 1f767 | 0.500 | 0.418 | 0.459 | 0.388 | **0.628** |
+| 1f8d6 | 0.530 | 0.574 | **0.070** | 0.454 | 0.180 |
+| 1f333 | 0.416 | 0.710 | 0.690 | 0.420 | 0.266 |
+| 1f913 | 0.476 | 0.626 | 0.585 | 0.423 | 0.466 |
+
+Song echo barely moves across songs (0.42–0.53) while his echo swings 0.42→0.71, the correlations
+are all over the place, and on 1f767 **our** map tracks the song better than his does. Read alone
+that says the song does not drive it.
+
+### At n=400 it is the four-song read that was noise
+Same measure at corpus scale (400 human Experts with cached onsets, song side from onset positions
+alone so it needs no perception cache):
+
+| | median | p10 | p90 | sd |
+|---|---|---|---|---|
+| **human map echo** | **0.602** | 0.505 | 0.694 | **0.075** |
+| r(map echo, song echo) within a song | **0.502** | — | — | 83 % of maps > 0.3 |
+
+✅**PARTLY CONFIRMED — human block echo does track the song's own block echo**, median r 0.502 with
+83 % of maps above 0.3. The four-song spread of 0.07–0.69 was **n = 4**, and this is the second time
+today a four-song reading reversed at corpus scale (the first was instants-at-high-onset-density).
+★**Stop drawing mechanism from the songset.** It has four rows; it can refute a norm, it cannot
+establish one.
+
+✅**CONFIRMED — and the more useful number: the human echo distribution is TIGHT.** sd 0.075, p10
+0.505. Our four maps score **0.388–0.423** by `q_scatter`'s own blocking — **below the human p10 on
+every song**. ⚠️Unlike wall coverage (log10 sd 0.539, R² 0.089 against the song), this is an axis
+where humans genuinely agree with each other, which is what makes a level gap here a defect rather
+than a style difference. Note the two blockings are not identical (mine cuts from beat 0, `_echo`
+cuts from the lattice's bar 1), so 0.602 and 0.388 are directionally comparable, not the same number.
+
+### ⬜What this sets up, and the control it has to survive first
+A **per-block** SCATTER: flag only the blocks where **the song came back and the map did not**.
+`q_scatter` is deliberately map-wide because the naive per-block version could not separate our
+1f8d6 from a human's own harder difficulty (2/32 blocks each) — but that version asked every block.
+This one asks only the blocks the song repeats, which is a different question.
+🔴**DoD before it may be written**: silent on `humanplus-1f333` / `humanplus-1f8d6` / `humanexp-*`,
+and firing on 1f333 + 1f913 where the map-wide read already does. If it cannot clear the difficulty
+controls it does not ship, and the map-wide version stands.
+
+---
+
 ## 2026-09-12 — ★★The walls were a POOLED MARGINAL, and three of the four reds were one bug
 
 **Where this started.** All four staged maps failed their own gate, and ELEMENTS was the red on

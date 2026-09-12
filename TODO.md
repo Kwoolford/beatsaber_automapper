@@ -258,6 +258,18 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   therefore asks Kyle to compare two difficulties**; it stays staged (`.key.json` carries the
   caveat) but a loss there is not purely a quality loss. ⬜Fix by building 1f913 at his
   difficulty, or by finding an Expert human map of it.
+- ⬜**NEXT 2026-09-12b — SCATTER is the last red on the songset, and it now has a candidate locator.**
+  At **n=400** human Experts, block echo tracks the **song's own** block echo (median r **0.502**, 83 % of maps
+  > 0.3) and the human distribution is **tight**: median 0.602, p10 0.505, **sd 0.075**. Our four maps sit at
+  **0.388–0.423** — below the human p10 on every song. ⚠️Unlike wall coverage this is an axis where humans agree
+  with each other, so the level gap is a defect, not a style difference. ⇒**Build a per-block SCATTER that flags
+  only the blocks where the SONG came back and the map did not** — a different question from the naive per-block
+  version that was rejected on 2026-09-10 (that one asked every block). 🔴**DoD before it may ship**: silent on
+  `humanplus-1f333` / `humanplus-1f8d6` / `humanexp-*`, and firing on 1f333 + 1f913 where the map-wide read
+  already does. If it cannot clear the difficulty controls, it does not ship and the map-wide version stands.
+  ★★**AND THE METHOD NOTE THAT COST TWO REVERSALS IN ONE DAY: stop drawing mechanism from the songset.** The
+  same four rows said "instants sit at high onset density" (n=3, refuted at n=484) and "song repetition does not
+  drive human echo" (n=4, reversed at n=400). Four rows can refute a norm; they cannot establish one.
 - 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**
   Regressing log10 total wall beats on song duration, onset rate, note count and note density over **600
   human maps** gives **R² = 0.089** (residual sd 0.515 against a total sd of 0.539 — a ~3.5× swing either
