@@ -339,12 +339,34 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   not `idiom_coverage`, the axis `idiomize` exists to move.** ⇒**When changing a pass, the DoD must include the
   axis that pass was BUILT for, not only the axis the change is aiming at.** ★And the confirmation step that was
   "still owed" is what caught it: **a sweep of a sub-pass is not a build.**
-  ⬜**To make the palette usable**: a form that raises echo while leaving `idiom_coverage` inside the human band
-  (~0.909). Next to try: boost only candidates already in the top-`k` frequency band, so the palette can never
-  promote a tail idiom. **DoD**: echo gain holds on ≥10 songs AND `idiom_coverage` stays in the human IQR AND
-  the judge's worst-3 does not name it.
-  ⬜**Still owed**: a full `autobuild` re-run of the whole songset from audio, and wiring `repeat.py` into the
-  chain. Only 1f913 has been built end to end.
+  🔴**2026-09-12j — the BANDED form fails too, and the structural reason is now clear.** Three forms: filter →
+  `idiom_coverage` 0.618 (1.7 pct), flat boost → 0.998 (97.5), banded boost → 0.997 (96.9); all flagged.
+  ★★**`idiom_coverage` counts TRANSITIONS from the human top-500; the palette constrains LANDING SHAPES — two
+  different vocabularies, and we are wrong on both in OPPOSITE directions**: human **23.6 shapes/hand** with
+  coverage **0.909**, ours **41 shapes/hand** with coverage **0.992**. A human reuses *few shapes reached by
+  varied transitions* (~9 % outside the top-500); we use *many shapes reached by only the commonest
+  transitions*. Any frequency-boosting palette raises coverage further; the frequency-blind one drops it off a
+  cliff. ⬜**Next: the reverse pairing** — keep frequency weighting for the draw but *allow a tail transition
+  when it reaches a palette landing*, which is what the human profile actually looks like. **DoD**: echo gain on
+  ≥10 songs AND `idiom_coverage` inside the human IQR AND not in the judge's worst-3.
+  ✅**2026-09-12j — the owed full build is DONE for all four songs** (`outputs/full_2026-09-12/`).
+
+## 🔴 P0.7 — `--pulse` CAUSES FLOW, AND IT IS IN THE DOCUMENTED BUILD COMMAND (2026-09-12j)
+A/B on two songs, same seed, everything else held:
+
+| song | `--pulse` | `--no-pulse` |
+|---|---|---|
+| 1f913 | 🔴 4 hits, **16 % of bars** | 🟡 2 hits, 3 % |
+| 1f8d6 | 🔴 2 hits, **12 % of bars** | ✅ **clean** |
+
+⇒Confirms and widens the open *"pulse path's odd-16th interval choice (1f8d6 bars 2-4)"* item — it is not one
+song's opening bars. 🔴**CURRENT STATE's command is `autobuild <audio> --pulse --lead-bias 0.2`, so the
+documented invocation produces a FLOW red.** ★The maps that read clean were not built that way — 1f8d6's staged
+map is literally `NOPULSE__1f8d6`, and 1f767/1f913's are `LOOP__` from the per-section workflow.
+**Tasks**: locate the odd-16th interval choice in the pulse path; fix it or stop recommending `--pulse`.
+**DoD**: `--pulse` and `--no-pulse` both read ✅ FLOW on the songset, or the command in CURRENT STATE changes.
+⚠️**Do not compare a fresh `autobuild` against a staged map** — fresh + `repeat` gives 1f333 **5 reds** where
+the curated chain gives 1 red; `TODO` already says the per-section loop beats autobuild and this is its size.
 - 🔴🔴**FIXED 2026-09-12g — `idiomize --travel-target` WAS A DEAD CLI FLAG**: parsed, documented in `--help`,
   never passed to `idiomize_zip`. **Any sweep of it before today swept nothing.** ★**Third time this exact bug
   has shipped in that one file** (`width` 2026-08-21, `travel_target` inside `idiomize_zip`, now the CLI).

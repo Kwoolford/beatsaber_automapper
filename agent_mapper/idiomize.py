@@ -280,17 +280,22 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # stay on-side and a permissive filter never changes the odds. When the
         # draw asks for a crossover, pick from the crossing candidates.
         # ★The palette narrows WHERE a swing may land, never which idioms exist.
-        # 🔴🔴**IT IS A WEIGHT, NOT A FILTER — and that cost a wrong default on 2026-09-12h.**
-        # The first version replaced `cands` with the palette-landing subset outright. It
-        # raised block echo on 12 of 12 songs and dropped `idiom_coverage` from **0.992
-        # (94th human pct) to 0.618 (1.7th)**: hard-filtering leaves whatever idioms happen
-        # to land on a palette cell, which is the long tail, and `_candidates`' docstring
-        # already records that drawing from the tail is the failure mode this whole pass
-        # exists to remove. ⇒Boosting instead keeps the frequency ordering intact: a common
-        # idiom that lands in the palette wins, a rare one does not stop being rare.
-        if palette is not None:
+        # 🔴🔴**IT IS A BANDED WEIGHT, NOT A FILTER — two wrong forms cost a bad default.**
+        # Measured on one full build of 1f913, same seed (`PROGRESS.md 2026-09-12i`):
+        #   no palette            idiom_coverage 0.992  human pct 94.1   judge p 0.572
+        #   hard FILTER           idiom_coverage 0.618  human pct  1.7 ! judge p 0.538
+        #   flat BOOST x6         idiom_coverage 0.998  human pct 97.5 ! judge p 0.333
+        # Filtering leaves whatever idioms happen to land on a palette cell -- the long
+        # tail, the exact failure `_candidates` weights by frequency to avoid. A flat boost
+        # overshoots the other way, past the human 0.909, into the "more human than human"
+        # range `VOCAB_DEPTH` warns about. ⇒**Boost only candidates that are ALREADY at or
+        # above the median frequency of this state's candidates**, so the palette can shift
+        # the choice among common idioms and can never promote a rare one.
+        if palette is not None and cands:
             pal = palette.get(color, ())
-            cands = [(e, w * (PALETTE_BOOST if (h.x + e[0], h.y + e[1], e[3]) in pal else 1.0), x)
+            mid = sorted(w for _e, w, _x in cands)[len(cands) // 2]
+            cands = [(e, w * (PALETTE_BOOST
+                              if w >= mid and (h.x + e[0], h.y + e[1], e[3]) in pal else 1.0), x)
                      for e, w, x in cands]
         pick = _pick(cands, rng, prefer_cross=cross_ok, width=width)
         if pick is None and cross_ok:

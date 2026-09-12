@@ -7,6 +7,55 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12j — ★★`--pulse` CAUSES FLOW, and it is in the documented build command
+
+The owed full-build re-run, done for all four songset songs from audio. Three results.
+
+### ★★ 1. `--pulse` causes FLOW — confirmed A/B, same seed, everything else held
+| song | `--pulse` (the documented command) | `--no-pulse` |
+|---|---|---|
+| 1f913 | 🔴 **4 hits, 16 % of bars** | 🟡 2 hits, 3 % |
+| 1f8d6 | 🔴 2 hits, 12 % of bars | ✅ **clean** |
+
+⇒This confirms and localises the open item *"the pulse path's odd-16th interval choice (1f8d6 bars
+2-4) is a bug to locate in `mapctl auto --pulse`"* — and it is bigger than one song's bars 2-4.
+🔴**The build command in `TODO.md`'s CURRENT STATE is `autobuild <audio> --pulse --lead-bias 0.2`,
+so the documented invocation produces a FLOW red.** ★And the maps that read clean were not built
+that way: 1f8d6's staged map is literally `NOPULSE__1f8d6`, and 1f767/1f913's are `LOOP__` from the
+per-section workflow. ⬜Fix the odd-16th interval choice in the pulse path, or stop recommending it.
+
+### 2. A full build does not reproduce the curated maps — as documented, but now priced
+Fresh `autobuild --pulse` + `repeat.py` on all four: 1f767 2 reds (D6, lead-hand) · 1f8d6 1 red
+(FLOW) · 1f913 1 red (FLOW) · **1f333 5 reds** (EMPTY, FLOW, D3, BREATHING, SCATTER). The curated
+chain gives 1f767 SHIP? YES and 1f913 `SHIP? YES — nothing located`. ⚠️`TODO.md` already says the
+per-section loop **beats autobuild**; this is the size of that gap, and most of it is FLOW.
+⇒**Do not compare a fresh autobuild against a staged map.** They are different processes.
+
+### 3. 🔴 The banded palette fails too — and the structural reason is now clear
+Boosting only candidates already at or above the median frequency (so the palette can never promote
+a tail idiom) still lands `idiom_coverage` at **0.997, 96.9th human pct**, flagged, judge p 0.364
+against 0.572 with the palette off. **Three forms, all fail**: filter → 0.618 (1.7th), flat boost →
+0.998 (97.5th), banded boost → 0.997 (96.9th).
+
+★★**Why, and it is worth keeping**: `idiom_coverage` counts **transitions** drawn from the human
+top-500; the palette constrains **landing shapes**. Those are different vocabularies, and the human
+and our builds are wrong on them in **opposite directions**:
+
+| | shapes per hand | `idiom_coverage` |
+|---|---|---|
+| human | **23.6** (tight) | **0.909** (not saturated) |
+| ours | 41 (wide) | 0.992 (saturated) |
+
+A human reuses **few landing shapes reached by varied transitions**, including ~9 % that are not in
+the top-500. We use **many shapes reached by only the commonest transitions**. Any palette that
+boosts by frequency raises coverage further; the one that ignores frequency drops it off a cliff.
+⇒The palette alone cannot fix this. ⬜The shape to try next is the *reverse* pairing — keep the
+frequency weighting for the draw but allow a **tail transition** when it reaches a palette landing,
+which is what the human profile actually looks like. **DoD unchanged** (echo gain on ≥10 songs AND
+`idiom_coverage` inside the human IQR AND not in the judge's worst-3).
+
+---
+
 ## 2026-09-12i — 🔴🔴THE PALETTE DEFAULT WAS WRONG AND IS REVERTED. My DoD omitted the metric that matters.
 
 The first **full `autobuild` from audio** — the confirmation 2026-09-12h said was still owed —
