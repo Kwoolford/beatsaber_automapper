@@ -36,6 +36,18 @@ from __future__ import annotations
 # build already produces it -- better held deliberately than as an interleaving
 # artifact.
 PERIODS = (1, 2, 3, 4, 6, 8)
+# 🔴🔴**`PERIODS` IS INERT — MEASURED 2026-09-12k, AND IT IS THE FOURTH UNWIRED KNOB IN
+# THIS REPO** (`width`, `travel_target` inside `idiomize_zip`, `--travel-target` at the
+# CLI, now this). Removing `3` and rebuilding 1f913 and 1f8d6 from audio gives maps with
+# the **same md5**, the same note count and the same FLOW hits; and on two synthetic
+# phrases `quantise` returns its input UNCHANGED for every period set tried, `(2,)`
+# included. ⇒The score in `quantise_phrase` is `(|len(got) - len(cands)|, dist)`, and
+# **period 1 phase 0 reproduces every candidate exactly** — miss 0, dist 0, which no
+# coarser period can beat. The finest lattice always wins, so the pass never holds the
+# coarser interval it exists to hold, and what `--pulse` actually changes is the
+# `MAX_EMPTY_RUN` fill, not the interval.
+# ⚠️**Do NOT sweep `PERIODS` against anything until the score stops rewarding exact
+# reproduction** — a sweep of it today compares identical maps.
 # A run stops when this many lattice points in a row have no source event near them.
 # One is half a beat at P=2: enough to bridge a single quiet slot without inventing a
 # bar of notes the song does not play. (Two put the first build 88 % above the human

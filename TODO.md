@@ -363,8 +363,21 @@ A/B on two songs, same seed, everything else held:
 song's opening bars. 🔴**CURRENT STATE's command is `autobuild <audio> --pulse --lead-bias 0.2`, so the
 documented invocation produces a FLOW red.** ★The maps that read clean were not built that way — 1f8d6's staged
 map is literally `NOPULSE__1f8d6`, and 1f767/1f913's are `LOOP__` from the per-section workflow.
-**Tasks**: locate the odd-16th interval choice in the pulse path; fix it or stop recommending `--pulse`.
-**DoD**: `--pulse` and `--no-pulse` both read ✅ FLOW on the songset, or the command in CURRENT STATE changes.
+🔴🔴**2026-09-12k — THE PULSE PASS NEVER HOLDS A PULSE, AND `PERIODS` IS THE FOURTH UNWIRED KNOB**
+(`width`, `travel_target` in `idiomize_zip`, `--travel-target` at the CLI, now this). Removing the dotted-eighth
+`3` and rebuilding both songs from audio gives **the same md5**, the same note counts, the same FLOW hits and
+**23 period-3 phrases still in the output**; `quantise` returns its input **unchanged** for every period set,
+`(2,)` included. ★★**The cause is the SCORE**: `quantise_phrase` ranks `(period, phase)` by how exactly it
+reproduces the input, and **period 1 phase 0 reproduces it perfectly** — so the finest lattice always wins and
+the coarser interval is never held. What `--pulse` actually changes is the `MAX_EMPTY_RUN` fill (1013 notes vs
+745), not the interval. ⚠️**Do not sweep `PERIODS`** until the score changes — it compares identical maps.
+**Tasks**: ⬜fix the SCORING (reward holding ONE interval — gap *uniformity*, with count match only as a
+tiebreak), not the constant. ⬜then re-ask whether `--pulse` still causes FLOW.
+**DoD**: on a phrase whose events sit on the 8th grid the pass returns an 8th lattice, `PERIODS` provably
+changes the output, and FLOW on the songset drops toward the human's **3 %** of off-grid phrases.
+⚠️**The FLOW red is still UNEXPLAINED** — period 3 was the hypothesis and is refuted as the lever, because the
+lever does not exist. Established: `--pulse` doubles isolated-odd concentration (22 % vs 13 % of phrases off
+the 8th grid, human 3 %); the mechanism is in the fill, not the interval choice.
 ⚠️**Do not compare a fresh `autobuild` against a staged map** — fresh + `repeat` gives 1f333 **5 reds** where
 the curated chain gives 1 red; `TODO` already says the per-section loop beats autobuild and this is its size.
 - 🔴🔴**FIXED 2026-09-12g — `idiomize --travel-target` WAS A DEAD CLI FLAG**: parsed, documented in `--help`,

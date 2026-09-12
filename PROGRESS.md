@@ -7,6 +7,43 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12k — 🔴🔴The pulse pass never holds a pulse: `PERIODS` is the FOURTH unwired knob
+
+Chasing yesterday's `--pulse` → FLOW finding into the code. The suspect was `PERIODS`' entry
+`3` — a dotted eighth, which puts a whole phrase off the 8th grid. Derived from the built maps,
+that looked right: **phrases holding period 3 — pulse 23, no-pulse 14, human 4** (off-the-8th-grid
+phrases 22 % / 13 % / **3 %**).
+
+### 🔴 Then removing it changed nothing at all
+Rebuilt 1f913 and 1f8d6 from audio with `PERIODS = (1, 2, 4, 6, 8)`: **the same md5**, the same
+1013 / 990 notes, the same FLOW hits at the same bars, and **23 period-3 phrases still in the
+output**. On two synthetic phrases `quantise` returns its input **unchanged** for every period set
+tried — `(1,2,3,4,6,8)`, `(1,2,4,6,8)`, `(2,3,4,6,8)` and `(2,)` alone all give identical results.
+
+★★**The cause is the score.** `quantise_phrase` ranks each `(period, phase)` by
+`(|len(got) − len(cands)|, dist)` — how exactly it reproduces the input. **Period 1 phase 0
+reproduces every candidate exactly**: miss 0, dist 0, which no coarser period can beat. So the
+finest lattice always wins, the pass never holds the coarser interval it was built to hold, and
+what `--pulse` actually changes is the `MAX_EMPTY_RUN` fill (1013 notes against 745), not the
+interval. A module whose docstring opens *"Make a section HOLD an interval"* does not.
+
+⇒**This is the FOURTH unwired knob in this repo**: `width` (caught 2026-08-21), `travel_target`
+inside `idiomize_zip`, `--travel-target` at the CLI (caught 2026-09-12g), and now `PERIODS`.
+★The standing rule already says *a knob whose arms are identical to 3 decimals is UNWIRED, not
+weak* — this one is identical to the **md5**. ⚠️Do not sweep `PERIODS` against anything until the
+score stops rewarding exact reproduction.
+
+⬜**The fix is the scoring function, not the constant**: a pulse pass must be rewarded for holding
+ONE interval, so exact reproduction of a jittery input has to cost something — e.g. score by gap
+*uniformity* rather than count match, with the count match as a tiebreak. **DoD**: on a phrase whose
+events sit on the 8th grid the pass returns an 8th lattice, `PERIODS` provably changes the output,
+and FLOW on the songset drops toward the human's 3 % of off-grid phrases.
+⚠️**The FLOW red itself is still unexplained** — period 3 was the hypothesis and it is refuted as
+the lever, because the lever does not exist. What is established is that `--pulse` doubles the
+isolated-odd concentration; the mechanism is somewhere in the fill, not the interval choice.
+
+---
+
 ## 2026-09-12j — ★★`--pulse` CAUSES FLOW, and it is in the documented build command
 
 The owed full-build re-run, done for all four songset songs from audio. Three results.
