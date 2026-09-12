@@ -69,34 +69,45 @@ MIN_NOTES = 6              # a block with fewer notes has no figure to speak of
 COUNT_TOL = 0.40           # the two blocks' per-hand note counts must be within this ratio
 
 
-def section_repeats(sid: str) -> list[tuple[int, int]]:
-    """`[(bar, the earlier bar playing the same thing)]` from the song's own section analysis.
+def section_repeats(sid: str) -> list[tuple[int, list[int]]]:
+    """`[(bar, [every earlier bar playing the same thing])]` from the song's own section analysis.
 
     A section labelled `D` at bar 113 is the same music as the `D` at bar 55, so bar 113+k
     answers bar 55+k. ★No threshold: the structure cache has already decided the song repeated,
     and asking it is the whole point — see the docstring on why a fingerprint could not.
+
+    ★**Every earlier occurrence is offered, not just the first**, because which one to bring back
+    is a real choice and it matters. Measured 2026-09-12e on the two songs that still failed
+    SCATTER: always copying the FIRST occurrence gives 1f913 echo 0.462, always copying the MOST
+    RECENT gives 0.488 — enough to clear it — while on 1f333 most-recent is slightly *worse*
+    (0.474 vs 0.484). ⇒Neither rule dominates, so the caller picks per block by what actually
+    swings (`apply_repeats`). A mapper makes the same choice: he reuses whichever pass of the
+    phrase fits the hand he is on.
     """
     p = pathlib.Path(__file__).resolve().parent.parent / "outputs" / "structure_cache" / f"{sid}.json"
     if not p.exists():
         return []
     secs = json.loads(p.read_text())["sections"]
-    first: dict[str, tuple[int, int]] = {}
+    seen: dict[str, list[tuple[int, int]]] = {}
     out = []
     for s in secs:
         lab, bar0, n = str(s["label"]), int(s["bar0"]), int(s["bars"])
-        if lab in first:
-            f0, fn = first[lab]
+        for f0, fn in seen.get(lab, []):
             for k in range(min(n, fn)):
                 out.append((bar0 + k, f0 + k))
-        else:
-            first[lab] = (bar0, n)
-    return out
+        seen.setdefault(lab, []).append((bar0, n))
+    # collapse to one row per bar, keeping every earlier answer, most recent first
+    by_bar: dict[int, list[int]] = {}
+    for bar, src in out:
+        by_bar.setdefault(bar, []).append(src)
+    return [(b, sorted(set(v), reverse=True)) for b, v in sorted(by_bar.items())]
 
 
-def plan_repeats(notes: list[dict], reps: list[tuple[int, int]]) -> list[tuple[int, int, str]]:
-    """`[(block, the earlier block to echo, why)]`.
+def plan_repeats(notes: list[dict],
+                 reps: list[tuple[int, list[int]]]) -> list[tuple[int, list[int], str]]:
+    """`[(block, [earlier blocks it could echo], why)]`, most recent candidate first.
 
-    ⚠️A block is only echoed onto when BOTH blocks have enough notes and their per-hand counts
+    ⚠️A candidate is only offered when BOTH blocks have enough notes and their per-hand counts
     are within `COUNT_TOL` — cycling a 3-note figure onto 20 notes is not a figure coming back,
     it is a stutter. That guard is what stops this from being a cell-rewriter that raises a number.
     """
@@ -105,27 +116,36 @@ def plan_repeats(notes: list[dict], reps: list[tuple[int, int]]) -> list[tuple[i
         bar = int(float(n.get("b", 0.0)) // BEATS_PER_BAR) + 1
         b0 = ((bar - 1) // B) * B + 1
         by_block.setdefault(b0, {}).setdefault(int(n.get("c", 0)), []).append(i)
-    # a block echoes the block its FIRST bar's answer falls in, and only if that block is earlier
-    seen, out = set(), []
-    for bar, src_bar in sorted(reps):
-        b0 = ((bar - 1) // B) * B + 1
-        s0 = ((src_bar - 1) // B) * B + 1
-        if b0 in seen or s0 >= b0 or b0 not in by_block or s0 not in by_block:
-            continue
-        mine, his = by_block[b0], by_block[s0]
-        if sum(len(v) for v in mine.values()) < MIN_NOTES:
-            continue
-        ok = True
+
+    def fits(mine: dict, his: dict) -> bool:
         for h in (0, 1):
             nm, nh = len(mine.get(h, [])), len(his.get(h, []))
             if nm == 0 and nh == 0:
                 continue
             if nm == 0 or nh == 0 or abs(nm - nh) / max(nm, nh) > COUNT_TOL:
-                ok = False
-        if not ok:
+                return False
+        return True
+
+    seen, out = set(), []
+    for bar, src_bars in reps:
+        b0 = ((bar - 1) // B) * B + 1
+        if b0 in seen or b0 not in by_block:
+            continue
+        if sum(len(v) for v in by_block[b0].values()) < MIN_NOTES:
+            continue
+        cands = []
+        for sb in src_bars:
+            s0 = ((sb - 1) // B) * B + 1
+            if s0 >= b0 or s0 not in by_block or s0 in cands:
+                continue
+            if fits(by_block[b0], by_block[s0]):
+                cands.append(s0)
+        if not cands:
             continue
         seen.add(b0)
-        out.append((b0, s0, f"bars {b0}-{b0 + B - 1} are the section that played at {s0}"))
+        out.append((b0, cands,
+                    f"bars {b0}-{b0 + B - 1} are the section that played at "
+                    + " / ".join(str(c) for c in cands)))
     return out
 
 
@@ -155,8 +175,10 @@ OPPOSITE = {0: 1, 1: 0, 2: 3, 3: 2, 4: 7, 7: 4, 5: 6, 6: 5, 8: 8}
 
 
 def _repair(notes: list[dict], touched: dict[int, list[int]], bpm: float,
-            base: tuple[int, int], passes: int = 4) -> bool:
+            base: tuple[int, int], passes: int = 4) -> int:
     """Bring the swing cost back to `base` by inverting a RUN of one hand's new notes at a time.
+
+    Returns the **number of notes flipped**, or **-1** if the cost could not be brought back.
 
     ★★**A reset is a parity PHASE problem, not a bad note.** Parity alternates, so flipping one
     note inverts every swing after it. That is why single-note repair is refuted in *both*
@@ -178,7 +200,7 @@ def _repair(notes: list[dict], touched: dict[int, list[int]], bpm: float,
     Hands are searched one at a time and alternated, because the two hands' parity chains are
     independent until they share an instant.
     """
-    cur = _swing_cost(notes, bpm)
+    cur, flipped = _swing_cost(notes, bpm), 0
     for _ in range(passes):
         improved = False
         for h in (0, 1):
@@ -203,9 +225,10 @@ def _repair(notes: list[dict], touched: dict[int, list[int]], bpm: float,
                 for i in L[k:j]:
                     notes[i]["d"] = OPPOSITE.get(notes[i]["d"], notes[i]["d"])
                 cur, improved = c, True
+                flipped += j - k
         if cur <= base or not improved:
             break
-    return cur <= base
+    return (flipped if cur <= base else -1)
 
 
 def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
@@ -230,9 +253,14 @@ def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
     flips elsewhere in the same map do move it — so this is a real negative, not a dead measurement.
     ⇒The reset is structural to the copied figure in its new context, which is the same thing
     `TODO`'s reset-reconciliation landmine already says: *flipping the second note cascades*.
-    ⇒**This pass is NOT wired into `autobuild`.** Guarded it clears SCATTER on no map that was
-    failing it, so enabling it by default would rewrite cells on already-clean maps for nothing.
-    It ships as a tool, and it unblocks the day `mapedit reconcile` can repair a reset.
+    ✅**2026-09-12d — solved.** A reset is a parity PHASE problem, so the repair inverts a RUN
+    (`_repair`), and every planned block then applies at zero reset cost.
+    ✅**2026-09-12e — and the SOURCE is chosen, not assumed.** Each block is offered every earlier
+    occurrence of its section, and the one kept is the one that survives with **the most of its
+    figure intact** — fewest notes flipped by the repair. That matters because a flipped note is a
+    note whose direction no longer matches the figure being brought back, and `figures()` counts
+    direction. Neither "always the first occurrence" nor "always the most recent" dominates
+    (1f913 prefers recent, 1f333 prefers first), so neither is hard-coded.
     """
     by_block: dict[int, dict[int, list[int]]] = {}
     for i, n in enumerate(notes):
@@ -243,8 +271,8 @@ def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
         for h in d:
             d[h].sort(key=lambda i: float(notes[i].get("b", 0.0)))
     base = _swing_cost(notes, bpm) if bpm else (0, 0)
-    moved = kept = 0
-    for b, src, _s in plan:
+
+    def copy_from(b: int, src: int) -> tuple[list, dict]:
         undo, touched = [], {0: [], 1: []}
         for h, idxs in by_block.get(b, {}).items():
             srcs = by_block.get(src, {}).get(h, [])
@@ -259,17 +287,35 @@ def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
                 undo.append((i, was))
                 notes[i]["x"], notes[i]["y"], notes[i]["d"] = now
                 touched.setdefault(h, []).append(i)
-        n_moved = len(undo)
-        if not n_moved:
+        return undo, touched
+
+    def put_back(undo: list) -> None:
+        for i, (x, y, dd) in undo:
+            notes[i]["x"], notes[i]["y"], notes[i]["d"] = x, y, dd
+
+    moved = kept = 0
+    for b, cands, _why in plan:
+        best = None                    # (flipped, n_moved, src, the cells that won)
+        for src in cands:
+            undo, touched = copy_from(b, src)
+            if not undo:
+                put_back(undo)
+                continue
+            if not bpm:
+                flipped = 0
+            else:
+                flipped = 0 if _swing_cost(notes, bpm) <= base else _repair(notes, touched, bpm, base)
+            if flipped >= 0 and (best is None or (flipped, -len(undo)) < (best[0], -best[1])):
+                cells = {i: (notes[i]["x"], notes[i]["y"], notes[i]["d"]) for i, _ in undo}
+                best = (flipped, len(undo), src, cells)
+            put_back(undo)
+            if best is not None and best[0] == 0 and not bpm:
+                break
+        if best is None:
             continue
-        if not bpm:
-            moved += n_moved; kept += 1
-            continue
-        if _swing_cost(notes, bpm) > base and not _repair(notes, touched, bpm, base):
-            for i, (x, y, dd) in undo:             # unrepairable here — put the figure back
-                notes[i]["x"], notes[i]["y"], notes[i]["d"] = x, y, dd
-            continue
-        moved += n_moved
+        for i, (x, y, dd) in best[3].items():
+            notes[i]["x"], notes[i]["y"], notes[i]["d"] = x, y, dd
+        moved += best[1]
         kept += 1
     return moved, kept
 
@@ -302,10 +348,10 @@ def repeat_zip(src: pathlib.Path, dst: pathlib.Path, song: str | None = None,
         moved, kept = apply_repeats(notes, plan,
                                     bpm=0.0 if allow_resets else S.load_map(src).bpm)
         if report:
-            for b, src_b, why in plan:
-                print(f"  bars {b}-{b + B - 1} echo bars {src_b}-{src_b + B - 1}  ({why})")
+            for b, cands, why in plan:
+                print(f"  {why}")
             note = ("every planned block applied (--allow-resets)" if allow_resets else
-                    "came back for free; the rest cost a swing and were reverted")
+                    "brought a figure back at zero reset cost; the rest could not be repaired")
             print(f"  {kept} of {len(plan)} planned blocks {note}")
         d["colorNotes"] = notes
         f.write_text(json.dumps(d), encoding="utf-8")

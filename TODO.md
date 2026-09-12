@@ -295,12 +295,24 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   costs echo because the cut DIRECTION is part of the figure `_echo` counts. Unrepaired the copies gain ~0.15;
   repairing gives ~0.10 back. 🔴**The metric was NOT changed** — dropping direction from `figures()` clears
   both maps instantly and is the forbidden move.
-  ⬜**NEXT, and better than repairing: a human never copies-then-repairs — he places the figure so it swings.**
-  Choose at COPY time between the source figure and its whole-hand parity mirror, whichever swings from the
-  incoming parity, and never cut into the middle of a run. The figure stays intact and most of the 0.10 should
-  come back. **DoD unchanged**: SCATTER clears on 1f333 + 1f913 at 0 resets and 0 violations.
-  ⚠️`repeat.py` is still **NOT wired into `autobuild`** — wire it the session the DoD is met, after re-running
-  the songset end to end.
+  ✅**2026-09-12e — SCATTER CLEARS ON 3 OF 4, at 0 resets and 0 violations.** The source is now *chosen*: each
+  block is offered every earlier occurrence of its section and keeps the one that survives with the most of its
+  figure intact (fewest notes flipped by the repair). Neither "always first" nor "always most recent" dominates,
+  so neither is hard-coded. **`R__1f913` reads `SHIP? YES — nothing located`: zero reds AND zero yellows, the
+  cleanest page this project has produced.** 1f767 ships with one yellow; 1f8d6's reds are ELEMENTS + lead-hand.
+  🔴**1f333 alone still fails** (gap 0.230) — and the reason is structural, see below.
+  ★★**AND THE READ THAT NAMES THE REST OF THE WORK.** Split every block by whether its section had an earlier
+  occurrence: **with** a source we now score 0.543–0.656 against humans at 0.435–0.766 (we *beat* him on 1f767
+  and 1f8d6); **without** one we score 0.231–0.446 against **his 0.359–0.674**. ⇒**The human is not repeating
+  the song's structure, he is repeating his own VOCABULARY** — a small set of shapes reused throughout, over
+  music he has never played before. That is the entire remaining gap, and it is why 1f333 is the last red:
+  **64 % of its bars are a first occurrence.**
+  ⬜**NEXT = the vocabulary feed.** `tutor.py --vocab` already counts a human's patterns and the tutor
+  leftovers have wanted a `situation kind → pattern word → lever` table since 2026-09-02; this read is the
+  justification. ⚠️Keep it a mechanism — *"reuse a shape you have already played when the situation repeats"* —
+  never *"raise echo to 0.60"*.
+  ⚠️`repeat.py` is still **NOT wired into `autobuild`** — wire it the session 1f333 clears too, after
+  re-running the songset end to end.
 - 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**
   Regressing log10 total wall beats on song duration, onset rate, note count and note density over **600
   human maps** gives **R² = 0.089** (residual sd 0.515 against a total sd of 0.539 — a ~3.5× swing either

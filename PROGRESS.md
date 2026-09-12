@@ -7,7 +7,51 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
-## 2026-09-12d — ★★The reset repair: a parity PHASE fix, not a bad-note fix. Blocks freed 1 → all
+## 2026-09-12e — ★★SCATTER clears on 3 of 4, and the remaining gap is VOCABULARY, not structure
+
+### Choosing the source, rather than assuming it
+Each block is now offered **every earlier occurrence** of its section, and the one kept is the one
+that survives with **the most of its figure intact** — fewest notes flipped by the parity repair.
+That matters because a flipped note is a note whose direction no longer matches the figure being
+brought back, and `figures()` counts direction. Neither fixed rule dominates, which is why the
+choice is made per block and not hard-coded: always-first gives 1f913 echo 0.462 and 1f333 0.484;
+always-most-recent gives 1f913 **0.488** (clears) and 1f333 0.474 (worse).
+
+| song | blocks | echo before → after | his | gap | SCATTER | resets |
+|---|---|---|---|---|---|---|
+| **1f767** | 18 | 0.388 → **0.508** | 0.418 | **−0.091** | ✅ | 0 |
+| **1f8d6** | 12 | 0.454 → **0.544** | 0.574 | +0.030 | ✅ | 0 |
+| **1f913** | 18 | 0.423 → **0.484** | 0.626 | +0.142 | ✅ | 0 |
+| 1f333 | 14 | 0.420 → 0.480 | 0.710 | +0.230 | 🔴 | 0 |
+
+★**`R__1f913` reads `SHIP? YES — nothing located`: zero reds and zero yellows, the cleanest page
+this project has produced.** 1f767 ships with one yellow. 1f8d6's remaining reds are ELEMENTS and
+lead-hand, not SCATTER. Parity violations 0 everywhere; bench `queries:q_all` not refuted, 4 strong
+hits, 0 false fires.
+
+### ★★ And the finding that names the rest of the work
+Split every scored block by whether its section had an earlier occurrence to copy from:
+
+| song | first-occurrence bars | **with** a source: ours / his | **without**: ours / his |
+|---|---|---|---|
+| 1f767 | 30 % | **0.593 / 0.435** | 0.231 / 0.359 |
+| 1f8d6 | 51 % | **0.656 / 0.574** | 0.446 / 0.574 |
+| 1f913 | 38 % | 0.543 / 0.646 | 0.358 / 0.584 |
+| 1f333 | **64 %** | 0.593 / 0.766 | 0.407 / 0.674 |
+
+✅**Where the section repeats, we now match or beat the human on two of four and close the gap on
+the others.** That mechanism is done.
+🔴**Where it does not, we are 0.13–0.27 below him on all four — and he is still echoing 0.36–0.67
+there.** ⇒**The human is not repeating the song's structure. He is repeating his own vocabulary**:
+a small set of shapes reused throughout the map, including over music he has never played before.
+That is a different mechanism from section repetition and it is the entire remaining gap.
+It is also exactly why 1f333 is the one still red — **64 % of its bars are a first occurrence**, so
+structure-driven repetition has the least to work with there.
+
+⬜**NEXT**: the vocabulary feed. `tutor.py --vocab` already counts a human's patterns and
+`TODO`'s tutor leftovers have wanted a `situation kind → pattern word → lever` table since
+2026-09-02. This is the read that justifies it. ⚠️The rule must stay a mechanism — *"reuse a shape
+you have already played when the situation repeats"* — never *"raise echo to 0.60"*.
 
 Yesterday's blocker was *"a copied figure costs 15–24 resets and no single-note repair helps."*
 It is solved, and the solving idea is one sentence.
