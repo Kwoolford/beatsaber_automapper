@@ -7,6 +7,58 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12c — `repeat.py` clears SCATTER on all four maps and buys it with resets. DoD NOT MET
+
+The builder answer to SCATTER, built as a post-processor like `walls.py`: **when the song returns
+to a section, the hands return to the shape they played on it.** `agent_mapper/repeat.py`.
+
+### The song's own section analysis decides — no threshold to pick
+A per-block song fingerprint was tried first (kit pattern + onset per slot, scored like `_echo`)
+and **abandoned**: it **maxes out at 0.47** on 1f333 *between two passes of the same labelled
+section*, because keeping the slot index in the key lets any percussion jitter break the match.
+Picking a threshold under that ceiling is choosing how many blocks fire, not detecting a repeat.
+`outputs/structure_cache/<sid>.json` already labels the repeats — 1f333 is `A B C D B C D E F G D`,
+1f913 is `A B A B A C A` — so a block in the second `D` takes the block at the **same offset inside
+the first `D`**. ★No threshold at all, and the matches read musically (1f333 bars 193-212 echo
+53-72; 1f8d6 bars 73-92 echo 5-24).
+
+A matched block's notes **keep their own times and their own hands** and take the earlier block's
+cells and cut directions. The rhythm stays the song's; only the shape returns. A block is skipped
+unless both blocks clear 6 notes and their per-hand counts are within 40 % — cycling a 3-note
+figure onto 20 notes is a stutter, not a figure coming back.
+
+### ✅ The mechanism works. 🔴 And it costs resets.
+| | SCATTER | parity violations | resets (human) |
+|---|---|---|---|
+| before | 🔴 1f333, 🔴 1f913 | 0 | 0 (0–4) |
+| `--allow-resets` | ✅ **all four** | 0 | **15–24** |
+| guarded (default) | 🔴 1f333, 🔴 1f913 | 0 | 0 |
+
+Unguarded it clears SCATTER everywhere and makes 1f333 and 1f913 read SHIP? YES — 10–19 blocks
+per song, 228–443 notes re-cut. Nothing is *unplayable* (violations stay 0), but resets go from 0
+to 15–24 against humans at 0–4 on those songs. **A reset is a break in the flow, and trading flow
+for echo is not the deal.**
+
+### 🔴🔴 The repair is not a one-note fix — measured BOTH ways, which is why this stops here
+On the four failing blocks of 1f913 (1–3 new resets each):
+- reverting **any single** moved note to its old cell leaves the reset count **unchanged**;
+- flipping **any single** moved note's cut direction to its opposite leaves it **unchanged**.
+
+⚠️The measurement is live — **5 of 12** random direction flips elsewhere in the same map *do* move
+the cost — so this is a real negative, not a dead instrument. ⇒The reset is structural to the
+copied figure in its new context, which is exactly what `TODO`'s reset-reconciliation landmine
+already said: *flipping the second note cascades*. **`mapedit reconcile` is now the blocker on
+SCATTER**, with a far sharper specification than it had this morning.
+
+### Decision: `repeat.py` is NOT wired into `autobuild`
+Guarded, it clears SCATTER on **no map that was failing it** — 1f767 and 1f8d6 were already ✅
+there — so enabling it by default would rewrite cells on already-clean maps and buy nothing.
+It ships as a tool with `--allow-resets` reproducing the arm above, and it turns on the day a
+reset can be repaired. 🔴**DoD NOT MET**: SCATTER clears only at a reset cost that is not accepted.
+Both arms are on disk: `outputs/repeat_2026-09-12/` (guarded) and `outputs/repeat_allow_2026-09-12/`.
+
+---
+
 ## 2026-09-12b — SCATTER: the song-repetition hypothesis, refuted at n=4 and then rescued at n=400
 
 **With ELEMENTS fixed, SCATTER is the last red on the songset** (1f333 and 1f913, both map-wide).

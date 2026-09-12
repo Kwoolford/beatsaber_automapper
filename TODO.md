@@ -277,15 +277,20 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   drive human echo" (n=4, reversed at n=400). Four rows can refute a norm; they cannot establish one.
   ★★**AND: A CORRELATION IS NOT A LOCATOR.** r = 0.502 between human block echo and song echo, on 400 maps,
   is real and still decides no individual block. Second instance of `AUC is not an operating point` (REFERENCE).
-- ⬜**THE SCATTER FIX IS A BUILDER PASS, NOT A QUERY** — and it is the same shape as the walls bug. Our echo is
-  pinned at **0.388–0.423 on every song** where humans sit at median 0.602 (p10 0.505, **sd 0.075**, n=400):
-  another builder constant that ignores the music. `idiomize.py` re-places every block's cells from the human
-  vocabulary **without ever asking whether this block's music has been heard before**. ⇒Build a repetition pass:
-  when a later block's song resembles an earlier one, **reuse that earlier block's figure** instead of drawing a
-  new one. ⚠️**The mechanism is the objective; the echo number is only the validation** — targeting "echo 0.60"
-  directly is the `h_dist` failure. **DoD**: map-wide SCATTER clears on 1f333 + 1f913, echo lands inside the
-  human p10–p90 (0.505–0.694) on all four songs **without** the map-wide gap going negative anywhere, parity
-  violations and resets stay 0, and `bench.py score queries:q_all` stays not-refuted.
+- 🔴**THE SCATTER FIX IS BUILT AND BLOCKED ON RESET REPAIR** (`agent_mapper/repeat.py`, 2026-09-12c;
+  `PROGRESS.md 2026-09-12c`). When the song returns to a section, the hands return to the shape they played on
+  it — the song's **own section labels** decide, no threshold (a per-block fingerprint was tried and maxes out
+  at 0.47 *between two passes of the same section*, so any threshold under that is choosing how many blocks
+  fire). ✅**The mechanism works**: `--allow-resets` clears SCATTER on **all four** maps and makes 1f333 + 1f913
+  read SHIP? YES. 🔴**And it costs resets: 0 → 15–24** against humans at 0–4. Violations stay 0, so nothing is
+  unplayable, but flow is not tradeable for echo. **DoD NOT MET.**
+  🔴🔴**The blocker is measured, both ways**: on 1f913's four failing blocks, reverting **any single** moved
+  note leaves the reset count unchanged, and flipping **any single** moved note's cut direction leaves it
+  unchanged — while 5 of 12 random flips elsewhere in that map *do* move the cost, so the instrument is live.
+  ⇒**`mapedit reconcile` is now the thing standing between us and a clean songset**, and it has a much sharper
+  spec than this morning: a reset from a copied figure needs a **coordinated multi-note** repair, not one note.
+  ⚠️`repeat.py` is deliberately **NOT wired into `autobuild`** — guarded it clears SCATTER on no map that was
+  failing it, so defaulting it on would rewrite already-clean maps for nothing.
 - 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**
   Regressing log10 total wall beats on song duration, onset rate, note count and note density over **600
   human maps** gives **R² = 0.089** (residual sd 0.515 against a total sd of 0.539 — a ~3.5× swing either
