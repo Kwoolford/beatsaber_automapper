@@ -7,6 +7,49 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12q — ★★Lead-in from the UNTHINNED supply: FLOW red on 3 of 4 → red on 1, and 1f913 SHIPS
+
+2026-09-12p's rule stopped halfway because it could only lead in from an event the **budget had
+left**. The lead-in now looks at the same streams with the accent budget **switched off**
+(`_follow_times(..., None, None)`), used for nothing else — it never adds a note on its own, it only
+lets an odd 16th we are *already playing* be led into. Control arm still rebuilds **byte-identical**.
+
+| song | isolated share: baseline → v1 → **v2** | human | notes |
+|---|---|---|---|
+| **1f913** | 77.6 % → 58.5 % → **31.7 %** | 25.8 % | 828 → 871 |
+| 1f333 | 88.9 % → 60.8 % → **35.0 %** | 2.1 % | 1109 → 1215 |
+| 1f767 | 66.7 % → 46.4 % → 44.4 % | 0 % | 844 → 855 |
+| 1f8d6 | 94.7 % → 73.0 % → 73.0 % | 0 % | 805 → 821 |
+
+### ✅ FLOW: red on three songs → red on one
+| song | before | **after** |
+|---|---|---|
+| **1f913** | 🔴 16 % of bars | **🟡 7 % — `SHIP? YES`** |
+| 1f333 | 🔴 19 % | **🟡 3 %** |
+| 1f767 | 🟡 10 % | 🟡 6 % |
+| 1f8d6 | 🔴 12 % | 🔴 14 % |
+
+★**`L2R__1f913` is the first map to ship from a FRESH `autobuild`** rather than from the curated
+chain. 1f333 drops from 5 reds to 4 (EMPTY · D3 · BREATHING · SCATTER remain), 1f767 keeps its D6.
+
+### 🔴 The cost, and why the default stays OFF
+- **Judge p falls on all four**: 1f913 0.572→0.435 · 1f8d6 0.655→0.372 · 1f333 0.692→0.501 ·
+  1f767 0.293→0.230. Adding notes moves density away from the human median.
+- **Note count +1.3 % to +9.6 %**; 1f333 breaks the ±5 % the DoD asked for.
+- 1f8d6 **gained an ELEMENTS red** — more notes leave fewer wall slots surviving the collision check.
+- 1f913's judge now flags `handedness 0.000` at the **1.5th** human percentile: the added lead-ins
+  are landing evenly, making the map *more* balanced than any human. ⚠️Same family as the palette's
+  `idiom_coverage` overshoot — a fix that overshoots a second axis.
+**DoD PARTLY MET**: FLOW clears on 1f913 and 1f333 but not 1f8d6; the isolated share reaches the
+human band only on 1f913.
+
+⬜**Why 1f8d6 and 1f767 barely move**: their humans play ~0 odd 16ths, and even the unthinned
+followed streams have nothing on the slot before ours — the onset is in the **audio** but in a stem
+we are not following. ⇒The remaining lead-ins would have to come from the onset cache, i.e. from
+outside the follow set. That is a bigger change than this one and it is where the next attempt goes.
+
+---
+
 ## 2026-09-12p — The lead-in rule: right direction on 4 of 4, clears FLOW on none. Default OFF.
 
 Built what 2026-09-12o specified, at the place it belongs — **selection**, in `mapctl`'s picker,

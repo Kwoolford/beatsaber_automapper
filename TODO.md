@@ -335,12 +335,22 @@ rebuilds **byte-identical** to baseline. **Isolated share falls 20–28 points o
 🔴**It clears FLOW on NONE.** Bar coverage 1f913 16→12 % · 1f333 19→13 % · 1f767 10→4 % (yellow) ·
 **1f8d6 12→14 %, worse**, plus a new ELEMENTS red (more notes ⇒ fewer wall slots survive). Judge p
 fell on two: 1f8d6 0.655→0.372, 1f333 0.692→0.293 — **adding notes moves density**. DoD NOT MET.
-⬜**Why it stops halfway, and the next step**: the rule can only lead in from an event the *followed
-stems* left on the previous slot, but the **audio** has an onset there 65–92 % of the time. The gap
-is the accent-percentile thinning that pays the density budget — it already dropped that quiet
-lead-in note. ⇒**Draw the lead-in from the UNTHINNED supply** (or the onset cache), exempt from the
-budget that removed it. **DoD**: isolated share into 0–26 %, FLOW clears on 1f8d6/1f913/1f333, note
-count within ~5 % of baseline, judge's worst-3 gains nothing.
+✅**2026-09-12q — the lead-in now reads the UNTHINNED supply, and FLOW goes red-on-3 → red-on-1.**
+Isolated share baseline → v1 → **v2**: 1f913 77.6→58.5→**31.7 %** (human 25.8) · 1f333 88.9→60.8→
+**35.0** · 1f767 66.7→46.4→44.4 · 1f8d6 94.7→73.0→73.0. FLOW: **1f913 🔴16 %→🟡7 % and `SHIP? YES`
+— the first map to ship from a FRESH autobuild** · 1f333 🔴19→🟡3 % (5 reds → 4) · 1f767 🟡10→6 % ·
+**1f8d6 🔴12→14 %, still red**.
+🔴**Default stays OFF — the cost is real**: judge p falls on **all four** (1f913 0.572→0.435,
+1f8d6 0.655→0.372, 1f333 0.692→0.501, 1f767 0.293→0.230); notes +1.3 %…+9.6 % (1f333 breaks the
+±5 % DoD); 1f8d6 gains an ELEMENTS red (fewer wall slots survive); and 1f913's judge now flags
+**`handedness` 0.000 at the 1.5th human percentile** — the added lead-ins land evenly and make the
+map *more* balanced than any human. ⚠️A fix that overshoots a second axis, same family as the
+palette's `idiom_coverage`.
+⬜**Why 1f8d6 and 1f767 barely move**: their humans play ~0 odd 16ths and even the unthinned
+followed streams have nothing on the slot before ours — the onset is in the **audio**, in a stem we
+are not following. ⇒The rest would have to come from the onset cache, outside the follow set.
+**DoD for that**: isolated share into 0–26 % on all four, FLOW clears on 1f8d6, note count within
+±5 %, and `handedness` stays out of the judge's worst-3.
 
 
 ## 🔴 P0.7 — the pulse pass never holds a pulse, and `--pulse` is a TRADE

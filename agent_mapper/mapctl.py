@@ -633,6 +633,16 @@ def cmd_auto(a) -> int:
                                               getattr(a, "min_accent", None),
                                               getattr(a, "accent_pct", None)))
         follow_times = sorted(set(follow_times))
+        # ★The SAME streams with the accent budget switched off. `--lead-in` needs to know
+        # where the song plays, not where the budget let us play: measured 2026-09-12p, the
+        # rule only reached half the gap because the quiet note it wanted to lead in with had
+        # already been thinned away. This set is used for NOTHING else -- it never adds a
+        # note on its own, it only lets an odd 16th we are already playing be led into.
+        _lead_full = []
+        for spec in str(a.follow).split(","):
+            _lead_full.extend(_follow_times(pathlib.Path(s["audio"]), an, spec.strip(),
+                                            None, None))
+        _lead_full = sorted(set(_lead_full))
 
         # ★Reconcile the PLACING detector with the SCORED one BEFORE the budget is
         # counted. `events.py` and the alignment axis disagree by a median 23-35 ms,
@@ -731,6 +741,9 @@ def cmd_auto(a) -> int:
     # lead-in rule below can tell "the song plays here and we skipped it" from
     # "there is nothing here".
     _avail: set[tuple[int, int]] = set()
+    # …and the same thing with the accent budget off, for `--lead-in` only.
+    _avail_full: set[tuple[int, int]] = set()
+    _lead_full_times = locals().get("_lead_full") or []
     for bar in range(b0, b1 + 1):
         t0 = s["phase"] + (bar - 1) * s["bar_s"]
         t1 = t0 + s["bar_s"]
@@ -744,6 +757,12 @@ def cmd_auto(a) -> int:
                 picks.append((bar, i))
         for i in seen:
             _avail.add((bar, i))
+        for t in _lead_full_times:
+            if not (t0 <= t < t1):
+                continue
+            i = int(round((t - t0) / s["slot_s"]))
+            if 0 <= i < n_cells:
+                _avail_full.add((bar, i))
     picks.sort()
     if a.every > 1:
         picks = picks[::a.every]
@@ -778,7 +797,8 @@ def cmd_auto(a) -> int:
         have = set(picks)
         added = [(b, sl - 1) for b, sl in picks
                  if sl % 2 == 1 and sl >= 1
-                 and (b, sl - 1) not in have and (b, sl - 1) in _avail
+                 and (b, sl - 1) not in have
+                 and (b, sl - 1) in (_avail_full or _avail)
                  and (b, sl - 1) not in occupied]
         if added:
             picks = sorted(have | set(added))
