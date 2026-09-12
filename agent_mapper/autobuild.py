@@ -162,7 +162,7 @@ def _pct(want: float, have: int) -> float | None:
 def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           pulse: bool = False, phrase_bars: int = 4, lead_bias: float = 0.0,
           lead_phrase_bars: int = 4, pulse_fill: int = 1,
-          pulse_sync: float = 0.3, snap_onsets: bool = False,
+          pulse_sync: float = 0.3, hand_run_p: float = 0.0, snap_onsets: bool = False,
           adaptive_subdiv: bool = False, seed: int = 0,
           doubles: bool = False, accent_slots: str = "0,2,4,6,8,10,12,14",
           doubles_rate: float = 0.3, phase_shift: float = 0.0,
@@ -193,6 +193,8 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
                    "--phrase-bars", str(phrase_bars),
                    "--pulse-fill", str(pulse_fill),
                    "--pulse-sync", str(pulse_sync)]
+            if hand_run_p > 0:
+                cmd += ["--hand-run-p", str(hand_run_p)]
             if snap_onsets:
                 cmd += ["--snap-onsets"]
             if doubles:
@@ -327,6 +329,10 @@ def main() -> int:
                     help="the default two-pass path (drums, then carrier)")
     ap.set_defaults(pulse=False)
     ap.add_argument("--phrase-bars", type=int, default=4)
+    ap.add_argument("--hand-run-p", type=float, default=0.0,
+                    help="probability a hand takeover starts a HELD run of 4+ (length from "
+                         "the human tail). 0 = off. ⚠️--lead-bias CANNOT reach this: it "
+                         "yields 0 runs of 4+ at every value (PROGRESS 2026-09-12m)")
     ap.add_argument("--lead-bias", type=float, default=0.0,
                     help="probability a phrase's lead hand repeats (P0.6); --pulse "
                          "only. WORKFLOW.md's operating point is 0.2 (0.3 overshoots)")
@@ -414,7 +420,7 @@ def main() -> int:
 
     print(f"\n=== BUILD")
     build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
-          phrase_bars=a.phrase_bars, lead_bias=a.lead_bias,
+          phrase_bars=a.phrase_bars, lead_bias=a.lead_bias, hand_run_p=a.hand_run_p,
           lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
           pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
           adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,

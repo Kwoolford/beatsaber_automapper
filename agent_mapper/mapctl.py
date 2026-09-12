@@ -765,6 +765,35 @@ def cmd_auto(a) -> int:
         return 0
 
     run = max(1, a.runs)
+    # ★★**HAND RUNS — the TAIL, not the mean** (2026-09-12n). Measured over 108 842 runs in
+    # 200 human Expert maps, a hand's run length is `1: 73.1 % · 2: 20.5 % · 3: 4.0 % ·
+    # 4: 1.3 % · 5: 0.5 % · 6+: 0.7 %`, i.e. **~2.5 % of runs are 4 or longer**; per map that
+    # share is p10 0.002, median 0.019, p90 0.064. **Our builds produce ZERO runs of 4+** on
+    # three of the four songset songs while our MEAN run length (1.15-1.32) sits inside the
+    # human p10-p90 (1.23-1.62) — we alternate as often as he does and never hold.
+    # 🔴`--lead-bias` cannot reach it at any value: `period = max(2, round(1/bias))` is 2 for
+    # every bias >= 0.4, so the lead hand can never repeat twice in a row (PROGRESS 2026-09-12m).
+    # ⇒`--hand-run-p` is the RUN mechanism: at a swap decision it sometimes starts a held run
+    # whose length is drawn from the human tail above, instead of nudging a per-note rate.
+    # ⚠️Default 0.0 = strict prior behaviour. ⚠️The per-map SHARE is what varies in humans
+    # (0.2 %-6.4 %), so this rate is an operating point, not a constant of nature.
+    import random as _rnd
+    _run_rng = _rnd.Random(getattr(a, "seed", 0) or 0)
+    _HUMAN_TAIL = ((4, 0.53), (5, 0.19), (6, 0.09), (7, 0.06), (8, 0.03), (9, 0.10))
+    _next_run = [run]
+
+    def _draw_run() -> int:
+        p = getattr(a, "hand_run_p", 0.0)
+        if p <= 0 or _run_rng.random() >= p:
+            return run
+        r = _run_rng.random()
+        acc = 0.0
+        for length, w in _HUMAN_TAIL:
+            acc += w
+            if r <= acc:
+                return length
+        return _HUMAN_TAIL[-1][0]
+
     merged = sorted([(n["t"], 0, n) for n in cur]
                     + [(to_time(s, to_beat(s, b, sl)), 1, (b, sl)) for b, sl in picks],
                     key=lambda r: (r[0], r[1]))
@@ -819,7 +848,7 @@ def cmd_auto(a) -> int:
             h = a.hands.upper()
         elif last_hand is None:
             h = a.lead.upper()
-        elif since_swap >= run:
+        elif since_swap >= _next_run[0]:
             other = "R" if last_hand == "L" else "L"
             # Only the LEAD hand gets to repeat, and only sometimes: a lead that
             # always repeats gives a 2:1 split (`role_asymmetry` 0.33) where the human
@@ -964,6 +993,8 @@ def cmd_auto(a) -> int:
         last_down[h] = not last_down[h]
         bisect.insort(hand_times[h], _t)
         last_t[h] = _t
+        if h != last_hand:
+            _next_run[0] = _draw_run()      # a new hand takes over: decide how long it holds
         since_swap = since_swap + 1 if h == last_hand else 1
         last_hand = h
         k += 1
@@ -1218,6 +1249,11 @@ def main() -> int:
     p.add_argument("--runs", type=int, default=1,
                    help="notes one hand plays before the other takes over; 1 (strict "
                         "alternation) measured as the human burst rate")
+    p.add_argument("--hand-run-p", type=float, default=0.0,
+                   help="probability that a hand takeover instead starts a HELD run, whose "
+                        "length is drawn from the human tail (4:53%% 5:19%% 6:9%% 7:6%% 8:3%% "
+                        "9+:10%%). 0 = off. This is the only lever that reaches lead-hand "
+                        "passages: --lead-bias yields 0 runs of 4+ at every value")
     p.set_defaults(fn=cmd_auto)
 
     p = sub.add_parser("check"); p.add_argument("name"); p.set_defaults(fn=cmd_check)

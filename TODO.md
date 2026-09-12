@@ -341,11 +341,20 @@ time**, and the mean run saturates at 0.4. Cause, one line in `mapctl`:
 ≥ 0.4**, so the lead hand **can never repeat twice in a row**. `verdict.py` no longer names it.
 🔴**No song-side placement signal** (n=250): human runs sit at local onset rate **1.023** of the
 song's own against **1.091** outside, higher inside on only 41 % of maps. ⇒Do not invent a rule.
-⬜**The fix is a RUN mechanism.** `mapctl --runs` holds a run (default 1 = strict alternation) and
-**`autobuild` does not expose it** — but as a *constant* it gives uniform long runs, which is not
-the human shape either. Draw the lead hand's run length **per swap** so the map gets a human tail.
-**DoD**: runs≥4 lands inside the human p10–p90 (1–32) with the mean run still inside 1.23–1.62,
-parity violations and resets stay 0, and the judge's worst-3 does not gain a new entry.
+✅**BUILT 2026-09-12n — `--hand-run-p`** (mapctl + autobuild, **default 0.0 = off**): at a takeover,
+sometimes start a **held run** whose length is drawn from the human tail (measured over 108 842 runs:
+`1: 73.1 % · 2: 20.5 % · 3: 4.0 % · 4: 1.3 % · 5: 0.5 % · 6+: 0.7 %`).
+Raw runs≥4 on 1f8d6: **0 → 9 → 12 → 21** at p 0/0.03/0.06/0.12, mean run 1.31 → 1.44, note count
+unchanged, **parity violations 0 and resets 0** at every arm, and p=0 is **byte-identical** to the
+baseline. 0.03–0.06 lands inside the human band on both axes.
+⚠️Cost: `idiom_coverage` 0.987 → 0.994 with a `!`, judge p 0.683 → 0.653 — the same axis the palette
+broke. ⬜**Do not default it on** until that is priced on ≥10 songs.
+🔴**And the red it was aimed at is on the CURATED map, not the builder**: `R__1f8d6` reads 0
+passages, the **fresh `autobuild` already reads ✅ with 3–4**. ⇒Re-check which artifact a red belongs
+to before building a mechanism for it.
+⚠️**`verdict.py`'s count is not the raw one** — the page reads 4 → 4 → 6 where the raw run count
+reads 0 → 12 → 21, because it counts on the score lattice. **Measure a DoD with the tool that will
+judge it.**
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets

@@ -7,6 +7,48 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12n — The hand-run mechanism works; ★★and a sweep whose CONTROL ARM was broken
+
+Built the run mechanism P0.10 specified: at a hand takeover, `--hand-run-p` sometimes starts a
+**held run** whose length is drawn from the human tail, instead of nudging a per-note rate.
+Measured over **108 842 runs in 200 human Experts**, a hand's run length is
+`1: 73.1 % · 2: 20.5 % · 3: 4.0 % · 4: 1.3 % · 5: 0.5 % · 6+: 0.7 %`. Default **0.0 = off**.
+
+| `--hand-run-p` | runs ≥ 4 | mean run | notes | md5 |
+|---|---|---|---|---|
+| **0.00** | **0** | 1.31 | 990 | **matches the baseline byte-for-byte** |
+| 0.03 | 9 | 1.38 | 990 | — |
+| 0.06 | 12 | 1.41 | 990 | — |
+| 0.12 | 21 | 1.44 | 990 | — |
+
+✅Monotone, note count unchanged, **parity violations 0 and resets 0** at every arm, and 0.03–0.06
+lands inside the human band on both axes (runs ≥ 4: p10 1, med 10, p90 32; mean run 1.23–1.62).
+⚠️Cost: `idiom_coverage` 0.987 → 0.994 and gains a `!`; judge p 0.683 → 0.653. Small, but it is the
+same axis the palette broke — worth watching, not ignoring.
+
+### 🔴🔴 The finding that matters more: my first sweep was INVALID and looked fine
+The two lines threading the new flag landed **one indent level out**, so every *later* build flag —
+`--snap-onsets`, `--doubles`, `--lead-bias` — became nested inside `if hand_run_p > 0:`. At p = 0
+the build therefore lost doubles and the lead bias entirely and came out at **699 notes instead of
+990**. It parsed, it ran, it produced a plausible monotone sweep, and **the "control" arm was a
+different builder**. Caught only by hashing the p = 0 map against a known-good build from the last
+commit: `e370ad4032` vs `61bc8267eb`.
+★★**THE RULE: verify the control arm reproduces the known baseline BYTE-FOR-BYTE before reading any
+sweep.** A monotone-looking result is not evidence that the arms differ by the one thing you
+changed. This is the same family as the four unwired knobs — there the arms were identical when they
+should have differed; here they differed when only one thing should have changed.
+
+### And the red this was aimed at is on the CURATED map, not the fresh build
+`R__1f8d6` (the `walls_2026-09-12` → `repeat` chain, descended from the August `NOPULSE` build)
+reads **0 lead-hand passages, 🔴**. The **fresh `autobuild` already reads ✅ with 3–4**. ⇒The
+ABSENCE red belongs to that one old artifact, not to the builder as it stands today.
+⚠️**And the verdict's count is not the raw one**: by `verdict.py`'s own definition the arms read
+**4 → 4 → 6** where the raw run count reads 0 → 12 → 21, because the page counts on the score
+lattice. **Measure a DoD with the tool that will judge it**, not with a reimplementation — mine
+disagreed by 3× and I nearly reported the wrong number.
+
+---
+
 ## 2026-09-12m — ★★Lead-hand passages: the same defect shape a THIRD time, and `--lead-bias` cannot fix it
 
 1f8d6's ABSENCE red is **0 lead-hand passages against his 27**. Priced it.
