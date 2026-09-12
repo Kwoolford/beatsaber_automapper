@@ -320,11 +320,23 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   ★★**The structural reason**: at every depth 200→2000 the per-map vocabulary stayed 38–55 per hand. **`idiomize`
   samples a fresh idiom PER NOTE, so the vocabulary tracks the NOTE COUNT, not the pool depth.** A human commits
   to a **palette** and places from it all map.
-  ⬜**NEXT = draw a per-map palette (~28 shapes/hand, corpus p10–p90 18–43) BEFORE placing, and have `idiomize`
-  choose within it.** A change to the sampling structure, not a knob — which is why four knobs missed it.
-  ⚠️Keep it a mechanism: palette size from the corpus, placement still from what the song is doing; never drive
-  top-10 share to 0.82 directly. **DoD**: 1f333's SCATTER clears with parity violations and resets at 0, vocab
-  lands inside 18–43 per hand, and `bench.py score queries:q_all` stays not-refuted.
+  ✅**2026-09-12g — BUILT, and it is a real lever**: `idiomize --palette N` commits the map to N landing shapes
+  per hand (two passes; the first says what this song reaches, the top N become the palette, the second replays
+  inside it, falling back whenever no palette move is legal). **Default 0 = off.**
+  **1f333 at 3 seeds**: echo **0.490 ± 0.022 → 0.543 ± 0.016** at palette 20 (**+0.053, ~3 sd**), vocabulary
+  **46 → 33 per hand** (human 18–43, median 28.5), top-10 share **62–65 % → 71–76 %** (human p10 0.70), with
+  **0 violations, 0 resets, 0 fallbacks**. The first thing all session to move the vocabulary at all.
+  ★Asking for 20 *realises* ~33 shapes — the request is not the outcome, and 28 scores worse than 20.
+  🔴**1f333 still does not clear** (gap 0.167 vs 0.150; 1 of 3 seeds). His echo is **0.710, above the corpus
+  p90 of 0.694** — an outlier repeater. **DoD NOT MET.** No regression elsewhere; bench not refuted.
+  ⬜**TO FLIP THE DEFAULT ON**: sweep `palette ∈ {16, 20, 24}` over **≥10 corpus songs at ≥3 seeds**, confirm
+  the gain holds and that `idiom_local` does not drop below the human floor (the *"more human than human"* tell
+  this file already records twice), then default 20 in `autobuild` and re-run the songset end to end.
+- 🔴🔴**FIXED 2026-09-12g — `idiomize --travel-target` WAS A DEAD CLI FLAG**: parsed, documented in `--help`,
+  never passed to `idiomize_zip`. **Any sweep of it before today swept nothing.** ★**Third time this exact bug
+  has shipped in that one file** (`width` 2026-08-21, `travel_target` inside `idiomize_zip`, now the CLI).
+  ⇒The standing rule gains a line: **a knob whose arms are identical to 3 decimals is UNWIRED, not weak — and
+  check the CLI as well as the function.**
   ⚠️`repeat.py` is still **NOT wired into `autobuild`** — wire it the session 1f333 clears too, after
   re-running the songset end to end.
 - 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**

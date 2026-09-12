@@ -194,16 +194,42 @@ def _pick(cands, rng: random.Random, prefer_cross: bool, width: int = 0):
     return pool[-1][0]
 
 
+def _palette_of(records, n_per_hand: int) -> dict[int, set]:
+    """The `n_per_hand` most-played `(x, y, dir)` shapes per hand in these records."""
+    from collections import Counter
+    per = {0: Counter(), 1: Counter()}
+    for r in records:
+        c = int(r.get("c", 0))
+        if c in (0, 1):
+            per[c][(int(r.get("x", 0)), int(r.get("y", 0)), int(r.get("d", 8)))] += 1
+    return {c: {s for s, _ in per[c].most_common(n_per_hand)} for c in (0, 1)}
+
+
 def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
              width: int = 3, crossover: float = CROSSOVER_TARGET,
              repeat_p: float = REPEAT_P,
-             travel_target: float = TRAVEL_TARGET):
+             travel_target: float = TRAVEL_TARGET,
+             palette: dict[int, set] | None = None):
     """Redraw (x, y, direction) for every note from the human vocabulary.
 
     `records` is a list of dicts with keys b/x/y/c/d (the v3 `colorNotes` shape).
     Returns `(new_records, n_fallback)`. Beat, colour, order and count are
     preserved exactly -- that invariant is the whole point of the pass and it is
     asserted by the caller.
+
+    ★★**`palette`** (2026-09-12g) restricts each hand to a fixed set of landing
+    `(x, y, dir)` shapes, falling back to the unrestricted draw whenever no palette
+    move is legal from the hand's current state. **Why a palette and not a knob.**
+    Measured 2026-09-12f over 400 human Experts, a human map uses a median of **28.5**
+    distinct shapes per hand with its top ten covering **82 %** of its notes; ours use
+    34-60 with a top-ten share of 53-65 %, and vocabulary concentration correlates with
+    4-bar block echo at **r = +0.654**. Four knobs were swept against that gap and none
+    moved it -- `REPEAT_P`/`REPEAT_WINDOW` (unordered, and its window is 6 NOTES where
+    the defect is 4 BARS) and `top_k` from 200 to 2000, across which the resulting
+    per-map vocabulary stayed **38-55 per hand**. ⇒Sampling a fresh idiom PER NOTE makes
+    a map's vocabulary a function of its NOTE COUNT, not the pool depth. A human does not
+    sample per note; **he commits to a palette and plays it all map.** That is a change
+    to the sampling structure, which is why no knob could find it.
     """
     counts, ranked, _ = idm.load_vocab()
     if not ranked:
@@ -248,6 +274,15 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # Set to the human 0.208 it realised 0.063, because most legal candidates
         # stay on-side and a permissive filter never changes the odds. When the
         # draw asks for a crossover, pick from the crossing candidates.
+        # ★The palette narrows WHERE a swing may land, never which idioms exist. When no
+        # palette move is legal from this state the unrestricted draw stands -- a palette
+        # that forced an illegal move would trade vocabulary for parity, which is the
+        # trade the post-hoc snapper was refuted for (2026-09-12f).
+        if palette is not None:
+            inside = [c for c in cands
+                      if (h.x + c[0][0], h.y + c[0][1], c[0][3]) in palette.get(color, ())]
+            if inside:
+                cands = inside
         pick = _pick(cands, rng, prefer_cross=cross_ok, width=width)
         if pick is None and cross_ok:
             cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, False,
@@ -314,7 +349,8 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
                  top_k: int = VOCAB_DEPTH, width: int = 3,
                  crossover: float = CROSSOVER_TARGET,
                  repeat_p: float = REPEAT_P,
-                 travel_target: float = TRAVEL_TARGET) -> tuple[int, int]:
+                 travel_target: float = TRAVEL_TARGET,
+                 palette: int = 0) -> tuple[int, int]:
     """Copy `src` to `dst` with only note cells redrawn. Returns (n_notes, n_fallback)."""
     import json
     import shutil
@@ -370,6 +406,16 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
                             width=width, crossover=crossover, repeat_p=repeat_p,
                             travel_target=travel_target)
+        # ★TWO PASSES when a palette size is asked for: the first pass says which shapes
+        # this song's rhythm actually reaches, the top `palette` of those become the
+        # palette, and the second pass replays the map inside it. Deriving the palette
+        # from the map's own first pass (rather than from a corpus list) keeps it a
+        # mechanism: it commits to shapes this song was already going to play.
+        if palette:
+            new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
+                                width=width, crossover=crossover, repeat_p=repeat_p,
+                                travel_target=travel_target,
+                                palette=_palette_of(new, palette))
         # The invariant the whole design rests on: this pass moves cells and
         # nothing else. If it ever changes a time, a colour or the count, the A/B
         # stops isolating one thing and the comparison is worthless.
@@ -417,6 +463,12 @@ def main() -> int:
     ap.add_argument("--top-k", type=int, default=VOCAB_DEPTH,
                     help="vocabulary depth (default %(default)s; see VOCAB_DEPTH)")
     ap.add_argument("--crossover", type=float, default=CROSSOVER_TARGET)
+    ap.add_argument("--palette", type=int, default=0,
+                    help="commit the map to N landing shapes per hand (0 = off, the "
+                         "pre-2026-09-12 behaviour). Two passes: the first says which "
+                         "shapes this song reaches, the top N become the palette, the "
+                         "second replays inside it. 20 is the measured operating point "
+                         "and realises ~33 shapes/hand, the human median being 28.5")
     ap.add_argument("--travel-target", type=float, default=TRAVEL_TARGET,
                     help="grid-units/sec the sampler prefers a move to cover. Higher "
                          "= wider reaches. Orthogonal to --width, which sets how many "
@@ -427,9 +479,15 @@ def main() -> int:
                          "idiom_local at the 98th human percentile)")
     a = ap.parse_args()
 
+    # 🔴🔴**`--travel-target` WAS DEAD HERE UNTIL 2026-09-12** — accepted by the parser,
+    # documented in --help, and never passed on, which is the third time this exact bug
+    # has shipped in this file (`width`, then `travel_target` inside `idiomize_zip`, now
+    # `travel_target` at the CLI). ⚠️Any sweep of `--travel-target` run before today was
+    # sweeping nothing; its arms were identical by construction.
     n, nfb = idiomize_zip(a.zip_in, a.out, seed=a.seed, top_k=a.top_k,
                           width=a.width, crossover=a.crossover,
-                          repeat_p=a.repeat_p)
+                          repeat_p=a.repeat_p, travel_target=a.travel_target,
+                          palette=a.palette)
     print(f"{a.zip_in.name}: re-placed {n - nfb}/{n} notes from the human vocabulary "
           f"({nfb} kept their original cell: no idiom fit)")
     print(f"wrote {a.out}")

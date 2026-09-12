@@ -7,6 +7,63 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12g — ✅The PALETTE is a real lever where four knobs were not. And `--travel-target` was dead.
+
+`idiomize --palette N` commits the map to **N landing shapes per hand**. Two passes: the first says
+which shapes this song's rhythm actually reaches, the top N of those become the palette, the second
+replays the map inside it, **falling back to the unrestricted draw whenever no palette move is
+legal** from the hand's state. Deriving the palette from the map's own first pass rather than from a
+corpus list keeps it a mechanism — it commits to shapes this song was going to play anyway.
+Default `0` = off, the prior behaviour.
+
+### ✅ It moves both things no knob could move, at zero cost
+1f913, 2 seeds per arm:
+
+| palette | echo (spread) | vocab / hand | top-10 share | viol | resets |
+|---|---|---|---|---|---|
+| **0** (today) | 0.481 (0.011) | **46** | 62 % | 0 | 0 |
+| **20** | **0.518** (0.006) | **33** | 66 % | 0 | 0 |
+| 28 | 0.506 (0.027) | 37 | 63 % | 0 | 0 |
+| 40 | 0.499 (0.012) | 43 | 63 % | 0 | 0 |
+
+1f333 — the holdout — at **3 seeds** per arm:
+
+| palette | echo mean ± sd | gap to his 0.710 | top-10 share |
+|---|---|---|---|
+| **0** | 0.490 ± 0.022 | +0.220 | 62–65 % |
+| **20** | **0.543 ± 0.016** | **+0.167** | **71–76 %** |
+| 28 | 0.515 ± 0.012 | +0.195 | 63–71 % |
+
+★**+0.053 at ~3 sd, monotone in the right direction, with the vocabulary moving 46 → 33 per hand**
+— into the human range (18–43, median 28.5) — and concentration reaching **71–76 %** against the
+human p10 of 70 %. **Zero parity violations, zero resets, zero fallbacks on every arm.** This is
+the first thing all session to move the vocabulary at all; the four knobs of 2026-09-12f left it at
+38–55 per hand no matter what they were set to.
+★A nice consistency: asking for **20** landings *realises* ~33 distinct shapes, which is the human
+median. Asking for 28 realises 37–46 and scores worse, so the request is not the outcome.
+
+🔴**1f333 still does not clear** (gap 0.167 against a 0.150 threshold; 1 of 3 seeds clear). Its
+human echoes **0.710, above the corpus p90 of 0.694** — he is an outlier repeater. **DoD NOT MET.**
+No regression anywhere else: at palette 20, 1f767 stays SHIP? YES, **1f913 stays `SHIP? YES —
+nothing located`**, and 1f8d6's reds are still ELEMENTS + lead-hand only. Bench `queries:q_all`
+not refuted, 4 strong hits, 0 false fires.
+
+⇒**Default stays `0`.** ⬜**To flip it on**: the songset is four maps and this is 2–3 seeds. Sweep
+`palette ∈ {16, 20, 24}` over ≥10 corpus songs at ≥3 seeds, confirm the echo gain holds and that
+`idiom_local` does not fall below the human floor (the *"more human than human"* tell this file
+already records twice), then make 20 the default in `autobuild` and re-run the songset end to end.
+
+### 🔴🔴 And a dead flag, of exactly the class this file documents
+**`--travel-target` was accepted by the parser, advertised in `--help`, and never passed to
+`idiomize_zip`.** Every sweep of it before today was sweeping **nothing** — its arms were identical
+by construction. That is the **third** time this bug has shipped in this one file: `width` (caught
+2026-08-21), `travel_target` inside `idiomize_zip`, and now `travel_target` at the CLI. Fixed, and
+verified live: `--travel-target 8.0` now produces a different map from the default.
+★**The standing rule earns another line: a knob whose arms are identical to 3 decimals is not a
+weak lever, it is an UNWIRED one — and check the CLI as well as the function.**
+
+---
+
 ## 2026-09-12f — The vocabulary IS the mechanism, and no knob reaches it. It needs a PALETTE.
 
 2026-09-12e said the remaining echo gap is vocabulary rather than structure. This priced it.
