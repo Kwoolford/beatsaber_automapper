@@ -296,6 +296,45 @@ in the judge's worst-3.
 for, not only the axis the change aims at* — and **a sweep of a sub-pass is not a build**; only a full
 `autobuild` from audio caught this.
 
+## 🔴🔴 P0.6b — FLOW IS THE BIGGEST RED ON THE SONGSET, AND IT IS LOCATED (2026-09-12o)
+The whole songset through ONE chain (`autobuild --pulse --lead-bias 0.2` → `repeat.py`), parity
+violations 0 and resets 0 everywhere:
+
+| song | reds |
+|---|---|
+| 1f767 | D6 (18 % of bars) · ABSENCE lead-hand (0 vs his 24) |
+| 1f8d6 | **FLOW** (12 %) |
+| 1f913 | **FLOW** (16 %) |
+| 1f333 | EMPTY (15 %) · **FLOW** (19 %) · D3 · BREATHING · SCATTER |
+
+★**FLOW is red on 3 of 4 and yellow on the 4th** — a bigger lever than SCATTER, which is red only
+on 1f333.
+
+🔴**Two hypotheses refuted first**: not the dotted-eighth period (the selection is inert, P0.7), and
+**not invented fill notes** — the offending events sit on a real audio onset **95–99 %** of the
+time, same as all events.
+
+★★★**WHAT IT IS:**
+
+| song | our odd-16th notes | **isolated** | his | **isolated** |
+|---|---|---|---|---|
+| 1f913 | 125 | **77.6 %** | 97 | **25.8 %** |
+| 1f8d6 | 75 | **94.7 %** | 0 | — |
+| 1f333 | 235 | **88.9 %** | 144 | **2.1 %** |
+| 1f767 | 57 | **66.7 %** | 3 | — |
+
+**The human plays odd 16ths freely and almost never ALONE — he leads into them.** We play 67–95 %
+of ours with the previous slot empty. ⇒FLOW is not "we play off the grid" and not "we invent
+notes"; it is **"we play the 'e' and the 'a' with nothing leading in"**. ★The map-wide rates look
+innocent (1f913 12.4 % vs his 12.3 %): the COUNT is right, the APPROACH is not.
+
+⬜**Fix = a selection rule in the event picker** (a mechanism, not a rate): when an odd-16th onset is
+chosen, either also play the preceding on-grid slot so the hand leads into it, or drop it.
+**DoD**: our isolated share falls into the human band (0–26 %), FLOW clears on 1f8d6/1f913/1f333,
+**and the note count does not fall** — dropping them all is the `--no-pulse` trade that buys
+ABSENCE reds.
+
+
 ## 🔴 P0.7 — the pulse pass never holds a pulse, and `--pulse` is a TRADE
 ★★**`--pulse` is not a defect to remove — it buys FLOW and pays ABSENCE:**
 

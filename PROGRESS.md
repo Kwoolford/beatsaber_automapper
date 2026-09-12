@@ -7,6 +7,54 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12o — ★★★FLOW LOCATED: we do not play off-grid notes, we play them with NOTHING LEADING IN
+
+FLOW is the dominant red on the songset — and after two iterations of wrong hypotheses it is now
+measured, on all four songs, with the reference being each song's own human.
+
+### The whole songset through ONE chain (`autobuild --pulse --lead-bias 0.2` → `repeat.py`)
+| song | reds | judge |
+|---|---|---|
+| 1f767 | D6 (18 % of bars) · ABSENCE lead-hand (0 vs his 24) | PASS 0.577 |
+| 1f8d6 | **FLOW** (12 %) | PASS 0.841 |
+| 1f913 | **FLOW** (16 %) | PASS 0.736 |
+| 1f333 | EMPTY (15 %) · **FLOW** (19 %) · D3 · BREATHING · SCATTER | PASS 0.900 |
+
+Parity violations 0 and resets 0 everywhere. ★**FLOW is red on three of four and yellow on the
+fourth** — the single biggest lever on the songset, bigger than SCATTER, which is red only on 1f333.
+
+### 🔴 Two hypotheses refuted before the right one
+1. 🔴**NOT the dotted-eighth period** (2026-09-12k) — the period selection is inert; removing it
+   gives a byte-identical map.
+2. 🔴**NOT the pulse fill inventing notes.** The isolated-odd events sit **on a real audio onset
+   95–99 %** of the time, indistinguishable from all events (96.6–99.5 %). We are not making them up.
+
+### ★★★ What it actually is
+| song | our odd-16th notes | **of those, isolated** | his odd-16th notes | **isolated** |
+|---|---|---|---|---|
+| 1f913 | 125 | **77.6 %** | 97 | **25.8 %** |
+| 1f8d6 | 75 | **94.7 %** | 0 | — |
+| 1f333 | 235 | **88.9 %** | 144 | **2.1 %** |
+| 1f767 | 57 | **66.7 %** | 3 | — |
+
+★★**The human plays odd 16ths freely — 97 and 144 of them on two of these songs — and almost never
+alone (2.1 %, 25.8 %). He leads into them.** We play 67–95 % of ours with the previous slot empty.
+⇒**FLOW is not "we play off the grid" and not "we invent notes". It is "we play the 'e' and the 'a'
+with nothing leading in."** That is exactly what `q_flow`'s docstring said from the day it was
+written — *"a note on the 'e' or 'a' that nothing leads into… human 16th runs start on the beat"* —
+and it took three sessions to measure because the first two hypotheses were about the pulse pass.
+★And it explains the map-wide rates that looked innocent: on 1f913 and 1f333 we play odd-16th
+onsets at almost exactly the human's rate (12.4 % vs 12.3 %, 16.7 % vs 14.9 %). The *count* is
+right; the *approach* is not.
+
+⬜**The fix is a selection rule, and it is a mechanism, not a rate**: when an odd-16th onset is
+chosen, either also play the preceding on-grid slot so the hand leads into it, or drop it.
+**DoD**: our isolated share of odd-16th notes falls to the human's band (0–26 %) on the songset,
+FLOW clears on 1f8d6 / 1f913 / 1f333, **and the note count does not fall** — dropping them all is
+the `--no-pulse` trade that buys ABSENCE reds (2026-09-12l).
+
+---
+
 ## 2026-09-12n — The hand-run mechanism works; ★★and a sweep whose CONTROL ARM was broken
 
 Built the run mechanism P0.10 specified: at a hand takeover, `--hand-run-p` sometimes starts a
