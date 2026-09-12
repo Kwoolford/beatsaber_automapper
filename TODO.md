@@ -266,10 +266,26 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   only the blocks where the SONG came back and the map did not** — a different question from the naive per-block
   version that was rejected on 2026-09-10 (that one asked every block). 🔴**DoD before it may ship**: silent on
   `humanplus-1f333` / `humanplus-1f8d6` / `humanexp-*`, and firing on 1f333 + 1f913 where the map-wide read
-  already does. If it cannot clear the difficulty controls, it does not ship and the map-wide version stands.
+  already does. 🔴**BUILT AND REFUTED THE SAME SESSION** — every threshold that fires on 1f333 + 1f913 also
+  fires on `humanplus-1f8d6`, and the song-echo conditioning was *anti*-enriched on two of our four maps while
+  **concentrating the control's false fires in the half meant to carry the signal**. ⛔Do not retry it.
+  **The map-wide read is the only SCATTER there is.** ✅By-product: a mapper's own two difficulties differ in
+  map-wide echo by **0.064–0.084**, so `q_scatter`'s 0.15 margin sits ~2× above the difficulty effect — the
+  first real validation of that threshold.
   ★★**AND THE METHOD NOTE THAT COST TWO REVERSALS IN ONE DAY: stop drawing mechanism from the songset.** The
   same four rows said "instants sit at high onset density" (n=3, refuted at n=484) and "song repetition does not
   drive human echo" (n=4, reversed at n=400). Four rows can refute a norm; they cannot establish one.
+  ★★**AND: A CORRELATION IS NOT A LOCATOR.** r = 0.502 between human block echo and song echo, on 400 maps,
+  is real and still decides no individual block. Second instance of `AUC is not an operating point` (REFERENCE).
+- ⬜**THE SCATTER FIX IS A BUILDER PASS, NOT A QUERY** — and it is the same shape as the walls bug. Our echo is
+  pinned at **0.388–0.423 on every song** where humans sit at median 0.602 (p10 0.505, **sd 0.075**, n=400):
+  another builder constant that ignores the music. `idiomize.py` re-places every block's cells from the human
+  vocabulary **without ever asking whether this block's music has been heard before**. ⇒Build a repetition pass:
+  when a later block's song resembles an earlier one, **reuse that earlier block's figure** instead of drawing a
+  new one. ⚠️**The mechanism is the objective; the echo number is only the validation** — targeting "echo 0.60"
+  directly is the `h_dist` failure. **DoD**: map-wide SCATTER clears on 1f333 + 1f913, echo lands inside the
+  human p10–p90 (0.505–0.694) on all four songs **without** the map-wide gap going negative anywhere, parity
+  violations and resets stay 0, and `bench.py score queries:q_all` stays not-refuted.
 - 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**
   Regressing log10 total wall beats on song duration, onset rate, note count and note density over **600
   human maps** gives **R² = 0.089** (residual sd 0.515 against a total sd of 0.539 — a ~3.5× swing either

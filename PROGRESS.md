@@ -50,14 +50,47 @@ where humans genuinely agree with each other, which is what makes a level gap he
 than a style difference. Note the two blockings are not identical (mine cuts from beat 0, `_echo`
 cuts from the lattice's bar 1), so 0.602 and 0.388 are directionally comparable, not the same number.
 
-### ⬜What this sets up, and the control it has to survive first
-A **per-block** SCATTER: flag only the blocks where **the song came back and the map did not**.
-`q_scatter` is deliberately map-wide because the naive per-block version could not separate our
-1f8d6 from a human's own harder difficulty (2/32 blocks each) — but that version asked every block.
-This one asks only the blocks the song repeats, which is a different question.
-🔴**DoD before it may be written**: silent on `humanplus-1f333` / `humanplus-1f8d6` / `humanexp-*`,
-and firing on 1f333 + 1f913 where the map-wide read already does. If it cannot clear the difficulty
-controls it does not ship, and the map-wide version stands.
+### 🔴 The per-block locator it set up: REFUTED the same session, and it did not even help
+A **per-block** SCATTER was built and run against the full control set before anything touched
+`queries.py`: flag a block when the song's echo is in the top Q of *that song* **and** the human's
+map echoes at least `margin` more than ours there. Swept Q ∈ {0.50, 0.60, 0.75} × margin ∈ {0.15 …
+0.30}, plus an unconditioned baseline at margin up to 0.40.
+
+🔴**No setting passes.** Every threshold that fires on 1f333 + 1f913 also fires on
+`humanplus-1f8d6` — a top mapper's own ExpertPlus against his own Expert. The closest corner
+(Q 0.60, margin 0.30) misses by exactly one control fire, and taking a corner that squeaks past
+**eight rows** would be fitting the threshold to the bench, which the bench's own header forbids.
+
+**And the conditioning bought nothing** — the point of the whole idea. Fires in the high-song-echo
+half vs the low half, at margin 0.30:
+
+| map | high half | low half |
+|---|---|---|
+| ours 1f333 | 15/26 | 10/25 |
+| ours 1f913 | **2/17** | **4/17** |
+| ours 1f767 | 0/16 | 1/14 |
+| ours 1f8d6 | 1/16 | 1/16 |
+| **ctl humanplus-1f8d6** | **2/20** | **0/12** |
+
+Enriched on one of our four maps, *anti*-enriched on two, flat on one — and it **concentrates the
+control's false fires in exactly the half meant to carry the signal**. ⇒The 2026-09-10 rejection of
+per-block SCATTER stands, and song-echo conditioning does not rescue it. **The map-wide read is the
+only SCATTER there is.**
+
+★★**The lesson, and it is a second instance of an existing landmine.** The corpus correlation is
+real — r = 0.502 between a human map's block echo and the song's, on 400 maps. It still yields **no
+per-block locator**, because a correlation of 0.5 across blocks cannot decide an individual block.
+This is `AUC is not an operating point` (REFERENCE, from the tempo work) in a second place:
+**a description of a cohort is not a test for a case.** Do not build a locator from a correlation
+again without first checking the separation at the block level.
+
+### ✅ A by-product that validates a threshold the bench could never reach before
+The controls give the first measurement of **how much map-wide echo a mapper's own two difficulties
+differ by**: `humanplus-1f333` +0.064 and `humanplus-1f8d6` +0.084 (his ExpertPlus echoes *less*
+than his Expert — a harder map has more distinct figures), and the reverse direction −0.064 /
+−0.084. ⇒`q_scatter`'s map-wide margin of **0.15 sits nearly 2× above the difficulty effect**,
+which is why it clears its controls while the per-block version cannot. Our own gaps for scale:
+1f767 +0.029 · 1f8d6 +0.120 · 1f913 +0.203 · 1f333 +0.290.
 
 ---
 
