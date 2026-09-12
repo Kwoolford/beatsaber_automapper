@@ -450,11 +450,21 @@ def main() -> int:
     # attempt: **12 notes trapped inside an active wall**, i.e. unplayable, while the
     # lane/duration/width statistics all still matched the human idiom perfectly.
     # ★Only the collision check caught it; no axis in the suite can see walls at all.
+    # ★2026-09-12: the long mode of the walls is now SONG-DRIVEN. Until today every wall we
+    # emitted was drawn from the corpus's POOLED duration marginal, which has one mode and can
+    # emit neither the human's instant lane-marker nor his multi-beat corridor — so our coverage
+    # sat at 23.8-28.9 beats on every song regardless of the music, against humans at 12.1-203.7
+    # on the same four. Corridors now go in the note-free outer-lane gaps where the onsets thin
+    # out — the one song-side signal that survived 567 corpus maps. See `walls.py`'s docstring.
     if a.walls:
         import walls as W
-        n_walls = W.add_walls(out, out, per_map=a.walls, seed=a.seed)
+        n_walls = W.add_walls(out, out, per_map=a.walls, seed=a.seed, song=a.audio.stem)
         print(f"\n=== WALLS")
         print(f"  added {n_walls} walls (human median 89; 96 % of human maps have them)")
+        if W.song_onset_beats(out, a.audio.stem) is None:
+            print(f"  ⚠️no onset cache for {a.audio.stem} — the walls fell back to the LEGACY "
+                  f"one-mode draw (song-blind, ~0.4x the human's coverage). "
+                  f"scripts/build_onset_cache.py fixes it.")
 
     # ★ARCS and CHAINS — the other two elements measured but never wired.
     # Among v3 human maps (the only format where they can exist): **arcs in 100 %,

@@ -100,6 +100,13 @@ row could have failed.**
 ELEMENTS once walls were read by coverage instead of by presence. **They stay staged, blinded and with their notes
 UNCHANGED** — decided-and-logged — and the per-song prediction is in `.key.json`, written *before* he plays, one of
 them now marked `superseded` rather than rewritten.
+★★**2026-09-12 — the ELEMENTS red on three of those four was ONE BUG in the builder, now fixed**: walls were drawn
+from the corpus's **pooled** duration marginal, so we emitted only its middle mode and covered a constant 23.8-28.9
+beats on every song against humans at 12.1-203.7. Corridors are now placed by the song (onsets thinning out) and
+**`W__1f767` is the first fully clean page this project has produced** (`outputs/walls_2026-09-12/`, the staged
+zips untouched). ⇒**SCATTER is now the last red on the songset** — 1f333 and 1f913, both map-wide, both "nothing
+comes back to lock into". 🔴And the new bound: **wall coverage has R² = 0.089 against the song** (600 maps), so it
+is mapper style, not song content — see the item under P5b before touching that threshold.
 ❓**THE ONE DECISION THAT IS KYLE'S**: P4b's rule says a red map is not staged, because *"losing with a known red
 teaches nothing the page did not say"*. That rule was written when a red meant a cheap fix. Today's reds come from
 codes invented **after** these maps were built, with a written prediction riding on each — so playing them tests
@@ -251,6 +258,19 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   therefore asks Kyle to compare two difficulties**; it stays staged (`.key.json` carries the
   caveat) but a loss there is not purely a quality loss. ⬜Fix by building 1f913 at his
   difficulty, or by finding an Expert human map of it.
+- 🔴**NEW 2026-09-12 — wall coverage is barely a function of the song, and that bounds `q_elements`.**
+  Regressing log10 total wall beats on song duration, onset rate, note count and note density over **600
+  human maps** gives **R² = 0.089** (residual sd 0.515 against a total sd of 0.539 — a ~3.5× swing either
+  side). ⇒Coverage is mostly a **mapper's style choice**. Two things follow. (a) ⛔**Do not chase the
+  remaining per-song spread** — ours is still ~4× narrower than the humans' (log10 sd 0.126 vs 0.548) and
+  the correlation only moved 0.152 → 0.230, but there is almost nothing there to predict. (b) ⚠️**the 0.5×
+  coverage red asks a map to match an unpredictable quantity.** The *systematic* version (under-walled on
+  every song) was real and is fixed; a **per-song** red at 2× on an axis with a 3.5× human spread is weakly
+  grounded. 🔴**The threshold was deliberately NOT loosened** — loosening a gate to pass our own map is the
+  one move that must never be made. **DoD for reopening it**: a human-vs-human negative — two different
+  mappers' Expert maps of the same song — showing how often 0.5× fires between two people who both did it
+  right. Until that exists the red stands as written. Centring the level also bought the opposite failure:
+  **over-walled (>2× his) on 24 % of maps, up from 10 %**.
 - 🔴**The doubles gap has no locator.** `LOOP__1f913` plays **4.2 % doubles against his 32.9 %**
   and every read says ✅ (ABSENCE reds only at *effectively zero*; D6 fires only the other way).
   ⛔The entry-accent locator is REFUTED (see the refuted list above). ⚠️Whatever comes next must
@@ -259,8 +279,15 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   the top sustain quartile, relative to our own overall rate, is 0.94-1.03× against the humans' 0.86-1.03×.
   **Walls: a real absence, now queried** — our builds cover **131-146 slots on every song** (the `--walls 89`
   default) where humans cover 83-667 and vary with the music; `q_elements` grew a graded branch (< 0.5× his
-  coverage) and **1f767 went red, so all four staged maps now fail their own gate**. ⬜Left: the fix is
-  `mapctl walls --bars a-b` per song, which nothing automates against the human's coverage.
+  coverage) and **1f767 went red, so all four staged maps now fail their own gate**.
+  ✅**FIXED 2026-09-12 — it was one bug, and it was the DURATION, not the count** (`PROGRESS.md 2026-09-12`).
+  `plan_walls` drew every wall from the corpus's **pooled** duration marginal, which has one mode and can emit
+  neither the human's instant marker nor his corridor, so we sat in the rarest 8.5 % cohort on every song.
+  It now emits all three modes and places **corridors in the note-free outer-lane gaps where the onsets thin
+  out** — the one song-side signal that survived 567 corpus maps (instants-at-high-density did NOT: 0.98×,
+  n=484). Control on 300 human maps re-walled from their own notes at the production budget: median ratio to
+  that human **0.40× → 0.98×**, ELEMENTS would fire on **59 % → 21 %**. **1f767 is now a fully clean page**;
+  1f8d6 stays red at exactly 0.50× against a p90-waller human. Zero notes inside walls; bench not refuted.
 - ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties; the
   per-song human is preferred on the page, so this bites only on a song with no human map.
 

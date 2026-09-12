@@ -67,7 +67,10 @@ CODES = [
     ("D2", "slightly off beat (shifted grid)", "mapedit.py shift --bars a-b, or re-init with --phase-shift; check ON/±ms in the score"),
     ("D4", "not following the main vocals", "mapctl auto --bars a-b --follow vocals; the why names the unanswered words"),
     ("D3", "drop at the wrong time", "mapedit.py: first note on the bar line, density step like the tutor's (tutor.py --bars)"),
-    ("ELEMENTS", "walls / arcs / chains", "autobuild --walls N (default on); mapctl walls --bars a-b"),
+    # ⚠️`mapctl walls --bars a-b` was named here until 2026-09-12 and has never existed.
+    ("ELEMENTS", "walls / arcs / chains",
+     "walls.py <zip> --out <zip> --song <sid> --per-map N (re-places all of them, song-driven "
+     "corridors; needs an onset cache or it silently uses the legacy one-mode draw)"),
     ("BREATHING", "playing through the rest he leaves",
      "mapedit.py delete the notes in his rest (the score shows E and an empty KIT there); or mapctl clear --bars a-b"),
     ("SCATTER", "nothing comes back to lock into",

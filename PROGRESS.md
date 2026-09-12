@@ -7,6 +7,96 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12 — ★★The walls were a POOLED MARGINAL, and three of the four reds were one bug
+
+**Where this started.** All four staged maps failed their own gate, and ELEMENTS was the red on
+three of them. The verdict's own number was the tell: our wall **count** nearly matched the
+human's (89 starts vs his 92 / 115 / 159 / 96) while our **coverage** was a quarter of his
+(131–146 slots vs 370 / 667 / 471). Count was never the defect. **Duration was.**
+
+### The bug: `plan_walls` sampled a pooled marginal, so it could emit only one of three modes
+`walls.py`'s header table — *duration median 0.12 beats, p90 1.25* — is measured over **16,504
+walls pooled across 135 maps**, and the placer drew every wall independently from it. Measured
+now over **400 corpus maps**, a human map's walls are not one population but **three, and the mix
+is a per-map choice**:
+
+| mode | duration | share of a map's walls (p10 / med / p90) | maps where it is ≥70 % |
+|---|---|---|---|
+| **instant** | < 0.15 beats | 0.00 / **0.41** / 0.88 | 96 / 400 |
+| mid | 0.15–0.75 | 0.00 / 0.18 / 0.67 | **34 / 400** |
+| **corridor** | ≥ 0.75 beats | 0.03 / **0.27** / 0.81 | 55 / 400 |
+
+A log-uniform draw over (0.03, 1.25) emits **only the middle mode**. So every map we have ever
+shipped sat in the rarest cohort (34/400 = **8.5 %**) *on every song*, at a constant **23.8–28.9
+wall beats regardless of the music**, against humans at **12.1–203.7** on those same four songs.
+★**This is the `h_dist` failure in a new place: matching a pooled marginal is not matching the
+thing.** Draw the per-map MIX, then place each mode by what the song is doing.
+
+### Where each mode goes — one signal survived the corpus, one did not
+Tested as local onset rate over a wall's span ÷ that song's own rate, on maps with cached onsets:
+
+- ✅**CONFIRMED — corridors sit where the onsets thin out.** Median **0.90×**, p75 1.00, and
+  **74 % of 567 maps** put their corridors below their own song average. A long wall goes where
+  the song stops chopping. This is the rule corridors are now placed by.
+- 🔴**NOT REPRODUCED — instants at high onset density.** Median **0.98×** over 484 maps. The four
+  songset humans showed 1.23–1.97× but that is **n = 3**, and it did not survive. ⇒Instants keep
+  the collision-constrained **random** placement. We have no song-side rule for them and
+  inventing one would be a story, not a measurement.
+
+### What shipped
+`plan_walls` now takes `onset_beats` and emits all three modes: `plan_corridors` walks each outer
+lane's note-free gaps, keeps those ≥ 0.75 beats whose span is ≥ 60 % below the song's **own**
+median onset rate (never an absolute rate — rule 1), and gives each the **length of the gap the
+map leaves**, capped at the human maximum of 9.5. The short budget then fills at the corpus's own
+instant:mid split of 70:30. `--legacy` restores the one-mode draw, and it is also the automatic
+fallback when a song has no onset cache — **which `autobuild` now says out loud**, because a
+silent downgrade is how this survived three weeks. Wired into `autobuild` with the song id.
+
+### The control: re-place walls on 300 human maps' OWN notes, then score against their own walls
+A row that can fail, in the `humanplus-*` spirit. At the **production** condition (budget fixed at
+89, the song alone deciding the rest):
+
+| | median ratio to that human | within 2× of him | ELEMENTS red (<0.5×) would fire | log10 spread across songs |
+|---|---|---|---|---|
+| OLD | **0.40×** | 31 % | **59 %** | 0.068 |
+| NEW | **0.98×** | 55 % | **21 %** | 0.126 |
+| the humans themselves | 1.00× | — | — | **0.548** |
+
+✅**The level bias is fixed** and it was large. 🔴**The per-song spread is NOT** — we still vary
+~4× less than humans across songs, correlation with the human's coverage moved only 0.152 → 0.230,
+and centring the level bought a new failure the other way: **over-walled (>2× his) on 24 %** of
+maps, up from 10 %. Fixing a bias without fixing the variance does exactly that; it is not hidden.
+
+### 🔴 And the finding that bounds how far this can go: wall coverage is barely a function of the song
+Regressing log10 total wall beats on song duration, onset rate, note count and note density over
+**600 human maps** gives **R² = 0.089**, residual sd 0.515 against a total sd of **0.539** (a
+~3.5× swing either side of the median). ⇒**Wall coverage is mostly a mapper's style choice, not
+something the song determines.** Two consequences, both left as evidence rather than acted on:
+1. Chasing the remaining spread would be chasing noise. The level fix is the part that was real.
+2. ⚠️**`q_elements`' 0.5× coverage red asks a map to match an unpredictable quantity.** The
+   systematic version of it (*we are under-walled on every song*) was a true defect and is now
+   gone; a per-song red at 2× on an axis whose human spread is 3.5× is weakly grounded.
+   🔴**The threshold was NOT loosened** — loosening a gate to pass our own map is the one move
+   that must never be made. It is written up in `TODO.md` as a decision with its evidence.
+
+### Result on the four maps (built into `outputs/walls_2026-09-12/`, staged zips UNTOUCHED)
+| song | ELEMENTS before | after | page now |
+|---|---|---|---|
+| **1f767** | 🔴 146 slots vs 370 (0.39×) | ✅ | **SHIP? YES — clean** |
+| 1f333 | 🔴 132 vs 471 (0.28×) | ✅ | SHIP? NO — SCATTER |
+| 1f913 | ✅ (his coverage is tiny) | ✅ | SHIP? NO — SCATTER |
+| 1f8d6 | 🔴 131 vs 667 (0.20×) | 🔴 332 vs 667 (**0.50×**, on the line) | SHIP? NO — ELEMENTS + lead-hand |
+
+1f8d6's human is a **p90 waller** (203.7 wall beats against a corpus median of 60.3); our 332
+slots are now *above* the corpus median. Left red on purpose.
+Zero notes inside a wall's own lane on all four — the hard constraint held through the rewrite.
+Bench unchanged: `queries:q_all` **not refuted, 4 strong hits, 0 false fires, 0 violations**.
+
+⬜Also fixed: `verdict.py`'s ELEMENTS fix line named **`mapctl walls --bars a-b`, which has never
+existed**. It now names `walls.py` with the flags that do.
+
+---
+
 ## 2026-09-10 — ★★SCATTER, and the discovery that the bench's clean side was vacuous
 
 **P5b's question was "what else can the page not see?"** BREATHING was found by reading for what the map does where
