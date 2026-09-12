@@ -329,16 +329,22 @@ verdict page** · the **`humanplus-*` / `humanexp-*` controls** + `make_bench_fi
   ★Asking for 20 *realises* ~33 shapes — the request is not the outcome, and 28 scores worse than 20.
   🔴**1f333 still does not clear** (gap 0.167 vs 0.150; 1 of 3 seeds). His echo is **0.710, above the corpus
   p90 of 0.694** — an outlier repeater. **DoD NOT MET.** No regression elsewhere; bench not refuted.
-  ✅✅**2026-09-12h — DoD MET, and `autobuild --palette` NOW DEFAULTS TO 20.** Swept as the strongest available
-  control — **re-place each human map's OWN note times and hands**, so placement is the only difference and the
-  reference is that mapper's own map. **12 corpus songs × 3 seeds**: echo **0.423 → 0.486, better on 12/12**
-  (mean +0.063, sd 0.020); vocabulary **41.2 → 26.1** per hand against a human **23.6**; top-10 share 69 % →
-  79 % against 87 %. ⚠️**The "more human than human" tell was checked and is CLEAR**: local variety in a 16-note
-  window goes 10.2 → 9.3 while humans sit at **8.3**, so we stay *more* varied locally than they are (below him
-  on only 3/12). `--palette 0` restores the old per-note draw.
-  ⬜**Still owed**: everything measured today applied `idiomize` on top of an existing zip. **A full `autobuild`
-  re-run of the songset from audio** is the confirmation — and the session that does it should also wire
-  `repeat.py` into the chain.
+  🔴🔴**2026-09-12i — THE DEFAULT WAS FLIPPED ON AND IS REVERTED. `--palette` is 0 again.** The 12-song sweep
+  was real (echo 0.423 → 0.486, better on 12/12; vocabulary 41.2 → 26.1 against a human 23.6) but the **first
+  full `autobuild` from audio** showed what it had not measured — on 1f913, same seed:
+  `palette 0` **coverage 0.992 / 94.1 pct / p 0.572** · `palette 20` hard filter **0.618 / 1.7 pct 🔴 / p 0.538`
+  · `palette 20` boost ×6 **0.998 / 97.5 pct 🔴 / p 0.333**. Both forms are named by the judge as furthest from
+  human, in **opposite directions**: filtering leaves the long tail, boosting overshoots past the human 0.909.
+  ★★**THE LESSON IS ABOUT METHOD: my DoD measured echo, vocabulary size, top-10 share and local variety — and
+  not `idiom_coverage`, the axis `idiomize` exists to move.** ⇒**When changing a pass, the DoD must include the
+  axis that pass was BUILT for, not only the axis the change is aiming at.** ★And the confirmation step that was
+  "still owed" is what caught it: **a sweep of a sub-pass is not a build.**
+  ⬜**To make the palette usable**: a form that raises echo while leaving `idiom_coverage` inside the human band
+  (~0.909). Next to try: boost only candidates already in the top-`k` frequency band, so the palette can never
+  promote a tail idiom. **DoD**: echo gain holds on ≥10 songs AND `idiom_coverage` stays in the human IQR AND
+  the judge's worst-3 does not name it.
+  ⬜**Still owed**: a full `autobuild` re-run of the whole songset from audio, and wiring `repeat.py` into the
+  chain. Only 1f913 has been built end to end.
 - 🔴🔴**FIXED 2026-09-12g — `idiomize --travel-target` WAS A DEAD CLI FLAG**: parsed, documented in `--help`,
   never passed to `idiomize_zip`. **Any sweep of it before today swept nothing.** ★**Third time this exact bug
   has shipped in that one file** (`width` 2026-08-21, `travel_target` inside `idiomize_zip`, now the CLI).

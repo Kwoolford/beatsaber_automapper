@@ -84,6 +84,11 @@ VOCAB_DEPTH = 1000
 REPEAT_P = 0.55
 REPEAT_WINDOW = 6
 
+# ★How strongly a palette landing is preferred, as a WEIGHT on the frequency-weighted
+# draw. ⚠️Never a hard filter: see the note in `idiomize()`. 2026-09-12h shipped the
+# filter by mistake and it put `idiom_coverage` at the 1.7th human percentile.
+PALETTE_BOOST = 6.0
+
 DOWN_DIRS = (1, 6, 7)
 UP_DIRS = (0, 4, 5)
 HOME = {0: (0, 1), 1: (2, 3)}   # red left, blue right
@@ -274,15 +279,19 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # Set to the human 0.208 it realised 0.063, because most legal candidates
         # stay on-side and a permissive filter never changes the odds. When the
         # draw asks for a crossover, pick from the crossing candidates.
-        # ★The palette narrows WHERE a swing may land, never which idioms exist. When no
-        # palette move is legal from this state the unrestricted draw stands -- a palette
-        # that forced an illegal move would trade vocabulary for parity, which is the
-        # trade the post-hoc snapper was refuted for (2026-09-12f).
+        # ★The palette narrows WHERE a swing may land, never which idioms exist.
+        # 🔴🔴**IT IS A WEIGHT, NOT A FILTER — and that cost a wrong default on 2026-09-12h.**
+        # The first version replaced `cands` with the palette-landing subset outright. It
+        # raised block echo on 12 of 12 songs and dropped `idiom_coverage` from **0.992
+        # (94th human pct) to 0.618 (1.7th)**: hard-filtering leaves whatever idioms happen
+        # to land on a palette cell, which is the long tail, and `_candidates`' docstring
+        # already records that drawing from the tail is the failure mode this whole pass
+        # exists to remove. ⇒Boosting instead keeps the frequency ordering intact: a common
+        # idiom that lands in the palette wins, a rare one does not stop being rare.
         if palette is not None:
-            inside = [c for c in cands
-                      if (h.x + c[0][0], h.y + c[0][1], c[0][3]) in palette.get(color, ())]
-            if inside:
-                cands = inside
+            pal = palette.get(color, ())
+            cands = [(e, w * (PALETTE_BOOST if (h.x + e[0], h.y + e[1], e[3]) in pal else 1.0), x)
+                     for e, w, x in cands]
         pick = _pick(cands, rng, prefer_cross=cross_ok, width=width)
         if pick is None and cross_ok:
             cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, False,

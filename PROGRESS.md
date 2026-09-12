@@ -7,7 +7,45 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
-## 2026-09-12h — ✅✅PALETTE 20 IS NOW THE AUTOBUILD DEFAULT: 12 of 12 songs, 3 seeds
+## 2026-09-12i — 🔴🔴THE PALETTE DEFAULT WAS WRONG AND IS REVERTED. My DoD omitted the metric that matters.
+
+The first **full `autobuild` from audio** — the confirmation 2026-09-12h said was still owed —
+caught it immediately. On 1f913, same seed, same everything else:
+
+| arm | `idiom_coverage` | human pct | judge p |
+|---|---|---|---|
+| **palette 0** | 0.992 | 94.1 % | **0.572** |
+| palette 20, hard **filter** (what shipped) | **0.618** | **1.7 %** 🔴 | 0.538 |
+| palette 20, soft **boost ×6** | 0.998 | **97.5 %** 🔴 | 0.333 |
+
+Both forms are called out by the judge as *furthest from human*, in **opposite directions**.
+Hard-filtering to palette landings leaves whatever idioms happen to land on a palette cell — the
+**long tail** — which is precisely the failure `_candidates`' own docstring records as the reason
+this pass weights by frequency at all. Boosting instead overshoots to 0.998 where humans sit at
+0.909: the *"more human than human"* tell that `VOCAB_DEPTH`'s comment already warns about two
+paragraphs higher in the same file. ⇒**`--palette` defaults to 0 again.**
+
+### ★★ The lesson, and it is about my own method, not the code
+The 12-song sweep was real: echo up on **12 of 12**, vocabulary 41.2 → 26.1 against a human 23.6.
+**It measured four things — echo, vocabulary size, top-10 share, local variety — and not one of
+them was `idiom_coverage`, the metric `idiomize.py` exists to move.** I wrote that DoD myself,
+checked the one overshoot tell I happened to remember (`idiom_local`), and flipped a default on it.
+⇒**When changing a pass, the DoD must include the axis that pass was built for**, not only the axis
+the change is aiming at. The judge prints 23 metrics and names the worst three; reading them would
+have caught this before the commit rather than after.
+★And the confirmation step that was "still owed" is what caught it — **a sweep of a sub-pass is not
+a build.** Everything measured on 2026-09-12g/h applied `idiomize` on top of an existing zip.
+
+**Kept**: the palette as a flag, both forms, with `PALETTE_BOOST` exposed, because the echo gain is
+genuine and reproducible. ⬜**To make it usable**: it needs a form that raises echo while leaving
+`idiom_coverage` inside the human band (~0.909). Neither a filter nor a flat boost does; the next
+thing to try is boosting only candidates that are *already* in the top-`k` frequency band, so the
+palette can never promote a tail idiom. **DoD**: echo gain holds on ≥10 songs AND `idiom_coverage`
+stays within the human interquartile range AND the judge's worst-3 does not name it.
+
+---
+
+## 2026-09-12h — ⚠️SUPERSEDED THE SAME DAY by 2026-09-12i — the sweep that flipped the default
 
 The sweep 2026-09-12g asked for, run as the strongest available control: **re-place each human
 map's OWN note times and hands** with palette 0 vs palette 20, so **placement is the only thing

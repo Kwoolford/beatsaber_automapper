@@ -303,11 +303,11 @@ def main() -> int:
                     help="idiom candidate-pool width (default 3). Higher = more "
                          "diagonals and a broader local vocabulary; 5 sits closest "
                          "to the human idiom_top50/idiom_coverage.")
-    ap.add_argument("--palette", type=int, default=20,
-                    help="commit the map to N landing shapes per hand (default 20, "
-                         "0 = the pre-2026-09-12 per-note draw). Validated on 12 corpus "
-                         "songs x 3 seeds: block echo 0.423 -> 0.486, better on 12/12, "
-                         "vocabulary 41 -> 26 per hand against a human 24.")
+    ap.add_argument("--palette", type=int, default=0,
+                    help="commit the map to N landing shapes per hand (0 = off, the "
+                         "default). ⚠️It raises 4-bar block echo on 12 of 12 corpus songs "
+                         "AND damages idiom_coverage in both of its forms -- see "
+                         "PROGRESS.md 2026-09-12i before turning it on.")
     ap.add_argument("--verbose", action="store_true")
     # ★★TWO ENTRY POINTS, NOT ONE LEVER (P4 decide-and-log, 2026-09-02). Doubles, the
     # lead hand and `--doubles-rate` are applied ONLY inside the `--pulse` branch of
@@ -439,18 +439,20 @@ def main() -> int:
         # An explicit --width beats the style's choice: it is the knob being A/B'd.
         if a.width is not None:
             kw["width"] = a.width
-        # ★★PALETTE 20 IS THE DEFAULT SINCE 2026-09-12h. The map commits to ~20 landing
-        # shapes per hand instead of drawing a fresh idiom at every note. Validated on
-        # **12 corpus songs x 3 seeds**, re-placing each human map's own note times so
-        # placement is the only thing that differs: 4-bar block echo **0.423 -> 0.486**,
-        # better on **12 of 12** songs (mean +0.063, sd 0.020); vocabulary **41.2 -> 26.1**
-        # shapes per hand against a human 23.6; top-ten share 69 % -> 79 % against 87 %.
-        # ⚠️The "more human than human" tell was checked and is clear: local variety in a
-        # 16-note window goes 10.2 -> 9.3 and the humans sit at **8.3**, so we stay MORE
-        # varied locally than they are, below them on only 3 of 12 songs.
-        # ⇒Four knobs were swept against this gap first and none of them moved the
-        # vocabulary at all (`PROGRESS.md 2026-09-12f`); it needed a change to the
-        # sampling structure. `--palette 0` restores the pre-2026-09-12 behaviour.
+        # 🔴🔴**PALETTE IS OFF BY DEFAULT, AND WAS WRONGLY DEFAULTED ON FOR ONE COMMIT.**
+        # It commits the map to N landing shapes per hand instead of drawing a fresh idiom
+        # at every note, and on 12 corpus songs x 3 seeds it raises 4-bar block echo
+        # 0.423 -> 0.486 (better on 12 of 12) with the vocabulary 41.2 -> 26.1 per hand
+        # against a human 23.6. **That sweep measured four things and none of them was
+        # `idiom_coverage`** -- the metric this whole pass exists to move. A full build
+        # then showed the cost, on the same song and seed:
+        #   palette 0            coverage 0.992  human pct 94.1   judge p 0.572
+        #   palette 20 (filter)  coverage 0.618  human pct  1.7 ! judge p 0.538
+        #   palette 20 (boost)   coverage 0.998  human pct 97.5 ! judge p 0.333
+        # Hard-filtering to palette landings leaves whatever idioms happen to land there,
+        # which is the long tail; boosting instead overshoots into the "more human than
+        # human" range. ⇒Both forms are flagged by the judge and neither may be a default.
+        # See `PROGRESS.md 2026-09-12i`. The lever is real for echo and is kept as a flag.
         kw.setdefault("palette", a.palette)
         n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
