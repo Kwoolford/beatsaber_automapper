@@ -7,6 +7,40 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12p — The lead-in rule: right direction on 4 of 4, clears FLOW on none. Default OFF.
+
+Built what 2026-09-12o specified, at the place it belongs — **selection**, in `mapctl`'s picker,
+not a post-processor. `--lead-in`: when an odd slot is taken and the slot before it carries a real
+event the picker passed over, take that too. Threaded through `autobuild --lead-in`. **Default off.**
+✅The control arm rebuilds **byte-identical** to the baseline (`e370ad4032`), checked before reading
+anything — the rule from 2026-09-12n.
+
+### ✅ It moves the target metric on every song, by 20–28 points
+| song | isolated share of our odd-16th notes | notes | human |
+|---|---|---|---|
+| 1f913 | 77.6 % → **58.5 %** | 828 → 849 | 25.8 % |
+| 1f8d6 | 94.7 % → **73.0 %** | 805 → 821 | 0 % |
+| 1f333 | 88.9 % → **60.8 %** | 1109 → 1170 | 2.1 % |
+| 1f767 | 66.7 % → **46.4 %** | 844 → 855 | 0 % |
+
+### 🔴 And it clears FLOW on none of them
+FLOW bar coverage: 1f913 16 % → 12 % · 1f333 19 % → 13 % · 1f767 10 % → **4 %** (yellow) ·
+**1f8d6 12 % → 14 %, worse**, and it gained an ELEMENTS red (more notes ⇒ fewer wall slots survive
+the collision check). Judge p fell on two: 1f8d6 **0.655 → 0.372**, 1f333 **0.692 → 0.293**.
+⚠️That is the axis-you-did-not-measure lesson again, and this time it was measured: **adding notes
+moves density**, and two of the four paid for it. **DoD NOT MET.**
+
+### ⬜ Why it stops halfway, and the specific next step
+We are at **46–73 %** isolated against a human **0–26 %**. The residual is **supply**: the rule can
+only lead in from an event the *followed stems* put on the previous slot, but the audio has an onset
+there **65–92 %** of the time — the difference is the accent-percentile thinning that pays the
+density budget, which has already dropped that quiet lead-in note. ⇒**Draw the lead-in from the
+UNTHINNED supply** (or from the onset cache), so it is exempt from the budget that removed it.
+**DoD**: isolated share into the human band (0–26 %), FLOW clears on 1f8d6 / 1f913 / 1f333, note
+count within ~5 % of baseline, and the judge's worst-3 gains nothing.
+
+---
+
 ## 2026-09-12o — ★★★FLOW LOCATED: we do not play off-grid notes, we play them with NOTHING LEADING IN
 
 FLOW is the dominant red on the songset — and after two iterations of wrong hypotheses it is now

@@ -328,11 +328,19 @@ of ours with the previous slot empty. ⇒FLOW is not "we play off the grid" and 
 notes"; it is **"we play the 'e' and the 'a' with nothing leading in"**. ★The map-wide rates look
 innocent (1f913 12.4 % vs his 12.3 %): the COUNT is right, the APPROACH is not.
 
-⬜**Fix = a selection rule in the event picker** (a mechanism, not a rate): when an odd-16th onset is
-chosen, either also play the preceding on-grid slot so the hand leads into it, or drop it.
-**DoD**: our isolated share falls into the human band (0–26 %), FLOW clears on 1f8d6/1f913/1f333,
-**and the note count does not fall** — dropping them all is the `--no-pulse` trade that buys
-ABSENCE reds.
+✅**BUILT 2026-09-12p — `--lead-in`** (mapctl picker + autobuild, **default off**): when an odd slot
+is taken and the slot before carries a real event the picker passed over, take that too. Control arm
+rebuilds **byte-identical** to baseline. **Isolated share falls 20–28 points on 4 of 4**: 1f913
+77.6→58.5 · 1f8d6 94.7→73.0 · 1f333 88.9→60.8 · 1f767 66.7→46.4 (human 0–26 %).
+🔴**It clears FLOW on NONE.** Bar coverage 1f913 16→12 % · 1f333 19→13 % · 1f767 10→4 % (yellow) ·
+**1f8d6 12→14 %, worse**, plus a new ELEMENTS red (more notes ⇒ fewer wall slots survive). Judge p
+fell on two: 1f8d6 0.655→0.372, 1f333 0.692→0.293 — **adding notes moves density**. DoD NOT MET.
+⬜**Why it stops halfway, and the next step**: the rule can only lead in from an event the *followed
+stems* left on the previous slot, but the **audio** has an onset there 65–92 % of the time. The gap
+is the accent-percentile thinning that pays the density budget — it already dropped that quiet
+lead-in note. ⇒**Draw the lead-in from the UNTHINNED supply** (or the onset cache), exempt from the
+budget that removed it. **DoD**: isolated share into 0–26 %, FLOW clears on 1f8d6/1f913/1f333, note
+count within ~5 % of baseline, judge's worst-3 gains nothing.
 
 
 ## 🔴 P0.7 — the pulse pass never holds a pulse, and `--pulse` is a TRADE

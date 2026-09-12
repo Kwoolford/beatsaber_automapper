@@ -727,6 +727,10 @@ def cmd_auto(a) -> int:
     n_cells = BEATS_PER_BAR * subdiv_of(s)
 
     picks: list[tuple[int, int]] = []
+    # Every (bar, slot) the followed stems actually put an event on, kept so the
+    # lead-in rule below can tell "the song plays here and we skipped it" from
+    # "there is nothing here".
+    _avail: set[tuple[int, int]] = set()
     for bar in range(b0, b1 + 1):
         t0 = s["phase"] + (bar - 1) * s["bar_s"]
         t1 = t0 + s["bar_s"]
@@ -738,6 +742,8 @@ def cmd_auto(a) -> int:
             if 0 <= i < n_cells and i not in seen:
                 seen.add(i)
                 picks.append((bar, i))
+        for i in seen:
+            _avail.add((bar, i))
     picks.sort()
     if a.every > 1:
         picks = picks[::a.every]
@@ -759,6 +765,24 @@ def cmd_auto(a) -> int:
                             sync=getattr(a, "pulse_sync", PU.SYNC_FRAC))
         print(f"pulse: {before} -> {len(picks)} cells, one interval held per "
               f"{getattr(a, 'phrase_bars', 4)}-bar phrase")
+    # ★★**LEAD-IN — the biggest red on the songset** (2026-09-12o/p). FLOW fires on notes
+    # played on an odd 16th with NOTHING BEFORE THEM. Measured against each song's own human:
+    # we play 67-95 % of our odd-16th notes isolated, he plays 2-26 % of his that way -- and he
+    # plays plenty of them (97 and 144 on two songset songs). It is not that we go off the grid
+    # and not that we invent notes (they sit on a real onset 95-99 % of the time): it is that
+    # nothing leads in. ★And it is a pure SELECTION defect -- at our isolated notes the song has
+    # an onset on the PREVIOUS slot 65-92 % of the time and the human plays it 42-68 % of the
+    # time. We skip it. So: when an odd slot is taken and the slot before it carries a real
+    # event we passed over, take that too. ⚠️Default OFF; adds notes, so price D6/nps with it.
+    if getattr(a, "lead_in", False):
+        have = set(picks)
+        added = [(b, sl - 1) for b, sl in picks
+                 if sl % 2 == 1 and sl >= 1
+                 and (b, sl - 1) not in have and (b, sl - 1) in _avail
+                 and (b, sl - 1) not in occupied]
+        if added:
+            picks = sorted(have | set(added))
+            print(f"lead-in: +{len(added)} cells before an isolated odd 16th")
     picks = [p for p in picks if p not in occupied]
     if not picks:
         print("nothing to place (no onsets in range, or all slots already taken)")
@@ -1249,6 +1273,10 @@ def main() -> int:
     p.add_argument("--runs", type=int, default=1,
                    help="notes one hand plays before the other takes over; 1 (strict "
                         "alternation) measured as the human burst rate")
+    p.add_argument("--lead-in", action="store_true",
+                   help="when an odd 16th is taken and the slot before it carries a real "
+                        "event we passed over, take that too -- so the hand leads into the "
+                        "'e' and the 'a' instead of hitting them cold. Fixes FLOW at source")
     p.add_argument("--hand-run-p", type=float, default=0.0,
                    help="probability that a hand takeover instead starts a HELD run, whose "
                         "length is drawn from the human tail (4:53%% 5:19%% 6:9%% 7:6%% 8:3%% "
