@@ -7,6 +7,40 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12h — ✅✅PALETTE 20 IS NOW THE AUTOBUILD DEFAULT: 12 of 12 songs, 3 seeds
+
+The sweep 2026-09-12g asked for, run as the strongest available control: **re-place each human
+map's OWN note times and hands** with palette 0 vs palette 20, so **placement is the only thing
+that differs** and the reference is that mapper's own map. Twelve corpus songs, three seeds each.
+
+| | palette 0 | **palette 20** | human |
+|---|---|---|---|
+| 4-bar block echo | 0.423 | **0.486** | 0.617 |
+| distinct shapes / hand | 41.2 | **26.1** | **23.6** |
+| top-10 share of notes | 69 % | **79 %** | 87 % |
+| local variety (16-note window) | 10.2 | **9.3** | **8.3** |
+
+★★**Better on 12 of 12 songs**, mean **+0.063**, sd 0.020. Every measure moves toward the human and
+the vocabulary lands essentially on his (26.1 against 23.6).
+
+⚠️**The "more human than human" tell was explicitly checked and is clear.** Local variety in a
+16-note window goes 10.2 → 9.3 while the humans sit at **8.3**, so we remain *more* varied locally
+than they are — below them on only 3 of 12 songs. This is the axis that saturated `h_dist` and that
+`idiomize.py` already records twice (`idiom_coverage` 0.996 vs human 0.909; `idiom_local` at the
+98th percentile). Overshooting it would have been the reason not to ship; it did not happen.
+
+⇒**`autobuild --palette` defaults to 20.** `--palette 0` restores the pre-2026-09-12 per-note draw.
+The DoD stated in 2026-09-12g (≥10 songs, ≥3 seeds, gain holds, `idiom_local` stays above the human
+floor) is **MET**.
+
+⚠️**What this sweep does NOT show**: it re-places *human* rhythms, not our builds. The gain did
+transfer on our own four (1f913 +0.037, 1f333 +0.053 at 3 seeds), but ⬜**a full `autobuild` re-run
+of the songset from audio is still owed** — everything measured today applied `idiomize` on top of
+an existing zip. Songset state under the current chain is unchanged and correct: 1f767 SHIP? YES,
+**1f913 `SHIP? YES — nothing located`**, 1f8d6 red on ELEMENTS + lead-hand, 1f333 red on SCATTER.
+
+---
+
 ## 2026-09-12g — ✅The PALETTE is a real lever where four knobs were not. And `--travel-target` was dead.
 
 `idiomize --palette N` commits the map to **N landing shapes per hand**. Two passes: the first says
