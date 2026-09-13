@@ -479,6 +479,16 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         # an otherwise-passing map (that one scored p=0.746).
         # ⚠️Reuse the pipeline's fixer; hand-rolled parity repair already cost this
         # project 380 notes and still left violations.
+        # 🔴🔴**AND IT IS VOCABULARY-BLIND — a latent bug in the pipeline** (2026-09-13w).
+        # It rewrites DIRECTIONS with no reference to the mined vocabulary, so a map that is
+        # parity-hostile leaves here full of transitions no human plays. Measured on one song,
+        # 4 seeds per arm: the control triggers **0** rewrites, and with `--map-memory 4` two
+        # seeds trigger **319 and 351** — turning 0 out-of-vocabulary transitions into 114 and
+        # 149, which is the whole of that flag's `idiom_coverage` collapse (0.99 → 0.53-0.59).
+        # ⇒Any change that makes a map more parity-hostile silently degrades coverage and
+        # nothing notices: the verdict page does not read it, only `mapjudge` would.
+        # ⬜FIX: choose among repairs the VOCABULARY knows, not any direction that satisfies
+        # parity. DoD at `TODO.md`.
         new = _reparity(new, bpm)
         # The invariant survives: the fixer changes DIRECTIONS, never times, colours
         # or the count -- re-asserted here because that is what makes the A/B valid.

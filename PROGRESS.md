@@ -17446,3 +17446,50 @@ blocks; the human's echo is not structure-driven; it is a side effect of vocabul
 mapper style with nothing in the song predicting it (max r² 0.039); and he is not recalling any
 particular block. **Narrowing our vocabulary is the right idea and this implementation of it is
 not safe.**
+
+
+## 2026-09-13w — ★★★ the coverage collapse is `_reparity`, and it is a LATENT PIPELINE BUG
+
+Chased the bimodal `idiom_coverage` to its cause. It is not the vocabulary idea and not the
+sampler.
+
+**`idiomize()` itself is clean.** In-process, with the boost on and the same seed that collapses,
+it produces **0 fallbacks and 0 out-of-vocabulary transitions**. Every cell it places comes from
+the mined vocabulary, exactly as designed.
+
+**The damage happens after it returns.** `idiomize_zip` runs `_reparity(new, bpm)` — added
+2026-09-xx because `mapctl export` fixes parity and then this pass rewrites every direction, so
+the fixer had to run last. It rewrites DIRECTIONS, **and it is vocabulary-blind**:
+
+| arm | seed | directions `_reparity` rewrote | out-of-vocabulary transitions, before → after |
+|---|---|---|---|
+| control | 1, 3, 4, 5 | **0** each | 0/656 → 0/656 |
+| `--map-memory 4` | 1, 5 | **0** | 0/656 → 0/656 |
+| `--map-memory 4` | 3 | **319** | 0/656 → **114/656** |
+| `--map-memory 4` | 4 | **351** | 0/656 → **149/656** |
+
+⇒**That is the bimodality exactly.** Either the fixer stays silent and coverage is 0.99, or it
+fires across half the map and coverage lands at 0.53-0.59. The chain: a narrower vocabulary
+sometimes produces a parity-hostile pattern (the same two landings alternating — the offenders are
+overwhelmingly `dir 5 ↔ dir 7` pairs), the fixer then rewrites hundreds of directions to make it
+playable, and nothing checks what it invents. `(0, -2, 7, 5, 4)` appears 19 times in one collapsed
+map and **is not in the 2510-entry vocabulary at any timing class**.
+
+★★★**This is a latent bug in the whole pipeline, not a property of the new flag.** Any change that
+makes a map more parity-hostile silently degrades `idiom_coverage`, with no pass responsible for
+noticing — the verdict page does not read it, and only `mapjudge` would. The flag is simply the
+first thing to push hard enough to trigger it. ⬜**Hypothesis, NOT established: this may also be
+what the palette FILTER hit on 2026-09-12i** (coverage 0.618, 1.7th percentile) — same shape, same
+downstream fixer, never measured that way at the time.
+
+⇒**`--map-memory` is not refuted as an idea; its cost has a named cause and a named fix.** The fix
+is for `_reparity` to choose among repairs the vocabulary knows, instead of any direction that
+satisfies parity. **DoD**: with a vocabulary-aware repair, the collapsed seeds keep `idiom_coverage`
+inside the control's 0.79-0.86 band while parity violations stay at 0, measured over the same
+seeds. The default stays OFF until then, and the correction recorded at 2026-09-13v stands — what
+changes is that the cause is now known rather than unexplained.
+
+★**Method note**: the tell was that the pass reported **0 fallbacks** while the map contained
+transitions the sampler could not have drawn. Two components each behaving correctly, with the
+guarantee lost in the seam between them — worth reaching for whenever an axis moves that no single
+pass touches.
