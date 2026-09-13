@@ -68,10 +68,22 @@ def stats(notes, bpm: float = 0.0) -> dict | None:
                           / max(sum(A.values()), sum(blocks[e].values())) for e in ks[:i]))
     if len(echoes) < 8:
         return None
+    # `idiom_local` as `evaluation/idiom.py` computes it: distinct TRANSITIONS in a sliding
+    # window of 16 consecutive ones. ★The paradox worth measuring: the repo records ours at
+    # 0.703 against a human 0.861 (we recycle a handful LOCALLY) while our map-wide vocabulary
+    # is far WIDER than his. Those are different quantities and a mechanism must not trade one
+    # for the other.
+    import statistics
+    from beatsaber_automapper.evaluation import idiom as _ID
+    seq = _ID.idioms_of(type("BM", (), {"color_notes": notes})())
+    w = _ID.LOCAL_WINDOW
+    local = (statistics.fmean(len(set(seq[i:i + w])) / w
+                              for i in range(0, len(seq) - w, w // 2))
+             if len(seq) >= w * 3 else float("nan"))
     beats = [float(x.beat) for x in notes]
     span_beats = max(beats) - min(beats)
     span_sec = span_beats * 60.0 / bpm if bpm > 0 else 0.0
-    return dict(bpm=float(bpm), span_sec=float(span_sec),
+    return dict(local=float(local), bpm=float(bpm), span_sec=float(span_sec),
                 nps=float(len(notes) / span_sec) if span_sec > 0 else 0.0,
                 notes=int(n), distinct=len(c),
                 top8=float(v[:8].sum() / n), top20=float(v[:20].sum() / n),
@@ -108,18 +120,18 @@ def main() -> int:
         rows.append(s)
 
     print(f"read {len(rows)} human maps ({skipped} skipped)\n")
-    keys = ("bpm", "nps", "notes", "distinct", "top8", "top20", "entropy", "perplexity", "echo")
+    keys = ("local", "bpm", "nps", "notes", "distinct", "top8", "top20", "entropy", "perplexity", "echo")
     print(f"{'metric':<11s} {'p10':>8s} {'median':>8s} {'p90':>8s} {'sd':>8s}")
     for k in keys:
         v = np.array([r[k] for r in rows], dtype=float)
         print(f"{k:<11s} {np.percentile(v, 10):8.3f} {np.median(v):8.3f} "
               f"{np.percentile(v, 90):8.3f} {v.std():8.3f}")
 
-    for target in ("echo", "entropy"):
+    for target in ("echo", "entropy", "local"):
         t = np.array([r[target] for r in rows])
         print(f"\ncorrelation with {target} (n={len(rows)}):")
         for k in ("distinct", "top8", "top20", "entropy", "perplexity", "notes",
-                  "bpm", "nps", "span_sec"):
+                  "bpm", "nps", "span_sec", "local"):
             if k == target:
                 continue
             v = np.array([r[k] for r in rows], dtype=float)

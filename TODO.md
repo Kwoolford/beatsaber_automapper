@@ -352,11 +352,17 @@ leak, not the lever. **The real cost is LOCAL**: `idiom_local` 36.8 → 21.9 pct
 repetition, pushing the wrong way on the one idiom axis this repo already calls *"globally right,
 locally wrong"*. 🔴**Default OFF; it IS now a usable style lever.** Does not clear SCATTER (room
 0.462 → 0.642 against a line at 1.00).
-⬜**What this leaves for SCATTER**: every route through *narrowing the whole-map vocabulary* is now
-measured and each costs local variety. The untried direction is the opposite one — **raise LOCAL
-echo without narrowing the map-wide vocabulary** (`idiom_local` says we recycle a handful locally
-already, so the two are not the same quantity). Needs a read of what the human's local vs map-wide
-vocabularies look like on the same maps before anything is built.
+⬜**What this leaves for SCATTER — and the price any mechanism must beat** (measured 2026-09-13z,
+n=499). Echo and local variety are different quantities (r = −0.387) and humans trade them cheaply:
+**+0.16 of echo costs them 0.037 of local**, i.e. about **0.23 local per 1.0 echo**. Our lever pays
+**0.80-1.00** — 3-4x the human price — and we start *below* the humans at our own echo anyway
+(ours 0.843-0.851 against their 0.869-0.878).
+✅**DoD FOR ANY FUTURE SCATTER MECHANISM: buy echo at better than ~0.25 of `idiom_local` per 1.0 of
+echo, measured against humans AT THE RESULTING ECHO, never against the pooled median.**
+⬜Untried: raise echo by returning to a figure **at a distance** (across phrases) rather than by
+repeating it locally — the human's echo survives a 16-transition window being varied, so his
+returns are far apart. `repeat.py` does this for labelled section repeats only, and that half is
+already at parity; the open part is first-occurrence bars.
 
 ### 🔧 (superseded) make `_reparity` vocabulary-aware
 **Evidence**: above. The repair picks any direction that satisfies parity; it should pick among

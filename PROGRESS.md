@@ -17610,3 +17610,45 @@ can go, but that is a guess; recorded as an observation.
 It is a legitimate **style lever** (Kyle's UI wants those) and is now well-behaved enough to be one:
 stable coverage, no violations, no new reds on 1f333. It does not clear the standing red — SCATTER's
 room goes 0.462 → 0.642 against a line at 1.00 — and it costs typicality, so it cannot be a default.
+
+
+## 2026-09-13z — the EXCHANGE RATE: humans buy echo cheaply, our lever buys it at 4x the price
+
+`idiom_local` (distinct transitions per 16-transition window) added to
+`scripts/exp_vocabulary.py`. Over 499 human Experts, binned by each map's **own** echo:
+
+| that map's echo | n | its local variety |
+|---|---|---|
+| 0.40-0.54 | 100 | 0.880 ± 0.120 |
+| 0.54-0.59 | 100 | 0.871 ± 0.084 |
+| 0.59-0.63 | 99 | 0.857 ± 0.083 |
+| 0.63-0.67 | 100 | 0.843 ± 0.053 |
+| 0.67-0.96 | 100 | 0.789 ± 0.113 |
+
+⇒**Echo does cost humans local variety, but very little**: +0.16 of echo across that range costs
+them **0.037** of local. The two are not the same quantity (r = −0.387, r² 0.15).
+
+Our builds against the **conditional** reference — humans at *our* echo, not the pooled median:
+
+| build | echo | our local | humans at that echo (±0.05) |
+|---|---|---|---|
+| 1f333 control | 0.491 | 0.843 | 0.878 (n=93) |
+| 1f333 `--map-memory 4` | 0.517 | **0.817** | 0.876 (n=129) |
+| 1f8d6 control | 0.529 | 0.851 | 0.869 (n=149) |
+| 1f8d6 `--map-memory 4` | 0.575 | **0.814** | 0.869 (n=216) |
+
+★★★**As an exchange rate this is decisive.** Humans pay about **0.23 of local variety per 1.0 of
+echo**. Our lever pays **1.00** on 1f333 (+0.026 echo for −0.026 local) and **0.80** on 1f8d6 — a
+**3-4x worse price**, and it never closes the gap to the conditional reference in the first place:
+we sit below the humans at our own echo level *before* the lever, and further below after.
+
+⇒**This confirms yesterday's "pushes the wrong way" and gives it a number.** It also supplies the
+criterion any future mechanism has to meet, which the percentile reading could not:
+
+> **DoD for any future SCATTER mechanism: buy echo at better than ~0.25 of `idiom_local` per 1.0
+> of echo, measured against humans AT THE RESULTING ECHO, not against the pooled median.**
+
+★Note the near-miss on method: comparing our `idiom_local` percentile to the pooled human
+distribution (yesterday's reading) and comparing it to humans *at our own echo* happen to agree
+here — but only by luck, because the conditional reference barely moves until echo 0.67. Against a
+pooled marginal this project has been wrong repeatedly; the conditional version is the one to keep.
