@@ -17200,3 +17200,79 @@ by a command rather than by reading.
 ★`1f913`, which prints *"nothing located"*, ends the day with **two** codes with no margin (D3
 exactly on its line, SCATTER at 80 % of its) — EMPTY and D6 dropped off that list because they were
 never asked of it in the first place, which is the honest reading.
+
+
+## 2026-09-13r — the human's echo is NOT structure-driven, and the whole remaining gap is vocabulary
+
+Split the songset's 4-bar blocks by whether the song's own section labels say that music has been
+heard before, and read the echo of each class separately (`q_scatter`'s own `_echo`, so the number
+means what the gate means):
+
+| class | blocks | ours | human | gap |
+|---|---|---|---|---|
+| inside a returning section | 81 | **0.613** | 0.601 | **-0.012** |
+| first occurrence | 66 | **0.418** | 0.597 | **+0.179** |
+
+★★**`repeat.py` did its whole job and the job was half the map.** On returning blocks we now match
+the human. Every bit of the remaining SCATTER gap is in first-occurrence bars — which is why 1f333
+(64 % first-occurrence) is the last red and 1f767 (24 %) is not.
+
+★★★**And the human's echo does not come from song structure at all: 0.601 on returns against 0.597
+on music the song has never played before, a difference of 0.004.** Ours falls by 0.195 between the
+two. So no amount of structure-driven copying can close it — whatever he does in new music is not
+repetition of the song.
+
+### What he is doing instead, at n=500 (`scripts/exp_vocabulary.py`)
+
+A figure is `(hand, x, y, direction)` — `queries.figures`, time thrown away. Over 500 human Experts:
+
+| metric | p10 | median | p90 | sd |
+|---|---|---|---|---|
+| distinct figures | 34 | 57 | 87 | 21.4 |
+| top-20 share | 0.682 | 0.819 | 0.948 | 0.102 |
+| vocabulary entropy (bits) | 4.17 | 4.91 | 5.53 | 0.61 |
+| 4-bar block echo | 0.508 | 0.609 | 0.710 | 0.081 |
+
+Entropy explains **r = -0.734 (r² 0.538)** of block echo; top-20 share +0.711; **note count explains
+r = -0.006**, so none of this is a map-length artefact. ⚠️Part of that correlation is arithmetic —
+a smaller vocabulary forces block overlap — so the r² is not itself a mechanism claim.
+
+**The claim that is NOT definitional is the spread.** Humans span 4.17-5.53 bits p10-p90 and vary
+per song (1f333's human 4.37 at the 16th percentile, 1f767's 5.90 at the 99th). Our four builds
+span **5.68-5.86** — the **95th to 98th percentile on every song**, a range of 0.18 bits against the
+human 1.36. ⇒**The ninth instance of the recurring shape**: a builder constant across an axis the
+human varies per song. And it lines up with where we win: on 1f767, the song whose human has the
+widest vocabulary, we already beat his echo.
+
+### `--map-memory`, and why it is not the palette
+
+`idiomize` already has `REPEAT_P`, but its memory is the last **6 notes** where the defect lives at
+**4 bars**, and `--palette` (2026-09-12g) decides a set of landings BEFORE the map is drawn and cost
+`idiom_coverage` the 1.7th percentile as a filter. `--map-memory N` instead boosts, by the same
+median-guarded band the palette needs, any candidate whose landing **this map has already played**.
+Nothing is decided in advance and no candidate is removed, so it cannot push a transition out of the
+vocabulary. Control arm verified **byte-identical to HEAD** before any arm was read.
+
+One seed, full builds, `repeat.py` after:
+
+| song | mem | vocab | entropy | echo | his − ours | idiom_coverage | idiom_jsd | judge p |
+|---|---|---|---|---|---|---|---|---|
+| 1f913 | 0 | 91 | 5.76 | 0.507 | +0.118 | 0.766 / 11pct | 0.417 / 44pct | 0.502 |
+| 1f913 | 4 | 82 | 5.57 | 0.580 | +0.046 | 0.832 / 22pct | 0.348 / 15pct | 0.502 |
+| 1f913 | 6 | 63 | 5.16 | **0.595** | **+0.031** | **0.853 / 28pct** | 0.383 / 29pct | 0.276 |
+| 1f333 | 0 | 102 | 5.86 | 0.482 | +0.239 | 0.838 / 24pct | 0.352 / 16pct | 0.696 |
+| 1f333 | 2 | 87 | 5.54 | 0.530 | +0.191 | **0.515 / 0pct** | 0.514 / 81pct | 0.180 |
+| 1f333 | 4 | 77 | 5.51 | 0.515 | +0.206 | 0.840 / 24pct | 0.376 / 26pct | 0.541 |
+| 1f333 | 6 | 88 | 5.68 | 0.518 | +0.203 | **0.439 / 0pct** | 0.565 / 90pct | 0.144 |
+
+On `1f913` it is monotone and **`idiom_coverage` RISES with the dose** — the opposite of the
+palette's failure, which is the point of the softer form. On `1f333` coverage goes
+0.838 → 0.515 → 0.840 → 0.439 and the vocabulary does not even shrink monotonically.
+⇒🔴**A knob whose effect reverses twice as the dose rises is not a dose response**, and one seed
+cannot separate seed noise from a threshold. **NOT REPRODUCED pending** `scripts/price_memory_seeds.sh`
+(3 seeds x {0, 4} x both songs), running now. `1f333`'s located reds did not move at any arm (12
+hits throughout), so nothing about the gate has changed yet.
+
+⚠️These rows are **not** comparable to 2026-09-12i's palette rows: this build carries `--pulse
+--lead-in --drop-orphan --carrier-bias` and its control reads coverage 0.766 where that run's read
+0.992. Read arms against their own control, never across sessions.

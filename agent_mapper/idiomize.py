@@ -89,6 +89,21 @@ REPEAT_WINDOW = 6
 # filter by mistake and it put `idiom_coverage` at the 1.7th human percentile.
 PALETTE_BOOST = 6.0
 
+# ★**How strongly a landing THIS MAP HAS ALREADY PLAYED is preferred** (2026-09-13r). Same
+# banded form as the palette, and for the same reason: a hard filter leaves whatever idioms
+# happen to land on a remembered cell (the long tail) and put `idiom_coverage` at the 1.7th
+# percentile, while a flat boost overshoots past "more human than human".
+# ⚠️This is NOT the palette and NOT `REPEAT_P`. The palette is a set of landings decided
+# BEFORE the map is drawn; `REPEAT_P` remembers the last **6 notes** where the defect lives at
+# **4 bars**. This remembers every landing the hand has played SO FAR, which is what makes a
+# vocabulary narrow without anyone choosing it in advance -- and it can never force an
+# out-of-vocabulary transition, because it only reweights candidates `_candidates` already
+# offered. Measured over 500 human Experts (`scripts/exp_vocabulary.py`): figure-vocabulary
+# entropy explains **r = -0.734 (r2 0.538)** of 4-bar block echo while NOTE COUNT explains
+# r = -0.006, and humans span 4.17-5.53 bits (p10-p90) where our four builds span 5.68-5.86
+# -- the 95th-98th percentile on every song, another builder constant across a per-song axis.
+MEMORY_BOOST = 0.0
+
 DOWN_DIRS = (1, 6, 7)
 UP_DIRS = (0, 4, 5)
 HOME = {0: (0, 1), 1: (2, 3)}   # red left, blue right
@@ -214,7 +229,8 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
              width: int = 3, crossover: float = CROSSOVER_TARGET,
              repeat_p: float = REPEAT_P,
              travel_target: float = TRAVEL_TARGET,
-             palette: dict[int, set] | None = None):
+             palette: dict[int, set] | None = None,
+             memory_boost: float = MEMORY_BOOST):
     """Redraw (x, y, direction) for every note from the human vocabulary.
 
     `records` is a list of dicts with keys b/x/y/c/d (the v3 `colorNotes` shape).
@@ -244,6 +260,7 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
 
     hands = {0: _Hand(0), 1: _Hand(1)}
     recent: dict[int, list] = {0: [], 1: []}
+    played: dict[int, set] = {0: set(), 1: set()}   # every landing this hand has used
     order = sorted(range(len(records)),
                    key=lambda i: (float(records[i].get("b", 0.0)),
                                   int(records[i].get("c", 0))))
@@ -291,6 +308,14 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # range `VOCAB_DEPTH` warns about. ⇒**Boost only candidates that are ALREADY at or
         # above the median frequency of this state's candidates**, so the palette can shift
         # the choice among common idioms and can never promote a rare one.
+        if memory_boost > 1.0 and cands and played[color]:
+            # the same median guard the palette needs: shift the choice among COMMON
+            # idioms, never promote a rare one onto a remembered cell
+            mid = sorted(w for _e, w, _x in cands)[len(cands) // 2]
+            cands = [(e, w * (memory_boost
+                              if w >= mid and (h.x + e[0], h.y + e[1], e[3]) in played[color]
+                              else 1.0), x)
+                     for e, w, x in cands]
         if palette is not None and cands:
             pal = palette.get(color, ())
             mid = sorted(w for _e, w, _x in cands)[len(cands) // 2]
@@ -315,6 +340,7 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         if pick is not None:
             recent[color].append(pick)
             del recent[color][:-REPEAT_WINDOW]
+            played[color].add((nx, ny, d_to))
         h.x, h.y, h.direction, h.beat = nx, ny, d_to, beat
         p = _parity_of(d_to)
         h.parity = p if p is not None else (h.parity ^ 1)
@@ -364,7 +390,8 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
                  crossover: float = CROSSOVER_TARGET,
                  repeat_p: float = REPEAT_P,
                  travel_target: float = TRAVEL_TARGET,
-                 palette: int = 0) -> tuple[int, int]:
+                 palette: int = 0,
+                 memory_boost: float = MEMORY_BOOST) -> tuple[int, int]:
     """Copy `src` to `dst` with only note cells redrawn. Returns (n_notes, n_fallback)."""
     import json
     import shutil
@@ -419,7 +446,7 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         # UNWIRED one.
         new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
                             width=width, crossover=crossover, repeat_p=repeat_p,
-                            travel_target=travel_target)
+                            travel_target=travel_target, memory_boost=memory_boost)
         # ★TWO PASSES when a palette size is asked for: the first pass says which shapes
         # this song's rhythm actually reaches, the top `palette` of those become the
         # palette, and the second pass replays the map inside it. Deriving the palette
@@ -428,7 +455,7 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         if palette:
             new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
                                 width=width, crossover=crossover, repeat_p=repeat_p,
-                                travel_target=travel_target,
+                                travel_target=travel_target, memory_boost=memory_boost,
                                 palette=_palette_of(new, palette))
         # The invariant the whole design rests on: this pass moves cells and
         # nothing else. If it ever changes a time, a colour or the count, the A/B
@@ -477,6 +504,11 @@ def main() -> int:
     ap.add_argument("--top-k", type=int, default=VOCAB_DEPTH,
                     help="vocabulary depth (default %(default)s; see VOCAB_DEPTH)")
     ap.add_argument("--crossover", type=float, default=CROSSOVER_TARGET)
+    ap.add_argument("--map-memory", type=float, default=MEMORY_BOOST, dest="map_memory",
+                    help="prefer a landing this map has ALREADY played, as a weight on the "
+                         "frequency-weighted draw (1.0 = off; see MEMORY_BOOST). Unlike "
+                         "--palette nothing is decided in advance and no candidate is "
+                         "removed, so it cannot force an out-of-vocabulary transition")
     ap.add_argument("--palette", type=int, default=0,
                     help="commit the map to N landing shapes per hand (0 = off, the "
                          "pre-2026-09-12 behaviour). Two passes: the first says which "
@@ -501,7 +533,7 @@ def main() -> int:
     n, nfb = idiomize_zip(a.zip_in, a.out, seed=a.seed, top_k=a.top_k,
                           width=a.width, crossover=a.crossover,
                           repeat_p=a.repeat_p, travel_target=a.travel_target,
-                          palette=a.palette)
+                          palette=a.palette, memory_boost=a.map_memory)
     print(f"{a.zip_in.name}: re-placed {n - nfb}/{n} notes from the human vocabulary "
           f"({nfb} kept their original cell: no idiom fit)")
     print(f"wrote {a.out}")

@@ -414,6 +414,9 @@ def main() -> int:
                          "on the held-out songs it cuts the density error from sd 1.67 to "
                          "1.36 (corr +0.689). See predict_nps()")
     ap.add_argument("--no-idiomize", action="store_true")
+    ap.add_argument("--map-memory", type=float, default=0.0, dest="map_memory",
+                    help="prefer a landing this map has already played (1.0 or less = off). "
+                         "See idiomize.MEMORY_BOOST")
     ap.add_argument("--out", type=pathlib.Path, default=None)
     ap.add_argument("--seed", type=int, default=0)
     # ★**A CUT-DIRECTION / VARIETY LEVER** (2026-08-24). `idiomize`'s `width` keeps
@@ -638,6 +641,12 @@ def main() -> int:
         # human" range. ⇒Both forms are flagged by the judge and neither may be a default.
         # See `PROGRESS.md 2026-09-12i`. The lever is real for echo and is kept as a flag.
         kw.setdefault("palette", a.palette)
+        # ★`--map-memory` is the OTHER form of the same idea, kept separate on purpose: it
+        # decides nothing in advance and removes no candidate, so it cannot push a
+        # transition out of the vocabulary the way the palette filter did. Default off
+        # until a full build shows what it costs `idiom_coverage` -- the axis this pass
+        # exists to move, and the one the palette sweep forgot to measure.
+        kw.setdefault("memory_boost", a.map_memory)
         n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
 

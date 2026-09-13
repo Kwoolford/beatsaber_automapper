@@ -294,9 +294,27 @@ and his ear is the arbiter — on that reading the fix is right, but it is his c
 does not count toward the win rate). Default stays **off** until he plays it.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
-- **SCATTER on `1f333`** — 64 % of its bars are a first occurrence, so section-driven repetition has
-  nothing to copy. The rest of the gap is **vocabulary**: where a section repeats we match or beat
-  him; where it does not he still echoes 0.36–0.67 and we do not.
+- **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**
+  Split by the song's own section labels: on blocks inside a returning section we sit at **0.613
+  against his 0.601** (81 blocks, gap −0.012); on first-occurrence blocks **0.418 against his
+  0.597** (66 blocks, gap +0.179). `repeat.py` did its whole job and the job was half the map.
+  ★★★**His echo is the same in both classes (0.601 vs 0.597) ⇒ the human's echo is NOT
+  structure-driven at all**, so no amount of section-driven copying can reach it.
+  ★**What he does instead is a narrow figure vocabulary**, at n=500 (`scripts/exp_vocabulary.py`):
+  entropy explains r=−0.734 (r² 0.538) of block echo, top-20 share +0.711, **note count r=−0.006**.
+  ⚠️Part of that is arithmetic (a small vocabulary forces overlap), so the r² is not a mechanism.
+  **The non-definitional claim is the SPREAD**: humans span 4.17–5.53 bits p10–p90 and vary per song
+  (1f333's human 4.37 = 16th pct, 1f767's 5.90 = 99th); our four builds span **5.68–5.86, the
+  95th–98th percentile on every song**. ⇒**the ninth instance of the recurring shape.**
+  ⏱**`--map-memory N` is built and running** (`idiomize`, default OFF, control verified
+  byte-identical): boost, with the palette's median guard, any candidate whose landing this map has
+  ALREADY played. Not the palette (nothing decided in advance, no candidate removed, so it cannot
+  force an out-of-vocabulary transition) and not `REPEAT_P` (6 notes vs 4 bars).
+  One seed: `1f913` monotone with **`idiom_coverage` RISING** 0.766→0.853 as echo goes 0.507→0.595;
+  `1f333` coverage reverses twice (0.838→0.515→0.840→0.439) and no red moved. 🔴**A knob whose
+  effect reverses twice as the dose rises is not a dose response** — `price_memory_seeds.sh`
+  (3 seeds × {0,4} × both songs) decides it. **DoD**: the 3-seed spread separates signal from seed,
+  `idiom_coverage` does not fall below its control, and 1f333's SCATTER margin moves.
 - **The density family (EMPTY · D6 · D4) is ONE defect and at its ceiling.** Our per-song nps sd is
   0.48 against his 1.00; the ratio correlates **+0.751** with D6 and **−0.474** with EMPTY. Predicting
   his density from the song tops out at **R² 0.231** (bpm + onset rate) — better than the constant,
