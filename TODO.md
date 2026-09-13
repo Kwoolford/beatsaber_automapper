@@ -363,9 +363,25 @@ songset.
 🔴🔴**AND IT NEEDS A DENSITY FLOOR BEFORE IT CAN BE A DEFAULT**: `1fa48` goes **736 → 494 notes
 (−32.9 %)** and gains an **EMPTY red across 29 % of bars** — the orphan drop took a third of the map.
 2 of 12 are outside ±5 % (the other is `1f3d7`, +7.6 %).
-⬜**NEXT, and it is the only thing between this and the default**: give the drop a floor so it cannot
-take a section below its density budget. **DoD**: FLOW stays 0 on the 12, no song loses more than
-5 % of its notes, and no new EMPTY red.
+🔴**2026-09-12t — BOTH GUARDS REFUTED, measured over 16 songs.** A **window gate** (drop only where
+the 2-bar orphan share ≥ 30 %, `q_flow`'s own trigger) did not spare `1fa48` — its windows *do*
+exceed 30 %, it still lost 35.6 % — and let FLOW back onto 2/16 with 4 songs outside ±5 %. ★**A
+build-time gate cannot reproduce `q_flow`: the query is RELATIVE to the song's own human** (≥ 20
+points over *his* isolated share) and the builder has no human map, nor should it. A **per-bar cap**
+at 0.40 halves the outlier (−39.3 → −21.6 %) and also lets FLOW back onto 2/16.
+
+| arm | songs with FLOW | worst note change | outside ±5 % |
+|---|---|---|---|
+| **ungated** | **0 / 16** | −39.3 % | **1** |
+| window gate | 2 / 16 | −35.6 % | 4 |
+| bar cap 0.40 | 2 / 16 | −21.6 % | 2 |
+
+⇒**Ungated is the best arm** and `DROP_BAR_CAP` defaults to 1.0. The whole residual is **one song**
+whose orphans really are a third of its picks and which had **no FLOW to fix**.
+⬜**What is left before the default**: (a) understand `1fa48` — why a third of its picks are orphan
+odd 16ths at all, which smells like a build defect upstream of this rule; (b) measure `idiom_jsd`
+properly (the n=12 read was confounded, see 2026-09-12s). **DoD**: FLOW stays 0 on the 16, no song
+outside ±5 % on notes, `idiom_jsd` no worse.
 ⚠️**`idiom_jsd` is STILL UNMEASURED at n=12** — I scraped the judge's *flagged-metrics* list, so a
 song where it was never flagged returned a sentinel that got averaged with real percentiles.
 ★**Scrape the full metric table, not the worst-list**, or an absent flag reads as a value.

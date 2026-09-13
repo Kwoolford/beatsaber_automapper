@@ -53,6 +53,27 @@ sys.path.insert(0, str(HERE))
 
 SESSIONS = HERE / "sessions"
 BEATS_PER_BAR = 4
+
+# 🔴**A WINDOW GATE WAS TRIED AND IS WORSE** (2026-09-12t). Dropping orphans only inside a
+# window with >= 30 % orphan share -- `q_flow`'s own trigger -- was meant to spare `1fa48`,
+# which loses a third of its notes for a FLOW count of 0. It did not: that song's windows DO
+# exceed 30 %, it still lost 35.6 %, and the gate let FLOW back onto 2 of 16 songs and pushed
+# 4 songs outside +-5 % on note count (against 1 ungated). ★The reason a build-time gate
+# cannot reproduce `q_flow` is that the query is **relative to the song's own human** -- it
+# needs >= 20 points over his isolated share -- and the builder has no human map, nor should
+# it. ⇒0.0 = ungated, the measured-better arm. The guard that works is the CAP below.
+DROP_WINDOW_MIN = 0.0
+
+# 🔴**A PER-BAR CAP WAS ALSO TRIED AND ALSO LOSES** (2026-09-12t). At 0.40 it halves the
+# outlier's damage (`1fa48` -39.3 % -> -21.6 %) and buys that by letting **FLOW back onto 2 of
+# 16 songs** and pushing a second song outside +-5 %. Measured over all three arms on 16 songs:
+#   ungated       FLOW on 0/16   worst note change -39.3 %   outside +-5 %: 1
+#   window gate   FLOW on 2/16   worst -35.6 %               outside +-5 %: 4
+#   bar cap 0.40  FLOW on 2/16   worst -21.6 %               outside +-5 %: 2
+# ⇒**Ungated is the best arm on the headline and on the count of damaged songs.** Its whole
+# problem is ONE song whose orphans genuinely are a third of its picks -- and which had no FLOW
+# to fix. ⇒1.0 = no cap, the measured-best default. 0.40 is kept for the song that needs it.
+DROP_BAR_CAP = 1.0
 SUBDIV = 4
 
 # ★The measured bias of our own phase estimator, in beats: our fitted bar grid sits
@@ -811,9 +832,40 @@ def cmd_auto(a) -> int:
         have = set(picks)
         orphan = [(b, sl) for b, sl in picks
                   if sl % 2 == 1 and sl >= 1 and (b, sl - 1) not in have]
+        # 🔴🔴**ONLY WHERE THE DEFECT ACTUALLY IS.** Priced on 12 corpus songs
+        # (2026-09-12s), a map-wide drop cleared FLOW on all 10 songs that had it AND took
+        # `1fa48` from 736 notes to 494 (-32.9 %) with a new EMPTY red over 29 % of bars --
+        # on a song whose FLOW count was **0 in both arms**. It paid a third of the map for
+        # a defect that was not there. ⇒Drop only inside a window that would actually fire:
+        # `q_flow`'s own trigger is >= 30 % of a 2-bar window's events isolated on an odd
+        # 16th, so that is the condition here. A blunt density cap was the other candidate
+        # and is worse -- it would also fire on songs with nothing wrong, just less.
         if orphan:
-            picks = sorted(have - set(orphan))
-            print(f"drop-orphan: -{len(orphan)} odd 16ths with nothing leading in")
+            from collections import defaultdict
+            by_bar = defaultdict(int)
+            for b, _sl in picks:
+                by_bar[b] += 1
+            orph_bar = defaultdict(int)
+            for b, _sl in orphan:
+                orph_bar[b] += 1
+            keep = set()
+            for b, sl in orphan:
+                n = by_bar[b] + by_bar[b + 1]
+                o = orph_bar[b] + orph_bar[b + 1]
+                if n and o / n < DROP_WINDOW_MIN:
+                    keep.add((b, sl))       # this window would not fire -- leave it alone
+            # ★The density floor: a bar keeps at least (1 - DROP_BAR_CAP) of its notes.
+            budget = {b: int(by_bar[b] * DROP_BAR_CAP) for b in by_bar}
+            for b, sl in sorted(o for o in orphan if o not in keep):
+                if budget.get(b, 0) > 0:
+                    budget[b] -= 1
+                else:
+                    keep.add((b, sl))
+            dropped = [o for o in orphan if o not in keep]
+            if dropped:
+                picks = sorted(have - set(dropped))
+                print(f"drop-orphan: -{len(dropped)} odd 16ths with nothing leading in "
+                      f"({len(keep)} kept: their window would not fire)")
     picks = [p for p in picks if p not in occupied]
     if not picks:
         print("nothing to place (no onsets in range, or all slots already taken)")

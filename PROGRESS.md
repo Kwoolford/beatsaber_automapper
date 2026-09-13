@@ -7,6 +7,41 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12t — Two guards for the orphan drop, both REFUTED. Ungated is the best arm.
+
+2026-09-12s left one problem: `1fa48` loses a third of its notes to `--drop-orphan`. Two guards
+were built and measured over **16 songs** (12 corpus + the songset), each against its own human.
+
+### 1. 🔴 A window gate — REFUTED
+Drop only inside a 2-bar window with ≥ 30 % orphan share, which is `q_flow`'s own trigger. It did
+**not** spare `1fa48` (that song's windows *do* exceed 30 %; it still lost 35.6 %) and it let FLOW
+back onto **2 of 16** songs while pushing **4** outside ±5 % on note count.
+★**Why a build-time gate cannot reproduce `q_flow`**: the query is **relative to the song's own
+human** — it needs ≥ 20 points over *his* isolated share — and the builder has no human map, nor
+should it. A gate copied from a query's absolute half is not the query.
+
+### 2. 🔴 A per-bar density cap — also loses
+At 0.40 it halves the outlier's damage (−39.3 % → −21.6 %) and buys that by letting FLOW back onto
+**2 of 16** and pushing a second song outside ±5 %.
+
+| arm | songs with FLOW | worst note change | outside ±5 % |
+|---|---|---|---|
+| **ungated** | **0 / 16** | −39.3 % | **1** |
+| window gate | 2 / 16 | −35.6 % | 4 |
+| bar cap 0.40 | 2 / 16 | −21.6 % | 2 |
+
+⇒**Ungated wins on the headline and on the count of damaged songs.** Its whole problem is **one
+song** whose orphans genuinely are a third of its picks — and which had **no FLOW to fix**.
+`DROP_BAR_CAP` defaults to **1.0** (no cap, the measured-best arm) and is kept as a knob at 0.40
+for the song that needs it. Verified: the restored default rebuilds **byte-identical** to the
+measured arm.
+
+★**The pattern worth keeping**: two plausible guards, both built cheaply, both measured against the
+same 16 songs, both refuted by the same table. Neither would have been caught by reasoning — the
+window gate in particular *sounded* exactly right.
+
+---
+
 ## 2026-09-12s — ★★The FLOW fix priced on 12 songs: FLOW 10 → 0. And one song loses a THIRD of its notes.
 
 Twelve corpus songs with audio, stems and a human reference, both arms, each scored against its own
