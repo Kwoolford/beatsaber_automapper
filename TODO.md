@@ -379,9 +379,16 @@ on 1f8d6): they were **nudging maps with no room**, and the page could not tell 
   so 1.00 is the line in both directions and the page's single `room < 1 + NEAR_FRAC` test is right.
   `1f913` prints ⚠️NO MARGIN on SCATTER again. Byte-identical without `report` on all 4 songset maps;
   bench not refuted.
+  ✅**2026-09-13p — D3 too** (`q_drops`), a disjunction-of-a-conjunction so closeness is
+  `max(lag, min(step, density))`. ★`1f913` sits **exactly on** the D3 line (bar 119: his first note
+  at beat 0.00, ours at 1.00, tolerance 1.00) ⇒ the map that prints *"nothing located"* has **three**
+  codes with no margin. ★★And its first suggestion was **refuted**: `1f767`'s only red is 1.03 of the
+  line, but the clause measures us against **our own** before, so "come down to where HE came down"
+  looked obvious and fires on two rows Kyle labelled GOOD / PREFERRED (bench, 2026-09-13p).
+  ⇒**A margin says how close a map is to a LINE, not how close it is to being right.**
   ⬜**Left**: `q_vocals` (D4) deliberately **not** patched — no single `return hits` in its body and
   guessing a variable name risks a **wrong** margin, which is worse than none. FLOW · D2 · D3
-  likewise. **DoD**: each remaining query takes `report`, and `code_margins()` is **DELETED** — only
+  likewise (D3 done). **DoD**: each remaining query takes `report`, and `code_margins()` is **DELETED** — only
   ELEMENTS (wall coverage, which has no query of its own) is still recomputed there.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 

@@ -17130,3 +17130,37 @@ fires). Songset pages unchanged except `1f913` regaining its SCATTER ⚠️NO MA
 
 ⬜Left for the DoD: `q_vocals` (D4, no single `return hits`), `q_flow` (FLOW + D2) and `q_drops`
 (D3). ELEMENTS stays in `code_margins()` — wall coverage has no query of its own.
+
+
+## 2026-09-13p — D3 reports its margin, and the margin's first suggestion was refuted in one read
+
+`q_drops` now takes `report=`. D3's trigger is a **disjunction** (under-step OR late first note)
+whose first clause is itself a **conjunction** (short step AND short density), so the reported
+closeness is `max` over the boundaries of `max(clause_lag, min(step, density))` — the closest
+clause decides a disjunction, the furthest decides a conjunction. Boundaries the query skips
+(`after < 2`, EMPTY's job) contribute nothing. Verified byte-identical without `report` on all
+four songset maps; bench unchanged.
+
+★**`1f913` sits EXACTLY on the D3 line.** Bar 119: the human's first note after the E-jump is at
+beat 0.00, ours at beat 1.00, and the tolerance is 1.00 beats — `f > hf + lag_beats` is strict, so
+it passes by nothing at all. The map that prints *"nothing located"* now shows **three** codes with
+no margin (D6 1.65x of 2x · SCATTER +0.12 of +0.15 · D3 exactly 1.00).
+
+★★**And the margin immediately proposed a bad change.** `1f767`'s only red is the E-drop at bar 42:
+the human goes 6.0 → 3.0 events/bar and we go 6.5 → 6.0, with the trigger at `0.9 x our own before`
+= 5.85. Read as a margin that is **1.03** — about one note over the line — which invites "delete a
+note and it ships". But the clause compares us to **our own** before, not to **his** after: we are
+2x his density after his drop and would go green at 5.8. So the obvious fix is to ask that we come
+down to where HE came down. Measured all three rules over the 19 bench rows:
+
+| E-drop rule | human / humanplus / humanexp rows | Kyle-labelled GOOD or PREFERRED rows | labelled DEFECT rows |
+|---|---|---|---|
+| now (`after >= 0.9 x our before`) | silent | silent | catches setA-1f767 |
+| his (`after >= 1.5 x his after`) | silent | **fires on 1f333-aplus (GOOD) and 1f333-before (PREFERRED)** | catches 3, misses setA-1f767 |
+| both (conjunction) | silent | silent | **catches none** |
+
+⇒**REFUTED, keep the current rule.** Holding a density well above the human's after his drop is
+something Kyle's own GOOD and PREFERRED maps do; it is not the defect. The conjunction catches
+nothing at all. ★The wider lesson: **a margin says how close a map is to a LINE, never how close it
+is to being right** — 1f767 is one note from green and 2x from the human. A small margin is an
+invitation to check the threshold, and that check is a bench run, not an edit.

@@ -335,7 +335,8 @@ q_vocals.codes = {"D4"}
 
 
 # ----------------------------------------------------------------------------- q_drops
-def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 1.0) -> list[tuple]:
+def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 1.0,
+            report: dict | None = None) -> list[tuple]:
     """D3 — the drop lands at the wrong time (or does not land).
 
     Drops come from the SONG: an E-jump is a bar whose mean energy rises ≥ `jump` over the
@@ -365,7 +366,7 @@ def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 
     def first(e, b):
         sel = np.where((bar == b) & e)[0]
         return None if not len(sel) else (sel[0] - np.where(bar == b)[0][0]) / sub
-    fires = []
+    fires, near = [], []
     for b in range(3, nb - 1):
         d = emean[b - 1] - emean[b - 2]
         before, after = rate(ev, b - n_bars, b), rate(ev, b, b + n_bars)
@@ -386,17 +387,37 @@ def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 
                 bad = ((not cross and step < 0.8 * hstep and after < 0.8 * hafter)
                        or (hf is not None and (f is None or f > hf + lag_beats)))
                 ref = f" (human ×{hstep:.1f}, first {'none' if hf is None else f'{hf:.2f}'})"
+                # margin: `bad` is a DISJUNCTION, so the closest clause decides; the
+                # under-step clause is itself a conjunction, so its closest is the MIN.
+                c_step = 0.0 if cross else min(0.8 * hstep / max(step, 1e-9),
+                                               0.8 * hafter / max(after, 1e-9))
+                c_lag = 0.0 if hf is None else (
+                    99.0 if f is None else f / max(hf + lag_beats, 1e-9))
+                near.append(max(c_step, c_lag))
             else:
                 bad = step < 1.2 or f is None or f > lag_beats
                 ref = ""
+                near.append(max(1.2 / max(step, 1e-9),
+                                99.0 if f is None else f / max(lag_beats, 1e-9)))
             if bad:
                 fires.append((b, f"E-jump {emean[b-2]:.2f}→{emean[b-1]:.2f}: events/bar {before:.1f}→{after:.1f}"
                                  f", first note {'none' if f is None else f'{f:.2f} beats'} after the bar line" + ref))
         elif d <= -jump and hev is not None:
             hb, ha = rate(hev, b - n_bars, b), rate(hev, b, b + n_bars)
+            if hb >= 2 and ha <= 0.6 * hb and before >= 2:
+                # his coming down is the precondition; only OUR staying up is the defect
+                near.append(after / max(0.9 * before, 1e-9))
             if hb >= 2 and ha <= 0.6 * hb and before >= 2 and after >= 0.9 * before:
                 fires.append((b, f"E-drop {emean[b-2]:.2f}→{emean[b-1]:.2f}: human {hb:.1f}→{ha:.1f} "
                                  f"events/bar, ours {before:.1f}→{after:.1f} -- did not come down"))
+    if report is not None:
+        if near:
+            worst = max(near)
+            report["D3"] = (f"closest of {len(near)} energy boundary(s) reached {worst:.2f} "
+                            f"of the trigger -- red at 1.00", 2.0 - worst)
+        else:
+            report["D3"] = ("no energy jump or drop in this song answers to a step "
+                            "-- nothing here to land late", 2.0)
     return merge(fires, "D3", arrs, 1)
 
 

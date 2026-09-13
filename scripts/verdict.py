@@ -317,7 +317,7 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
     # fire are shown a margin — for one that fired, the bars in its `why` are the story.
     try:
         _rep: dict = {}
-        for _q in (Q.q_events, Q.q_breathing, Q.q_scatter):
+        for _q in (Q.q_events, Q.q_breathing, Q.q_scatter, Q.q_drops):
             _q(arrs, report=_rep)
         for _code, (_txt, _room) in _rep.items():
             if _code in {h[0] for h in hits}:
