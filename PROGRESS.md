@@ -17883,3 +17883,40 @@ would be worse than none. The panel remains valid for the map-only codes, which 
 inside each map and need no alignment.
 
 ⇒Pivoted to the D3 branch that needs no pairing at all — see next entry.
+
+
+## 2026-09-13ag — ★★★ D3's absolute branch reddened 85 % of human maps; the step claim is REFUTED
+
+`scripts/exp_d3_absolute.py`: energy exactly as `score.py` computes it, **774 E-jumps across 120
+human maps**, read exactly as `q_drops` reads them. The no-human branch asked for a density step
+≥ 1.2x **and** a first note within 1 beat at every energy jump.
+
+**D3 is `ALWAYS_RED`, so one failing jump reds the whole map:**
+
+| rule | E-jumps failing | human maps RED |
+|---|---|---|
+| step ≥ 1.2 **or** lag > 1 (as shipped) | 53.7 % | **85.0 %** |
+| step ≥ 0.8 or lag > 1 | 12.1 % | 35.0 % |
+| lag > 1 only | 3.2 % | 12.5 % |
+| **lag > 2 only** | 1.2 % | **5.8 %** |
+
+★★★**The two halves are not the same kind of claim, and that is the finding.**
+- **WHEN to answer an energy jump is a human norm**: median lag **0.00 beats**, p75 0.25, p90 0.75.
+  A one-beat cap fails only 3.2 % of jumps.
+- **HOW MUCH to step the density is not**: the human step at a jump is p10 **0.80**, median
+  **1.19**, p90 **2.00** — a 2.5x spread with no norm in it. The 1.2 threshold sat exactly ON the
+  median, so by construction it fired on half of everything.
+
+⇒**The step claim is dropped** and the lag claim kept at `abs_lag_beats = 2.0` (1.2 % of jumps,
+5.8 % of maps). *"The map must get denser at a drop"* joins the list of absolute norms this project
+has had to retire — the **sixth**.
+
+⚠️**`bench.py` cannot see any of this.** Every bench row has a human map, so the no-human branch is
+never exercised there, and the songset is unchanged by this edit for the same reason (verified:
+bench not refuted, margins consistent, all four pages identical). ⇒**A branch the bench cannot
+reach needs its own control, and this one had none for months.** That is the same shape as
+2026-09-10's *"a clean bench row is evidence only if the row COULD HAVE FAILED"*, one level down:
+**a row that never runs the code is not evidence at all.**
+
+★The human-reference branch of D3 is untouched and remains the one the songset is judged on — it
+still carries the last red on `1f767` (bar 42) and one of `1f333`'s three.

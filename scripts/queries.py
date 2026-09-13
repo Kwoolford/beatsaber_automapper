@@ -407,7 +407,7 @@ q_vocals.codes = {"D4"}
 
 # ----------------------------------------------------------------------------- q_drops
 def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 1.0,
-            report: dict | None = None) -> list[tuple]:
+            abs_lag_beats: float = 2.0, report: dict | None = None) -> list[tuple]:
     """D3 — the drop lands at the wrong time (or does not land).
 
     Drops come from the SONG: an E-jump is a bar whose mean energy rises ≥ `jump` over the
@@ -466,10 +466,23 @@ def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 
                     99.0 if f is None else f / max(hf + lag_beats, 1e-9))
                 near.append(max(c_step, c_lag))
             else:
-                bad = step < 1.2 or f is None or f > lag_beats
+                # 🔴🔴**THE STEP HALF OF THIS RULE IS REFUTED** (2026-09-13ag). With no human to
+                # read, this asked for a density step >= 1.2x AND a first note within 1 beat at
+                # every E-jump. Measured over **774 E-jumps in 120 human maps** (energy exactly
+                # as `score.py` computes it): the step claim fails on **50 %** of human jumps,
+                # because 1.2 sits ON the human median (1.19; p10 0.80, p90 2.00) -- a 2.5x
+                # spread with no norm in it. D3 is ALWAYS_RED, so one failing jump reds a map:
+                # the old rule reddened **85 % of human maps**, and even a floor of 0.8 reddens
+                # 35 %. ⇒**"the map must get denser at a drop" is not a human norm and is
+                # dropped.** ★The LAG half IS one: humans answer at a median of **0.00 beats**
+                # (p75 0.25, p90 0.75), so `> 1 beat` fails only 3.2 % of jumps. Kept, at
+                # `abs_lag_beats` 2.0 -- 1.2 % of jumps and **5.8 % of human maps**, which is
+                # the band this project aims for. ⚠️`bench.py` cannot see any of this: every
+                # bench row HAS a human, so this branch is never exercised there. That is why
+                # it went unexamined.
+                bad = f is None or f > abs_lag_beats
                 ref = ""
-                near.append(max(1.2 / max(step, 1e-9),
-                                99.0 if f is None else f / max(lag_beats, 1e-9)))
+                near.append(99.0 if f is None else f / max(abs_lag_beats, 1e-9))
             if bad:
                 fires.append((b, f"E-jump {emean[b-2]:.2f}→{emean[b-1]:.2f}: events/bar {before:.1f}→{after:.1f}"
                                  f", first note {'none' if f is None else f'{f:.2f} beats'} after the bar line" + ref))

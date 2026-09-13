@@ -328,9 +328,16 @@ of the human gap distribution). Bench not refuted throughout.
 share a recording only **10 %** of the time within 0.1 s (median spread 1.53 s, p90 **46.5 s** —
 different CUTS, not encodings), so there is no shared time base for energy or stems. Per-pair
 cross-correlation would be needed and is not attempted. ⇒the panel is valid for map-only codes only.
-⬜Instead: **D3's ABSOLUTE branch** (`step >= 1.2` and first note within 1 beat, used whenever a
-build has no reference) needs no pairing and is testable on single human maps —
-`scripts/exp_d3_absolute.py`.
+✅**D3's ABSOLUTE branch DONE 2026-09-13ag — and half of it was refuted.** 774 E-jumps in 120
+human maps: the shipped rule reddened **85 % of human maps** (D3 is ALWAYS_RED, so one failing jump
+is enough). **WHEN to answer is a human norm** (median lag 0.00 beats, p90 0.75) but **HOW MUCH to
+step the density is not** (p10 0.80, median 1.19, p90 2.00 — the 1.2 threshold sat ON the median).
+⇒step claim **dropped**, lag kept at `abs_lag_beats = 2.0` (5.8 % of human maps). 6th absolute norm
+retired.
+⚠️**`bench.py` cannot reach this branch** (every row has a human) — which is why it went unexamined.
+★**A row that never runs the code is not evidence at all.**
+⬜**D4 is still untested** and has no equivalent no-human branch to fall back on; it needs vocal
+stems for a pair whose audio does not align. Left open.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**
