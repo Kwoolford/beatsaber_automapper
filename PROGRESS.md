@@ -7,6 +7,56 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12z — ★★★D6 and EMPTY are ONE defect: our per-song density does not track the human's
+
+Chasing D6 past the energy curve. Two reads, one refuted and one decisive.
+
+### 🔴 NOT RESOLVABLE — "he thins where the song is busy"
+Correlation between the share of available onsets played and how many were available, per block:
+ours **+0.111**, his **−0.104**, he thins more on **10 of 16** songs. A 0.215 mean difference with
+per-song signs running −0.669 to +0.581 and 10/16 barely above chance. **Not a finding.**
+
+### ★★★ CONFIRMED — the spread, not the mean
+| | mean | **sd** | range |
+|---|---|---|---|
+| our nps | 3.73 | **0.48** | 3.00–4.50 |
+| **his nps** | 3.61 | **1.00** | **1.30–5.16** |
+
+**We match his average density and reproduce half his spread.** And it predicts both reds directly:
+
+| | correlation with our/his nps ratio |
+|---|---|
+| **D6 hits** | **+0.751** |
+| **EMPTY hits** | **−0.474** |
+
+⇒**D6 and EMPTY are the same defect from two sides.** Where we out-play him we get D6 (1f9a0: his
+**1.30** nps against our 3.00, ratio 2.31, 4 D6 hits; 1f767: 2.75 vs 4.10, 3 hits). Where we
+under-play him we get EMPTY (1f335: his 4.28 vs our 3.35, **16** EMPTY hits; 1f3d7: 5.16 vs 3.65,
+7 hits). ★This is the **sixth** instance today of one shape: **we reproduce the corpus mean and not
+the per-song variation** — after walls (pooled duration), the pulse (a held interval), hand runs
+(the tail), the vocabulary (a per-map palette) and block echo.
+
+### ✅ And the song predicts his density, weakly but better than a constant
+Over **300 human Experts** with cached onsets, regressing his nps on song features only:
+
+| predictor | correlation with his nps |
+|---|---|
+| **bpm** | **+0.415** |
+| onset rate | +0.342 |
+| duration | −0.053 |
+
+**R² = 0.259**, residual sd **1.02** against his total sd of 1.18 — where the fixed `HUMAN_NPS 4.17`
+target leaves **1.18**. ⇒A song-side target cuts the density error by ~14 %: real, not a solution.
+★It also lands beside the backlogged ML finding that *crude audio features reach R² = 0.185* for
+per-song density — the same result on the agent path, slightly better, and here it is actionable
+because `autobuild --nps` and P0.1's density gate already exist.
+
+⬜**Next**: set `--nps` from the song rather than from the constant. **DoD**: across the 16, D6 and
+EMPTY hits both fall, and the sd of our nps rises toward his 1.00 without the map-wide median ratio
+leaving 0.9–1.1.
+
+---
+
 ## 2026-09-12y — We over-play the LOUD sections, not the quiet ones. And flattening the curve is a NULL.
 
 With FLOW settled and staged, the songset's remaining reds are `1f767`'s D6 (over-dense, 12 % of

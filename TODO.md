@@ -509,9 +509,24 @@ the loud parts**. ⚠️`1f767` (−0.310) is one of only 3 exceptions — a mis
 on 1f913 the correlation falls +0.688 → +0.506 across 0.60 → 0).
 🔴**NULL — it does not fix D6**: 1f767 3 → 2 hits, 1f333 unchanged at 2 and its EMPTY gets *worse*
 (4 → 5) at slope 0. Default stays 0.60.
-⬜**Next**: it is neither the energy shape nor the map-wide level, so read *which* blocks.
-**`1f9a0` is the extreme case** (median block ratio **2.05**, 12 blocks ≥ 1.8×) and a better subject
-than 1f767. **DoD**: name what the over-dense blocks have in common, on ≥10 songs, before building.
+★★★**2026-09-12z — SOLVED, and D6 + EMPTY ARE ONE DEFECT.** It is neither the energy shape nor the
+blocks: it is the **per-song density SPREAD**. Our nps sd is **0.48** against his **1.00** (means
+3.73 vs 3.61, ranges 3.00–4.50 vs **1.30–5.16**) — we match his average and reproduce half his
+variation. Correlation with the our/his nps ratio: **D6 +0.751**, **EMPTY −0.474**. Where we out-play
+him → D6 (1f9a0 his 1.30 vs our 3.00 = 4 hits; 1f767 2.75 vs 4.10 = 3). Where we under-play him →
+EMPTY (1f335 his 4.28 vs our 3.35 = **16 hits**; 1f3d7 5.16 vs 3.65 = 7).
+🔴NOT RESOLVABLE on the way: *"he thins where the song is busy"* — ours +0.111, his −0.104, signs
+running −0.669…+0.581, 10/16 barely above chance.
+★**Sixth instance today of one shape: we reproduce the corpus MEAN and not the per-song VARIATION**
+(walls · pulse · hand runs · vocabulary · block echo · now density).
+✅**And the song predicts his density**: over **300 human Experts**, R² = **0.259** from bpm
+(**+0.415**), onset rate (+0.342) and duration — residual sd **1.02** against the fixed
+`HUMAN_NPS 4.17` target's **1.18**, so a song-side target cuts the error ~14 %. ★Beside the
+backlogged ML note that crude audio features reach R² 0.185 for this, and actionable because
+`autobuild --nps` and P0.1's density gate already exist.
+⬜**NEXT: set `--nps` from the song, not the constant.** **DoD**: across the 16, D6 and EMPTY hits
+both fall, and the sd of our nps rises toward his 1.00 without the map-wide median ratio leaving
+0.9–1.1.
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
