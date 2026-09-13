@@ -165,6 +165,57 @@ def _gestures(arr: np.ndarray) -> dict:
 # ★How close to a threshold still counts as "no margin". 2.0 flags a code passing at up to
 # twice its red line; `1f8d6`'s 1-against-0.5 lands here (2026-09-13k).
 MARGIN_FACTOR = 2.0
+# ★And for a code whose threshold is a RATIO, "no margin" is being within this fraction of it.
+# One rule for every such code: the first pass used 20 % for ELEMENTS and 20 % for SCATTER by
+# eye and missed 1f913's echo gap at 0.118 against a 0.150 line by a thousandth.
+NEAR_FRAC = 0.25
+
+
+def code_margins(arrs: dict) -> dict[str, str]:
+    """How much room a passing code has, for the codes whose threshold is a scalar.
+
+    ★★**A code passing AT its threshold is not passing** (2026-09-13k). `1f8d6` read
+    `SHIP? YES` on **0.50x** wall coverage against a red below 0.50x and on exactly **1**
+    lead-hand passage against a red at zero; a 7 % wall-length change and one lost hand-run
+    turned both red, and an iteration went into a wrong hypothesis before anyone looked at
+    the margin. The ABSENCE block says it since 2026-09-13l; this adds the two QUERY codes
+    whose threshold is a single number.
+
+    ⚠️**Read-only on purpose.** It recomputes the ratios beside `queries.py` rather than
+    changing seven query signatures, so `bench.py`'s contract cannot move. The cost is that
+    the numbers live in two places -- acceptable only because these two are three lines each,
+    and the day a query reports its own margin this function should go.
+    ⬜The other codes (EMPTY · D1 · D6 · FLOW · D2 · D4 · D3 · BREATHING) fire on per-window
+    comparisons with no single scalar, so they need the query to report it.
+    """
+    out: dict[str, str] = {}
+    if not Q.has_human(arrs):
+        return out
+    try:
+        names = list(arrs["map_names"])
+        li = [names.index(f"wall_lane{i}") for i in range(4)]
+        cm = int((arrs["map"][:, li] > 0).any(axis=1).sum())
+        ch = int((arrs["human"][:, li] > 0).any(axis=1).sum())
+        if ch >= 50 and cm >= 0.5 * ch:
+            r = cm / max(ch, 1)
+            if r < 0.5 * MARGIN_FACTOR:
+                out["ELEMENTS"] = (f"wall coverage {r:.2f}x his — red below 0.50x"
+                                   + ("   ⚠️NO MARGIN" if r < 0.50 * (1 + NEAR_FRAC) else ""))
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        B = 4
+        mine = Q._echo(arrs["map"], arrs["bar"], B, 6)
+        his = Q._echo(arrs["human"], arrs["bar"], B, 6)
+        both = sorted(set(mine) & set(his))
+        if len(both) >= 8:
+            gap = (sum(his[b] for b in both) - sum(mine[b] for b in both)) / len(both)
+            if gap < 0.15:
+                out["SCATTER"] = (f"echo gap {gap:+.3f} — red at +0.150"
+                                  + ("   ⚠️NO MARGIN" if gap > 0.15 * (1 - NEAR_FRAC) else ""))
+    except Exception:  # noqa: BLE001
+        pass
+    return out
 
 
 def absence_lines(arrs: dict) -> list[dict]:
@@ -272,6 +323,7 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
         elif play["reset_warn"]:
             yellows += 1
     absence = absence_lines(arrs)
+    margins = code_margins(arrs)
     reds += sum(1 for a in absence if a["state"] == "🔴")
     yellows += sum(1 for a in absence if a["state"] == "🟡")
     tut_word, tut_diffs = tutor_line(sid, arrs)
@@ -287,7 +339,7 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
     return dict(map=str(src), song=sid, n_bars=n_bars, human=human, lines=lines, reds=reds,
                 difficulty=str(arrs.get("difficulty", "")),
                 human_difficulty=str(arrs.get("human_difficulty", "")),
-                yellows=yellows, ship=ship, playability=play, absence=absence, tutor=tut_word,
+                yellows=yellows, ship=ship, playability=play, absence=absence, margins=margins, tutor=tut_word,
                 tutor_diffs=tut_diffs, judge=jd, header=(built["header"] if built else []),
                 bench=(None if bench_res is None else
                        dict(line=bench_res["line"], bad=bench_res["bad"],
@@ -319,10 +371,14 @@ def render(v: dict) -> str:
                  f"over-dense, nor the density step at a drop. Measured: a top mapper's own "
                  f"Expert draws 7 EMPTY + 3 D4 + 1 D3 against his ExpertPlus")
     L.append("")
+    margins = v.get("margins") or {}
     for ln in v["lines"]:
         head = f"{ln['state']} {ln['code']:<8s} {ln['name']:<38s}"
         if ln["n"] == 0:
-            L.append(head)
+            # ★A code that passed still says how much room it had, where the threshold is a
+            # scalar — a pass at the line is a different fact from a pass (2026-09-13k/m).
+            m = margins.get(ln["code"])
+            L.append(head + (f" {m}" if m else ""))
             continue
         L.append(f"{head} {ln['n']} hit(s), {ln['share']:.0%} of bars — bars {ln['spans']}")
         L.append(f"{'':>13s}first: {ln['first']}")

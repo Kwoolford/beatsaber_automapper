@@ -7,6 +7,39 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13m — ★★Margins on the query codes too, and EVERY clean map turns out to be on an edge
+
+`verdict.py` now prints how much room a **passing** code has, for the two query codes whose
+threshold is a single number. It is computed **read-only beside `queries.py`** rather than by
+changing seven query signatures, so `bench.py`'s contract cannot move (bench re-run: not refuted).
+One rule for both: **no margin = within 25 % of the line** (`NEAR_FRAC`). My first pass set 20 % by
+eye for each and missed `1f913` by a thousandth, which is exactly the kind of hand-set threshold
+this session has been catching all day.
+
+| map | page says | codes with **no margin** |
+|---|---|---|
+| **1f8d6** | `SHIP? YES` | wall coverage **0.50×** (red below 0.50×) · lead-hand **1** |
+| **1f767** | `SHIP? YES` | wall coverage **0.61×** · lead-hand **1** |
+| **1f913** | `SHIP? YES — nothing located` | echo gap **+0.118** against a red at **+0.150** |
+| 1f333 | 4 red | — (wall coverage 0.65× is comfortable) |
+
+### ★★ This reframes the session's headline
+**Every map that reads clean is on an edge, and two are on two.** The flagship — the only map all
+day to print *"nothing located"* — sits at **79 % of the way** to a SCATTER red and the page never
+said so. "2 of 4 ship" has been the summary since this morning; the honest version is **2 of 4 ship,
+and all three non-failing maps are one small change from a red.**
+
+⇒It also explains a pattern that cost real time: levers kept appearing to "break" a map (the taper
+on 1f8d6, `--lead-in` on 1f8d6 before it). They were not breaking anything — **they were nudging
+maps that had no room**, and the page could not distinguish that from damage.
+
+⬜**Still not general**: EMPTY · D1 · D6 · FLOW · D2 · D4 · D3 · BREATHING fire on per-window
+comparisons with no single scalar, so a margin for them has to come from the query itself. ★When
+that lands, `code_margins()` should be deleted rather than extended — it duplicates thresholds that
+belong in `queries.py`, and it says so in its own docstring.
+
+---
+
 ## 2026-09-13l — The page now says when a code has NO MARGIN, and it found a second one immediately
 
 2026-09-13k cost an iteration on a wrong hypothesis because the page could not show that `1f8d6`

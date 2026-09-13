@@ -349,10 +349,25 @@ does not count toward the win rate). Default stays **off** until he plays it.
   ⇒**Read every "2 of 4 ship" in this session with that in mind**: two of those ships are one gesture
   from a red, so the songset is more fragile than the count suggests and any lever costing one
   hand-run will look like it "broke" a map.
-  ⬜**Not complete**: the marker covers the two ABSENCE codes only. **ELEMENTS was the other axis that
-  bit** (0.50× against a red below 0.50×) and the queries do not report their distance to threshold.
-  A general margin needs each query to return one. **DoD**: every code on the page can say how much
-  room it has.
+  ✅**2026-09-13m — THE QUERY CODES TOO** (ELEMENTS · SCATTER, the two with a scalar threshold),
+  computed **read-only beside `queries.py`** so `bench.py`'s contract cannot move (bench re-run: not
+  refuted). One rule: **no margin = within 25 % of the line** (`NEAR_FRAC`) — my first pass set 20 %
+  by eye per code and missed `1f913` by a thousandth.
+  ★★**EVERY map that reads clean is on an edge, and two are on two:**
+
+| map | page | codes with NO MARGIN |
+|---|---|---|
+| 1f8d6 | SHIP? YES | wall coverage **0.50×** · lead-hand **1** |
+| 1f767 | SHIP? YES | wall coverage **0.61×** · lead-hand **1** |
+| 1f913 | **nothing located** | echo gap **+0.118** vs a red at **+0.150** |
+| 1f333 | 4 red | — |
+
+⇒**Read "2 of 4 ship" as "2 of 4 ship, and all three non-failing maps are one small change from a
+red".** ★It also explains why levers kept appearing to *break* a map (the taper and `--lead-in`, both
+on 1f8d6): they were **nudging maps with no room**, and the page could not tell that from damage.
+  ⬜**Still not general**: EMPTY · D1 · D6 · FLOW · D2 · D4 · D3 · BREATHING fire on per-window
+  comparisons with no scalar, so their margin must come from the query. ★When that lands, **delete**
+  `code_margins()` rather than extend it — it duplicates thresholds that belong in `queries.py`.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything
