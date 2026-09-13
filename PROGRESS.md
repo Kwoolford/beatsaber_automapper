@@ -17326,3 +17326,56 @@ at all, and it disagreed with its own first headline within the hour.
 two maps that already ship. `1f767`'s human has the songset's WIDEST vocabulary (5.90 bits, 99th
 percentile) and we already beat his echo there, so if narrowing helps on that song too the
 mechanism is not "match the human's vocabulary".
+
+
+## 2026-09-13t — vocabulary is MAPPER STYLE, not song content: nothing about the song predicts it
+
+Added bpm, nps and mapped span to `scripts/exp_vocabulary.py` and asked the corpus (n=500) whether
+a human's figure-vocabulary entropy — the thing that explains 54 % of his block echo — can be
+predicted from anything a builder knows before it draws:
+
+| predictor of the human's vocabulary entropy | r² |
+|---|---|
+| note count | 0.039 |
+| nps | 0.034 |
+| mapped span (seconds) | 0.009 |
+| bpm | 0.004 |
+
+⇒🔴**Nothing. Weaker even than the density family's R² = 0.231**, which was enough to retire "tune
+the density". This is the same verdict wall coverage got (R² 0.089, *"mapper style, not song
+content"*) and it lands the same way: **the right vocabulary width for a song is not in the song.**
+
+★★**That settles what `--map-memory` IS.** It cannot be a per-song mechanism, because there is no
+per-song target to aim at. It is a **style lever with a default**, which is the category Kyle's UI
+is being built for. ⇒It also means SCATTER's last red cannot be closed by predicting this mapper's
+width, and any attempt to would be the `h_dist` failure again.
+
+### The songset check, and the thing it exposed
+
+3 seeds x {0, 4} on the two maps that already ship:
+
+| song | entropy | echo | idiom_coverage | SCATTER room |
+|---|---|---|---|---|
+| 1f767 | −0.487 RESOLVABLE | +0.041 RESOLVABLE | −0.016 inside 2sd | +0.277 RESOLVABLE |
+| 1f8d6 | −0.255 RESOLVABLE | +0.030 inside 2sd | −0.068 inside 2sd | +0.200 inside 2sd |
+
+★★★**`1f767` is the tell.** Its human has the songset's WIDEST vocabulary (5.90 bits, 99th
+percentile) and **we already echo far above him there** (room 3.15, his 0.41 against our 0.58) —
+and `--map-memory` pushes us *further* above him. A lever that improves the statistic on the song
+where we already exceed the human is **not tracking the target**; it is a monotone knob on a
+number. ⇒Consistent with the arithmetic caveat: a narrower vocabulary mechanically forces block
+overlap, on any map, regardless of what its human does. **Echo is therefore not safe to optimise
+toward** — only to keep inside the human spread.
+
+⚠️`1f8d6` loses one located hit in 2 of 3 seeds at m=4, and the code is **ELEMENTS** — walls, which
+`walls.py` places against the final note columns after `idiomize` moves them. That is a side effect
+of redrawing cells, not the vocabulary lever working. Not counted.
+
+### What a default would have to clear
+
+Our builds sit at the **95th-98th percentile of vocabulary entropy on every songset song**, which
+is indefensible whatever the mapper's style — an outlier on all four is not a style choice. `m=4`
+brings ~5.44 (about the 85th percentile), still high. The only axis blocking the flip is
+`idiom_coverage`, which at 3 seeds read +0.017 / −0.058 / −0.016 / −0.068 — **every one inside 2sd,
+which is "unresolved", not "unharmed"**, and it is the exact axis the palette flip forgot to
+measure. ⏱`scripts/price_memory_cov.sh` (6 seeds x {0, 4} x 1f333 + 1f8d6) is running to resolve it.

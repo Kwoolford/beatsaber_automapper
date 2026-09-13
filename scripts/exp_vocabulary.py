@@ -46,7 +46,7 @@ BLOCK_BARS = 4
 MIN_NOTES = 6            # both from queries._echo, so the number means the same thing
 
 
-def stats(notes) -> dict | None:
+def stats(notes, bpm: float = 0.0) -> dict | None:
     """Vocabulary + block echo for one map, read the way `q_scatter` reads them."""
     if len(notes) < 100:
         return None
@@ -68,7 +68,12 @@ def stats(notes) -> dict | None:
                           / max(sum(A.values()), sum(blocks[e].values())) for e in ks[:i]))
     if len(echoes) < 8:
         return None
-    return dict(notes=int(n), distinct=len(c),
+    beats = [float(x.beat) for x in notes]
+    span_beats = max(beats) - min(beats)
+    span_sec = span_beats * 60.0 / bpm if bpm > 0 else 0.0
+    return dict(bpm=float(bpm), span_sec=float(span_sec),
+                nps=float(len(notes) / span_sec) if span_sec > 0 else 0.0,
+                notes=int(n), distinct=len(c),
                 top8=float(v[:8].sum() / n), top20=float(v[:20].sum() / n),
                 entropy=float(-(p * np.log2(p)).sum()),
                 perplexity=float(2 ** -(p * np.log2(p)).sum()),
@@ -95,7 +100,7 @@ def main() -> int:
         if loaded is None:
             skipped += 1
             continue
-        s = stats(loaded[0])
+        s = stats(loaded[0], loaded[1])
         if s is None:
             skipped += 1
             continue
@@ -103,19 +108,23 @@ def main() -> int:
         rows.append(s)
 
     print(f"read {len(rows)} human maps ({skipped} skipped)\n")
-    keys = ("notes", "distinct", "top8", "top20", "entropy", "perplexity", "echo")
+    keys = ("bpm", "nps", "notes", "distinct", "top8", "top20", "entropy", "perplexity", "echo")
     print(f"{'metric':<11s} {'p10':>8s} {'median':>8s} {'p90':>8s} {'sd':>8s}")
     for k in keys:
         v = np.array([r[k] for r in rows], dtype=float)
         print(f"{k:<11s} {np.percentile(v, 10):8.3f} {np.median(v):8.3f} "
               f"{np.percentile(v, 90):8.3f} {v.std():8.3f}")
 
-    echo = np.array([r["echo"] for r in rows])
-    print(f"\ncorrelation with block echo (n={len(rows)}):")
-    for k in ("distinct", "top8", "top20", "entropy", "perplexity", "notes"):
-        v = np.array([r[k] for r in rows], dtype=float)
-        r = float(np.corrcoef(v, echo)[0, 1])
-        print(f"  {k:<11s} r = {r:+.3f}   r2 = {r * r:.3f}")
+    for target in ("echo", "entropy"):
+        t = np.array([r[target] for r in rows])
+        print(f"\ncorrelation with {target} (n={len(rows)}):")
+        for k in ("distinct", "top8", "top20", "entropy", "perplexity", "notes",
+                  "bpm", "nps", "span_sec"):
+            if k == target:
+                continue
+            v = np.array([r[k] for r in rows], dtype=float)
+            r = float(np.corrcoef(v, t)[0, 1])
+            print(f"  {k:<11s} r = {r:+.3f}   r2 = {r * r:.3f}")
 
     if a.out:
         pathlib.Path(a.out).write_text(json.dumps(rows, indent=1))
