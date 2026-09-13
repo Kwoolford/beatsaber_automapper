@@ -480,7 +480,7 @@ q_drops.codes = {"D3"}
 
 
 # ----------------------------------------------------------------------------- q_elements
-def q_elements(arrs: dict, human_min_walls: int = 5, cover_ratio: float = 0.5,
+def q_elements(arrs: dict, human_min_walls: int = 5, cover_ratio: float = 0.10,
                human_min_cover: int = 50, report: dict | None = None) -> list[tuple]:
     """ELEMENTS — no walls where the human built them, or far less WALL than he built.
 
@@ -503,6 +503,24 @@ def q_elements(arrs: dict, human_min_walls: int = 5, cover_ratio: float = 0.5,
     **SHAPE** claim and difficulty-fair -- the controls agree to within 3 % in both
     directions (1f333 463 vs 471, 1f8d6 645 vs 667), so it is asked across difficulties.
     Ours: 1f8d6 **0.20×**, 1f333 0.28×, 1f767 0.39×, 1f913 1.59× (silent).
+
+    🔴🔴**`cover_ratio` 0.50 → 0.10 on 2026-09-13ad — the DoD to revisit it was a HUMAN-vs-HUMAN
+    negative and the corpus has 119 of them.** Scanning all 5 373 zips by song title and artist
+    finds **172 songs mapped by 2+ DIFFERENT mappers**, 119 where both wall. Their coverage
+    ratios, as **285 ordered pairs** (A read against B, B walling at least `human_min_cover`):
+
+        p1 0.021 · p5 0.083 · p10 0.182 · p25 0.398 · **p50 0.903**
+
+    ⇒**the old 0.50× line fired on 34 % of human-vs-human pairs** — a third of the time a top
+    mapper's map, read against another top mapper's map of the same song, was called defective.
+    0.10 fires on **6.0 %**, 0.05 on 3.2 %; 0.10 is the round number nearest the project's usual
+    "essentially never on a human". ⚠️This makes the graded branch nearly silent on our own
+    builds (0.20-1.59×), which is the honest consequence: **wall coverage is mapper STYLE**
+    (R² 0.089 against the song) and style cannot support a defect claim against ONE reference.
+    ★The defect the branch was ADDED for was that our coverage was a **constant** (131-146 slots
+    on every song where humans cover 83-667 and vary) — and `walls.py`'s song-driven corridors
+    fixed that in the builder on 2026-09-12. A "does not vary with the song" claim needs its own
+    query; this one was never measuring it.
     """
     if not has_human(arrs):
         return []

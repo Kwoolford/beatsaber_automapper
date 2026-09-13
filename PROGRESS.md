@@ -17771,3 +17771,50 @@ must be read across seeds or not at all.
 (667 slots) and `walls.py` was deliberately left at ~0.5x of him rather than loosening the red
 (2026-09-12, DoD to revisit = a human-vs-human negative). What is new is that the page was
 reporting the outcome of a coin flip as a ship.
+
+
+## 2026-09-13ad — ★★★ the walls red fired on a THIRD of human pairs: `cover_ratio` 0.50 → 0.10
+
+The recorded DoD for revisiting the ELEMENTS coverage line was *"a human-vs-human negative"*, and
+until today the project had none — every human bench row is scored against **itself**, and the
+`humanplus-*` controls are one mapper's two difficulties. So: scanned all **5 373** corpus zips by
+song title and artist.
+
+- **5 117** distinct songs
+- **172** mapped by **2+ DIFFERENT mappers**, 119 where both build walls
+- **285 ordered pairs** (A read against B, B walling at least the query's `human_min_cover`)
+
+Their wall-coverage ratios:
+
+| p1 | p5 | p10 | p25 | p50 |
+|---|---|---|---|---|
+| 0.021 | 0.083 | 0.182 | 0.398 | **0.903** |
+
+⇒🔴🔴**The 0.50x red fired on 34 % of human-vs-human pairs.** A third of the time, a top mapper's
+map read against another top mapper's map of the same song was called defective. The median pair
+sits at 0.903 but the spread is enormous, because **wall coverage is mapper STYLE** — the same
+conclusion its R² of 0.089 against the song already implied, now with a negative to prove it.
+
+**Set to 0.10** (fires on 6.0 % of human pairs; 0.05 would give 3.2 %). Bench re-run: **not refuted,
+4 strong hits, 0 false fires**, and every margin still agrees with its query.
+
+⚠️**The honest consequence**: the graded branch is now nearly silent on our own builds (0.20-1.59x),
+so ELEMENTS is effectively back to being the zero-walls check. That is what the evidence supports.
+★**The defect it was ADDED for was never the level** — it was that our coverage was a **constant**
+(131-146 slots on every song, where humans span 83-667 and vary with the music) — and `walls.py`'s
+song-driven corridors fixed that in the builder on 2026-09-12. A *"does not vary with the song"*
+claim needs its own query; this branch was never measuring it.
+
+### It also removes the coin flip found this morning
+
+`1f8d6`'s ELEMENTS room over the same 15 independent builds:
+
+| | min | mean | passes |
+|---|---|---|---|
+| old line | 0.83 | 1.00 | **8/15** |
+| new line | 4.17 | 4.99 | **15/15** |
+
+⇒**`1f8d6` ships reliably now, and for a reason rather than a lucky seed.** Songset: `1f913`
+**SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (2 yellow) · `1f767` 1 red (D3) · `1f333`
+4 red. ★This is the **fifth** absolute norm this project has had to retire, and the first retired
+by a genuine human-vs-human panel rather than by a single counter-example.

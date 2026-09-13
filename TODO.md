@@ -102,9 +102,9 @@ left is the builder and Kyle's ear.
    corpus scale in one session. Take mechanism claims to ≥100 maps.
 
 **Where the songset stands** — best known build, `outputs/best_2026-09-13/`, staged zips untouched:
-`1f913` **SHIP? YES — nothing located** · `1f8d6` **COIN FLIP — 8 of 15 builds pass ELEMENTS**
-(room mean 1.00, sd 0.08) · `1f767` 1 red (D3) · `1f333` 4 red (EMPTY · D3 · BREATHING · SCATTER).
-🔴**Read "2 of 4 ship" as ONE reliable ship plus one coin flip** (2026-09-13ac).
+`1f913` **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (2 yellow, and now **15/15 builds
+pass ELEMENTS** after the walls line was refuted — 2026-09-13ad) · `1f767` 1 red (D3) · `1f333`
+4 red (EMPTY · D3 · BREATHING · SCATTER). **2 of 4 ship, both reliably.**
 **2 of 4 now ship from a FRESH autobuild**; the session began with all four failing their own gate.
 
 ❓**THE ONE DECISION THAT IS KYLE'S**: P4b's rule says a red map is not staged, because *"losing with a
@@ -284,9 +284,9 @@ at every default; that check is mandatory before reading any sweep.
 
 **Best known build** (2 of 4 ship): `autobuild <audio> --pulse --lead-bias 0.2 --lead-in
 --drop-orphan --carrier-bias 2.0` then `repeat.py`.
-`1f913` **SHIP? YES — nothing located** · `1f8d6` **COIN FLIP — 8 of 15 builds pass ELEMENTS**
-(room mean 1.00, sd 0.08) · `1f767` 1 red (D3) · `1f333` 4 red (EMPTY · D3 · BREATHING · SCATTER).
-🔴**Read "2 of 4 ship" as ONE reliable ship plus one coin flip** (2026-09-13ac).
+`1f913` **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (2 yellow, and now **15/15 builds
+pass ELEMENTS** after the walls line was refuted — 2026-09-13ad) · `1f767` 1 red (D3) · `1f333`
+4 red (EMPTY · D3 · BREATHING · SCATTER). **2 of 4 ship, both reliably.**
 
 ### ❓ THE ONE DECISION THAT IS KYLE'S — the FLOW fix is a TRADE
 **FLOW → 0 on all 16 songs, against 23-metric typicality worsening 0.511 → 0.533 (worse on 11/16).**
