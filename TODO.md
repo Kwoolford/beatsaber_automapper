@@ -293,6 +293,16 @@ and his ear is the arbiter — on that reading the fix is right, but it is his c
 ✅**Staged**: `1f335` is a blind A/B of the fix against its own baseline (`compete.py --against`,
 does not count toward the win rate). Default stays **off** until he plays it.
 
+### ✅ `REPEAT_P` 0.55 → 0.25 (2026-09-13aa) — improves every songset map, costs nothing
+It restricts the draw to a figure played in the last **6 notes**, and was **never wired into
+`autobuild`** (6th such knob), so every shipped map used 0.55 blind. It moves `idiom_local` almost
+linearly and leaves 4-bar echo FLAT ⇒ at 0.55 it was paying our weakest idiom axis for nothing.
+4 songs x 3 seeds: `idiom_local` **+0.020 to +0.043, outside 2se on all four**, echo not falling
+anywhere, coverage and judge p inside noise, no map gaining a red. `--repeat-p 0.55` reproduces the
+old builds byte-for-byte. ⇒**Check what a knob measurably MOVES, not what its pass is named after.**
+⬜Sweep 0.25 vs 0.00 on a build next — isolated, 0.00 reads `idiom_local` 0.900 against a human
+median 0.867, so it may overshoot; 0.25 was chosen because it lands on the median.
+
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**
   Split by the song's own section labels: on blocks inside a returning section we sit at **0.613

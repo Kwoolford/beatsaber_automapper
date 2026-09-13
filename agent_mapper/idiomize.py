@@ -81,7 +81,17 @@ VOCAB_DEPTH = 1000
 # is **a small vocabulary deployed deliberately**, and deliberate means a figure gets
 # repeated for a few beats before it changes. Sampling fresh every time is maximum
 # entropy, which docs/eval_suite_v2.md Finding 3 already established is NOT human.
-REPEAT_P = 0.55
+# ★★**0.55 → 0.25 on 2026-09-13aa, the first time this was ever measured on a BUILD.** It was
+# reachable only from `idiomize.py`'s own CLI, so every map this project shipped used 0.55
+# unexamined. It controls `idiom_local` (distinct transitions per 16-transition window) almost
+# linearly -- isolated, 6 seeds: **0.900 / 0.865 / 0.812 / 0.755** at p = 0 / .25 / .55 / .80 --
+# and leaves 4-bar block echo FLAT (0.454 / 0.450 / 0.441 / 0.436), which is the defect it was
+# written for. ⇒at 0.55 it was paying the axis this repo calls *"globally right, locally wrong"*
+# and buying nothing. Human median `idiom_local` is **0.867**; 0.25 lands on it.
+# Full builds, 4 songset songs x 3 seeds: `idiom_local` **+0.020 to +0.043, outside 2se on all
+# four**, with echo not falling anywhere (+0.000 to +0.023), `idiom_coverage` ±0.02 and judge p
+# ±0.04 (both inside noise), and no map gaining a red.
+REPEAT_P = 0.25
 REPEAT_WINDOW = 6
 
 # ★How strongly a palette landing is preferred, as a WEIGHT on the frequency-weighted

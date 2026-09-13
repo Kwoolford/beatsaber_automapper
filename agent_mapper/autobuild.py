@@ -414,6 +414,10 @@ def main() -> int:
                          "on the held-out songs it cuts the density error from sd 1.67 to "
                          "1.36 (corr +0.689). See predict_nps()")
     ap.add_argument("--no-idiomize", action="store_true")
+    ap.add_argument("--repeat-p", type=float, default=None, dest="repeat_p",
+                    help="chance idiomize restricts the draw to a figure the hand played in "
+                         "the last 6 notes (idiomize.REPEAT_P, default 0.55). Controls "
+                         "idiom_local; measured not to move 4-bar block echo")
     ap.add_argument("--allow-resets", action="store_true",
                     help="let idiomize place same-parity repeats; fix_parity removes them "
                          "anyway, so this only hands the direction choice to a "
@@ -652,6 +656,14 @@ def main() -> int:
         # exists to move, and the one the palette sweep forgot to measure.
         kw.setdefault("memory_boost", a.map_memory)
         kw.setdefault("strict_parity", not a.allow_resets)
+        # ★`repeat_p` had never been reachable from a full build until 2026-09-13aa, so every
+        # map this project has shipped used 0.55 unexamined. Isolated sweep, 6 seeds: it moves
+        # `idiom_local` almost linearly (0.900 / 0.865 / 0.812 / 0.755 at p = 0 / .25 / .55 /
+        # .80) and leaves 4-bar block echo FLAT (0.454 / 0.450 / 0.441 / 0.436) -- i.e. it
+        # costs the axis this repo already calls our weakest idiom axis and buys nothing on
+        # the defect it was written for. The human median `idiom_local` is 0.867.
+        if a.repeat_p is not None:
+            kw["repeat_p"] = a.repeat_p
         n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
 

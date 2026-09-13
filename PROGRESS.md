@@ -17652,3 +17652,53 @@ criterion any future mechanism has to meet, which the percentile reading could n
 distribution (yesterday's reading) and comparing it to humans *at our own echo* happen to agree
 here — but only by luck, because the conditional reference barely moves until echo 0.67. Against a
 pooled marginal this project has been wrong repeatedly; the conditional version is the one to keep.
+
+
+## 2026-09-13aa — ✅ `REPEAT_P` 0.55 → 0.25: the first thing today that IMPROVES every songset map
+
+Chasing the exchange rate produced an anomaly worth more than the lever it came from: **we carry
+roughly twice the human's distinct TRANSITION vocabulary and still have LOWER local variety.**
+Over 300 human Experts the vocabulary is not shaped differently from ours — transitions per landing
+median **3.26** (p10 2.49, p90 4.10) against our **2.78-2.96** — so the defect is not what we know,
+it is how we distribute it in time.
+
+**The cause was a knob at a value nothing had ever tested.** `REPEAT_P` restricts the draw to a
+figure the hand played in the last **6 notes**, 55 % of the time. It was reachable only from
+`idiomize.py`'s own CLI — **never wired into `autobuild`** — so every map this project has shipped
+used 0.55 blind. That is the **sixth** documented-but-unreachable knob found here.
+
+Isolated, 6 seeds (`_reparity` applied, so these are shippable maps):
+
+| `repeat_p` | `idiom_local` | 4-bar block echo |
+|---|---|---|
+| 0.00 | 0.900 | 0.454 |
+| 0.25 | **0.865** | 0.450 |
+| 0.55 (shipped) | 0.812 | 0.441 |
+| 0.80 | 0.755 | 0.436 |
+
+⇒**Almost linear on `idiom_local`, FLAT on echo** — and echo is fractionally *lower* with more local
+repetition, so at 0.55 the knob was paying the axis this repo already calls *"globally right,
+locally wrong"* and buying nothing on the defect it was written for. Human median `idiom_local`
+is **0.867**, which 0.25 lands on.
+
+Full builds, 4 songset songs x 3 seeds, `0.55 → 0.25`:
+
+| song | `idiom_local` | echo | `idiom_coverage` | judge p | located hits |
+|---|---|---|---|---|---|
+| 1f913 | 0.835 → **0.871** * | +0.000 | −0.004 | +0.038 | 0,0,0 → 0,0,0 |
+| 1f8d6 | 0.848 → **0.891** * | +0.014 | +0.012 | −0.021 | 3,3,2 → 2,2,3 |
+| 1f767 | 0.891 → **0.911** * | +0.023 | +0.019 | +0.004 | 6,6,6 → 6,6,6 |
+| 1f333 | 0.849 → **0.893** * | +0.007 * | −0.007 | +0.022 | 12,12,12 → 12,12,12 |
+
+(* outside 2se.) **`idiom_local` rises on all four and is the only axis that moves; echo does not
+fall anywhere; coverage and typicality stay inside noise; no map gains a red.** All four now sit at
+or just above the human median instead of below it on three of four.
+
+✅**DoD MET, default flipped.** `--repeat-p 0.55` reproduces the old builds **byte-for-byte**, and
+the knob is now exposed on `autobuild` so it can never again be swept only as a sub-pass.
+
+★**Why this was invisible for so long**: the knob lives in the pass whose *name* is about the echo
+defect, and its docstring argues for it in echo terms (*"a figure gets repeated for a few beats"*).
+Its window is **6 notes** where the defect is **4 bars**, so it was never doing that job — but
+nobody measured it against the axis it actually moves, because it could not be reached from a build.
+⇒**Check what a knob measurably moves, not what the pass it lives in is named after.**
