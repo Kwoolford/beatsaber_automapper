@@ -324,8 +324,13 @@ that share is under ~5-10 %; `bench.py score queries:q_all` stays not refuted af
 **EMPTY 0.60 → 0.30** (red on 25.9 % of human pairs → 8.4 %; pinned from below by Kyle's labelled
 window at 0.28) · **D6 2.0x kept** (8.6 %) · **SCATTER +0.15 kept** (7.1 %, near the 91st percentile
 of the human gap distribution). Bench not refuted throughout.
-⬜**Left: D3 and D4**, which need each pair's AUDIO (energy boundaries, vocal stems). Both compare
-us to ONE reference human and neither has been tested this way.
+🔴**D3 and D4 CANNOT be tested on the panel** (2026-09-13af): two mappers' uploads of one song
+share a recording only **10 %** of the time within 0.1 s (median spread 1.53 s, p90 **46.5 s** —
+different CUTS, not encodings), so there is no shared time base for energy or stems. Per-pair
+cross-correlation would be needed and is not attempted. ⇒the panel is valid for map-only codes only.
+⬜Instead: **D3's ABSOLUTE branch** (`step >= 1.2` and first note within 1 beat, used whenever a
+build has no reference) needs no pairing and is testable on single human maps —
+`scripts/exp_d3_absolute.py`.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**

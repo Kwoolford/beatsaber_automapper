@@ -17863,3 +17863,23 @@ and prints fewer spans than 0.35. **Count raw windows, not printed spans.**
 not change** — a threshold did, and on this evidence `1f333`'s EMPTY was more likely a style
 difference than a defect. Standing: `1f913` ships · `1f8d6` ships · `1f767` 1 red (D3) · `1f333`
 3 red (D3 · BREATHING · SCATTER). **SCATTER is again the last red that is genuinely ours.**
+
+
+## 2026-09-13af — the panel CANNOT carry D3 and D4: the two uploads are different cuts of the song
+
+D3 and D4 are **song-relative** (energy boundaries, vocal stems), so testing them on the
+human-vs-human panel needs the pair's two audio files to share a time base. Measured over 60 panel
+songs, the duration spread between two mappers' uploads of the "same" song:
+
+| within 0.1 s | within 1 s | within 5 s | p50 | p90 |
+|---|---|---|---|---|
+| **10 %** | 38 % | 77 % | 1.53 s | 46.5 s |
+
+⇒**Only a tenth of pairs share a recording**, the median pair differs by a second and a half, and a
+tenth by **45 seconds or more** — different edits of the track, not different encodings. There is no
+shared time base to align energy on, and aligning per pair by cross-correlation is real work with
+its own failure modes. 🔴**Recorded as a limit of the panel, not attempted**: a wrong number here
+would be worse than none. The panel remains valid for the map-only codes, which compare structure
+inside each map and need no alignment.
+
+⇒Pivoted to the D3 branch that needs no pairing at all — see next entry.
