@@ -7,6 +7,46 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13k — 🔴The ordering hypothesis is REFUTED. `1f8d6` was passing with zero margin.
+
+2026-09-13j guessed the taper's cost on `1f8d6` was an **ordering** problem — notes moved into the
+landing bars leaving fewer slots for `walls.py`. **Wrong, and checkable in one command:**
+
+| | shipping build | with taper |
+|---|---|---|
+| notes | 1043 | 1022 |
+| **wall count** | **89** | **89** — identical |
+| wall beats | 80.9 | **75.2** (−7 %) |
+| lead-hand passages | **1** | **0** |
+
+**No wall was blocked.** `walls.py` placed all 89 either way — it already runs last, after
+`idiomize`, so the ordering was never wrong. What changed is wall **length**: moving notes into the
+landing bars shortened the note-free gaps a corridor is cut from, so the same 89 walls cover
+7 % less.
+
+### ★★ What actually happened: the map had no margin
+`1f8d6` was passing **at the exact threshold of both checks**:
+- ELEMENTS reds below **0.5×** the human's wall coverage — it sat at 0.50× all day, and 7 % less
+  wall makes **0.46×**.
+- ABSENCE reds lead-hand passages at *effectively zero* — it had exactly **1**, and lost it.
+
+⇒**The taper did not damage this map. This map had zero margin on two axes and any perturbation
+tips it.** Both reds are one-unit crossings, not degradations.
+
+★**A reading rule worth keeping: a map passing AT a threshold is not really passing.** `1f8d6`
+reads `SHIP? YES` on a page where two codes are one wall-beat and one hand-run from red. That is
+worth knowing before treating its ship as evidence about a lever — and it also means the
+**5 → 4 total-red count in 2026-09-13j understates the taper**, because two of the four are this
+map's knife-edge.
+⚠️It compounds the already-recorded finding that wall coverage has **R² = 0.089** against the song
+(2026-09-12): a 0.5× threshold on a mapper-style axis, applied to a map sitting exactly on it.
+
+⬜**Next**: re-examine whether `1f8d6` ships on merit at all, and consider whether the verdict page
+should mark a code that passes within ~10 % of its threshold — a "margin" column would have made
+this visible immediately instead of costing an iteration on a wrong hypothesis.
+
+---
+
 ## 2026-09-13j — The taper lands where he floods: D3 −36 %, and a per-song trade
 
 2026-09-13i's taper moved budget into the **next section's average** and the after-ratio stalled at

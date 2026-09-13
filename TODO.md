@@ -329,10 +329,21 @@ does not count toward the win rate). Default stays **off** until he plays it.
   🔴`1f8d6` **ships → 2 red** (ELEMENTS + lead-hand). **Total reds 5 → 4, ship count flat at 2/4.**
   ⇒**Default stays 0** — a lever that takes a map out of shipping does not go on by default. But it
   is the closest any single lever has come.
-  ⬜**The 1f8d6 regression is an ORDERING problem, not a density one**: moving notes into the landing
-  bars leaves fewer slots surviving the **wall** collision check — the same coupling `--lead-in` hit.
-  **Try running `walls.py` AFTER the taper**, and re-check. **DoD**: 1f8d6 ships again with D3 still
-  at 7.
+  🔴**2026-09-13k — THE ORDERING HYPOTHESIS IS REFUTED.** Wall **count is identical** (89 both);
+  `walls.py` already runs last and placed every one. What changed is wall **length** — moving notes
+  into the landing bars shortens the note-free gap a corridor is cut from, so the same 89 walls
+  cover 7 % less (80.9 → 75.2 beats).
+  ★★**`1f8d6` was passing with ZERO MARGIN on two axes**: ELEMENTS reds below 0.5× his wall coverage
+  and it sat at **0.50×** all day → 0.46×; ABSENCE reds lead-hand at effectively zero and it had
+  exactly **1** → 0. **Both reds are one-unit crossings, not degradations.** The taper did not damage
+  this map.
+  ★**READING RULE: a map passing AT a threshold is not really passing.** `1f8d6` reads `SHIP? YES`
+  while two codes sit one wall-beat and one hand-run from red — so the 5→4 red count **understates**
+  the taper. ⚠️Compounds wall coverage having **R² 0.089** against the song: a 0.5× threshold on a
+  mapper-style axis, applied to a map sitting exactly on it.
+  ⬜**Next**: does `1f8d6` ship on merit at all? And should the verdict page show a **margin** column
+  for any code passing within ~10 % of its threshold — it would have made this visible instead of
+  costing an iteration on a wrong hypothesis.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything
