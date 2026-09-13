@@ -7,6 +7,39 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12w — `compete --against`: a blind A/B of a CHANGE. And I destroyed a staged pair doing it.
+
+### 🔴🔴 The mistake first
+`compete.py stage 1f913 --restage` **deleted the 2026-09-10 key entry for that pair, including its
+pre-registered prediction and its cross-difficulty caveat.** `--restage`'s whole job is to pop the
+record and re-blind, which is correct for its intended use and wrong for what I did with it.
+⚠️`for_review/` is **not tracked by git**, so there was no version to recover from — the only reason
+anything survived is that `PROGRESS.md 2026-09-10` had written the prediction down in prose.
+✅Recovered: the pair is re-staged and the prediction and caveat are back in the key, **explicitly
+marked `RECONSTRUCTED`** — the wording is from the record, the letters are freshly randomised, so it
+is blind but it is no longer the same physical staging. The other three pairs were untouched.
+★★**Two rules out of this**: (1) **`--restage` is destructive and there is no undo** — a staged pair
+carries a prediction written before he plays, which is the whole point of pre-registering it;
+(2) 🔴**`for_review/compete/.key.json` is the only copy of every prediction in this project and it is
+not in git.** ⬜Back it up, or track it.
+
+### ✅ The feature it was for
+`compete.py stage <sid> --against <zip> --against-label BASELINE` puts **two of our own maps** in a
+blind pair instead of ours-vs-human. This project spent an entire session deciding builder changes
+on metrics alone — the palette, the pulse, the hand runs, the FLOW fix — with **no way to put a
+change in front of his ear**. It is the same instrument pointed at a different question: not *"is it
+as good as the best map of this song"* but *"is this change an improvement"*.
+⚠️It does **not** count toward the win rate (`table` reads role `HUMAN`); the ledger records both
+arms by name.
+
+**Staged now: five pairs.** The four standing songs against their humans, plus **`1f335`: the FLOW
+fix against its own baseline** — chosen because it is the strongest case in the corpus (16 FLOW hits
+at baseline, the most of 16 songs) and because it is *not* one of the four, so nothing pre-registered
+is disturbed. That pair is how 2026-09-12v's trade gets settled: FLOW to zero against 0.022 of
+typicality, decided by the only instrument that can.
+
+---
+
 ## 2026-09-12v — The FLOW fix costs TYPICALITY across the whole table. It is Kyle's call, not mine.
 
 The last DoD condition, measured properly at last. `mapjudge --top 30` prints all **23** metrics, so

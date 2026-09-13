@@ -242,7 +242,8 @@ def _page(ours: pathlib.Path) -> dict | None:
 
 
 def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None,
-              with_page: bool = True, restage: bool = False) -> int:
+              with_page: bool = True, restage: bool = False,
+              against: pathlib.Path | None = None, against_label: str = "OTHER") -> int:
     key = _key()
     if sid in key and key[sid].get("status") == "staged":
         if not restage:
@@ -262,9 +263,17 @@ def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None
         print(f"{sid}: re-blinding (the previous pair was never judged)")
         key.pop(sid, None)
         _save_key(key)
-    human = HUMAN / f"{sid}.zip"
+    # ★★`--against` makes the OTHER side one of ours instead of the human (2026-09-12w).
+    # The tool was built to answer *"is it as good as the best map of this song"*, and that is
+    # still its headline -- but this project spent a whole session deciding builder changes on
+    # metrics alone, with no way to put a CHANGE in front of his ear. A blind A/B of a build
+    # flag against its own baseline is the same instrument pointed at a different question:
+    # *"is this change an improvement"*. ⚠️It does NOT count toward the win rate (`table`
+    # reads role HUMAN); it is a separate ledger entry whose roles name the two arms.
+    human = pathlib.Path(against) if against else HUMAN / f"{sid}.zip"
     if not human.exists():
-        print(f"{sid}: no human map at {_rel(human)} — nothing to compete with")
+        print(f"{sid}: no {'reference' if against else 'human'} map at {_rel(human)} — "
+              f"nothing to compete with")
         return 1
     ours = ours or best_of_ours(sid)
     if ours is None:
@@ -277,9 +286,9 @@ def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None
               f"(scripts/verdict.py), or --force to stage it anyway")
         return 1
     rng = random.Random(seed)
-    roles = ["OURS", "HUMAN"]
+    roles = ["OURS", (against_label if against else "HUMAN")]
     rng.shuffle(roles)
-    srcs = {"OURS": ours, "HUMAN": human}
+    srcs = {"OURS": ours, roles[0] if roles[0] != "OURS" else roles[1]: human}
     rec = {"status": "staged", "staged": _dt.date.today().isoformat(), "blind": {},
            "page": page}
     # ★Both sides fly the HUMAN's difficulty label, NJS and offset (see blind_zip): ours
@@ -337,7 +346,9 @@ def cmd_stage(a) -> int:
     for sid in sids:
         ours = pathlib.Path(a.ours) if a.ours and not a.songset else None
         rc |= stage_one(sid, ours, a.force, a.seed, with_page=not a.no_page,
-                        restage=a.restage)
+                        restage=a.restage,
+                        against=pathlib.Path(a.against) if a.against else None,
+                        against_label=a.against_label)
     return rc
 
 
@@ -508,6 +519,12 @@ def main() -> int:
                    help="re-blind a pair that is already staged but not yet judged "
                         "(use when our map changed after staging)")
     p.add_argument("--seed", type=int, default=None, help="shuffle seed (tests)")
+    p.add_argument("--against", default=None,
+                   help="compare against THIS map instead of the human -- a blind A/B of a "
+                        "builder change against its own baseline. Does not count toward the "
+                        "win rate; the ledger records both arms by name")
+    p.add_argument("--against-label", default="OTHER",
+                   help="what the --against side is, for the key (e.g. BASELINE)")
     p.add_argument("--no-page", action="store_true", help="skip the verdict page (faster)")
     p.set_defaults(fn=cmd_stage)
 
