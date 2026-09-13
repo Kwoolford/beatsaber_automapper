@@ -623,10 +623,18 @@ ranked = sorted(..., key=lambda kv: -kv[1])     # by EVENT COUNT — the order d
 A steady bass or piano line always out-counts a sung line. ★**Fifth documented-but-unwired thing
 today** after `width`, `travel_target` (×2) and `PERIODS`. **This codebase's comments describe
 intent the code does not implement, and only a measurement catches it.**
-⬜**THE FIX**: let the ranking honour a preference — the vocal wins when present and plausible, not
-when busiest. ⚠️Not a blanket "always vocals": songs without one must still rank, and `q_vocals`
-only fires where **the human answers ≥60 %** of vocal slots, so the target is songs where the voice
-IS the lead. **DoD**: D4's 10 songs fall, EMPTY/D6 do not rise (same density family), notes ±5 %.
+✅**2026-09-13g — WIRED: `autobuild --carrier-bias`** multiplies the vocal classes' counts *for
+ranking only*, so `MELODIC`'s documented preference finally decides something. Default **1.0** = old
+behaviour, control byte-identical, and it is **graded not blanket** (1fa32 0/6 → 5/6 → 6/6 sections
+on vocals; 1f8d6 saturates at 5/7).
+**Over 12 songs**: **D4 hits 29 → 25 → 23** (−21 % at bias 4.0), `1f9f0` clears outright (2→0),
+`1fa32` 6→3, `1f65d` 5→3. EMPTY 40→40, D6 7→7, **FLOW 0 throughout**; notes +1.6 %, 2 outside ±5 %.
+🔴**But D4's SONG COUNT does not move: 10 → 10.** Three songs get worse (`1f8ce` 2→3, `1f333` 2→3,
+`1f767` 0→1) and the rest keep a hit. ⇒**Default stays 1.0. A partial fix**: the root cause was
+right and the lever does exactly what the diagnosis predicted, without clearing a single red.
+⬜**What is left**: the remaining D4 hits are in sections where the vocal is **already** the carrier,
+so the question is no longer *which* stem we follow but **how much of it we take** — which is the
+density family, at its measured ceiling (R² 0.231).
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets

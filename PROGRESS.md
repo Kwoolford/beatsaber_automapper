@@ -7,6 +7,47 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13g — The carrier preference is wired at last. D4 −21 %, and no song clears.
+
+`autobuild --carrier-bias` multiplies the vocal classes' counts **for ranking only**, so
+`MELODIC`'s documented preference finally decides something. Default **1.0** = the old behaviour;
+control arm rebuilds byte-identical. It is graded, not a blanket override — sections still pick
+another stem where one genuinely dominates:
+
+| song | sections on vocals: bias 1.0 → 2.0 → 4.0 |
+|---|---|
+| 1fa32 | **0/6** → 5/6 → 6/6 |
+| 1f65d | **0/7** → 4/7 → 6/7 |
+| 1f335 | 3/25 → 8/25 → 12/25 |
+| 1f8d6 | 3/7 → 5/7 → 5/7 (saturates) |
+
+### The result, over 12 songs
+| | baseline | bias 2.0 | bias 4.0 |
+|---|---|---|---|
+| **D4 hits** | **29** | 25 | **23** |
+| D4 songs | 10 | 10 | **10** |
+| EMPTY hits | 40 | 41 | 40 |
+| D6 hits | 7 | 7 | 7 |
+| FLOW hits | 0 | 0 | 0 |
+| notes | — | +1.3 % (1 outside ±5 %) | +1.6 % (2 outside) |
+
+✅**D4 falls 21 %** and `1f9f0` clears outright (2 → 0). `1fa32` 6 → 3, `1f65d` 5 → 3, `1f7f1` 2 → 1.
+🔴**No net change in songs affected** — 10 before, 10 after — because three songs get *worse*
+(`1f8ce` 2 → 3, `1f333` 2 → 3, `1f767` 0 → 1) and the rest keep at least one hit. EMPTY and D6 do
+not move, so the density family is untouched; FLOW stays at zero.
+
+⇒**Default stays 1.0.** The root cause was right, the lever is real and does exactly what the
+diagnosis predicted, and it is a **partial fix**: it moves the metric without clearing a single
+song's red, and it regresses three. ⬜The remaining D4 hits are in sections where the vocal is
+*already* the carrier — so the next question is not *which* stem we follow but **how much of it we
+take** once we do. That is the density family again, and it is at its measured ceiling.
+
+★**The honest shape of today**: root causes found for FLOW, for the density family and for D4; one
+of the three actually fixed. The other two are bounded by things that are now named rather than
+guessed at.
+
+---
+
 ## 2026-09-13f — ★★★D4's ROOT CAUSE: the carrier is picked by event COUNT, so the vocals never win
 
 Four candidates tested and killed this iteration, then the answer.

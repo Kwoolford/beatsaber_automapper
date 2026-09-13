@@ -99,7 +99,8 @@ def predict_nps(audio: pathlib.Path) -> float | None:
     return max(2.0, min(6.0, c0 + c1 * (len(ons) / dur) + c2 * (bpm / 100.0)))
 
 
-def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60) -> list[dict]:
+def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60,
+         carrier_bias: float = 1.0) -> list[dict]:
     """Per section: the carrier class, the backbone, and each one's accent budget."""
     import brief as B
     import events as E
@@ -157,11 +158,24 @@ def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60) -> list[di
         # roughly the same difficulty. Kyle: *"the objective is to be able to map
         # whatever difficulty we want."* Rank the classes and take them until the
         # section's melodic share can actually be paid for.
+        # 🔴🔴**`MELODIC`'s ORDER DECIDED NOTHING UNTIL 2026-09-13g.** Its comment says the
+        # stems are listed *"in the order they are preferred as a section's carrier"* and the
+        # sort below is purely by EVENT COUNT, so the order only ever broke exact ties. A
+        # steady bass or piano line always out-counts a sung one -- vocals are sparse by
+        # nature -- and the measured result was that on **5 of the 10 songs D4 fires on, `0 %`
+        # of sections follow the vocal stem at all** (`1fa32`: all six sections on
+        # `bass/low-stab`, on a song with a full lyric lane). That is D4's root cause.
+        # ⇒`carrier_bias` multiplies the VOCAL classes' counts for ranking only. ⚠️It must not
+        # be a blanket "always vocals": on an instrumental the vocal stem has few or no events
+        # (and `classes_in` already returns {} when its trust check failed), so it still loses.
+        # 1.0 = the pre-2026-09-13 behaviour exactly.
+        def _rank_n(stem: str, n: int) -> float:
+            return n * (carrier_bias if stem == "vocals" else 1.0)
         ranked = sorted(
             ((f"{stem}/{cls}", n)
              for stem in MELODIC
              for cls, n in classes_in(stem, b0, b1).items()),
-            key=lambda kv: -kv[1],
+            key=lambda kv: -_rank_n(kv[0].split("/")[0], kv[1]),
         )
         carrier, n_carrier = (ranked[0] if ranked else (None, 0))
         carriers = [c for c, _ in ranked[:1]]
@@ -384,6 +398,11 @@ def main() -> int:
                     help="the default two-pass path (drums, then carrier)")
     ap.set_defaults(pulse=False)
     ap.add_argument("--phrase-bars", type=int, default=4)
+    ap.add_argument("--carrier-bias", type=float, default=1.0,
+                    help="multiply the VOCAL classes' event counts when ranking a section's "
+                         "carrier (1.0 = off). MELODIC's documented preference order decided "
+                         "nothing before this: the sort was pure event count, and on 5 of the "
+                         "10 D4 songs NO section followed the vocal stem at all")
     ap.add_argument("--energy-slope", type=float, default=0.60,
                     help="how hard a section's energy scales its note budget (0 = flat). "
                          "0.60 is shipped; measured 2026-09-12y, our per-block density tracks "
@@ -485,7 +504,7 @@ def main() -> int:
         a.walls = a.arcs = a.chains = 0
 
     print(f"=== SEE: {a.audio.name}")
-    rows = plan(a.audio, nps, energy_slope=a.energy_slope)
+    rows = plan(a.audio, nps, energy_slope=a.energy_slope, carrier_bias=a.carrier_bias)
     print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
           f"(events -> accent pct)")
     print("-" * 78)
