@@ -181,12 +181,11 @@ def code_margins(arrs: dict) -> dict[str, str]:
     the margin. The ABSENCE block says it since 2026-09-13l; this adds the two QUERY codes
     whose threshold is a single number.
 
-    ⚠️**Read-only on purpose.** It recomputes the ratios beside `queries.py` rather than
-    changing seven query signatures, so `bench.py`'s contract cannot move. The cost is that
-    the numbers live in two places -- acceptable only because these two are three lines each,
-    and the day a query reports its own margin this function should go.
-    ⬜The other codes (EMPTY · D1 · D6 · FLOW · D2 · D4 · D3 · BREATHING) fire on per-window
-    comparisons with no single scalar, so they need the query to report it.
+    ⚠️**Read-only, and now down to its last code.** EMPTY · D1 · D6 (`q_events`), BREATHING
+    and SCATTER report their own margin through the optional write-only `report=` parameter,
+    which leaves `bench.py`'s contract untouched (the queries are byte-identical without it).
+    ⬜Only ELEMENTS is still recomputed here; the wall-coverage ratio has no query of its own
+    to report it. FLOW · D2 · D4 · D3 are next, and this function goes when they land.
     """
     out: dict[str, str] = {}
     if not Q.has_human(arrs):
@@ -203,18 +202,7 @@ def code_margins(arrs: dict) -> dict[str, str]:
                                    + ("   ⚠️NO MARGIN" if r < 0.50 * (1 + NEAR_FRAC) else ""))
     except Exception:  # noqa: BLE001
         pass
-    try:
-        B = 4
-        mine = Q._echo(arrs["map"], arrs["bar"], B, 6)
-        his = Q._echo(arrs["human"], arrs["bar"], B, 6)
-        both = sorted(set(mine) & set(his))
-        if len(both) >= 8:
-            gap = (sum(his[b] for b in both) - sum(mine[b] for b in both)) / len(both)
-            if gap < 0.15:
-                out["SCATTER"] = (f"echo gap {gap:+.3f} — red at +0.150"
-                                  + ("   ⚠️NO MARGIN" if gap > 0.15 * (1 - NEAR_FRAC) else ""))
-    except Exception:  # noqa: BLE001
-        pass
+    # ⚠️SCATTER used to be recomputed here; `q_scatter(report=…)` reports it since 2026-09-13o.
     return out
 
 
@@ -329,7 +317,8 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
     # fire are shown a margin — for one that fired, the bars in its `why` are the story.
     try:
         _rep: dict = {}
-        Q.q_events(arrs, report=_rep)
+        for _q in (Q.q_events, Q.q_breathing, Q.q_scatter):
+            _q(arrs, report=_rep)
         for _code, (_txt, _room) in _rep.items():
             if _code in {h[0] for h in hits}:
                 continue

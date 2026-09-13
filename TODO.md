@@ -370,10 +370,19 @@ on 1f8d6): they were **nudging maps with no room**, and the page could not tell 
   (not refuted). ★**The flagship `1f913`, which prints "nothing located", has TWO codes with no
   margin**: D6 worst window **1.65×** against a red at 2×, and SCATTER **+0.118** against +0.150.
   ⇒*"Nothing located"* reads as what it always was — **no defect FOUND**, not a map with room.
+  ✅**2026-09-13o — BREATHING · SCATTER report their own too**, and `code_margins()` is down to its
+  last code. ★**The two margin conventions disagreed and the disagreement was silent**: a FLOOR
+  (red BELOW L) is near when `value/L < 1.25`, but a CEILING (red AT/ABOVE L) needs `value > 0.75 L`,
+  and reporting `L/value` called `1f913`'s echo gap **safe at exactly 80 % of its line** — the one
+  case `NEAR_FRAC` was written to catch. One convention now, documented at `q_events`:
+  **`room` = 1 + the signed slack as a fraction of the line** (floor `value/L`, ceiling `2 - value/L`),
+  so 1.00 is the line in both directions and the page's single `room < 1 + NEAR_FRAC` test is right.
+  `1f913` prints ⚠️NO MARGIN on SCATTER again. Byte-identical without `report` on all 4 songset maps;
+  bench not refuted.
   ⬜**Left**: `q_vocals` (D4) deliberately **not** patched — no single `return hits` in its body and
-  guessing a variable name at the end of a long session risks a **wrong** margin, which is worse than
-  none. FLOW · D2 · D3 · BREATHING likewise. **DoD**: each remaining query takes `report`, and
-  `code_margins()` is **DELETED** — it duplicates thresholds that belong in `queries.py`.
+  guessing a variable name risks a **wrong** margin, which is worse than none. FLOW · D2 · D3
+  likewise. **DoD**: each remaining query takes `report`, and `code_margins()` is **DELETED** — only
+  ELEMENTS (wall coverage, which has no query of its own) is still recomputed there.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything

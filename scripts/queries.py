@@ -199,6 +199,12 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0,
     # only nudging one that had no room. ⇒When `report` is passed, a query records how close
     # it came. ⚠️Optional and write-only: `bench.py` and every existing caller pass nothing
     # and see the identical return, so the contract this repo scores itself with cannot move.
+    # ★`room` convention (2026-09-13o): 1 + the signed slack as a fraction of the line. A
+    # FLOOR (red BELOW L) is value/L; a CEILING (red AT/ABOVE L) is 2 - value/L. Both read
+    # the same way -- 1.00 sits exactly on the line, under 1.00 has fired, and the page calls
+    # anything under 1 + NEAR_FRAC "no margin". The directions need different arithmetic:
+    # `L/value` called 1f913's echo gap safe at 80 % of its line, the exact case NEAR_FRAC
+    # was introduced to catch.
     if report is not None and ratios:
         worst = min(ratios)
         report["EMPTY"] = (f"worst window {worst:.2f}x his events — red below {low:g}x", worst / low)
@@ -207,7 +213,7 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0,
         if dense or ratios:
             top = max(ratios)
             report["D6"] = (f"worst window {top:.2f}x his events — red at/above {high:g}x",
-                            high / max(top, 1e-9))
+                            2.0 - top / high)
     return hits
 
 
@@ -469,7 +475,7 @@ q_elements.codes = {"ELEMENTS"}
 
 
 def q_breathing(arrs: dict, min_rest_bars: int = 2, per_bar: float = 2.0,
-              min_events: int = 4) -> list[tuple]:
+              min_events: int = 4, report: dict | None = None) -> list[tuple]:
     """BREATHING — playing through the rest the human leaves.
 
     Kyle named this himself as the thing to protect: *"when there is a slow spot we let the
@@ -501,7 +507,7 @@ def q_breathing(arrs: dict, min_rest_bars: int = 2, per_bar: float = 2.0,
     lo, hi = int(bar[hev][0]), int(bar[hev][-1])          # his mapped span, in bars
     energy = col(arrs, "energy")
 
-    hits, b = [], lo
+    hits, b, near = [], lo, []
     while b <= hi:
         if hum[b - 1] != 0:
             b += 1
@@ -511,6 +517,9 @@ def q_breathing(arrs: dict, min_rest_bars: int = 2, per_bar: float = 2.0,
             b1 += 1
         n_bars = b1 - b + 1
         n_ours = int(ours[b - 1:b1].sum())
+        if n_bars >= min_rest_bars:
+            # both halves of the trigger must be met, so the binding one is the margin
+            near.append(min(n_ours / min_events, (n_ours / n_bars) / per_bar))
         if n_bars >= min_rest_bars and n_ours >= min_events and n_ours / n_bars >= per_bar:
             s0 = int(np.argmax(bar == b))
             e = float(np.mean(energy[(bar >= b) & (bar <= b1)]))
@@ -518,6 +527,16 @@ def q_breathing(arrs: dict, min_rest_bars: int = 2, per_bar: float = 2.0,
                          f"bars {b}-{b1}: the human rests {n_bars} bar(s) and we play "
                          f"{n_ours} events ({n_ours / n_bars:.1f}/bar) at energy {e:.2f}"))
         b = b1 + 1
+    if report is not None:
+        if not near:
+            report["BREATHING"] = (f"he leaves no rest of {min_rest_bars}+ bars in his span "
+                                   f"-- nothing here to play through", 2.0)
+        else:
+            worst = max(near)
+            report["BREATHING"] = (
+                f"busiest of his {len(near)} rest(s) reached {worst:.2f} of the trigger "
+                f"({min_events} events and {per_bar:g}/bar) -- red at 1.00",
+                2.0 - worst)
     return hits
 
 
@@ -551,7 +570,7 @@ def _echo(arr: np.ndarray, bar: np.ndarray, B: int, min_notes: int) -> dict[int,
 
 
 def q_scatter(arrs: dict, B: int = 4, margin: float = 0.15, min_notes: int = 6,
-              min_blocks: int = 8) -> list[tuple]:
+              min_blocks: int = 8, report: dict | None = None) -> list[tuple]:
     """SCATTER — nothing comes back; the map never plays a figure it has played before.
 
     ★`READING.md`'s FIRST rule for finding an unfun map: *"Does a cell COME BACK? A scatter
@@ -589,6 +608,11 @@ def q_scatter(arrs: dict, B: int = 4, margin: float = 0.15, min_notes: int = 6,
     if len(both) < min_blocks:
         return []
     dm, dh = float(np.mean([mine[b] for b in both])), float(np.mean([his[b] for b in both]))
+    if report is not None:
+        gap = dh - dm
+        report["SCATTER"] = (
+            f"echo {dm:.2f} vs his {dh:.2f}, gap {gap:+.2f} -- red at {margin:+.2f}",
+            2.0 - gap / margin)
     if dh - dm < margin:
         return []
     worst = sorted(both, key=lambda b: mine[b] - his[b])[:3]

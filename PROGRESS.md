@@ -17098,3 +17098,35 @@ current build (`review_2026-08-22/V2__*`), not another axis.
 *"The notes flow in a really odd way"* = **NOT YET MEASURABLE** — it came from Kyle's ear,
 which in this project has been ahead of the metrics more than once, and one dead hypothesis
 is not evidence against the observation. Do not record the complaint as refuted.
+
+
+## 2026-09-13o — BREATHING and SCATTER report their own margin; the two conventions were fighting
+
+Extended the optional write-only `report=` parameter from `q_events` to `q_breathing` and
+`q_scatter`, and deleted the SCATTER half of `verdict.py`'s `code_margins()` (the duplicate that
+its own docstring said should go). `q_scatter` records the echo gap against its `margin` before the
+`return []` that means "clean"; `q_breathing` records how close the busiest of the human's rests
+came to the trigger, taking the **min** of the two halves (`min_events` and `per_bar`) because both
+must be met, so the binding one is the margin. Where the human leaves no rest of 2+ bars at all the
+line says so rather than printing a number — that is a "could not be asked", not a clean pass.
+
+★★**The finding is the convention clash, not the plumbing.** The page tests `room < 1 + NEAR_FRAC`.
+For a FLOOR (red BELOW L) `room = value/L` and that test is right. For a CEILING (red AT/ABOVE L)
+the natural `L/value` makes "within 25 % of the line" come out at `room < 1.333`, so the page's
+1.25 test silently under-reports every ceiling code. `1f913`'s echo gap sits at **+0.12 against a
+red at +0.15 — exactly 80 % of the line**, which is the precise case `NEAR_FRAC` was introduced to
+catch on 2026-09-13m, and the first cut of this patch called it safe. One convention now, written
+down at `q_events`: **`room` = 1 + the signed slack as a fraction of the line** — floor `value/L`,
+ceiling `2 - value/L`. 1.00 is the line in both directions. `D6` moved to the same form
+(1f913: 1.65x against 2x, still flagged).
+
+⇒**A shared threshold constant is not a shared rule.** `NEAR_FRAC` was one number used by two
+directions of comparison and meant different things in each; nothing failed, the page just stopped
+warning. Any future code whose threshold is a ceiling must report `2 - value/L`.
+
+Verified: all three patched queries return byte-identical results without `report` on all four
+songset maps, and `bench.py score queries:q_all` is unchanged (not refuted, 4 strong hits, 0 false
+fires). Songset pages unchanged except `1f913` regaining its SCATTER ⚠️NO MARGIN.
+
+⬜Left for the DoD: `q_vocals` (D4, no single `return hits`), `q_flow` (FLOW + D2) and `q_drops`
+(D3). ELEMENTS stays in `code_margins()` — wall coverage has no query of its own.
