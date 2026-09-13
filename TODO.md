@@ -314,9 +314,16 @@ does not count toward the win rate). Default stays **off** until he plays it.
   `idiom_coverage` +0.017/−0.058, both **inside 2sd** ⇒ the one-seed collapses were seed noise, not
   the palette failure repeating. **1f333's SCATTER room goes 0.43 → 0.77 (red below 1.00)** — 60 % of
   the distance, gap +0.24 → +0.18 against a +0.15 line — and its 12 located hits do not move.
-  🔴**DECIDED: default OFF, kept as a variety lever.** The red does not clear and the axis the pass
-  exists for is *unresolved*, not *unharmed* (the 1f333 arm's own sd is 0.046, the widest number in
-  the table). ⏱`price_memory_songset.sh` (1f767 · 1f8d6, the two that ship) running.
+  🔴🔴**CORRECTED AT 6 SEEDS (2026-09-13v): it COLLAPSES `idiom_coverage` on a THIRD of seeds.**
+  Control 0.79-0.86 across 18 builds; treated 0.47-0.67 on 6 of 18, which is the palette FILTER's
+  failure range arriving through a weight. The 3-seed "noise" verdict was wrong **because the test
+  was wrong**: a difference of means compared against the *treated arm's own sd*, which the
+  treatment had inflated ~20x. ★**RULE: difference of means goes against the SE of the difference,
+  never an arm's own sd, and read the per-arm DISTRIBUTION before any summary — a treatment that
+  makes an axis UNSTABLE is a failure even when the mean survives.**
+  🔴**DECIDED: default OFF and NOT UI-ready** (a lever that breaks a third of builds is not the
+  "well-behaved lever" the standing rule says to keep). Kept as a flag with the instability
+  documented at `MEMORY_BOOST`.
   ⬜**Next**: 1f333 needs the last 0.18 of echo from somewhere that is not the song's structure and
   not a wider dose of this. Candidates: a memory that is **per section** rather than map-wide (a
   mapper's vocabulary drifts), and asking whether his first-occurrence echo comes from the SAME

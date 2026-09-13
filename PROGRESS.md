@@ -17404,3 +17404,45 @@ of a narrow vocabulary, vocabulary width is mapper style with nothing in the son
 the only defensible builder target is to stop being an outlier* — our 95th-98th percentile on all
 four songs is not a style choice. **This is the criterion a default flip must meet, and it is NOT
 "raise echo"** — echo rises on 1f767 too, where we already sit far above that song's human.
+
+
+## 2026-09-13v — 🔴 CORRECTION: `--map-memory` does not add noise to `idiom_coverage`, it COLLAPSES it on a third of seeds
+
+Six more seeds on 1f333 and 1f8d6. Per-seed `idiom_coverage`, every build of both sweeps:
+
+| arm | values |
+|---|---|
+| control (18 builds) | 0.786 0.821 0.826 0.832 0.832 0.832 0.833 0.836 0.838 0.840 0.840 0.841 0.843 0.843 0.845 0.854 0.859 … |
+| `--map-memory 4` (18 builds) | **0.472 0.493 0.552 0.604 0.613 0.670 0.722** 0.795 0.817 0.821 0.823 0.833 0.835 0.837 0.842 0.842 0.845 0.853 |
+
+The control never leaves 0.79-0.86 across 18 builds. The treated arm is **bimodal**: about a third
+of seeds land at 0.47-0.67, which is the palette-filter failure's range, and the rest are untouched.
+
+🔴🔴**This overturns what 2026-09-13s recorded.** I wrote that the one-seed collapses (0.515, 0.439)
+were *"seed noise, not the palette failure repeating"*. They were real collapses; three seeds drew
+mostly good ones and the inflated variance hid the mean shift. **The palette failure IS repeating,
+through a weight instead of a filter.**
+
+★★★**And the test I used is what hid it.** I compared a difference of means against *the larger
+ARM's own sd*. When a treatment **inflates variance**, that test gets less able to see the effect
+exactly as the effect gets worse — the treated arm's sd was 0.149 against the control's 0.008, ~20x,
+so almost nothing could ever be "resolvable". Against the standard error of the difference the same
+numbers read −0.141 at 2.3 se (1f333). ⇒**RULE: a difference of means is measured against the SE of
+the difference, never against an arm's own sd, and the per-arm DISTRIBUTION is read before any
+summary.** A treatment that makes an axis unstable is a failure even when the mean survives.
+
+Within the treated arm, entropy vs coverage reads r = −0.52 (n=18) — the runs that narrow most tend
+to collapse — but the two narrowest runs sit at opposite ends (0.472 and 0.837), so **the mechanism
+of the collapse is NOT established** and "narrower is worse" would be over-claiming.
+
+🔴**DECIDED: `--map-memory` default stays OFF and it is NOT UI-ready.** The standing rule is to keep
+well-behaved levers even when they fix nothing; a lever that breaks `idiom_coverage` on a third of
+builds is not well-behaved. It stays in the tree as a flag because the measurement behind it is
+real, with the instability documented at the flag.
+
+⇒**SCATTER's last red is where it was.** What survives from this line of work is the map of the
+problem, which is worth more than the lever was: the echo gap is entirely in first-occurrence
+blocks; the human's echo is not structure-driven; it is a side effect of vocabulary width; width is
+mapper style with nothing in the song predicting it (max r² 0.039); and he is not recalling any
+particular block. **Narrowing our vocabulary is the right idea and this implementation of it is
+not safe.**

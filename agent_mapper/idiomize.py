@@ -102,6 +102,13 @@ PALETTE_BOOST = 6.0
 # entropy explains **r = -0.734 (r2 0.538)** of 4-bar block echo while NOTE COUNT explains
 # r = -0.006, and humans span 4.17-5.53 bits (p10-p90) where our four builds span 5.68-5.86
 # -- the 95th-98th percentile on every song, another builder constant across a per-song axis.
+# 🔴🔴**UNSAFE AS A DEFAULT, AND NOT UI-READY** (2026-09-13v). Over 18 builds per arm it makes
+# `idiom_coverage` **bimodal**: the control never leaves 0.79-0.86, and about a THIRD of treated
+# seeds land at 0.47-0.67 — the palette FILTER's failure range, arriving through a weight. Three
+# seeds called that "noise" because the difference was tested against the treated arm's own sd,
+# which the treatment had inflated ~20x; against the SE of the difference it is a real drop.
+# It does what it says on its own axis (entropy −0.29 to −0.49, block echo +0.02 to +0.05, 1f333's
+# SCATTER margin 0.43 → 0.77) and it never clears a red. Keep it off.
 MEMORY_BOOST = 0.0
 
 DOWN_DIRS = (1, 6, 7)
