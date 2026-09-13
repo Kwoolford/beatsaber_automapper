@@ -301,14 +301,26 @@ does not count toward the win rate). Default stays **off** until he plays it.
   0.48 against his 1.00; the ratio correlates **+0.751** with D6 and **−0.474** with EMPTY. Predicting
   his density from the song tops out at **R² 0.231** (bpm + onset rate) — better than the constant,
   not enough to move a red. ⛔**"Tune the density" is retired** until someone has a better predictor.
-- **D3** (drop timing) — 6 songs, 14 hits, never investigated.
+- ★★**D3 IS "BREATHE BEFORE THE DROP"** (2026-09-13h) — and it is **Kyle's own P6 style request**
+  arriving as a measured defect. At the boundary: our notes ÷ his = **1.47 in the 2 bars BEFORE**
+  (we out-play him on 5/7) and **0.85 in the 2 bars AFTER** (we under-play on 6/7). ⇒**He empties
+  out before the jump and floods after it; we do the opposite.** His step reads ×2–25 not because
+  he plays more after but because he plays almost nothing before. At the one E-drop we *"did not
+  come down"* (his 6.0→3.0, ours 6.5→6.0).
+  🔴**The builder cannot express this**: `plan()` gives each section ONE energy multiplier and ONE
+  accent percentile, so the budget is **uniform inside a section** and a taper is a within-section
+  shape nothing has. ★That is also why `--energy-slope` was a null — it scales whole sections.
+  ⬜**Fix**: a taper — the last bars before an energy rise get a reduced budget, the first bars after
+  a raised one. **DoD**: before/after ratios move toward 1.0 from 1.47/0.85, D3's 6 songs fall,
+  EMPTY/D6 do not rise (the budget is **moved, not added**).
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything
-**Seven times in one session the builder reproduced the corpus MEAN and missed the per-song or
-per-window VARIATION**: wall duration (pooled marginal, not the 3 modes) · the pulse (an interval
-sometimes, never held) · hand runs (the mean run length, never the tail) · the vocabulary (no per-map
-palette) · block echo · per-song density · D4's windows.
+**Eight times in one session the builder reproduced the corpus MEAN and missed the per-song,
+per-window or per-SECTION VARIATION**: wall duration (pooled marginal, not the 3 modes) · the pulse
+(an interval sometimes, never held) · hand runs (the mean run length, never the tail) · the
+vocabulary (no per-map palette) · block echo · per-song density · D4's windows · and the
+within-section taper (D3).
 ⇒**When a read says we are inside the human range on the mean and outside on the spread, the fix is
 never a rate knob — it is a hold/commit mechanism, and a rate knob will saturate trying.**
 

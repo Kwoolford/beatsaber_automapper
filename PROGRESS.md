@@ -7,6 +7,50 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13h — ★★D3 is "breathe before the drop", and it is the EIGHTH mean-vs-variation defect
+
+D3 was the one live code never investigated: 6 songs, 14 hits. Reading the query's own `why` on all
+11 hits under the best build shows two modes, and the second is one word Kyle wrote himself.
+
+### What the hits say
+At an **E-jump**, the human multiplies his density hard and we barely move — twice we go *down*:
+
+| song · bar | ours, events/bar | **his multiplier** |
+|---|---|---|
+| 1f3d7 · 5 | 0.5 → 4.5 | **×25.0** |
+| 1f65d · 3 | 0.0 → 5.0 | **×16.0** |
+| 1f3d7 · 92 | 1.0 → 2.0 | ×8.0 |
+| 1f333 · 170 | 7.0 → **4.5 (down)** | ×7.0 |
+| 1f335 · 222 | 4.0 → **2.5 (down)** | ×2.3 |
+
+And at the one **E-drop**, `1f767` bar 42: *"human 6.0 → 3.0 events/bar, ours 6.5 → 6.0 — did not
+come down."*
+
+### ★★ Where the difference actually sits
+| | our notes ÷ his |
+|---|---|
+| the 2 bars **BEFORE** the boundary | **1.47** — we out-play him on **5 / 7** |
+| the 2 bars **AFTER** | **0.85** — we under-play him on **6 / 7** |
+
+⇒**The human empties out before the jump and floods after it. We do the opposite.** His step looks
+enormous not because he plays more after, but because he plays *almost nothing* before.
+★**That is "breathe before the drop" — one of the style requests Kyle named himself** in P6's list,
+arriving as a measured defect rather than a preference.
+
+### ⇒ And the builder has no concept it could express this with
+The section budget is **uniform inside a section**: `plan()` gives each section one energy
+multiplier and one accent percentile. A taper into a boundary is a *within-section* shape, and
+nothing in the builder has one. That is also why `--energy-slope` was a null (2026-09-12y) — it
+scales whole sections, so it cannot thin the last two bars of one.
+★**Eighth instance today of the same shape**, now at a new scale: walls · pulse · hand runs ·
+vocabulary · block echo · per-song density · D4's windows · and now **the within-section taper**.
+
+⬜**Next**: a taper — the last bars of a section before an energy rise get a reduced budget, and the
+first bars after get a raised one. **DoD**: the before/after ratios move toward 1.0 from 1.47/0.85,
+D3's 6 songs fall, and EMPTY/D6 do not rise (the budget is being moved, not added).
+
+---
+
 ## 2026-09-13g — The carrier preference is wired at last. D4 −21 %, and no song clears.
 
 `autobuild --carrier-bias` multiplies the vocal classes' counts **for ranking only**, so
