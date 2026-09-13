@@ -7,6 +7,46 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13i — The taper works, moves little, and nearly got reported backwards
+
+`autobuild --taper` splits the last bars off a section before an energy rise, cuts their budget, and
+gives exactly that much to the section after. The budget is **moved, not spent**. Default **0** =
+old behaviour; control arm byte-identical; the split and the conservation both verified
+(1f3d7 9 → 14 rows, total budget 829 → 824, the difference being `int()` truncation).
+
+### ★★ The measurement that nearly went in backwards
+Measured at **each arm's own D3 hits**, the ratios appeared to get *worse*: before 1.34 → 1.49,
+after 1.01 → 0.83. That is a **selection artefact** — the taper removes hits, so the survivors are
+the worst ones and the per-hit average rises with no change in behaviour.
+Re-measured at a **fixed** boundary set (the baseline arm's D3 bars, used for every arm):
+
+| arm | before-ratio | after-ratio |
+|---|---|---|
+| baseline | 1.47 | 0.79 |
+| taper 0.5 | 1.44 | 0.83 |
+| **taper 0.8** | **1.35** | **0.83** |
+
+Both move toward the target of 1.0. ★**Comparing a per-hit statistic across arms whose hit set
+changes is confounded** — the same family as the sentinel that confounded `idiom_jsd` (2026-09-12s).
+**Fix the population before comparing the statistic.**
+
+### The result
+| | baseline | taper 0.5 | taper 0.8 |
+|---|---|---|---|
+| D3 hits | 11 | 9 | **9** (songs 5 → **4**) |
+| EMPTY hits | 36 | 38 | **40** |
+| D6 hits | 6 | 7 | **7** |
+| notes | — | — | **−0.9 %**, none outside ±5 % |
+
+✅The mechanism is right and the note count is conserved exactly as designed — this is the first
+lever today that moves a shape **without** moving density. `1f767`'s D3 clears, `1f65d` 4 → 3.
+🔴**But the effect is small and the density family pays a little** (EMPTY +4, D6 +1).
+⇒**Default stays 0.** ⬜Worth revisiting with a bigger `--taper-bars` or a taper that also *raises*
+the landing bars rather than only the next section's average — the after-ratio moved 0.79 → 0.83 and
+stalled, which says the budget arrives in the section but not in its first bars.
+
+---
+
 ## 2026-09-13h — ★★D3 is "breathe before the drop", and it is the EIGHTH mean-vs-variation defect
 
 D3 was the one live code never investigated: 6 songs, 14 hits. Reading the query's own `why` on all

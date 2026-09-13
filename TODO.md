@@ -310,9 +310,20 @@ does not count toward the win rate). Default stays **off** until he plays it.
   🔴**The builder cannot express this**: `plan()` gives each section ONE energy multiplier and ONE
   accent percentile, so the budget is **uniform inside a section** and a taper is a within-section
   shape nothing has. ★That is also why `--energy-slope` was a null — it scales whole sections.
-  ⬜**Fix**: a taper — the last bars before an energy rise get a reduced budget, the first bars after
-  a raised one. **DoD**: before/after ratios move toward 1.0 from 1.47/0.85, D3's 6 songs fall,
-  EMPTY/D6 do not rise (the budget is **moved, not added**).
+  ✅**BUILT 2026-09-13i — `autobuild --taper`** (default 0 = off, control byte-identical). Splits the
+  last bars off a section before an energy rise, cuts their budget, gives exactly that much to the
+  next section — **moved, not spent** (1f3d7 9→14 rows, budget 829→824, the rest `int()` truncation).
+  At a **fixed** boundary set: before **1.47 → 1.35**, after **0.79 → 0.83** — both toward 1.0.
+  D3 **11 → 9** hits, songs **5 → 4** (`1f767` clears). Notes **−0.9 %**, none outside ±5 % — the
+  first lever today that moves a shape **without** moving density.
+  🔴Small, and the density family pays a little (EMPTY 36→40, D6 6→7). **Default stays 0.**
+  ⚠️★**A MEASUREMENT TRAP THIS ALMOST FELL INTO**: measured at *each arm's own hits* the ratios look
+  **worse** (1.34→1.49) — a **selection artefact**, because the taper removes hits and the survivors
+  are the worst. **Fix the population before comparing the statistic.** Same family as the sentinel
+  that confounded `idiom_jsd`.
+  ⬜Revisit with more `--taper-bars`, or a taper that raises the **landing bars** rather than the next
+  section's average — the after-ratio moved 0.79→0.83 and stalled, i.e. the budget arrives in the
+  section but not in its first bars.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything

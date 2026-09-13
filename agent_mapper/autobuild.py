@@ -49,6 +49,8 @@ sys.path.insert(0, str(AM))
 # ceiling -- Kyle called 6.18 nps unplayable and the judge independently rejects at
 # 6.10, so the usable band is roughly 2.7-5.1.
 HUMAN_NPS = 4.17
+# How big an energy rise counts as a boundary worth breathing before.
+TAPER_RISE = 0.15
 # Melodic stems, in the order they are preferred as a section's carrier. Drums are
 # the backbone and are handled separately.
 MELODIC = ("vocals", "other", "guitar", "piano", "bass")
@@ -100,7 +102,8 @@ def predict_nps(audio: pathlib.Path) -> float | None:
 
 
 def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60,
-         carrier_bias: float = 1.0) -> list[dict]:
+         carrier_bias: float = 1.0, taper: float = 0.0,
+         taper_bars: int = 2) -> list[dict]:
     """Per section: the carrier class, the backbone, and each one's accent budget."""
     import brief as B
     import events as E
@@ -205,7 +208,57 @@ def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60,
             "drums_n": drums,
             "drums_pct": _pct(budget * (1 - share), drums),
         })
-    return rows
+    return _taper_rows(rows, taper, taper_bars)
+
+
+def _taper_rows(rows: list[dict], taper: float, bars: int) -> list[dict]:
+    """Move budget from the last `bars` of a section into the section that follows it.
+
+    ★★**"BREATHE BEFORE THE DROP"** — Kyle's own P6 style request, arriving as a measured defect
+    (`PROGRESS.md 2026-09-13h`). At the boundaries D3 fires on, our notes ÷ his is **1.47 in the
+    two bars BEFORE** (we out-play him on 5 of 7) and **0.85 in the two AFTER** (we under-play on
+    6 of 7). **He empties out before the jump and floods after it; we do the opposite** — his
+    step reads ×2-25 not because he plays more after but because he plays almost nothing before.
+
+    🔴**The builder could not express this**: `plan()` gives each section ONE energy multiplier
+    and ONE accent percentile, so the budget is uniform inside a section and a taper is a
+    *within-section* shape nothing had. That is also why `--energy-slope` was a null — it scales
+    whole sections, so it cannot thin the last two bars of one.
+
+    ⇒Split the tail off as its own row, cut its budget by `taper`, and give exactly that much to
+    the next section. ⚠️**The budget is MOVED, not spent**: the map's note count must not change,
+    or this becomes a density lever and D6/EMPTY move with it.
+    `taper = 0` is the pre-2026-09-13 behaviour exactly.
+    """
+    if taper <= 0 or len(rows) < 2:
+        return rows
+    out: list[dict] = []
+    for i, r in enumerate(rows):
+        nxt = rows[i + 1] if i + 1 < len(rows) else None
+        span = r["bar1"] - r["bar0"] + 1
+        if not nxt or nxt["energy"] - r["energy"] < TAPER_RISE or span <= bars + 1:
+            out.append(r)
+            continue
+        head, tail = dict(r), dict(r)
+        head["bar1"] = r["bar1"] - bars
+        tail["bar0"] = r["bar1"] - bars + 1
+        # split the budget and the event pools by bar count, then tax the tail
+        f = bars / span
+        for k, frac in (("head", 1.0 - f), ("tail", f)):
+            d = head if k == "head" else tail
+            d["budget"] = int(r["budget"] * frac)
+            d["pool_n"] = max(int(r["pool_n"] * frac), 1)
+            d["drums_n"] = int(r["drums_n"] * frac)
+            d["dur"] = round(r["dur"] * frac, 1)
+        moved = int(tail["budget"] * taper)
+        tail["budget"] -= moved
+        nxt["budget"] += moved
+        for d in (head, tail, nxt):
+            d["carrier_pct"] = _pct(d["budget"] * d["share"], d["pool_n"])
+            d["drums_pct"] = _pct(d["budget"] * (1 - d["share"]), d["drums_n"])
+        out.append(head)
+        out.append(tail)
+    return out
 
 
 def _pct(want: float, have: int) -> float | None:
@@ -398,6 +451,12 @@ def main() -> int:
                     help="the default two-pass path (drums, then carrier)")
     ap.set_defaults(pulse=False)
     ap.add_argument("--phrase-bars", type=int, default=4)
+    ap.add_argument("--taper", type=float, default=0.0,
+                    help="move this fraction of the last bars' budget into the section that "
+                         "follows an energy rise -- 'breathe before the drop'. 0 = off. The "
+                         "budget is MOVED, not spent, so the note count should not change")
+    ap.add_argument("--taper-bars", type=int, default=2,
+                    help="how many bars at the end of a section the taper applies to")
     ap.add_argument("--carrier-bias", type=float, default=1.0,
                     help="multiply the VOCAL classes' event counts when ranking a section's "
                          "carrier (1.0 = off). MELODIC's documented preference order decided "
@@ -504,7 +563,8 @@ def main() -> int:
         a.walls = a.arcs = a.chains = 0
 
     print(f"=== SEE: {a.audio.name}")
-    rows = plan(a.audio, nps, energy_slope=a.energy_slope, carrier_bias=a.carrier_bias)
+    rows = plan(a.audio, nps, energy_slope=a.energy_slope, carrier_bias=a.carrier_bias,
+                taper=a.taper, taper_bars=a.taper_bars)
     print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
           f"(events -> accent pct)")
     print("-" * 78)
