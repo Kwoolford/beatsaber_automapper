@@ -7,6 +7,49 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13b — ★★D4 is a DISTRIBUTION defect, not a coverage deficit. And the songset triaged.
+
+### The triage: every query over all 16 songs, each against its own human
+| code | songs | hits | status |
+|---|---|---|---|
+| **EMPTY** | **12** | 43 | closed — density ceiling (2026-09-13) |
+| **D4** | **10** | **29** | ★**untouched, and the biggest live one** |
+| SCATTER | 8 | 8 | `repeat.py` exists; map-wide reads |
+| D6 | 6 | 12 | same root as EMPTY, closed |
+| D3 | 6 | 14 | untouched |
+| BREATHING | 3 | 3 | local |
+| ELEMENTS / D1 | 1 | 1 | local |
+
+★**FLOW does not appear at all** — the `--lead-in --drop-orphan` fix holds across all 16, not just
+the four it was built on.
+
+### ★★ And D4 is not what its name says
+Vocal slots answered within ±1 slot, ours against his, per song:
+
+| | value |
+|---|---|
+| we answer | **75.8 %** |
+| he answers | **73.6 %** |
+| he answers more on | **6 / 16 songs** |
+
+**Map-wide we follow the vocal line MORE than the human does.** Yet D4 fires on **10 of 16**. And
+the songs with the biggest coverage *surplus* have **zero** hits — `1f9a0` (+38.9 pts over him) and
+`1f767` (+17.5) are both clean, while `1fa32` at a dead-even −0.1 pts has **6 hits**. The map-wide
+gap correlates with D4 at only +0.440, driven by the middle of the range.
+
+⇒**D4 is windowed: we answer the vocals as often as he does and miss the particular 4-bar windows
+where he is locked onto them.** This is the same shape FLOW turned out to have — *the rate is right,
+the distribution is not* — and the **seventh** instance today of the mean being right and the
+variation wrong.
+⚠️**It also retires the standing framing.** The project has carried *"the ML generator does not
+follow the vocal line"* and *"we emit 0.217 positives per slot against a corpus 0.245"* since the ML
+era; both are about **coverage**, and on the agent path coverage is **not** the problem.
+
+⬜**Next**: read the windows D4 fires on — what the human is doing there that we are not. **DoD**:
+name what those windows have in common on ≥10 songs before building anything.
+
+---
+
 ## 2026-09-13 — The density predictor works and is TOO WEAK to fix the reds. A real boundary.
 
 `autobuild --nps-from-song` predicts the human's density from the song (bpm + onset rate), fit by

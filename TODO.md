@@ -541,6 +541,34 @@ build time and would be fitting to the reference** (`h_dist` by another route).
 failed. ⛔**"Tune the density" is retired as a line of attack** until someone has a better predictor.
 
 
+## 🔴 P0.12 — D4 is the biggest live red, and it is a DISTRIBUTION defect (2026-09-13b)
+**Triage over all 16 songs, each against its own human:**
+
+| code | songs | hits | status |
+|---|---|---|---|
+| EMPTY | 12 | 43 | closed — density ceiling |
+| **D4** | **10** | **29** | ★**untouched, biggest live one** |
+| SCATTER | 8 | 8 | `repeat.py` exists |
+| D6 | 6 | 12 | same root as EMPTY, closed |
+| D3 | 6 | 14 | untouched |
+| BREATHING · ELEMENTS · D1 | 3 · 1 · 1 | | local |
+
+★**FLOW does not appear at all** — the `--lead-in --drop-orphan` fix holds across all 16.
+
+★★**D4 is NOT a coverage deficit.** Vocal slots answered within ±1: **ours 75.8 %, his 73.6 %**, and
+he answers more on only **6/16**. We follow the vocal line MORE than he does map-wide, yet D4 fires
+on 10/16 — and the songs with the biggest *surplus* are **clean** (`1f9a0` +38.9 pts, `1f767` +17.5,
+both 0 hits) while `1fa32` at −0.1 pts has **6**. Map-wide gap ↔ D4 correlates only **+0.440**.
+⇒**We answer the vocals as often as he does and miss the particular 4-bar windows where he is locked
+onto them** — the same shape FLOW had, and the **seventh** instance today of *the mean is right, the
+variation is not*.
+⚠️**Retires the standing framing**: *"the ML generator does not follow the vocal line"* and *"0.217
+positives per slot against a corpus 0.245"* are **coverage** claims, and coverage is not the problem
+on the agent path.
+⬜**Next**: read the windows D4 fires on — what is he doing there that we are not?
+**DoD**: name what those windows have in common on ≥10 songs **before** building anything.
+
+
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·
 one hand leads · follow the piano · breathe before the drop · more walls*) with the lever, its safe
