@@ -17379,3 +17379,28 @@ brings ~5.44 (about the 85th percentile), still high. The only axis blocking the
 `idiom_coverage`, which at 3 seeds read +0.017 / −0.058 / −0.016 / −0.068 — **every one inside 2sd,
 which is "unresolved", not "unharmed"**, and it is the exact axis the palette flip forgot to
 measure. ⏱`scripts/price_memory_cov.sh` (6 seeds x {0, 4} x 1f333 + 1f8d6) is running to resolve it.
+
+
+## 2026-09-13u — he is not RECALLING a block, his vocabulary is just narrower
+
+If the human's first-occurrence echo came from deliberately reaching back to a particular earlier
+phrase, the block he best matches should sit somewhere different from the one we best match. For
+every block, the earlier block giving the largest overlap, and how far back it is:
+
+| song | first-occurrence blocks | his echo | his best match | our echo | our best match |
+|---|---|---|---|---|---|
+| 1f913 | 11 | 0.584 | median 2 blocks back | 0.379 | median 2 blocks back |
+| 1f333 | 31 | 0.674 | median 7 | 0.423 | median 4 |
+| 1f767 | 8 | 0.346 | median 3 | 0.417 | median 1 |
+| 1f8d6 | 17 | 0.574 | median 5 | 0.438 | median 5 |
+
+⇒**REFUTED: it is not about WHICH block comes back.** We reach back to the same place he does,
+roughly as near or as far. What differs is how much of the block matches when we get there — on
+1f333, 0.674 against 0.423 at a similar distance. **A narrow vocabulary makes any two blocks of a
+map overlap**, so the echo arrives without anyone recalling anything.
+
+★That closes the chain and it is worth stating as one line: *his echo in new music is a side effect
+of a narrow vocabulary, vocabulary width is mapper style with nothing in the song predicting it, so
+the only defensible builder target is to stop being an outlier* — our 95th-98th percentile on all
+four songs is not a style choice. **This is the criterion a default flip must meet, and it is NOT
+"raise echo"** — echo rises on 1f767 too, where we already sit far above that song's human.
