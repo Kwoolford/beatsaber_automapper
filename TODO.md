@@ -498,6 +498,22 @@ reads 0 → 12 → 21, because it counts on the score lattice. **Measure a DoD w
 judge it.**
 
 
+## 🔴 P0.11 — D6 / over-density: it is NOT the energy curve (2026-09-12y)
+`1f767`'s last red is D6 (12 % of bars; bars 17-24 = 25 events vs his 11, 2.3×).
+★★**CONFIRMED n=16, and it inverts the standing story**: per 4-bar block, corr(our over/under-play
+ratio, block energy) = **+0.293, positive on 13/16**, with a **median block ratio of 1.04**. ⇒**We
+over-play the LOUD blocks relative to the human, not the quiet ones**, and map-wide we match him.
+The breathing this project has chased since August is there; what is missing is **his restraint in
+the loud parts**. ⚠️`1f767` (−0.310) is one of only 3 exceptions — a misleading place to have started.
+✅**`autobuild --energy-slope` is a new, wired lever** (default 0.60 = shipped, control byte-identical;
+on 1f913 the correlation falls +0.688 → +0.506 across 0.60 → 0).
+🔴**NULL — it does not fix D6**: 1f767 3 → 2 hits, 1f333 unchanged at 2 and its EMPTY gets *worse*
+(4 → 5) at slope 0. Default stays 0.60.
+⬜**Next**: it is neither the energy shape nor the map-wide level, so read *which* blocks.
+**`1f9a0` is the extreme case** (median block ratio **2.05**, 12 blocks ≥ 1.8×) and a better subject
+than 1f767. **DoD**: name what the over-dense blocks have in common, on ≥10 songs, before building.
+
+
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·
 one hand leads · follow the piano · breathe before the drop · more walls*) with the lever, its safe

@@ -7,6 +7,49 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12y — We over-play the LOUD sections, not the quiet ones. And flattening the curve is a NULL.
+
+With FLOW settled and staged, the songset's remaining reds are `1f767`'s D6 (over-dense, 12 % of
+bars) and `1f333`'s four. D6's first hit reads *bars 17-24: 25 events vs human 11 (2.3×)* — a
+per-section density problem, so the obvious suspect was the energy curve being too flat.
+
+### ✅ CONFIRMED at n=16, and it is the OPPOSITE of the standing story
+Per 4-bar block, correlation between our over/under-play ratio and that block's energy, each song
+against its own human:
+
+| | value |
+|---|---|
+| mean correlation | **+0.293** |
+| positive on | **13 / 16 songs** |
+| median block ratio across songs | **1.04** |
+
+⇒**We over-play the LOUD blocks relative to the human, not the quiet ones**, and map-wide we match
+him block for block. ★This inverts the framing this project has carried since August — *"the flat
+~8 NPS density that ignores song structure"*, *"when there is a slow spot we let the player
+breathe"*. The breathing is there; what is not is his **restraint in the loud parts**.
+`1f767` (−0.310) is one of only three exceptions, which is why it was a misleading place to start.
+
+### ✅ The slope is now a real lever — and 🔴 it does not fix the defect
+`autobuild --energy-slope` (default **0.60**, the shipped value; control arm rebuilds
+byte-identical). It is wired and does what it says — on `1f913` the correlation falls **+0.688 →
++0.506** as the slope goes 0.60 → 0. But the defects barely move:
+
+| song | D6 at 0.60 / 0.30 / 0.00 | EMPTY |
+|---|---|---|
+| 1f767 | 3 → **2** → 2 | 0 |
+| 1f913 | 0 → 0 → 0 | 4 → 3 → 3 |
+| 1f333 | 2 → 2 → 2 | 4 → 4 → **5** |
+
+🔴**NULL**: flattening the curve moves D6 by one hit on one song and makes EMPTY *worse* on 1f333.
+**The energy curve is not what drives D6.** Default stays 0.60; the lever is kept because it is
+wired, measured, and the one thing that demonstrably moves the energy-tracking correlation.
+
+⬜**Where D6 actually comes from is still open.** It is not the energy shape and not the map-wide
+level (median ratio 1.04). The next read is *which blocks* — `1f9a0` is the extreme case (median
+block ratio **2.05**, 12 blocks ≥ 1.8×) and is a better subject than `1f767`.
+
+---
+
 ## 2026-09-12x — The prediction file is protected, and NOT by putting it in git
 
 P5.1, closed. Two changes to `compete.py`, both from yesterday's destroyed pair.

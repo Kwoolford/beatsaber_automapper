@@ -64,7 +64,7 @@ def run(args: list[str], quiet: bool = True) -> str:
     return r.stdout
 
 
-def plan(audio: pathlib.Path, nps: float) -> list[dict]:
+def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60) -> list[dict]:
     """Per section: the carrier class, the backbone, and each one's accent budget."""
     import brief as B
     import events as E
@@ -94,8 +94,15 @@ def plan(audio: pathlib.Path, nps: float) -> list[dict]:
     # an axis where we already sit at the 19th human percentile. Dividing by the
     # weighted mean keeps every section's RELATIVE breathing identical (the shape Kyle
     # named as something to protect) while making the map as a whole hit the target.
+    # ★**The SLOPE is a lever and it may be too steep, not too flat** (2026-09-12y). Measured
+    # over 16 songs against each one's own human, per 4-bar block: the correlation between our
+    # over/under-play ratio and the block's energy is **+0.293, positive on 13 of 16**. We
+    # over-play the LOUD blocks relative to him, not the quiet ones -- the opposite of the
+    # "we don't breathe" story. Map-wide we match him (median block ratio 1.04), so this is
+    # about the SHAPE of the curve, not its level. `--energy-slope 0` is a flat budget;
+    # 0.60 is the shipped value and normalisation keeps the map-wide density fixed either way.
     def _mult(s) -> float:
-        return 0.55 + 0.60 * float(s.get("energy") or 0.5)
+        return (1.0 - energy_slope * 0.5) + energy_slope * float(s.get("energy") or 0.5)
 
     _tot = sum(max(s["t1"] - s["t0"], 0.1) for s in sec["sections"]) or 1.0
     _wmean = sum(max(s["t1"] - s["t0"], 0.1) * _mult(s)
@@ -335,6 +342,10 @@ def main() -> int:
                     help="the default two-pass path (drums, then carrier)")
     ap.set_defaults(pulse=False)
     ap.add_argument("--phrase-bars", type=int, default=4)
+    ap.add_argument("--energy-slope", type=float, default=0.60,
+                    help="how hard a section's energy scales its note budget (0 = flat). "
+                         "0.60 is shipped; measured 2026-09-12y, our per-block density tracks "
+                         "energy MORE than the human's does on 13 of 16 songs")
     ap.add_argument("--drop-orphan", action="store_true",
                     help="drop an odd 16th that still has nothing leading into it. Pairs "
                          "with --lead-in and pays back the density it spends")
@@ -420,7 +431,7 @@ def main() -> int:
         a.walls = a.arcs = a.chains = 0
 
     print(f"=== SEE: {a.audio.name}")
-    rows = plan(a.audio, nps)
+    rows = plan(a.audio, nps, energy_slope=a.energy_slope)
     print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
           f"(events -> accent pct)")
     print("-" * 78)
