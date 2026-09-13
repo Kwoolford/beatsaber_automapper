@@ -309,6 +309,20 @@ Both are inside the human range and nothing separates them ⇒ the median is the
 the standing rule) or merely typical? `mapjudge` cannot answer it. Not staged — five pairs are
 already waiting on P5 and a sixth adds nothing.
 
+### 🔧 P0.4 — RUN EVERY PER-SONG THRESHOLD AGAINST THE HUMAN-vs-HUMAN PANEL (NEW, 2026-09-13ad)
+**The panel exists now**: 172 songs mapped by 2+ DIFFERENT mappers, 119 where both wall, **285
+ordered pairs** (`outputs/dup_songs_2026-09-13.json`). It is the project's first control that is
+not a map read against itself or against its own other difficulty. The very first threshold put
+through it — ELEMENTS' 0.50x wall coverage — **fired on 34 % of human pairs** and had to move.
+**Every other code that compares us to ONE reference human is untested against it**: SCATTER's
++0.15 echo gap, EMPTY's 0.6x and D6's 2.0x event ratios, D4's 25 %-below-him vocal line, D3's
+step and lag. Each is a per-song claim resting on a single human, and the same style spread may
+apply.
+**DoD**: for each code, the share of ordered human pairs it fires on, and a threshold chosen so
+that share is under ~5-10 %; `bench.py score queries:q_all` stays not refuted after each change.
+⚠️Needs each pair's AUDIO for the song-relative codes (D3's energy, D4's vocals) — SCATTER, EMPTY
+and D6 are map-only and can be done immediately.
+
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**
   Split by the song's own section labels: on blocks inside a returning section we sit at **0.613
