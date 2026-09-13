@@ -17920,3 +17920,39 @@ reach needs its own control, and this one had none for months.** That is the sam
 
 ★The human-reference branch of D3 is untouched and remains the one the songset is judged on — it
 still carries the last red on `1f767` (bar 42) and one of `1f333`'s three.
+
+
+## 2026-09-13ah — ✅ D3's HUMAN-REFERENCE branch passes its first real control, so both reds are real
+
+The panel cannot carry D3 because two mappers' uploads are different cuts — but **one zip's Expert
+and ExpertPlus share the audio file exactly**, and **404 of the first 800 corpus zips carry both**.
+That is a perfect time base and a genuine second opinion about the same music, and it had been
+sitting unused while `bench.py` made do with four `humanplus-*` rows.
+
+`scripts/exp_d3_reference.py`, 150 zips, both directions:
+
+| direction | lag clause fires | E-drop branch fires | maps RED |
+|---|---|---|---|
+| Expert read against his own ExpertPlus | **2/620 = 0.3 %** | 10/105 = 9.5 % | 4.7 % |
+| ExpertPlus read against his own Expert | **0/623 = 0.0 %** | 4/98 = 4.1 % | 2.0 % |
+
+⇒**This branch is well calibrated** — 2-5 % of human maps red, against the 85 % the *absolute*
+branch was producing an hour earlier. The same code, two branches, opposite verdicts: the one with
+a reference is sound and the one without it was almost entirely wrong.
+
+### Which means both standing D3 reds are genuine
+
+| map | bar | branch | why |
+|---|---|---|---|
+| 1f767 | 42 | **E-drop** | human 6.0 → 3.0 events/bar, ours 6.5 → 6.0 — did not come down |
+| 1f333 | 170 | **E-jump, LAG clause** | our first note lands **2.50 beats** after the bar line |
+
+Both clauses are the ones the control shows almost never fire on a human (0.0-0.3 % for lag,
+4-9.5 % for E-drop). ⇒**Neither red is a threshold artefact; both are things to fix in the
+builder.** `1f333`'s is the sharper of the two: 2.5 beats late on an energy jump, where the human
+median answer is **0.00 beats**.
+
+⚠️**What is still uncontrolled**: the LEVEL clause (`step < 0.8x his AND after < 0.8x his density`),
+which `q_drops` skips across difficulties by its own rule — so this control cannot exercise it and
+the panel cannot either. It is the only part of D3 with no evidence behind it. It fires on neither
+songset red, so nothing currently rests on it.

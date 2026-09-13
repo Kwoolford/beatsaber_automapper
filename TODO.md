@@ -336,8 +336,19 @@ step the density is not** (p10 0.80, median 1.19, p90 2.00 — the 1.2 threshold
 retired.
 ⚠️**`bench.py` cannot reach this branch** (every row has a human) — which is why it went unexamined.
 ★**A row that never runs the code is not evidence at all.**
-⬜**D4 is still untested** and has no equivalent no-human branch to fall back on; it needs vocal
-stems for a pair whose audio does not align. Left open.
+✅**D3's HUMAN-REFERENCE branch CONTROLLED 2026-09-13ah** — and it passes. ★**One zip's Expert and
+ExpertPlus share the audio EXACTLY** (404 of the first 800 zips carry both), which the panel cannot
+offer. 150 zips, both directions: lag clause fires on **0.0-0.3 %** of jumps, E-drop on 4-9.5 % of
+drops, **2-5 % of human maps red**. ⇒**Both standing D3 reds are GENUINE**: `1f767` bar 42 (E-drop,
+we hold 6.0 where he drops to 3.0) and `1f333` bar 170 (LAG, our first note **2.50 beats** after the
+bar line where the human median is **0.00**). Neither is a threshold artefact.
+⬜**Still uncontrolled**: D3's LEVEL clause (skipped across difficulties by the query's own rule, so
+neither control can reach it). Nothing currently rests on it.
+⬜**D4 remains untested** — no reference-free branch, and it needs vocal stems for a pair whose
+audio does not align.
+⬜**ACTIONABLE, in the builder**: `1f333` bar 170 answers an energy jump 2.5 beats late. The human
+norm is to answer ON the bar line (median 0.00 beats, p90 0.75). A builder rule that guarantees a
+note at an E-jump bar line is a small, well-evidenced change.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**
