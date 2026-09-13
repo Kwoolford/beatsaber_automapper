@@ -386,10 +386,17 @@ on 1f8d6): they were **nudging maps with no room**, and the page could not tell 
   line, but the clause measures us against **our own** before, so "come down to where HE came down"
   looked obvious and fires on two rows Kyle labelled GOOD / PREFERRED (bench, 2026-09-13p).
   ⇒**A margin says how close a map is to a LINE, not how close it is to being right.**
-  ⬜**Left**: `q_vocals` (D4) deliberately **not** patched — no single `return hits` in its body and
-  guessing a variable name risks a **wrong** margin, which is worse than none. FLOW · D2 · D3
-  likewise (D3 done). **DoD**: each remaining query takes `report`, and `code_margins()` is **DELETED** — only
-  ELEMENTS (wall coverage, which has no query of its own) is still recomputed there.
+  ✅**2026-09-13q — DoD MET. Every code reports its own margin and `code_margins()` is DELETED.**
+  FLOW · D2 (conjunction: the window's room is the **max** over clauses, the code's is the **min**
+  over windows) · D4 (a FLOOR, not a ratio) · ELEMENTS. Clauses about the HUMAN are **preconditions**
+  and gate whether a window contributes, never entering the arithmetic.
+  ★★**THE INVARIANT IS THE PRODUCT: `room < 1.00` iff the code fired.** Asserting it over the 19
+  bench rows (182 margins) failed twice on margins that had already shipped: `q_events` reported
+  EMPTY / D1 **across difficulties**, where the query does not ask them, and read D6's margin off the
+  `h >= 12` population while its over-dense branch fires on `h >= 8` — calling `1f8d6` **safe at 1.88x
+  on a window that had fired**. ⇒**A margin is a second implementation of the query**; copy its GATE
+  and its POPULATION, never just its threshold. 🔧`python scripts/check_margins.py` (exit 1) after
+  touching any query or threshold.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything

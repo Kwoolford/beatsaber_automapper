@@ -171,41 +171,6 @@ MARGIN_FACTOR = 2.0
 NEAR_FRAC = 0.25
 
 
-def code_margins(arrs: dict) -> dict[str, str]:
-    """How much room a passing code has, for the codes whose threshold is a scalar.
-
-    ★★**A code passing AT its threshold is not passing** (2026-09-13k). `1f8d6` read
-    `SHIP? YES` on **0.50x** wall coverage against a red below 0.50x and on exactly **1**
-    lead-hand passage against a red at zero; a 7 % wall-length change and one lost hand-run
-    turned both red, and an iteration went into a wrong hypothesis before anyone looked at
-    the margin. The ABSENCE block says it since 2026-09-13l; this adds the two QUERY codes
-    whose threshold is a single number.
-
-    ⚠️**Read-only, and now down to its last code.** EMPTY · D1 · D6 (`q_events`), BREATHING
-    and SCATTER report their own margin through the optional write-only `report=` parameter,
-    which leaves `bench.py`'s contract untouched (the queries are byte-identical without it).
-    ⬜Only ELEMENTS is still recomputed here; the wall-coverage ratio has no query of its own
-    to report it. FLOW · D2 · D4 · D3 are next, and this function goes when they land.
-    """
-    out: dict[str, str] = {}
-    if not Q.has_human(arrs):
-        return out
-    try:
-        names = list(arrs["map_names"])
-        li = [names.index(f"wall_lane{i}") for i in range(4)]
-        cm = int((arrs["map"][:, li] > 0).any(axis=1).sum())
-        ch = int((arrs["human"][:, li] > 0).any(axis=1).sum())
-        if ch >= 50 and cm >= 0.5 * ch:
-            r = cm / max(ch, 1)
-            if r < 0.5 * MARGIN_FACTOR:
-                out["ELEMENTS"] = (f"wall coverage {r:.2f}x his — red below 0.50x"
-                                   + ("   ⚠️NO MARGIN" if r < 0.50 * (1 + NEAR_FRAC) else ""))
-    except Exception:  # noqa: BLE001
-        pass
-    # ⚠️SCATTER used to be recomputed here; `q_scatter(report=…)` reports it since 2026-09-13o.
-    return out
-
-
 def absence_lines(arrs: dict) -> list[dict]:
     """ABSENCE — gestures the map never uses at all, on the gate (P5b DoD, 2026-09-10).
 
@@ -311,13 +276,17 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
         elif play["reset_warn"]:
             yellows += 1
     absence = absence_lines(arrs)
-    margins = code_margins(arrs)
-    # ★The density codes report their own margin now (`queries.q_events(report=…)`), so this
-    # page prefers the query's number over anything recomputed here. Only codes that did NOT
-    # fire are shown a margin — for one that fired, the bars in its `why` are the story.
+    # ★★**EVERY code reports its own margin** (2026-09-13q). This page recomputed two of
+    # them beside `queries.py` for a day; both thresholds now live once, in the query that
+    # owns them. Only codes that did NOT fire are shown a margin — for one that fired, the
+    # bars in its `why` are the story. ⚠️The invariant, asserted on the songset: a reported
+    # `room` is below 1.00 **iff** the code fired. A margin that disagrees with its own code
+    # is worse than no margin.
+    margins: dict[str, str] = {}
     try:
         _rep: dict = {}
-        for _q in (Q.q_events, Q.q_breathing, Q.q_scatter, Q.q_drops):
+        for _q in (Q.q_events, Q.q_flow, Q.q_vocals, Q.q_drops,
+                   Q.q_elements, Q.q_breathing, Q.q_scatter):
             _q(arrs, report=_rep)
         for _code, (_txt, _room) in _rep.items():
             if _code in {h[0] for h in hits}:

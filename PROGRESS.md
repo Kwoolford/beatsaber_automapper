@@ -17164,3 +17164,39 @@ something Kyle's own GOOD and PREFERRED maps do; it is not the defect. The conju
 nothing at all. ★The wider lesson: **a margin says how close a map is to a LINE, never how close it
 is to being right** — 1f767 is one note from green and 2x from the human. A small margin is an
 invitation to check the threshold, and that check is a bench run, not an edit.
+
+
+## 2026-09-13q — every code reports its own margin, and the invariant caught two shipped bugs
+
+`q_flow` (FLOW · D2), `q_vocals` (D4) and `q_elements` (ELEMENTS) now take `report=` too, which
+completes the DoD: **`code_margins()` is deleted from `verdict.py`** and every threshold lives once,
+in the query that owns it. All seven queries verified byte-identical without `report`; songset
+verdicts and `bench.py score queries:q_all` unchanged.
+
+Shapes the margins had to copy from the code:
+- **FLOW** is a 3-clause conjunction (isolated share · on-grid share · isolated vs the human's).
+  A conjunction is kept safe by the clause FURTHEST from firing, so the window's room is the
+  **max** over clauses; the code's room is the **min** over windows.
+- **D2** and the E-drop half of D3 have clauses that describe the HUMAN (his reference odd-16th
+  share, his coming down). Those are **preconditions, not our defect** — they gate whether a
+  window contributes a margin at all rather than entering the arithmetic.
+- **D4** is a FLOOR (we answer BELOW his share minus the gap), the first one that is not a ratio.
+
+★★**The invariant is the real product: `room < 1.00` iff the code fired.** Asserting it over the
+19 bench rows (182 margins) immediately failed twice, both in margins that had already shipped and
+read perfectly plausibly:
+1. **The gate.** `q_events` reported EMPTY and D1 on `1f913` — a cross-difficulty read, where the
+   query does not ask them. The page printed ⚠️NO MARGIN under a ⚪ "could not be asked" line.
+2. **The population.** The over-dense D6 branch reads windows with `h >= 8`; the margin read
+   `max(ratios)`, which is built from `h >= 12`. It called `1f8d6` safe at **1.88x against a 2x
+   line on a window that had fired**. D6's map-wide doubles branch, which has no difficulty gate
+   at all, had no margin at all — D6 is red if either branch fires, so its room is the min of both.
+
+⇒**A margin is a second implementation of the query and rots the same way.** Both bugs are the
+same mistake in different clothes: describing what the threshold says instead of what the code
+does. Added `scripts/check_margins.py` (bench-wide or one zip, exit 1) so the next one is caught
+by a command rather than by reading.
+
+★`1f913`, which prints *"nothing located"*, ends the day with **two** codes with no margin (D3
+exactly on its line, SCATTER at 80 % of its) — EMPTY and D6 dropped off that list because they were
+never asked of it in the first place, which is the honest reading.

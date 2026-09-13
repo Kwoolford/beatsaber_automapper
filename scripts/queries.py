@@ -162,9 +162,13 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0,
     HL, HR = hands(arrs["human"]); hev = HL | HR; hdbl = HL & HR
     mn, hn = notes_per_row(arrs["map"]), notes_per_row(arrs["human"])
     empty, dense, ratios, dshare = [], [], [], []
+    dense_ratios: list[float] = []      # ⚠️the over-dense branch's population is h >= 8,
+                                        # NOT `ratios`' h >= 12 -- see the margin below
     for b0 in range(1, int(bar.max()) + 1, W):
         sel = (bar >= b0) & (bar < b0 + W)
         e, h = int(ev[sel].sum()), int(hev[sel].sum())
+        if h >= 8:
+            dense_ratios.append(e / h)
         if h >= 8 and e >= high * h and not cross:   # a LEVEL claim: see cross_difficulty
             dense.append((b0, f"over-dense: {e} events vs human {h} ({e / h:.1f}x), "
                               f"notes {int(mn[sel].sum())} vs {int(hn[sel].sum())}"))
@@ -205,15 +209,36 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0,
     # anything under 1 + NEAR_FRAC "no margin". The directions need different arithmetic:
     # `L/value` called 1f913's echo gap safe at 80 % of its line, the exact case NEAR_FRAC
     # was introduced to catch.
-    if report is not None and ratios:
-        worst = min(ratios)
-        report["EMPTY"] = (f"worst window {worst:.2f}x his events — red below {low:g}x", worst / low)
-        report["D1"] = (f"median window ratio {float(np.median(ratios)):.2f}x — "
-                        f"red below 0.70x", float(np.median(ratios)) / 0.70)
-        if dense or ratios:
-            top = max(ratios)
-            report["D6"] = (f"worst window {top:.2f}x his events — red at/above {high:g}x",
-                            2.0 - top / high)
+    # ⚠️Two things a margin must copy from the code it describes, both got wrong first time
+    # and caught by asserting `room < 1` iff the code fired (2026-09-13q):
+    #   1. the GATE -- EMPTY, D1 and the over-dense branch are not asked across difficulties,
+    #      so under `cross` there is no margin to report, only a reason;
+    #   2. the POPULATION -- the over-dense branch reads windows with h >= 8 and `ratios`
+    #      holds h >= 12, so `max(ratios)` called 1f8d6 safe at 1.88x on a window that fired.
+    # D6's map-wide doubles branch has no difficulty gate at all, and D6 is red if EITHER
+    # branch fires, so its room is the MIN of the two.
+    if report is not None:
+        r_dbl = max(2.0 - ds / 0.5, 2.0 - (ds - hds) / 0.2)
+        d_txt = f"doubles {ds:.0%} of events vs his {hds:.0%} — red at 50% and +20pts"
+        if cross:
+            for c in ("EMPTY", "D1"):
+                report[c] = ("not asked across difficulties — a level claim, not a defect", 2.0)
+            report["D6"] = (d_txt + "; the over-dense branch is not asked across difficulties",
+                            r_dbl)
+        else:
+            r_win = 2.0 - max(dense_ratios) / high if dense_ratios else 2.0
+            w_txt = (f"worst window {max(dense_ratios):.2f}x his events — red at/above {high:g}x"
+                     if dense_ratios else "no window has the 8+ human events this reads")
+            report["D6"] = ((w_txt if r_win <= r_dbl else d_txt), min(r_win, r_dbl))
+            if ratios:
+                worst, med = min(ratios), float(np.median(ratios))
+                r_empty = worst / low
+                report["EMPTY"] = (f"worst window {worst:.2f}x his events — red below {low:g}x",
+                                   r_empty)
+                # D1 also needs an EMPTY window to exist, so the safer clause decides
+                report["D1"] = (f"median window ratio {med:.2f}x — red below 0.70x"
+                                + ("" if r_empty <= med / 0.70 else " (and no window is EMPTY)"),
+                                max(med / 0.70, r_empty))
     return hits
 
 
@@ -222,7 +247,7 @@ q_events.codes = {"EMPTY", "D6", "D1"}
 
 # ----------------------------------------------------------------------------- q_flow
 def q_flow(arrs: dict, W: int = 2, iso_min: float = 0.30, grid_min: float = 0.30,
-           shifted: float = 0.8) -> list[tuple]:
+           shifted: float = 0.8, report: dict | None = None) -> list[tuple]:
     """FLOW / D2 — where the rhythm jitters, and where the whole grid is shifted.
 
     FLOW: events that start on an odd 16th with the previous slot EMPTY (a note on the "e"
@@ -264,6 +289,11 @@ def q_flow(arrs: dict, W: int = 2, iso_min: float = 0.30, grid_min: float = 0.30
         shifted_bar[b] = n >= 4 and odd[sel].sum() >= shifted * n
     unshifted = ~shifted_bar[bar]
     flow, shift = [], []
+    # Margins. Both codes are CONJUNCTIONS, so a window is kept safe by the clause FURTHEST
+    # from firing (max over clauses) and the code's margin is the tightest window (min over
+    # windows). Windows the query skips (`ne < 8`, `nu < 8`) contribute nothing, and the
+    # clauses that describe the HUMAN (`ho < 0.35`) are preconditions, not our defect.
+    r_flow, r_shift = [], []
     for b0 in range(1, nb):
         sel = (bar >= b0) & (bar < b0 + W)
         ne = int(ev[sel].sum())
@@ -273,6 +303,8 @@ def q_flow(arrs: dict, W: int = 2, iso_min: float = 0.30, grid_min: float = 0.30
         nh = int(hev[sel].sum())
         ho = hodd[sel].sum() / nh if nh >= 4 else 0.0
         hi = hiso[sel].sum() / nh if nh >= 4 else 0.0
+        if ho < 0.35:
+            r_shift.append(2.0 - o / shifted)
         if o >= shifted:
             if ho < 0.35:
                 shift.append((b0, f"{o:.0%} of {ne} events on odd 16ths (reference {ho:.0%}) "
@@ -283,9 +315,18 @@ def q_flow(arrs: dict, W: int = 2, iso_min: float = 0.30, grid_min: float = 0.30
         if nu < 8:
             continue
         i, g = iso[us].sum() / nu, grid[us].sum() / nu
+        r_flow.append(max(2.0 - i / iso_min, 2.0 - g / grid_min, 2.0 - i / (hi + 0.2)))
         if i >= iso_min and g >= grid_min and i >= hi + 0.2:
             flow.append((b0, f"{i:.0%} of {nu} events start on an odd 16th from silence "
                              f"(reference {hi:.0%}), {g:.0%} on the 8th grid"))
+    if report is not None:
+        for code, rooms, what in (("FLOW", r_flow, f"{len(r_flow)} window(s) of {W} bars"),
+                                  ("D2", r_shift, f"{len(r_shift)} unshifted-reference window(s)")):
+            if rooms:
+                report[code] = (f"tightest of {what} reads {min(rooms):.2f} "
+                                f"— 1.00 is the line", min(rooms))
+            else:
+                report[code] = ("no window has the 8+ events this reads -- nothing to ask", 2.0)
     return merge(flow, "FLOW", arrs, W) + merge(shift, "D2", arrs, W)
 
 
@@ -308,6 +349,9 @@ def q_vocals(arrs: dict, W: int = 4, gap: float = 0.25, min_slots: int = 6,
     draws three of these against his ExpertPlus (`cross_difficulty`).
     """
     if not has_human(arrs) or cross_difficulty(arrs):
+        if report is not None and has_human(arrs):
+            report["D4"] = ("not asked across difficulties — how much of the vocal a map "
+                            "answers is a level claim, not a defect", 2.0)
         return []
     bar = arrs["bar"]
     vox = col(arrs, "main").astype(int) == 1
@@ -317,17 +361,28 @@ def q_vocals(arrs: dict, W: int = 4, gap: float = 0.25, min_slots: int = 6,
         return ev | np.r_[ev[1:], False] | np.r_[False, ev[:-1]]
     am, ah = answered(arrs["map"]), answered(arrs["human"])
     lyric = arrs["lyric"]
-    fires = []
+    fires, rooms = [], []
     for b0 in range(1, int(bar.max()) + 1, W):
         sel = (bar >= b0) & (bar < b0 + W) & vox
         n = int(sel.sum())
         if n < min_slots:
             continue
         h, m = ah[sel].mean(), am[sel].mean()
+        if h >= human_min:
+            # his answering is the precondition; the FLOOR we must clear is `h - gap`
+            rooms.append(m / max(h - gap, 1e-9))
         if h >= human_min and m < h - gap:
             words = [w for w in lyric[sel & ~am] if any(ch.isalnum() for ch in str(w))][:4]
             fires.append((b0, f"vox answered {m:.0%} of {n} main slots vs human {h:.0%}"
                               + (f" -- unanswered: {' '.join(words)}" if words else "")))
+    if report is not None:
+        if rooms:
+            report["D4"] = (f"tightest of {len(rooms)} window(s) reads {min(rooms):.2f} "
+                            f"against the {gap:.0%}-below-him line — 1.00 is the line",
+                            min(rooms))
+        else:
+            report["D4"] = (f"no window has {min_slots}+ vox slots he answers {human_min:.0%} "
+                            f"of -- nothing to leave unanswered", 2.0)
     return merge(fires, "D4", arrs, W)
 
 
@@ -413,8 +468,8 @@ def q_drops(arrs: dict, jump: float = 0.25, n_bars: int = 2, lag_beats: float = 
     if report is not None:
         if near:
             worst = max(near)
-            report["D3"] = (f"closest of {len(near)} energy boundary(s) reached {worst:.2f} "
-                            f"of the trigger -- red at 1.00", 2.0 - worst)
+            report["D3"] = (f"closest of {len(near)} energy boundary(s) reads "
+                            f"{2.0 - worst:.2f} — 1.00 is the line", 2.0 - worst)
         else:
             report["D3"] = ("no energy jump or drop in this song answers to a step "
                             "-- nothing here to land late", 2.0)
@@ -426,7 +481,7 @@ q_drops.codes = {"D3"}
 
 # ----------------------------------------------------------------------------- q_elements
 def q_elements(arrs: dict, human_min_walls: int = 5, cover_ratio: float = 0.5,
-               human_min_cover: int = 50) -> list[tuple]:
+               human_min_cover: int = 50, report: dict | None = None) -> list[tuple]:
     """ELEMENTS — no walls where the human built them, or far less WALL than he built.
 
     Counts wall starts (a lane going from free to walled). Fires once, at the human's
@@ -463,6 +518,9 @@ def q_elements(arrs: dict, human_min_walls: int = 5, cover_ratio: float = 0.5,
         cov_m = (arrs["map"][:, li] > 0).any(axis=1)
         cov_h = (arrs["human"][:, li] > 0).any(axis=1)
         cm, ch = int(cov_m.sum()), int(cov_h.sum())
+        if report is not None and ch >= human_min_cover:
+            report["ELEMENTS"] = (f"walls cover {cm / ch:.2f}x his {ch} slots — "
+                                  f"red below {cover_ratio:g}x", (cm / ch) / cover_ratio)
         if ch >= human_min_cover and cm < cover_ratio * ch:
             bar = arrs["bar"]
             gap = cov_h & ~cov_m
@@ -481,6 +539,9 @@ def q_elements(arrs: dict, human_min_walls: int = 5, cover_ratio: float = 0.5,
                      f"ours: " + ", ".join(f"bars {r[0]}-{r[-1]}" for r in worst))]
         return []
     if nm > 0 or nh < human_min_walls:
+        if report is not None and "ELEMENTS" not in report:
+            report["ELEMENTS"] = (f"he builds {nh} wall start(s), under the {human_min_walls} "
+                                  f"this reads — nothing here to match", 2.0)
         return []
     s0 = int(np.argmax(hs.any(axis=1)))
     extra = []
@@ -555,8 +616,8 @@ def q_breathing(arrs: dict, min_rest_bars: int = 2, per_bar: float = 2.0,
         else:
             worst = max(near)
             report["BREATHING"] = (
-                f"busiest of his {len(near)} rest(s) reached {worst:.2f} of the trigger "
-                f"({min_events} events and {per_bar:g}/bar) -- red at 1.00",
+                f"busiest of his {len(near)} rest(s) reads {2.0 - worst:.2f} against the "
+                f"{min_events}-event, {per_bar:g}/bar trigger — 1.00 is the line",
                 2.0 - worst)
     return hits
 
