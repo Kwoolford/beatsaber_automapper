@@ -414,6 +414,10 @@ def main() -> int:
                          "on the held-out songs it cuts the density error from sd 1.67 to "
                          "1.36 (corr +0.689). See predict_nps()")
     ap.add_argument("--no-idiomize", action="store_true")
+    ap.add_argument("--allow-resets", action="store_true",
+                    help="let idiomize place same-parity repeats; fix_parity removes them "
+                         "anyway, so this only hands the direction choice to a "
+                         "vocabulary-blind repair (idiomize.STRICT_PARITY)")
     ap.add_argument("--map-memory", type=float, default=0.0, dest="map_memory",
                     help="prefer a landing this map has already played (1.0 or less = off). "
                          "See idiomize.MEMORY_BOOST")
@@ -647,6 +651,7 @@ def main() -> int:
         # until a full build shows what it costs `idiom_coverage` -- the axis this pass
         # exists to move, and the one the palette sweep forgot to measure.
         kw.setdefault("memory_boost", a.map_memory)
+        kw.setdefault("strict_parity", not a.allow_resets)
         n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
         print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
 

@@ -111,6 +111,18 @@ PALETTE_BOOST = 6.0
 # SCATTER margin 0.43 → 0.77) and it never clears a red. Keep it off.
 MEMORY_BOOST = 0.0
 
+# ★★**Alternate unconditionally, like the pass that runs after us.** `idiomize_zip` finishes
+# with `fix_parity`, which alternates every consecutive same-hand pair with **no** time
+# condition -- so a same-parity repeat placed here (a RESET, legal and human) is guaranteed to
+# be rewritten by a pass that does not know the vocabulary. Measured 2026-09-13x on one song:
+# with resets allowed the fixer rewrote **319-351 of 728 directions** and took the share of
+# transitions in the human top-500 from 0.998 to **0.587**; with this on it rewrites **0** and
+# the share stays at 0.998, with fallbacks still 0 in every arm.
+# ⚠️This does NOT change how many resets the SHIPPED map has -- `fix_parity` already removes
+# them all (every songset build reads `resets 0` against a human's 2). It changes only WHO
+# chooses the direction: the vocabulary-aware sampler, or the blind repair.
+STRICT_PARITY = True
+
 DOWN_DIRS = (1, 6, 7)
 UP_DIRS = (0, 4, 5)
 HOME = {0: (0, 1), 1: (2, 3)}   # red left, blue right
@@ -137,7 +149,8 @@ class _Hand:
 
 
 def _candidates(ranked, counts, h: _Hand, dt_beats: float, spb: float,
-                top_k: int, cross_ok: bool, travel_target: float = TRAVEL_TARGET):
+                top_k: int, cross_ok: bool, travel_target: float = TRAVEL_TARGET,
+                strict_parity: bool = False):
     """Vocabulary moves legal from this hand's state, with their human weights.
 
     Returns `[(idiom, weight)]`. The weight is the idiom's **frequency in the human
@@ -167,7 +180,13 @@ def _candidates(ranked, counts, h: _Hand, dt_beats: float, spb: float,
         if crosses and not cross_ok:
             continue
         p = _parity_of(d_to)
-        if p is not None and p == h.parity and dt_sec < ss.HARD_RESET_SEC:
+        # ★★`strict_parity` matches `fix_parity`, which alternates UNCONDITIONALLY. This pass
+        # deliberately allows a same-parity repeat when there is time to re-cock (a reset,
+        # which is legal and which humans play) -- but `idiomize_zip` runs `fix_parity` after
+        # it, so **every reset placed here is guaranteed to be rewritten** by a pass that does
+        # not know the vocabulary. An option the next pass always overrides is not an option,
+        # it is a leak. See PROGRESS 2026-09-13w-x.
+        if p is not None and p == h.parity and (strict_parity or dt_sec < ss.HARD_RESET_SEC):
             continue
         dist = (dx * dx + dy * dy) ** 0.5
         # A1: prefer travel near the human median, but as a soft weight rather than
@@ -237,7 +256,8 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
              repeat_p: float = REPEAT_P,
              travel_target: float = TRAVEL_TARGET,
              palette: dict[int, set] | None = None,
-             memory_boost: float = MEMORY_BOOST):
+             memory_boost: float = MEMORY_BOOST,
+             strict_parity: bool = False):
     """Redraw (x, y, direction) for every note from the human vocabulary.
 
     `records` is a list of dicts with keys b/x/y/c/d (the v3 `colorNotes` shape).
@@ -291,7 +311,7 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         # of every map we ship (crossover 0.000, human percentile 0.4).
         cross_ok = rng.random() < crossover
         cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, cross_ok,
-                            travel_target)
+                            travel_target, strict_parity)
         # Prefer a figure this hand has just played, when one still fits from its
         # current state. This is what makes the local vocabulary small.
         if cands and recent[color] and rng.random() < repeat_p:
@@ -332,7 +352,7 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
         pick = _pick(cands, rng, prefer_cross=cross_ok, width=width)
         if pick is None and cross_ok:
             cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, False,
-                                travel_target)
+                                travel_target, strict_parity)
             pick = _pick(cands, rng, prefer_cross=False, width=width)
         if pick is not None:
             dx, dy, _df, d_to, _c = pick
@@ -389,6 +409,52 @@ def _reparity(notes: list[dict], bpm: float) -> list[dict]:
         out[slot]["x"] = int(fn.x)
         out[slot]["y"] = int(fn.y)
         out[slot]["d"] = int(fn.direction)
+    return _revocab(notes, out)
+
+
+def _revocab(before: list[dict], after: list[dict]) -> list[dict]:
+    """Re-pick the fixer's new directions INSIDE THEIR OWN PARITY CLASS, preferring the
+    vocabulary.
+
+    ★★**Why this is safe by construction.** Parity depends only on whether a direction is
+    up-ish (`UP_DIRS`) or down-ish (`DOWN_DIRS`), so swapping 5 for 0 or 4 cannot change
+    whether the swing alternates. The fixer's verdict about *which way the hand must go* is
+    kept exactly; only *which of that class's directions* is re-chosen, by how often the
+    human corpus plays the resulting transition. Notes the fixer did not touch are never
+    considered, so a map it leaves alone comes back byte-identical.
+
+    ⇒**The bug this closes** (2026-09-13w): `fix_parity` is vocabulary-blind, and on a
+    parity-hostile map it rewrote 319-351 directions of 728, turning **0** out-of-vocabulary
+    transitions into **114-149** and taking `idiom_coverage` from 0.99 to 0.53-0.59. Nothing
+    downstream noticed -- the verdict page does not read that axis. The repair is not wrong to
+    fire; it was choosing among directions without being told which ones humans use.
+    """
+    changed = {i for i, (o, n) in enumerate(zip(before, after)) if o.get("d") != n.get("d")}
+    if not changed:
+        return after
+    counts, _ranked, _ = idm.load_vocab()
+    out = [dict(n) for n in after]
+    for color in {int(n.get("c", 0)) for n in out}:
+        idx = sorted((i for i in range(len(out)) if int(out[i].get("c", 0)) == color),
+                     key=lambda i: float(out[i].get("b", 0.0)))
+        for a_i, b_i in zip(idx, idx[1:]):
+            if b_i not in changed:
+                continue
+            dt = round(float(out[b_i]["b"]) - float(out[a_i]["b"]), 3)
+            if dt <= 0 or dt > idm.MAX_DT:
+                continue
+            cls = idm.dt_class(dt)
+            dx = int(out[b_i]["x"]) - int(out[a_i]["x"])
+            dy = int(out[b_i]["y"]) - int(out[a_i]["y"])
+            d_from, d_fix = int(out[a_i]["d"]), int(out[b_i]["d"])
+            par = _parity_of(d_fix)
+            if par is None:
+                continue
+            same = [d for d in (DOWN_DIRS if par == 0 else UP_DIRS)]
+            best = max(same, key=lambda d: (counts.get((dx, dy, d_from, d, cls), 0),
+                                            d == d_fix))
+            if counts.get((dx, dy, d_from, best, cls), 0) > 0:
+                out[b_i]["d"] = int(best)
     return out
 
 
@@ -398,7 +464,8 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
                  repeat_p: float = REPEAT_P,
                  travel_target: float = TRAVEL_TARGET,
                  palette: int = 0,
-                 memory_boost: float = MEMORY_BOOST) -> tuple[int, int]:
+                 memory_boost: float = MEMORY_BOOST,
+                 strict_parity: bool = STRICT_PARITY) -> tuple[int, int]:
     """Copy `src` to `dst` with only note cells redrawn. Returns (n_notes, n_fallback)."""
     import json
     import shutil
@@ -453,7 +520,8 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         # UNWIRED one.
         new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
                             width=width, crossover=crossover, repeat_p=repeat_p,
-                            travel_target=travel_target, memory_boost=memory_boost)
+                            travel_target=travel_target, memory_boost=memory_boost,
+                            strict_parity=strict_parity)
         # ★TWO PASSES when a palette size is asked for: the first pass says which shapes
         # this song's rhythm actually reaches, the top `palette` of those become the
         # palette, and the second pass replays the map inside it. Deriving the palette
@@ -463,6 +531,7 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
             new, nfb = idiomize(notes, bpm, seed=seed, top_k=top_k,
                                 width=width, crossover=crossover, repeat_p=repeat_p,
                                 travel_target=travel_target, memory_boost=memory_boost,
+                                strict_parity=strict_parity,
                                 palette=_palette_of(new, palette))
         # The invariant the whole design rests on: this pass moves cells and
         # nothing else. If it ever changes a time, a colour or the count, the A/B
@@ -521,6 +590,11 @@ def main() -> int:
     ap.add_argument("--top-k", type=int, default=VOCAB_DEPTH,
                     help="vocabulary depth (default %(default)s; see VOCAB_DEPTH)")
     ap.add_argument("--crossover", type=float, default=CROSSOVER_TARGET)
+    ap.add_argument("--allow-resets", action="store_true",
+                    help="let the sampler place a same-parity repeat when there is time to "
+                         "re-cock. ⚠️`fix_parity` runs after this pass and removes every one, "
+                         "so this only hands the direction choice to a vocabulary-blind "
+                         "repair (see STRICT_PARITY)")
     ap.add_argument("--map-memory", type=float, default=MEMORY_BOOST, dest="map_memory",
                     help="prefer a landing this map has ALREADY played, as a weight on the "
                          "frequency-weighted draw (1.0 = off; see MEMORY_BOOST). Unlike "
@@ -550,7 +624,8 @@ def main() -> int:
     n, nfb = idiomize_zip(a.zip_in, a.out, seed=a.seed, top_k=a.top_k,
                           width=a.width, crossover=a.crossover,
                           repeat_p=a.repeat_p, travel_target=a.travel_target,
-                          palette=a.palette, memory_boost=a.map_memory)
+                          palette=a.palette, memory_boost=a.map_memory,
+                          strict_parity=not a.allow_resets)
     print(f"{a.zip_in.name}: re-placed {n - nfb}/{n} notes from the human vocabulary "
           f"({nfb} kept their original cell: no idiom fit)")
     print(f"wrote {a.out}")

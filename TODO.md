@@ -332,7 +332,23 @@ does not count toward the win rate). Default stays **off** until he plays it.
   whole bimodality. ⇒**Any change that makes a map parity-hostile silently degrades
   `idiom_coverage` and nothing notices** (the verdict page does not read it; only `mapjudge` would).
 
-### 🔧 P0.5 — make `_reparity` vocabulary-aware (NEW, 2026-09-13w, blocks `--map-memory`)
+### ✅ P0.5 — DONE 2026-09-13x, and the cause was not where it looked
+**The passes disagreed about RESETS.** `fix_parity` alternates unconditionally; `idiomize` allowed
+a same-parity repeat when there was time to re-cock. The fixer runs last, so **every reset the
+sampler placed was guaranteed to be rewritten by a vocabulary-blind pass** — 319-351 of 728
+directions on a stressed map, taking the share of transitions in the human top-500 from 0.998 to
+0.587. ★**And it cost nothing in parity terms: the shipped map already had no resets** (`fix_parity`
+removes them all; every songset build reads `resets 0` against a human's 2). The choice was only
+**who picks the direction**. ⇒`STRICT_PARITY = True`; `--allow-resets` reproduces the old path.
+**Sweep**: byte-identical maps on 3 of 4 songs, `1f8d6` coverage 0.817±0.024 → 0.844±0.008, 0
+violations, no new red. Also added `_revocab` as a safety net (re-picks the fixer's directions
+INSIDE their parity class, preferring the vocabulary; control byte-identical).
+⇒**A default whose value is protective is worth having when its measured cost is zero.**
+⬜**This reopens `--map-memory`** — its refutation was entirely the collapse this fixes. Re-run
+`price_memory_cov.sh` with strict parity and re-decide against the outlier criterion (we sit at the
+95th-98th percentile of vocabulary entropy on every songset song).
+
+### 🔧 (superseded) make `_reparity` vocabulary-aware
 **Evidence**: above. The repair picks any direction that satisfies parity; it should pick among
 directions the mined vocabulary knows for that transition, falling back to the current behaviour
 only when none is legal.

@@ -17493,3 +17493,75 @@ changes is that the cause is now known rather than unexplained.
 transitions the sampler could not have drawn. Two components each behaving correctly, with the
 guarantee lost in the seam between them — worth reaching for whenever an axis moves that no single
 pass touches.
+
+
+## 2026-09-13x — the two passes disagree about resets, and the loser is the vocabulary
+
+Chased `_reparity` one level further. The cause is not a bug in either pass; it is a **conflict
+between two documented rules**:
+
+- **`fix_parity`** (`generation/postprocess.py`) alternates every consecutive same-hand pair
+  **unconditionally**. No time condition at all.
+- **`idiomize._candidates`** rejects a same-parity repeat **only when `dt_sec < HARD_RESET_SEC`** —
+  it deliberately permits a reset when there is time to re-cock, which is legal and which humans
+  play (`1f913`'s human has 2).
+
+`idiomize_zip` runs the fixer **after** the sampler, so **every reset the sampler places is
+guaranteed to be rewritten**, by a pass that does not know the vocabulary. Measured on one song,
+with a snapshot taken before the fixer runs (it mutates its input in place — the first version of
+this measurement compared the fixer's output against itself and read a flat zero):
+
+| memory | resets allowed | seed | fallbacks | directions the fixer rewrote | share in the human top-500, before → after |
+|---|---|---|---|---|---|
+| 0 | yes | 3, 4 | 0 | **0** | 0.986 → 0.986 · 0.989 → 0.989 |
+| 0 | no | 3, 4 | 0 | **0** | 0.988 · 0.989 (unchanged) |
+| 4 | yes | 3 | 0 | **319** | 0.997 → **0.671** |
+| 4 | yes | 4 | 0 | **351** | 0.998 → **0.587** |
+| 4 | no | 3, 4 | 0 | **0** | **1.000 · 0.998, unchanged** |
+
+⇒**Alternating unconditionally in the sampler removes the damage entirely**, with fallbacks still
+zero in every arm — the stricter rule does not starve the draw.
+
+★★★**And it costs nothing in parity terms, because the shipped map already has no resets.**
+`fix_parity` removes every one regardless; every songset build reads `resets 0` against a human's
+2. So the choice was never "resets or no resets" — it was only **who picks the direction**: the
+vocabulary-aware sampler, or the blind repair. ⇒**An option the next pass always overrides is not
+an option, it is a leak.**
+
+Also added `_revocab`: after the fixer runs, re-pick its new directions **inside their own parity
+class** (swapping 5 for 0 or 4 cannot change whether a swing alternates), preferring the
+vocabulary. It is a safety net rather than the fix — on the collapsed seeds it takes
+out-of-vocabulary transitions from 114/149 down to 9/20 but only moves `idiom_coverage` 0.588 →
+0.671, because once the fixer has rebuilt the chain the positions no longer suit any common
+transition. Control arm verified **byte-identical**.
+
+⏱`scripts/price_strict_parity.sh` (4 songs x 3 seeds x {strict, --allow-resets}) is measuring the
+full-build cost before the default moves. **The flip is NOT committed until it passes** — the
+recorded lesson from the palette is that a default flip needs the axis the pass exists for,
+measured on a build.
+
+
+### The full-build sweep: DoD met, and the flip is mostly PROTECTIVE
+
+4 songs x 3 seeds x {strict, `--allow-resets`}, full builds with `repeat.py` after:
+
+| song | maps identical? | idiom_coverage, resets-allowed → strict | violations | located hits |
+|---|---|---|---|---|
+| 1f913 | **byte-identical, all 3 seeds** | 0.849 → 0.849 | 0 | 0 → 0 |
+| 1f767 | **byte-identical, all 3 seeds** | 0.640 → 0.640 | 0 | 6 → 6 |
+| 1f333 | **byte-identical, all 3 seeds** | 0.842 → 0.842 | 0 | 12 → 12 |
+| 1f8d6 | differs, all 3 seeds | 0.817 ± 0.024 → **0.844 ± 0.008** | 0 | 3,3,3 → 3,3,2 |
+
+⇒**At today's defaults it is a no-op on three of four songs** — the sampler rarely reaches for a
+reset unless something is pushing it — and on the fourth it raises `idiom_coverage` slightly and
+cuts that arm's spread by a third. Nothing falls anywhere, violations stay at 0, no map gains a
+red. ⚠️The one hit `1f8d6` loses on one seed is **ELEMENTS** (walls placed against different note
+columns), the same incidental side effect noted on 2026-09-13t. Not counted.
+
+✅**DoD MET, `STRICT_PARITY = True` committed.** The honest framing: this buys almost nothing
+today and closes a leak that will otherwise reappear for **any** future change that stresses
+parity — which is exactly how it was found. A default whose value is protective is still worth
+having when its measured cost is zero.
+
+⬜**Reopens `--map-memory`**: its refutation was entirely this collapse. Re-run
+`price_memory_cov.sh` with strict parity on and re-decide against the outlier criterion.
