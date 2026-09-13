@@ -212,52 +212,72 @@ def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60,
 
 
 def _taper_rows(rows: list[dict], taper: float, bars: int) -> list[dict]:
-    """Move budget from the last `bars` of a section into the section that follows it.
+    """Move budget from the last `bars` of a section into the FIRST `bars` of the next one.
 
     ★★**"BREATHE BEFORE THE DROP"** — Kyle's own P6 style request, arriving as a measured defect
     (`PROGRESS.md 2026-09-13h`). At the boundaries D3 fires on, our notes ÷ his is **1.47 in the
-    two bars BEFORE** (we out-play him on 5 of 7) and **0.85 in the two AFTER** (we under-play on
-    6 of 7). **He empties out before the jump and floods after it; we do the opposite** — his
-    step reads ×2-25 not because he plays more after but because he plays almost nothing before.
+    two bars BEFORE** and **0.79 in the two AFTER**: **he empties out before the jump and floods
+    after it; we do the opposite.** His step reads ×2-25 not because he plays more after but
+    because he plays almost nothing before.
 
     🔴**The builder could not express this**: `plan()` gives each section ONE energy multiplier
     and ONE accent percentile, so the budget is uniform inside a section and a taper is a
-    *within-section* shape nothing had. That is also why `--energy-slope` was a null — it scales
-    whole sections, so it cannot thin the last two bars of one.
+    *within-section* shape nothing had. That is also why `--energy-slope` was a null.
 
-    ⇒Split the tail off as its own row, cut its budget by `taper`, and give exactly that much to
-    the next section. ⚠️**The budget is MOVED, not spent**: the map's note count must not change,
-    or this becomes a density lever and D6/EMPTY move with it.
-    `taper = 0` is the pre-2026-09-13 behaviour exactly.
+    ⚠️**The landing must be the first BARS, not the next section's average** (2026-09-13j). The
+    first version added the moved budget to the whole next section: the before-ratio fell
+    1.47 → 1.35 and the after-ratio moved 0.79 → 0.83 **and stalled** — the budget arrived in the
+    section but not where he floods. Both ends are now split.
+    ⚠️**The budget is MOVED, not spent**: the note count must not change, or this becomes a
+    density lever and D6/EMPTY move with it. `taper = 0` is the pre-2026-09-13 behaviour.
     """
     if taper <= 0 or len(rows) < 2:
         return rows
+    rise = [i for i in range(len(rows) - 1)
+            if rows[i + 1]["energy"] - rows[i]["energy"] >= TAPER_RISE]
+    if not rise:
+        return rows
+    tail_of = {i for i in rise}
+    land_of = {i + 1 for i in rise}
+
+    def seg(r: dict, b0: int, b1: int, scale: float) -> dict:
+        span = max(r["bar1"] - r["bar0"] + 1, 1)
+        f = (b1 - b0 + 1) / span
+        d = dict(r)
+        d["bar0"], d["bar1"] = b0, b1
+        d["budget"] = int(r["budget"] * f * scale)
+        d["pool_n"] = max(int(r["pool_n"] * f), 1)
+        d["drums_n"] = int(r["drums_n"] * f)
+        d["dur"] = round(r["dur"] * f, 1)
+        d["carrier_pct"] = _pct(d["budget"] * d["share"], d["pool_n"])
+        d["drums_pct"] = _pct(d["budget"] * (1 - d["share"]), d["drums_n"])
+        return d
+
     out: list[dict] = []
     for i, r in enumerate(rows):
-        nxt = rows[i + 1] if i + 1 < len(rows) else None
         span = r["bar1"] - r["bar0"] + 1
-        if not nxt or nxt["energy"] - r["energy"] < TAPER_RISE or span <= bars + 1:
+        want_tail = i in tail_of and span > bars + 1
+        want_land = i in land_of and span > bars + 1
+        if not (want_tail or want_land):
             out.append(r)
             continue
-        head, tail = dict(r), dict(r)
-        head["bar1"] = r["bar1"] - bars
-        tail["bar0"] = r["bar1"] - bars + 1
-        # split the budget and the event pools by bar count, then tax the tail
-        f = bars / span
-        for k, frac in (("head", 1.0 - f), ("tail", f)):
-            d = head if k == "head" else tail
-            d["budget"] = int(r["budget"] * frac)
-            d["pool_n"] = max(int(r["pool_n"] * frac), 1)
-            d["drums_n"] = int(r["drums_n"] * frac)
-            d["dur"] = round(r["dur"] * frac, 1)
-        moved = int(tail["budget"] * taper)
-        tail["budget"] -= moved
-        nxt["budget"] += moved
-        for d in (head, tail, nxt):
-            d["carrier_pct"] = _pct(d["budget"] * d["share"], d["pool_n"])
-            d["drums_pct"] = _pct(d["budget"] * (1 - d["share"]), d["drums_n"])
-        out.append(head)
-        out.append(tail)
+        # how much this section's tail gives up, and how much its head receives
+        give = (r["budget"] * (bars / span)) * taper if want_tail else 0.0
+        get = (rows[i - 1]["budget"] * (bars / max(rows[i - 1]["bar1"] - rows[i - 1]["bar0"] + 1, 1))
+               ) * taper if want_land else 0.0
+        lo, hi = r["bar0"], r["bar1"]
+        if want_land:
+            b1 = min(lo + bars - 1, hi - (bars if want_tail else 0) - 1)
+            if b1 >= lo:
+                base = r["budget"] * ((b1 - lo + 1) / span)
+                out.append(seg(r, lo, b1, (base + get) / max(base, 1e-9)))
+                lo = b1 + 1
+        if want_tail and hi - bars + 1 > lo:
+            out.append(seg(r, lo, hi - bars, 1.0))
+            out.append(seg(r, hi - bars + 1, hi,
+                           max(1.0 - taper, 0.0)))
+        elif lo <= hi:
+            out.append(seg(r, lo, hi, 1.0))
     return out
 
 

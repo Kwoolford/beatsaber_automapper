@@ -7,6 +7,41 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13j — The taper lands where he floods: D3 −36 %, and a per-song trade
+
+2026-09-13i's taper moved budget into the **next section's average** and the after-ratio stalled at
+0.83. v2 splits **both** ends of a boundary — the last bars give up budget, the **first bars after**
+receive exactly it.
+
+| arm | D3 hits | before-ratio | after-ratio | EMPTY | D6 | notes |
+|---|---|---|---|---|---|---|
+| base | 11 | 1.47 | 0.79 | 36 | 6 | — |
+| v1 (into the next section) | 9 | 1.35 | 0.83 | 40 | 7 | −0.7 % |
+| **v2 (into its first bars)** | **7** | 1.35 | **0.88** | 38 | **6** | −1.4 % |
+
+✅**The prediction held**: directing the budget at the landing bars moved the after-ratio past where
+v1 stalled (0.83 → **0.88**) and took D3 from 9 to **7** (songs 5 → **3**). D6 returns to baseline;
+the note count is conserved (−1.4 %, nothing outside ±5 %).
+
+### The songset, best build + taper 0.8
+| song | best build | **+ taper** |
+|---|---|---|
+| 1f913 | SHIP? YES — nothing located | **unchanged** |
+| **1f767** | 1 red (D3) | **SHIP? YES** (3 yellow) |
+| **1f333** | **4 red** | **2 red** (BREATHING · SCATTER) |
+| 🔴 1f8d6 | SHIP? YES (2 yellow) | **2 red** (ELEMENTS · lead-hand) |
+
+**Total reds across the songset 5 → 4**, ship count flat at 2 of 4 — `1f767` gains and `1f8d6`
+loses. Its regression is walls plus lead-hand: moving notes into the landing bars leaves fewer slots
+surviving the wall collision check, the same coupling `--lead-in` hit (2026-09-12q).
+
+⇒**Default stays 0.** A lever that takes one map out of shipping does not go on by default, however
+good the aggregate. ⬜But this is the closest any single lever has come: **D3 −36 %, D6 unchanged,
+budget conserved, and 1f333 halved.** The next question is whether the wall pass should run *after*
+the taper rather than before it — the coupling is an ordering problem, not a density one.
+
+---
+
 ## 2026-09-13i — The taper works, moves little, and nearly got reported backwards
 
 `autobuild --taper` splits the last bars off a section before an energy rise, cuts their budget, and

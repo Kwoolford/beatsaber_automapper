@@ -321,9 +321,18 @@ does not count toward the win rate). Default stays **off** until he plays it.
   **worse** (1.34→1.49) — a **selection artefact**, because the taper removes hits and the survivors
   are the worst. **Fix the population before comparing the statistic.** Same family as the sentinel
   that confounded `idiom_jsd`.
-  ⬜Revisit with more `--taper-bars`, or a taper that raises the **landing bars** rather than the next
-  section's average — the after-ratio moved 0.79→0.83 and stalled, i.e. the budget arrives in the
-  section but not in its first bars.
+  ✅**2026-09-13j — v2 LANDS IT WHERE HE FLOODS.** Both ends of a boundary are now split: the last
+  bars give up budget, the **first bars after** receive exactly it. The prediction held —
+  after-ratio **0.83 → 0.88** (v1 had stalled), **D3 11 → 7** hits and **5 → 3 songs**, D6 back to
+  baseline, notes −1.4 %.
+  **Songset**: `1f767` **1 red → SHIP? YES** · `1f333` **4 red → 2** · `1f913` unchanged (ships) ·
+  🔴`1f8d6` **ships → 2 red** (ELEMENTS + lead-hand). **Total reds 5 → 4, ship count flat at 2/4.**
+  ⇒**Default stays 0** — a lever that takes a map out of shipping does not go on by default. But it
+  is the closest any single lever has come.
+  ⬜**The 1f8d6 regression is an ORDERING problem, not a density one**: moving notes into the landing
+  bars leaves fewer slots surviving the **wall** collision check — the same coupling `--lead-in` hit.
+  **Try running `walls.py` AFTER the taper**, and re-check. **DoD**: 1f8d6 ships again with D3 still
+  at 7.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything
