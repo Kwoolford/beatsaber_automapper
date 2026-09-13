@@ -7,6 +7,42 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13c — ★★★D4 COLLAPSES INTO DENSITY. Three of the five live reds are one defect.
+
+Read the windows D4 fires on, across the 10 songs that have it.
+
+### 🔴 Not the carrier, and not the vocal line
+Our notes landing on a vocal onset: **IN the D4 windows 0.461, OUTSIDE 0.420** — *higher* inside,
+and lower inside on only 7 of 10. ⇒We are **not** following a different instrument there. The
+"follow the drums instead of the vocals" hypothesis is refuted.
+
+### ★★★ It is local under-density, and it is unanimous
+| | our notes ÷ his notes |
+|---|---|
+| **inside the D4 windows** | **0.74** |
+| outside them | **0.97** |
+| lower inside on | **10 / 10 songs** |
+| under him (ratio < 0.8) inside | **9 / 10** |
+
+⇒**D4 windows are exactly our locally-thin windows.** We play 97 % of his notes across the map and
+**74 %** in the passages D4 names. The query asks a vocal-shaped question and what it finds is a
+density hole — the vocal slots go unanswered because *everything* there goes unplayed.
+
+### ⇒ The consolidation
+**EMPTY (12 songs) · D6 (6) · D4 (10) are ONE defect** — our density against his, over in some
+places and under in others. Of the five codes still live on the songset, **three are the same
+thing**. The per-SONG half is closed (2026-09-13: predictor ceiling R² 0.231). What is now named is
+the per-WINDOW half: **0.97 map-wide, 0.74 in the holes.**
+
+⬜**And the suspect is already on the board.** The `--lead-in` work stalled for the same reason: the
+note it wanted was **thinned away by the accent-percentile budget** before it could be led into
+(2026-09-12p). Two independent lines arrived at the same mechanism. ⇒**Test whether the notes
+missing from D4 windows are the ones the accent filter dropped.** ⚠️Not yet measured — this is a
+convergence, not a finding. **DoD**: show the missing notes sit below the accent cut, on ≥10 songs,
+before touching the budget.
+
+---
+
 ## 2026-09-13b — ★★D4 is a DISTRIBUTION defect, not a coverage deficit. And the songset triaged.
 
 ### The triage: every query over all 16 songs, each against its own human

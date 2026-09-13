@@ -565,8 +565,21 @@ variation is not*.
 ⚠️**Retires the standing framing**: *"the ML generator does not follow the vocal line"* and *"0.217
 positives per slot against a corpus 0.245"* are **coverage** claims, and coverage is not the problem
 on the agent path.
-⬜**Next**: read the windows D4 fires on — what is he doing there that we are not?
-**DoD**: name what those windows have in common on ≥10 songs **before** building anything.
+★★★**2026-09-13c — D4 COLLAPSES INTO DENSITY. Three of the five live reds are ONE defect.**
+🔴Not the carrier: our notes on a vocal onset are **0.461 inside** the D4 windows vs **0.420
+outside** — *higher* inside. "We follow the drums there instead" is **refuted**.
+★★★**It is local under-density, 10/10 songs**: our notes ÷ his = **0.74 inside** the D4 windows
+against **0.97 outside**, lower inside on **10 of 10**, under him (<0.8) on **9 of 10**. The query
+asks a vocal-shaped question and finds a density hole — the vocal slots go unanswered because
+*everything* there goes unplayed.
+⇒**EMPTY (12 songs) · D6 (6) · D4 (10) are ONE defect.** Three of the five live codes are the same
+thing. The per-SONG half is closed (predictor ceiling R² 0.231); the per-WINDOW half is now named:
+**0.97 map-wide, 0.74 in the holes**.
+⬜**NEXT — and the suspect is already on the board**: `--lead-in` stalled for the same reason, the
+note it wanted had been **thinned away by the accent-percentile budget** (2026-09-12p). Two
+independent lines, one mechanism. **Test whether the notes missing from D4 windows are the ones the
+accent filter dropped.** ⚠️A convergence, not a finding. **DoD**: show the missing notes sit below
+the accent cut on ≥10 songs **before** touching the budget.
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
