@@ -524,9 +524,21 @@ running −0.669…+0.581, 10/16 barely above chance.
 `HUMAN_NPS 4.17` target's **1.18**, so a song-side target cuts the error ~14 %. ★Beside the
 backlogged ML note that crude audio features reach R² 0.185 for this, and actionable because
 `autobuild --nps` and P0.1's density gate already exist.
-⬜**NEXT: set `--nps` from the song, not the constant.** **DoD**: across the 16, D6 and EMPTY hits
-both fall, and the sd of our nps rises toward his 1.00 without the map-wide median ratio leaving
-0.9–1.1.
+🔴**2026-09-13 — BUILT, AND THE PREDICTOR IS TOO WEAK. This is a boundary, not a bug.**
+`autobuild --nps-from-song` (fit on 400 human Experts, **all 16 evaluation songs HELD OUT**; held
+out it cuts the density error sd **1.67 → 1.36**, corr **+0.689**; control byte-identical).
+✅**It does what it says**: our nps sd **0.48 → 0.64** (his 1.00), sd of the our/his ratio
+**0.37 → 0.31**. The 2026-09-12z mechanism is confirmed twice and is steerable.
+🔴**The reds do not move**: D6 **12 → 12** hits (6 → 5 songs), EMPTY **43 → 40** (12 → 11).
+A 19 % error reduction cannot carry a ratio from 2.31 to 1.0 — `1f9a0` goes 2.31 → 2.05 (predicted
+3.01 nps, his map is **1.55**) and `1f767` does not move at all. **The songs carrying the reds are
+the ones the predictor misses.**
+★**The boundary**: R² 0.231 from bpm + onset rate is near the ceiling of cheap features — the
+backlogged ML work got r = 0.046 (Stage-1) and R² = 0.185 (crude audio) on the same quantity.
+Closing it needs features nobody has found, or **the human's own map, which is not available at
+build time and would be fitting to the reference** (`h_dist` by another route).
+⇒Default **OFF**, flag kept. **DoD PARTLY MET** — spread condition passed, red-count condition
+failed. ⛔**"Tune the density" is retired as a line of attack** until someone has a better predictor.
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets

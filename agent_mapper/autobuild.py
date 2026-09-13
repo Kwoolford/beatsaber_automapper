@@ -64,6 +64,41 @@ def run(args: list[str], quiet: bool = True) -> str:
     return r.stdout
 
 
+# ★**How dense a HUMAN maps this song, from the song alone** (2026-09-12z / 09-13).
+# D6 and EMPTY are one defect: our nps sd across songs is 0.48 against his 1.00, so we match
+# his average and reproduce half his spread -- and the our/his ratio correlates +0.751 with D6
+# hits and -0.474 with EMPTY hits. A fixed `HUMAN_NPS` target cannot track him by construction.
+# Fit by least squares on **400 human Experts with all 16 evaluation songs HELD OUT**; bpm is
+# the strongest single predictor (+0.415), onset rate second (+0.342).
+# ⚠️R^2 is only 0.231 in-sample. This is a better target than a constant, NOT a good one: on the
+# held-out songs it misses 1f3d7 by 2.8 nps and 1f9a0 by 1.5. It reduces the error, it does not
+# remove it.
+NPS_FIT = (1.096, 0.119, 1.182)     # intercept, per onset/sec, per (bpm/100)
+
+
+def predict_nps(audio: pathlib.Path) -> float | None:
+    """The human nps this song would probably get, or None without an onset cache."""
+    import numpy as _np
+    sid = audio.stem
+    cache = REPO / "outputs" / "onset_cache" / f"{sid}.npz"
+    if not cache.exists():
+        return None
+    try:
+        d = _np.load(cache, allow_pickle=True)
+        ons = _np.asarray(d["onsets"], dtype=float)
+        dur = float(d["duration"])
+        if dur < 30 or len(ons) < 50:
+            return None
+        import brief as _B
+        bpm = float(_B.analyse(audio).get("bpm") or 0.0)
+        if bpm <= 0:
+            return None
+    except Exception:  # noqa: BLE001
+        return None
+    c0, c1, c2 = NPS_FIT
+    return max(2.0, min(6.0, c0 + c1 * (len(ons) / dur) + c2 * (bpm / 100.0)))
+
+
 def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60) -> list[dict]:
     """Per section: the carrier class, the backbone, and each one's accent budget."""
     import brief as B
@@ -284,6 +319,11 @@ def main() -> int:
                     help="a style name from style.py --list. Sets the density and "
                          "vocabulary targets; --nps overrides its density.")
     ap.add_argument("--nps", type=float, default=None)
+    ap.add_argument("--nps-from-song", action="store_true",
+                    help="predict the density from the song instead of using the fixed "
+                         "corpus median. Fit on 400 human Experts with the songset held out; "
+                         "on the held-out songs it cuts the density error from sd 1.67 to "
+                         "1.36 (corr +0.689). See predict_nps()")
     ap.add_argument("--no-idiomize", action="store_true")
     ap.add_argument("--out", type=pathlib.Path, default=None)
     ap.add_argument("--seed", type=int, default=0)
@@ -423,6 +463,14 @@ def main() -> int:
         import style as ST
         sargs = ST.build_args(a.style, ref)
         print(f"=== STYLE `{a.style}` -> {sargs}")
+    if a.nps_from_song:
+        _p = predict_nps(a.audio)
+        if _p is not None:
+            print(f"=== DENSITY: {_p:.2f} nps predicted from this song "
+                  f"(fixed target is {HUMAN_NPS})")
+            a.nps = _p
+        else:
+            print(f"=== DENSITY: no onset cache — falling back to the fixed {HUMAN_NPS}")
     nps = a.nps if a.nps is not None else sargs.get("nps", HUMAN_NPS)
     # P0.1: a density the CALLER asked for (flag or style preset) is a request the
     # judge gates against; the corpus default is not a request.

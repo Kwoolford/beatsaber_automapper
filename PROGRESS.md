@@ -7,6 +7,48 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13 — The density predictor works and is TOO WEAK to fix the reds. A real boundary.
+
+`autobuild --nps-from-song` predicts the human's density from the song (bpm + onset rate), fit by
+least squares on **400 human Experts with all 16 evaluation songs HELD OUT**. Held out it cuts the
+density error from sd **1.67 → 1.36** (corr **+0.689**). Control arm rebuilds byte-identical.
+
+### ✅ It does exactly what it says
+| | baseline | **predicted** | the human |
+|---|---|---|---|
+| sd of our nps across songs | 0.48 | **0.64** | **1.00** |
+| sd of the our/his ratio | 0.37 | **0.31** | — |
+| median our/his ratio | 1.02 | 1.05 | 1.00 |
+
+Our density spread moves toward his and the ratio tightens. The mechanism from 2026-09-12z is
+confirmed twice over: it is the **spread**, and steering it is possible.
+
+### 🔴 And the reds do not move
+| | baseline | predicted |
+|---|---|---|
+| D6 hits | 12 | **12** (songs 6 → 5) |
+| EMPTY hits | 43 | **40** (songs 12 → 11) |
+
+⇒**A 19 % error reduction is not enough when the ratio needs to travel from 2.31 to 1.0.** `1f9a0`
+goes 2.31 → 2.05 — the predictor said 3.01 nps and his map is **1.55**. `1f767` does not move at
+all (1.49 → 1.51). The songs that carry the reds are exactly the ones the predictor misses.
+
+### ★ The boundary this reaches
+`R² = 0.231` from bpm and onset rate is **near the ceiling of cheap features** — the backlogged ML
+work measured Stage-1 at r = 0.046 and crude audio features at R² = 0.185 for the same quantity, so
+0.231 is an improvement on both and still not enough. Closing it needs either features nobody has
+found yet, or the human's own map — **which is not available at build time, and using it would be
+fitting to the reference**, the `h_dist` failure by another route.
+⇒**Default stays OFF.** The flag is kept: it is wired, measured, held out, and it is the only thing
+that demonstrably moves our density spread. **DoD PARTLY MET** — the spread condition passed, the
+red-count condition did not.
+
+★**What this closes**: D6 and EMPTY have a known root cause and a known reason they are hard. That
+is worth more than another failed fix, and it retires "tune the density" as a line of attack until
+someone has a better predictor.
+
+---
+
 ## 2026-09-12z — ★★★D6 and EMPTY are ONE defect: our per-song density does not track the human's
 
 Chasing D6 past the energy curve. Two reads, one refuted and one decisive.
