@@ -575,11 +575,22 @@ asks a vocal-shaped question and finds a density hole — the vocal slots go una
 ⇒**EMPTY (12 songs) · D6 (6) · D4 (10) are ONE defect.** Three of the five live codes are the same
 thing. The per-SONG half is closed (predictor ceiling R² 0.231); the per-WINDOW half is now named:
 **0.97 map-wide, 0.74 in the holes**.
-⬜**NEXT — and the suspect is already on the board**: `--lead-in` stalled for the same reason, the
-note it wanted had been **thinned away by the accent-percentile budget** (2026-09-12p). Two
-independent lines, one mechanism. **Test whether the notes missing from D4 windows are the ones the
-accent filter dropped.** ⚠️A convergence, not a finding. **DoD**: show the missing notes sit below
-the accent cut on ≥10 songs **before** touching the budget.
+🔴**2026-09-13d — FOUR BUILDER-SIDE EXPLANATIONS ELIMINATED, none survives:**
+
+| hypothesis | result |
+|---|---|
+| the energy curve is too flat | 🔴REFUTED — the correlation runs the *other* way |
+| we follow a different instrument there | 🔴REFUTED — vocal share **higher** inside (0.461 vs 0.420) |
+| **the accent cut is harsher there** | 🔴NOT RESOLVABLE — 0.660 vs 0.718, **6/10**, spread −0.451…+0.215 |
+| the onset supply is thinner there | 🟡too small — −6 % supply against a **−24 %** note deficit (8/10) |
+
+★**The accent-cut negative matters**: it was flagged as a *convergence of two lines* and explicitly
+**not** called a finding. The direct test says no — so labelling it a hypothesis saved building the
+fifth thing today on an unmeasured story.
+⬜**NEXT — stop testing aggregates and READ one.** Four hypotheses, four eliminations. Open the score
+at a D4 window: `score.py <map> --song <sid> --vs auto --bars a-b` on `1fa32` (6 hits, the most) or
+`1f333`. ★This is what the whole plan's DoD asks for and the one tool not yet pointed at it.
+**DoD**: name in words what the human plays there that we do not, then check that word on ≥10 songs.
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets

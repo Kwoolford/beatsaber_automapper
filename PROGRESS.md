@@ -7,6 +7,36 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13d — The local density holes: four builder-side explanations eliminated, none survives
+
+2026-09-13c named the target: **we play 0.97 of the human's notes across a map and 0.74 inside the
+windows D4 flags.** This iteration tested where those holes come from. Nothing explains them.
+
+| hypothesis | result | evidence |
+|---|---|---|
+| the energy curve is too flat | 🔴**REFUTED** | flattening it moves D6 by one hit; the correlation runs the *other* way (2026-09-12y) |
+| we follow a different instrument there | 🔴**REFUTED** | vocal share **0.461 inside** vs 0.420 outside — *higher* inside (2026-09-13c) |
+| **the accent-percentile cut is harsher there** | 🔴**NOT RESOLVABLE** | keep-fraction **0.660 in** vs 0.718 out, harsher on **6/10**, per-song spread −0.451…+0.215 |
+| **the song's onset supply is thinner there** | 🟡**too small** | 0.612 vs 0.649 per slot, lower on **8/10** — a **−6 %** supply gap against a **−24 %** note deficit |
+
+★**The accent-cut result matters most**: 2026-09-13c flagged it as a *convergence* of two
+independent lines and explicitly refused to call it a finding. The direct test says no. ⇒**Labelling
+a convergence as a hypothesis rather than a result was worth doing** — it would otherwise have been
+the fifth thing built on an unmeasured story today.
+
+The supply gap is real in direction (8/10) and an order too small in size: it could account for
+roughly a quarter of the hole at best.
+
+### ⬜ Where this goes next — stop testing aggregates and READ one
+Four aggregate hypotheses, four eliminations. ⇒**Open the score at one of these windows.** That is
+what the whole plan's DoD asks for — *"the agent opens the score of its own map … and names the same
+defects at the same places he does"* — and it is the tool that has not been pointed at this yet.
+`score.py <map> --song <sid> --vs auto --bars a-b` on a D4 window of `1f333` or `1fa32` (6 hits, the
+most of any song). **DoD**: name in words what the human plays there that we do not, then check that
+word on ≥10 songs.
+
+---
+
 ## 2026-09-13c — ★★★D4 COLLAPSES INTO DENSITY. Three of the five live reds are one defect.
 
 Read the windows D4 fires on, across the 10 songs that have it.
