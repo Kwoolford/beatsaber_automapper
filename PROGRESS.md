@@ -17565,3 +17565,48 @@ having when its measured cost is zero.
 
 ⬜**Reopens `--map-memory`**: its refutation was entirely this collapse. Re-run
 `price_memory_cov.sh` with strict parity on and re-decide against the outlier criterion.
+
+
+## 2026-09-13y — with the parity leak closed, `--map-memory` is STABLE, and its real cost is visible
+
+Re-ran the gate sweep (6 seeds x {0, 4} x 1f333 + 1f8d6) under `STRICT_PARITY`. **The collapse is
+gone.** Per-seed `idiom_coverage` with the lever on:
+
+| song | control | `--map-memory 4` |
+|---|---|---|
+| 1f333 | 0.854 0.838 0.832 0.836 0.841 0.832 | 0.853 0.846 0.844 0.843 0.835 **0.846** |
+| 1f8d6 | 0.833 0.838 0.832 0.812 0.826 0.843 | 0.821 0.843 0.842 0.845 0.837 **0.845** |
+
+Every seed sits inside the control band, the spread is *tighter* than the control's, and the mean
+is marginally higher. ⇒**The refutation of 2026-09-13v is overturned: it was the parity leak, not
+the lever.** ★That is the second time this axis has been read wrong and the second time the fix was
+to find the mechanism instead of adding seeds.
+
+**But the cost was real, just on a different axis.** Judge p falls **0.675 → 0.474** (1f333) and
+**0.797 → 0.497** (1f8d6), both about 4.3 se — resolvable, and with the variance inflating again
+(sd 0.034 → 0.109). Pooling both songs, the 23-metric percentiles that move:
+
+| metric | control → lever | reading |
+|---|---|---|
+| `idiom_local` | 36.8 → **21.9** | local vocabulary breadth, already our weakest idiom axis, gets worse |
+| `diagonal_share` | 17.6 → **5.7** | already low, going lower |
+| `angle_change` | 15.3 → **5.2** | flatter wrist motion |
+| `vertical_share` | 90.4 → **96.8** | already high, going higher |
+| `idiom_jsd` | 15.9 → 29.5 | improves |
+| `idiom_top50` | 59.6 → 69.5 | improves |
+
+⇒**It is a coherent TRADE, not damage**: committing to a narrow vocabulary buys the whole-map idiom
+distribution and costs **local** variety and motion variety. `idiom_local` is the axis this repo
+already records as *"globally right, locally wrong"* (`idiom.py`: ours 0.703 distinct per window
+against a human 0.861) — the lever pushes exactly the wrong way on it, which is the same
+"more human than human" overshoot `VOCAB_DEPTH` warns about, arriving on local variety instead of
+coverage.
+
+⚠️Also observed, not explained: with the lever on, `1f8d6` fires ELEMENTS on **5 of 6** seeds
+against **2 of 6** in the control. Flatter, more vertical note layouts plausibly change where walls
+can go, but that is a guess; recorded as an observation.
+
+🔴**DECIDED: `--map-memory` default stays OFF, and the reason is now a trade rather than a collapse.**
+It is a legitimate **style lever** (Kyle's UI wants those) and is now well-behaved enough to be one:
+stable coverage, no violations, no new reds on 1f333. It does not clear the standing red — SCATTER's
+room goes 0.462 → 0.642 against a line at 1.00 — and it costs typicality, so it cannot be a default.

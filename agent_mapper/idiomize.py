@@ -102,7 +102,16 @@ PALETTE_BOOST = 6.0
 # entropy explains **r = -0.734 (r2 0.538)** of 4-bar block echo while NOTE COUNT explains
 # r = -0.006, and humans span 4.17-5.53 bits (p10-p90) where our four builds span 5.68-5.86
 # -- the 95th-98th percentile on every song, another builder constant across a per-song axis.
-# 🔴🔴**UNSAFE AS A DEFAULT, AND NOT UI-READY** (2026-09-13v). Over 18 builds per arm it makes
+# ★**A STYLE LEVER, OFF BY DEFAULT** (2026-09-13y). With the parity leak closed
+# (`STRICT_PARITY`) it is stable: 12 builds, `idiom_coverage` inside the control band on every
+# seed with a TIGHTER spread. What it actually costs is **local** variety -- `idiom_local` 36.8
+# → 21.9 pct, `diagonal_share` 17.6 → 5.7, `angle_change` 15.3 → 5.2, judge p −0.2 to −0.3
+# (~4.3 se) -- while `idiom_jsd` and `idiom_top50` improve. A coherent trade: the whole-map
+# distribution bought with local repetition, pushing the wrong way on the one idiom axis this
+# repo already calls "globally right, locally wrong". It does not clear SCATTER (room 0.46 →
+# 0.64 against a line at 1.00), so it cannot be a default.
+# 🔴The earlier verdict below was REFUTED -- the collapse was the parity leak, not this lever:
+# **(superseded 2026-09-13v note)** Over 18 builds per arm it makes
 # `idiom_coverage` **bimodal**: the control never leaves 0.79-0.86, and about a THIRD of treated
 # seeds land at 0.47-0.67 — the palette FILTER's failure range, arriving through a weight. Three
 # seeds called that "noise" because the difference was tested against the treated arm's own sd,
