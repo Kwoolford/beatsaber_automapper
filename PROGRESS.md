@@ -17702,3 +17702,33 @@ defect, and its docstring argues for it in echo terms (*"a figure gets repeated 
 Its window is **6 notes** where the defect is **4 bars**, so it was never doing that job — but
 nobody measured it against the axis it actually moves, because it could not be reached from a build.
 ⇒**Check what a knob measurably moves, not what the pass it lives in is named after.**
+
+
+## 2026-09-13ab — `repeat_p` 0.00 vs 0.25: no evidence to go further, so the median stays
+
+Same sweep, 4 songs x 3 seeds, `0.25` against `0.00`. Human `idiom_local`: p10 0.762, median 0.867,
+p90 0.933.
+
+| song | `idiom_local` at 0.25 (human pct) | at 0.00 (pct) | echo | coverage | judge p | hits |
+|---|---|---|---|---|---|---|
+| 1f913 | 0.871 (53) | 0.899 (70) | +0.000 | +0.002 | +0.005 | unchanged |
+| 1f8d6 | 0.891 (66) | 0.920 (84) | +0.000 | −0.006 | −0.029 | wash |
+| 1f767 | 0.911 (79) | 0.924 (86) | −0.013 | −0.002 | +0.065 | unchanged |
+| 1f333 | 0.893 (66) | 0.913 (80) | +0.001 | +0.001 | −0.060 | unchanged |
+
+⇒**0.00 moves only the same axis, from the human median to its upper range (70th-86th percentile),
+and nothing else changes anywhere** — echo flat, coverage flat, typicality inside noise, no hits
+moved.
+
+🔴**DECIDED: keep 0.25.** Both settings are inside the human range and no measured axis separates
+them, so the median is the defensible default and 0.00 has no evidence behind it. The knob is
+exposed on `autobuild`, so trying 0.00 is one flag.
+
+⬜**The open question is NORM-vs-ASPIRATION and only Kyle's ear can settle it**: is more local
+variety *better mapping*, or merely atypical? The standing rule is that for aspirational axes the
+corpus median is a floor, not a target — but nothing here establishes which kind of axis this is,
+and `mapjudge` cannot answer it (it scores typicality, and it does not separate these two). ⚠️Not
+staged as a blind pair: **five pairs are already staged and none has been judged**, so a sixth adds
+nothing to the bottleneck.
+
+★It does not touch the standing red: 1f333's echo moves 0.486 → 0.493 against a human 0.72.

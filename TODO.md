@@ -300,8 +300,12 @@ linearly and leaves 4-bar echo FLAT ⇒ at 0.55 it was paying our weakest idiom 
 4 songs x 3 seeds: `idiom_local` **+0.020 to +0.043, outside 2se on all four**, echo not falling
 anywhere, coverage and judge p inside noise, no map gaining a red. `--repeat-p 0.55` reproduces the
 old builds byte-for-byte. ⇒**Check what a knob measurably MOVES, not what its pass is named after.**
-⬜Sweep 0.25 vs 0.00 on a build next — isolated, 0.00 reads `idiom_local` 0.900 against a human
-median 0.867, so it may overshoot; 0.25 was chosen because it lands on the median.
+✅**0.00 swept too (2026-09-13ab): keep 0.25.** 0.00 moves only `idiom_local`, from the human
+median to its upper range (70th-86th pct), with echo, coverage, typicality and hits all unchanged.
+Both are inside the human range and nothing separates them ⇒ the median is the defensible default.
+⬜**Open, and only Kyle's ear can settle it**: is local variety ASPIRATIONAL (median = floor, per
+the standing rule) or merely typical? `mapjudge` cannot answer it. Not staged — five pairs are
+already waiting on P5 and a sixth adds nothing.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**
