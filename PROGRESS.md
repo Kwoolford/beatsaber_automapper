@@ -17732,3 +17732,42 @@ staged as a blind pair: **five pairs are already staged and none has been judged
 nothing to the bottleneck.
 
 ★It does not touch the standing red: 1f333's echo moves 0.486 → 0.493 against a human 0.72.
+
+
+## 2026-09-13ac — 🔴 `1f8d6` never reliably shipped: its wall coverage is a COIN FLIP
+
+Rebuilt the songset at the new `REPEAT_P` and read the pages against the old build:
+
+| song | old | new |
+|---|---|---|
+| 1f913 | SHIP? YES — nothing located | **unchanged** |
+| 1f767 | SHIP? NO — 1 red (D3) | **unchanged** |
+| 1f333 | SHIP? NO — 4 red | **unchanged** |
+| 1f8d6 | SHIP? YES — 2 yellow | **SHIP? NO — 1 red (ELEMENTS)** |
+
+The margin says what happened, and it is not the change: the old build covered walls at **0.50x**
+his 667 slots against a red **below 0.50x** — passing by nothing at all — and the new one covers
+**0.48x**. Across **15 independent builds** of this song (three `repeat_p` settings and the memory
+control, all seeds), the ELEMENTS room reads:
+
+```
+0.83 0.86 0.91 0.93 0.96 0.97 0.98 | 1.02 1.04 1.05 1.05 1.06 1.07 1.11 1.12
+```
+
+**8 of 15 pass. Mean 1.00, sd 0.08.** The new setting is if anything slightly *better* (room mean
+1.05 against 0.95 over the matched seeds).
+
+⇒🔴🔴**`1f8d6`'s "SHIP? YES" was a lucky seed, not a property of the builder**, and the songset line
+*"2 of 4 ship"* has been overstating things: it is **one reliable ship (`1f913`) plus one coin
+flip**. This is exactly the no-margin finding of 2026-09-13m-q — recorded that morning as a
+warning, and it cost a verdict the same day.
+
+★**Second time today the margin machinery earned its keep**, and the lesson is sharper than the
+first: ⇒**a pass/fail on a code with no margin is a COIN FLIP, and reading it as a verdict about a
+CHANGE is the selection artefact in a new place.** Any future A/B that lands on `1f8d6`'s ELEMENTS
+must be read across seeds or not at all.
+
+⚠️Not a new defect: the underlying state is known and accepted — `1f8d6`'s human is a **p90 waller**
+(667 slots) and `walls.py` was deliberately left at ~0.5x of him rather than loosening the red
+(2026-09-12, DoD to revisit = a human-vs-human negative). What is new is that the page was
+reporting the outcome of a coin flip as a ship.
