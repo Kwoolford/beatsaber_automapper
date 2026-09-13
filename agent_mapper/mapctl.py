@@ -553,7 +553,7 @@ def _level_at(levels: list[tuple[float, int]], t: float, tol: float = 0.12) -> i
 
 def _follow_times(audio: pathlib.Path, an: dict, follow: str,
                   min_accent: float | None = None,
-                  accent_pct: float | None = None):
+                  accent_pct: float | None = None, vocal_keep: float = 1.0):
     """Onset times for `--follow`, from a stem OR from a typed event class.
 
     Three forms, in increasing specificity:
@@ -615,8 +615,19 @@ def _follow_times(audio: pathlib.Path, an: dict, follow: str,
     # stem") does transfer, and is what a mapper actually means by "the accents".
     if accent_pct is not None and sel:
         import numpy as _np
+        # ★★**A QUIET VOCAL NOTE IS STILL A SUNG SYLLABLE** (2026-09-13e/f). The cut is a
+        # quantile WITHIN the followed stem, so on a vocal spec it drops the quieter sung
+        # notes -- and measured over 241 slots on 10 songs where the human plays and we do
+        # not, **40.7 % are on a vocal onset against 26.6 % of the slots we do cover, a
+        # +14.1 point lift, with lead/bass/kit flat to within a point**. Loudness inside a
+        # vocal line is a far weaker "this does not matter" signal than inside a drum bus:
+        # a quiet hat is filler, a quiet syllable is still the melody the player is hearing.
+        # ⇒Widen the keep-fraction on a vocal spec. `vocal_keep = 1.0` is the old behaviour.
+        pct = max(min(accent_pct, 1.0), 0.0)
+        if vocal_keep != 1.0 and stem == "vocals":
+            pct = max(min(pct * vocal_keep, 1.0), 0.0)
         loud = _np.array([e.get("loud", 0.0) for e in sel])
-        thr = float(_np.quantile(loud, 1.0 - max(min(accent_pct, 1.0), 0.0)))
+        thr = float(_np.quantile(loud, 1.0 - pct))
         sel = [e for e in sel if e.get("loud", 0.0) >= thr]
     if min_accent is not None:
         sel = [e for e in sel if e.get("loud", 0.0) >= min_accent]
@@ -661,7 +672,8 @@ def cmd_auto(a) -> int:
         for spec in str(a.follow).split(","):
             follow_times.extend(_follow_times(pathlib.Path(s["audio"]), an, spec.strip(),
                                               getattr(a, "min_accent", None),
-                                              getattr(a, "accent_pct", None)))
+                                              getattr(a, "accent_pct", None),
+                                              getattr(a, "vocal_keep", 1.0)))
         follow_times = sorted(set(follow_times))
         # ★The SAME streams with the accent budget switched off. `--lead-in` needs to know
         # where the song plays, not where the budget let us play: measured 2026-09-12p, the
@@ -1381,6 +1393,10 @@ def main() -> int:
     p.add_argument("--runs", type=int, default=1,
                    help="notes one hand plays before the other takes over; 1 (strict "
                         "alternation) measured as the human burst rate")
+    p.add_argument("--vocal-keep", type=float, default=1.0,
+                   help="widen the accent keep-fraction by this factor on a VOCAL spec "
+                        "(1.0 = off). The notes we miss where the human plays are +14.1 "
+                        "points more likely to be vocal onsets than the ones we cover")
     p.add_argument("--drop-orphan", action="store_true",
                    help="drop an odd 16th that still has nothing before it after --lead-in. "
                         "The human's answer where no lead-in exists; also pays back the "

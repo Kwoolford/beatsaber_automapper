@@ -205,7 +205,7 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           pulse: bool = False, phrase_bars: int = 4, lead_bias: float = 0.0,
           lead_phrase_bars: int = 4, pulse_fill: int = 1,
           pulse_sync: float = 0.3, hand_run_p: float = 0.0, lead_in: bool = False,
-          drop_orphan: bool = False,
+          drop_orphan: bool = False, vocal_keep: float = 1.0,
           snap_onsets: bool = False,
           adaptive_subdiv: bool = False, seed: int = 0,
           doubles: bool = False, accent_slots: str = "0,2,4,6,8,10,12,14",
@@ -241,6 +241,8 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
                 cmd += ["--hand-run-p", str(hand_run_p)]
             if lead_in:
                 cmd += ["--lead-in"]
+            if vocal_keep != 1.0:
+                cmd += ["--vocal-keep", str(vocal_keep)]
             if drop_orphan:
                 cmd += ["--drop-orphan"]
             if snap_onsets:
@@ -386,6 +388,10 @@ def main() -> int:
                     help="how hard a section's energy scales its note budget (0 = flat). "
                          "0.60 is shipped; measured 2026-09-12y, our per-block density tracks "
                          "energy MORE than the human's does on 13 of 16 songs")
+    ap.add_argument("--vocal-keep", type=float, default=1.0,
+                    help="widen the accent keep-fraction on a VOCAL spec by this factor "
+                         "(1.0 = off). Targets the +14.1 point vocal lift among the notes "
+                         "the human plays and we miss (PROGRESS 2026-09-13e)")
     ap.add_argument("--drop-orphan", action="store_true",
                     help="drop an odd 16th that still has nothing leading into it. Pairs "
                          "with --lead-in and pays back the density it spends")
@@ -493,7 +499,7 @@ def main() -> int:
     print(f"\n=== BUILD")
     build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
           phrase_bars=a.phrase_bars, lead_bias=a.lead_bias, hand_run_p=a.hand_run_p,
-          lead_in=a.lead_in, drop_orphan=a.drop_orphan,
+          lead_in=a.lead_in, drop_orphan=a.drop_orphan, vocal_keep=a.vocal_keep,
           lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
           pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
           adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,

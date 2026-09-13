@@ -605,10 +605,28 @@ vocal framing. That measured **share of OURS** on vocals (higher inside); this m
 MISSED** (much higher inside). Both true, opposite conclusions. ★**A share-of-ours and a
 share-of-missed are different measurements and I conflated them.** The EMPTY/D6/D4 consolidation
 still holds for the *level*; "the vocal framing is retired" does not.
-⬜**NEXT — the fix is specific**: in a window where the vocal is the main line, the budget must not
-skip vocal onsets. `events.py` already types them (`stem == "vocals"`), so this is a **priority
-inside the accent cut**, not a new detector. **DoD**: the missed-slot vocal lift falls toward 0 and
-D4's 10 songs drop, with the note count staying inside ±5 %.
+★★★**2026-09-13f — ROOT CAUSE: the carrier is picked by EVENT COUNT, so the vocals never win.**
+Four candidates killed first: the **accent cut** (`--vocal-keep` 1.5/2.0 → D4 **29→27**, notes
+**−0.0 %**; not binding), the **150 ms per-hand floor** (at the missed vocal onsets we have a note
+within 150 ms **0.0 % of the time, 9/9 songs**), and *"a different instrument in those windows"*
+(D4 sections follow vocals **more** — 33 % vs 16 %, lower on 0/10).
+★★**On 5 of the 10 songs, `0 %` of sections follow the vocal stem — and D4 fires on all of them.**
+`1fa32`: all six sections follow `bass/low-stab`, on a song with a full lyric lane. `1f65d`: piano
+then guitar, never the voice. ⇒**The difference is between SONGS, not between windows**, which is
+why the per-window test misled me twice.
+🔴**And the cause is a comment the code does not honour:**
+```
+# Melodic stems, in the order they are preferred as a section's carrier.
+MELODIC = ("vocals", "other", "guitar", "piano", "bass")
+ranked = sorted(..., key=lambda kv: -kv[1])     # by EVENT COUNT — the order decides nothing
+```
+A steady bass or piano line always out-counts a sung line. ★**Fifth documented-but-unwired thing
+today** after `width`, `travel_target` (×2) and `PERIODS`. **This codebase's comments describe
+intent the code does not implement, and only a measurement catches it.**
+⬜**THE FIX**: let the ranking honour a preference — the vocal wins when present and plausible, not
+when busiest. ⚠️Not a blanket "always vocals": songs without one must still rank, and `q_vocals`
+only fires where **the human answers ≥60 %** of vocal slots, so the target is songs where the voice
+IS the lead. **DoD**: D4's 10 songs fall, EMPTY/D6 do not rise (same density family), notes ±5 %.
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets

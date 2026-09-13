@@ -7,6 +7,46 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13f — ★★★D4's ROOT CAUSE: the carrier is picked by event COUNT, so the vocals never win
+
+Four candidates tested and killed this iteration, then the answer.
+
+| candidate | result |
+|---|---|
+| the accent cut drops quiet vocal notes | 🔴**NULL** — `--vocal-keep` 1.5/2.0 moves D4 **29 → 27** and the note count by **−0.0 %**; the cut was not binding |
+| the 150 ms per-hand floor blocks them | 🔴**REFUTED** — at the missed vocal onsets we have a note within 150 ms **0.0 % of the time, on 9 of 9 songs** |
+| we follow a different instrument *in those windows* | 🔴**REFUTED** — D4 sections follow vocals **more** (33 % vs 16 %), lower on **0/10** |
+| **we never follow the vocals on that song at all** | ★★★**CONFIRMED** |
+
+**On 5 of the 10 songs, `0 %` of sections follow the vocal stem** — and D4 fires on every one of
+them. `1fa32`: **all six sections follow `bass/low-stab`**, on a song whose lyric lane is full
+(なく 歩 み). `1f65d`: piano, then guitar, never the voice.
+⇒The difference is **between songs, not between windows** — which is exactly why the per-window test
+in 2026-09-13c found nothing and why I twice drew the wrong conclusion from it.
+
+### ★★ And the reason is a comment that the code does not honour
+```python
+# Melodic stems, in the order they are preferred as a section's carrier.
+MELODIC = ("vocals", "other", "guitar", "piano", "bass")
+...
+ranked = sorted(..., key=lambda kv: -kv[1])     # by EVENT COUNT
+carrier = ranked[0]
+```
+**The order is never used as a preference.** The sort is purely by how many events a class has, and
+a steady bass or piano line always has more than a sung line — vocals are sparse by nature. So
+`MELODIC`'s documented preference decides nothing but exact ties.
+★**This is the fifth documented-but-unwired thing today**, after `width`, `travel_target` twice, and
+`PERIODS`. The pattern is now unmistakable: **this codebase's comments describe intent that the code
+does not implement, and only a measurement ever catches it.**
+
+⬜**The fix**: let the carrier ranking honour a preference — the vocal line should win when it is
+present and plausible, not when it is busiest. ⚠️Not a blanket "always vocals": on a song with no
+vocal the ranking must still work, and `q_vocals` only fires where **the human answers ≥ 60 %** of
+the vocal slots, so the target is songs where the voice IS the lead. **DoD**: D4's 10 songs fall,
+without EMPTY/D6 rising (they are the same density family) and the note count inside ±5 %.
+
+---
+
 ## 2026-09-13e — ★★Reading the score found it in one pass: the notes we MISS are the VOCAL onsets
 
 Four aggregate hypotheses died in 2026-09-13d. Opening `score.py` at a D4 window (`1fa32` bars
