@@ -421,16 +421,17 @@ strongest case in the corpus (16 FLOW hits at baseline) and deliberately *not* o
 nothing pre-registered is disturbed. ⚠️It does not count toward the win rate. Default stays **OFF**
 until he plays it.
 
-## 🔴 P5.1 — `.key.json` IS THE ONLY COPY OF EVERY PREDICTION AND IT IS NOT IN GIT
-2026-09-12w: a `--restage` run **destroyed 1f913's 2026-09-10 key entry**, prediction and
-cross-difficulty caveat included. `for_review/` is untracked, so there was nothing to recover from —
-the pair was rebuilt only because `PROGRESS.md` had written the prediction down in prose, and it is
-now marked `RECONSTRUCTED` (same wording, fresh letters, so blind but not the same staging).
-★**`--restage` is destructive and has no undo**, and a staged pair carries a prediction written
-*before* he plays, which is the entire point of pre-registering it.
-**Tasks**: ⬜track `.key.json` in git (or back it up on write); ⬜make `--restage` refuse when the
-record holds a `predict` field unless `--i-know` is passed.
-**DoD**: destroying a pre-registered prediction takes two deliberate flags, and the file has history.
+## ✅→🔵 P5.1 — the prediction file is protected (2026-09-12x)
+A `--restage` run destroyed 1f913's 2026-09-10 entry, prediction and caveat included; it was
+rebuilt from `PROGRESS.md` prose and is marked `RECONSTRUCTED`.
+🔴**"Track it in git" was the WRONG fix and would have been worse than the bug**: `/for_review/` is
+ignored on purpose because the key holds the **X/Y roles**, so committing it would put the answers
+in the diff stream and on the remote — **unblinding every pair**. ★**When a file needs history, ask
+what else versioning it publishes.** ⇒`_save_key` rotates a timestamped copy beside the file (last
+20), at the exposure the key already has.
+✅`--restage` now **refuses** a record carrying `predict` and needs `--drop-prediction` as a second
+deliberate flag. Verified: 1f767 refused, 1f335 (no prediction) re-stages freely, 1f913's
+reconstructed prediction survives. **Five pairs staged and intact.**
 ⚠️**`idiom_jsd` is STILL UNMEASURED at n=12** — I scraped the judge's *flagged-metrics* list, so a
 song where it was never flagged returned a sentinel that got averaged with real percentiles.
 ★**Scrape the full metric table, not the worst-list**, or an absent flag reads as a value.

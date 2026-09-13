@@ -7,6 +7,30 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12x — The prediction file is protected, and NOT by putting it in git
+
+P5.1, closed. Two changes to `compete.py`, both from yesterday's destroyed pair.
+
+### 1. 🔴 Git is the WRONG backup, and that is the interesting half
+The obvious fix was "track `.key.json`". **It is the wrong fix and would have been worse than the
+bug.** `/for_review/` is in `.gitignore` on purpose: the key holds the **X/Y roles**, so committing
+it puts the answers in the diff stream and on the remote, where Kyle reads them. **Every pair in the
+directory would be unblinded by the backup.** ⇒`_save_key` now rotates a timestamped copy *beside*
+the file (`.key.<stamp>.bak.json`, last 20 kept) — the same exposure the key already has, and no new
+channel. ★**When a file needs history, ask what else versioning it publishes.**
+
+### 2. A pre-registered prediction cannot be erased by one flag
+`--restage` pops the record, which is right for a stale pair and catastrophic for one carrying a
+prediction. It now **refuses** when the entry holds a `predict` field and prints why, needing
+`--drop-prediction` as a second, deliberate flag. Verified: `1f767` (has a prediction) is refused;
+`1f335` (my own A/B, no prediction) re-stages freely; the reconstructed `1f913` prediction survives.
+
+**Five pairs staged and intact**: four against their humans, `1f335` as the FLOW fix against its own
+baseline. ⇒The whole reason to write a prediction *before* he plays is that it cannot be edited
+afterwards. A tool that erases one on a single flag does not have that property, and this one did.
+
+---
+
 ## 2026-09-12w — `compete --against`: a blind A/B of a CHANGE. And I destroyed a staged pair doing it.
 
 ### 🔴🔴 The mistake first

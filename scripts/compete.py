@@ -189,7 +189,25 @@ def _key() -> dict:
 
 
 def _save_key(k: dict) -> None:
+    """Write the key, keeping a timestamped copy of what it said before.
+
+    🔴🔴**THIS FILE IS THE ONLY COPY OF EVERY PRE-REGISTERED PREDICTION** and on 2026-09-12 a
+    `--restage` run destroyed one of them outright: the 1f913 entry from 2026-09-10, prediction
+    and cross-difficulty caveat included. It was rebuilt only because `PROGRESS.md` happened to
+    have written the prediction down in prose.
+    ⚠️**Git is NOT the backup and must not be.** `/for_review/` is ignored on purpose — the key
+    holds the X/Y roles, so committing it would put the answers in the diff stream and on the
+    remote, where Kyle reads them. Every pair in this directory would be unblinded by the fix.
+    ⇒A local rotation instead, beside the file, at the same exposure it already has.
+    """
     STAGE.mkdir(parents=True, exist_ok=True)
+    if KEY.exists():
+        stamp = _dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        bak = STAGE / f".key.{stamp}.bak.json"
+        bak.write_text(KEY.read_text())
+        old = sorted(STAGE.glob(".key.*.bak.json"))
+        for extra in old[:-20]:          # keep the last 20 states, drop the rest
+            extra.unlink(missing_ok=True)
     KEY.write_text(json.dumps(k, indent=1, ensure_ascii=False) + "\n")
 
 
@@ -241,9 +259,15 @@ def _page(ours: pathlib.Path) -> dict | None:
             "judge": (v["judge"] or {}).get("verdict") if v.get("judge") else None}
 
 
+def _has_prediction(rec: dict) -> bool:
+    """Does this key entry hold a prediction written before the pair was played?"""
+    return "predict" in json.dumps(rec)
+
+
 def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None,
               with_page: bool = True, restage: bool = False,
-              against: pathlib.Path | None = None, against_label: str = "OTHER") -> int:
+              against: pathlib.Path | None = None, against_label: str = "OTHER",
+              force_predict: bool = False) -> int:
     key = _key()
     if sid in key and key[sid].get("status") == "staged":
         if not restage:
@@ -251,6 +275,17 @@ def stage_one(sid: str, ours: pathlib.Path | None, force: bool, seed: int | None
                   f"(judge it: compete.py verdict {sid} X|Y|tie)"
                   f"\n  our map changed since? re-blind it with --restage")
             return 0
+        # 🔴**A PRE-REGISTERED PREDICTION IS NOT RE-STAGEABLE BY ACCIDENT** (2026-09-12x). The
+        # whole value of writing the prediction before he plays is that it cannot be edited
+        # afterwards -- and `--restage` pops the record, so it erases one silently. It did,
+        # once. A record carrying `predict` now needs the second flag as well.
+        if not force_predict and _has_prediction(key[sid]):
+            print(f"{sid}: this pair carries a PRE-REGISTERED PREDICTION written before he "
+                  f"played it. --restage would erase it and there is no undo.\n"
+                  f"  If you really mean to, pass --drop-prediction as well. The prediction "
+                  f"is the record of what we believed BEFORE the answer, which is the only "
+                  f"reason a blind test is worth running.", file=sys.stderr)
+            return 1
         # ★A staged pair goes STALE the moment our map is edited (2026-09-03a: 1f333 was
         # staged, then BREATHING was found in it and fixed). Spending a listening session on a
         # map we already know is defective is the one thing this test cannot afford, so
@@ -348,7 +383,8 @@ def cmd_stage(a) -> int:
         rc |= stage_one(sid, ours, a.force, a.seed, with_page=not a.no_page,
                         restage=a.restage,
                         against=pathlib.Path(a.against) if a.against else None,
-                        against_label=a.against_label)
+                        against_label=a.against_label,
+                        force_predict=a.drop_prediction)
     return rc
 
 
@@ -519,6 +555,10 @@ def main() -> int:
                    help="re-blind a pair that is already staged but not yet judged "
                         "(use when our map changed after staging)")
     p.add_argument("--seed", type=int, default=None, help="shuffle seed (tests)")
+    p.add_argument("--drop-prediction", action="store_true",
+                   help="allow --restage to erase a pair that carries a pre-registered "
+                        "prediction. There is no undo; the key keeps 20 prior states as "
+                        ".key.*.bak.json beside it")
     p.add_argument("--against", default=None,
                    help="compare against THIS map instead of the human -- a blind A/B of a "
                         "builder change against its own baseline. Does not count toward the "
