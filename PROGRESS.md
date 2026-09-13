@@ -7,6 +7,36 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13l — The page now says when a code has NO MARGIN, and it found a second one immediately
+
+2026-09-13k cost an iteration on a wrong hypothesis because the page could not show that `1f8d6`
+was passing **at** its thresholds rather than clear of them. `verdict.py` now marks it: an ABSENCE
+code that passes within `MARGIN_FACTOR` (2.0) of its red line prints
+**⚠️NO MARGIN — one fewer and this is red**.
+
+| map | lead-hand passages | page |
+|---|---|---|
+| **1f8d6** | **1** | ⚠️**NO MARGIN** |
+| **1f767** | **1** | ⚠️**NO MARGIN** |
+| 1f913 | 2 | clear |
+
+★**It found a second one on the first run.** `1f767` — which the taper had just moved *into*
+shipping — is also a single hand-run from red on that axis, and nothing in the project knew.
+**Two of the four songset maps ship with zero margin on the same code.**
+
+⇒This changes how the session's ship counts should be read. "2 of 4 ship" has been the headline all
+day; **two of those ships are one gesture from a red**, so the songset is more fragile than the
+count suggests, and a lever that costs one hand-run anywhere will look like it "broke" a map.
+
+⬜**Not complete**: the marker covers the two ABSENCE codes only. **ELEMENTS was the other axis that
+bit** (`1f8d6` at exactly 0.50× against a red below 0.50×) and the queries do not report their
+distance to threshold, so a general margin needs each query to return one. That is the right shape
+and a bigger change than tonight's. **DoD**: every code on the page can say how much room it has.
+
+Bench unchanged: `queries:q_all` not refuted, 4 strong hits, 0 false fires.
+
+---
+
 ## 2026-09-13k — 🔴The ordering hypothesis is REFUTED. `1f8d6` was passing with zero margin.
 
 2026-09-13j guessed the taper's cost on `1f8d6` was an **ordering** problem — notes moved into the

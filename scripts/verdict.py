@@ -162,6 +162,11 @@ def _gestures(arr: np.ndarray) -> dict:
                 events=n_ev)
 
 
+# ★How close to a threshold still counts as "no margin". 2.0 flags a code passing at up to
+# twice its red line; `1f8d6`'s 1-against-0.5 lands here (2026-09-13k).
+MARGIN_FACTOR = 2.0
+
+
 def absence_lines(arrs: dict) -> list[dict]:
     """ABSENCE — gestures the map never uses at all, on the gate (P5b DoD, 2026-09-10).
 
@@ -201,10 +206,18 @@ def absence_lines(arrs: dict) -> list[dict]:
             state = "🔴"
         elif "p5" in c and mine < c["p5"]:
             state = "🟡"
-        out.append(dict(key=key, name=name, state=state, ours=mine, human=theirs,
+        # ★★**A CODE PASSING AT ITS THRESHOLD IS NOT REALLY PASSING** (2026-09-13k). `1f8d6`
+        # read `SHIP? YES` while sitting on exactly **1** lead-hand passage against a red at
+        # "effectively zero", and on **0.50x** wall coverage against a red below 0.50x. A 7 %
+        # change in wall length and one lost hand-run turned both red -- and an iteration went
+        # into a wrong hypothesis ("an ordering problem") before anyone looked at the margin.
+        # ⇒Say it on the page: a pass with no room is a different fact from a pass.
+        near = state == "✅" and mine <= zero * MARGIN_FACTOR
+        out.append(dict(key=key, name=name, state=state, ours=mine, human=theirs, near=near,
                         text=(f"{fmt(mine)}"
                               + (f"   human of this song {fmt(theirs)}" if theirs is not None else "")
-                              + (f"   corpus median {fmt(c['median'])}" if "median" in c else ""))))
+                              + (f"   corpus median {fmt(c['median'])}" if "median" in c else "")
+                              + ("   ⚠️NO MARGIN — one fewer and this is red" if near else ""))))
     return out
 
 

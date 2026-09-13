@@ -341,9 +341,18 @@ does not count toward the win rate). Default stays **off** until he plays it.
   while two codes sit one wall-beat and one hand-run from red — so the 5→4 red count **understates**
   the taper. ⚠️Compounds wall coverage having **R² 0.089** against the song: a 0.5× threshold on a
   mapper-style axis, applied to a map sitting exactly on it.
-  ⬜**Next**: does `1f8d6` ship on merit at all? And should the verdict page show a **margin** column
-  for any code passing within ~10 % of its threshold — it would have made this visible instead of
-  costing an iteration on a wrong hypothesis.
+  ✅**2026-09-13l — THE PAGE NOW SAYS IT.** An ABSENCE code passing within `MARGIN_FACTOR` (2.0) of
+  its red line prints **⚠️NO MARGIN — one fewer and this is red**. ★**It found a second one on the
+  first run**: `1f767` — which the taper had just moved *into* shipping — is **also 1 lead-hand
+  passage from red**, and nothing in the project knew. **Two of the four songset maps ship with zero
+  margin on the same code.**
+  ⇒**Read every "2 of 4 ship" in this session with that in mind**: two of those ships are one gesture
+  from a red, so the songset is more fragile than the count suggests and any lever costing one
+  hand-run will look like it "broke" a map.
+  ⬜**Not complete**: the marker covers the two ABSENCE codes only. **ELEMENTS was the other axis that
+  bit** (0.50× against a red below 0.50×) and the queries do not report their distance to threshold.
+  A general margin needs each query to return one. **DoD**: every code on the page can say how much
+  room it has.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything
