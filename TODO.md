@@ -356,9 +356,19 @@ D6 alone · 1f333 5 reds → 4, FLOW gone.
 at 0–26 % (1f913's own human is 25.8 %), the *more human than human* shape again; (b) **1f8d6 pays**
 — judge p 0.655→0.281 and `idiom_jsd` from the 4.0th to the **0.8th** percentile. 1f913 and 1f333
 have **no judge flags at all**.
-⬜**To flip it on**: price `idiom_jsd` and the isolated share over **≥10 corpus songs**, and try
-keeping the human's ~10–25 % isolated share instead of zeroing it. **DoD**: FLOW stays clear,
-`idiom_jsd` does not fall below its baseline percentile on any song, notes within ±5 %.
+✅**2026-09-12s — PRICED ON 12 CORPUS SONGS, both arms, each against its own human**
+(`scripts/price_flowfix.sh`, `outputs/price_2026-09-12/`): isolated share **62.4 % → 0.0 %, lower on
+12/12**; **FLOW hits 41 → 0**; **songs with any FLOW 10 → 0**. The result holds well outside the
+songset.
+🔴🔴**AND IT NEEDS A DENSITY FLOOR BEFORE IT CAN BE A DEFAULT**: `1fa48` goes **736 → 494 notes
+(−32.9 %)** and gains an **EMPTY red across 29 % of bars** — the orphan drop took a third of the map.
+2 of 12 are outside ±5 % (the other is `1f3d7`, +7.6 %).
+⬜**NEXT, and it is the only thing between this and the default**: give the drop a floor so it cannot
+take a section below its density budget. **DoD**: FLOW stays 0 on the 12, no song loses more than
+5 % of its notes, and no new EMPTY red.
+⚠️**`idiom_jsd` is STILL UNMEASURED at n=12** — I scraped the judge's *flagged-metrics* list, so a
+song where it was never flagged returned a sentinel that got averaged with real percentiles.
+★**Scrape the full metric table, not the worst-list**, or an absent flag reads as a value.
 
 
 ## 🔴 P0.7 — the pulse pass never holds a pulse, and `--pulse` is a TRADE

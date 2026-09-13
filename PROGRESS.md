@@ -7,6 +7,37 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12s — ★★The FLOW fix priced on 12 songs: FLOW 10 → 0. And one song loses a THIRD of its notes.
+
+Twelve corpus songs with audio, stems and a human reference, both arms, each scored against its own
+human (`scripts/price_flowfix.sh`, builds in `outputs/price_2026-09-12/`).
+
+| | baseline | **`--lead-in --drop-orphan`** |
+|---|---|---|
+| isolated share of odd-16th notes | 62.4 % | **0.0 %** — lower on **12/12** |
+| FLOW hits (total) | **41** | **0** |
+| songs with any FLOW | **10** | **0** |
+| note count | — | mean **−1.8 %**, outside ±5 % on **2/12** |
+
+★**FLOW is eliminated on every song that had it.** That is the strongest single result of the
+session, and it holds well outside the four-song songset.
+
+### 🔴 And the density guard it needs
+`1fa48` goes **736 → 494 notes (−32.9 %)** and gains an **EMPTY red across 29 % of bars**. The
+orphan drop took a third of the map. `1f3d7` is the other outlier at +7.6 %.
+⇒**The drop needs a floor**: it must not take a section below its density budget. That is the
+specific next change, and until it exists the rule cannot be a default — it fixes FLOW everywhere
+and breaks one song in twelve badly.
+
+### ⚠️ A measurement caveat, mine
+The `idiom_jsd` column in the sweep is **not readable**: I scraped the judge's *flagged-metrics*
+list, so a song where the metric was never flagged returned a `-1` sentinel that then got averaged
+alongside real percentiles. "Worse on 3 of 8" is an artefact of that, not a finding. ⇒**Scrape the
+full metric table, not the worst-list**, or the absence of a flag reads as a value. The DoD's
+`idiom_jsd` condition is therefore **still unmeasured** at n=12.
+
+---
+
 ## 2026-09-12r — ★★★FLOW CLEARS ON ALL FOUR, and TWO maps ship from a fresh build
 
 The other half of the rule, which 2026-09-12o specified and I had only built one side of: where **no
