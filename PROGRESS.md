@@ -18000,3 +18000,53 @@ so the lag is the only part this pass touches.
 which this pass does not address and should not.
 🔴**Pipeline order**: after `idiomize` and `repeat.py`, before walls. It is the only pass that moves
 a TIME, so anything that places cells against times must run first.
+
+
+## 2026-09-13aj — BREATHING is sound; "thin the quiet bars" is refuted; one question left open
+
+Session ended here by `/close`; the last measurement was in flight and is recorded as such.
+
+### BREATHING passes its first real control — CONFIRMED
+
+Same cross-difficulty panel that validated D3 (one zip's two difficulties, exact same audio and
+song), 300 zips, map-only so no audio needed:
+
+| direction | rests of 2+ bars read | played through | maps RED |
+|---|---|---|---|
+| Expert read against his own ExpertPlus | 63 | **0** | **0.0 %** |
+| ExpertPlus read against his own Expert | 77 | 13 (16.9 %) | **4.0 %** |
+
+The asymmetry is what you would expect — a harder difficulty naturally fills some of what the
+easier one leaves — and even so only 4 % of maps go red. ⇒**`1f333`'s BREATHING red is genuine**:
+the human rests seven bars (163-169) and we play through them.
+
+### "Quiet bars get quiet" is NOT a human norm — REFUTED
+
+The obvious builder fix is to thin bars whose energy is low. Measured over 140 human maps, each
+bar placed at its **percentile within its own song**:
+
+| energy percentile band | median notes/bar | share of bars empty |
+|---|---|---|
+| 0.00-0.10 | **5.0** | **7.7 %** |
+| 0.10-0.25 | 6.0 | 2.5 % |
+| 0.25-0.50 | 6.0 | 1.0 % |
+| 0.50-0.75 | 7.0 | 0.5 % |
+| 0.75-0.90 | 7.0 | 0.5 % |
+| 0.90-1.00 | 7.0 | 0.2 % |
+
+⇒**Humans do not empty out when the song goes quiet.** In their own song's quietest decile they
+still play a median of 5 notes/bar and leave only 7.7 % of bars empty; the whole gradient from
+quietest to loudest is 5 → 7. A thinning pass keyed on energy would be wrong, and it would also
+change the note count — which `answer.py` was careful not to do.
+
+### ⬜OPEN, and the reason this is not a conclusion
+
+`1f333`'s rest sits at energy percentile **0.01-0.06** of its own song — *below* the 0.00-0.10 band
+above, which is too coarse to speak to it. **Whether humans DO rest in the bottom ~2 % is NOT YET
+MEASURED**; splitting that band was the next command when the session closed. Until it is run,
+nothing here says a bottom-few-percent rule would or would not work.
+
+⚠️Also observed and **NOT generalisable**: on `1f333` the rest *ends* exactly at a section boundary
+(F ends 169, G starts 170) but only **1 of his 3** long rests *starts* at one. That is n=3 on one
+song — an observation, not a finding. The same question on the corpus would need the structure
+cache, which currently holds 27 songs against 5 373 maps.

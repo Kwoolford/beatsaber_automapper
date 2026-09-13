@@ -18,7 +18,7 @@ clean one, read `START THE NEXT SESSION HERE` below.
 
 ---
 
-## 📍 CURRENT STATE (2026-09-02)
+## 📍 CURRENT STATE — goal and audit framing (2026-09-02); live status is in START HERE below
 
 > ★★**THE GOAL (Kyle, 2026-09-02):** *"a tool suite that empowers the LLM to create a map like the
 > best mappers, and a user can make requests to have specific mapping styles… the eval suite still
@@ -101,11 +101,20 @@ left is the builder and Kyle's ear.
 3. **Four rows can refute a norm, never establish one** (2026-09-12b) — two songset readings reversed at
    corpus scale in one session. Take mechanism claims to ≥100 maps.
 
-**Where the songset stands** — best known build, `outputs/best_2026-09-13/`, staged zips untouched:
-`1f913` **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (2 yellow, and now **15/15 builds
-pass ELEMENTS** after the walls line was refuted — 2026-09-13ad) · `1f767` 1 red (D3) · `1f333`
-4 red (EMPTY · D3 · BREATHING · SCATTER). **2 of 4 ship, both reliably.**
-**2 of 4 now ship from a FRESH autobuild**; the session began with all four failing their own gate.
+**Where the songset stands (2026-09-13, end of session)** — best build `outputs/best_2026-09-13b/`
+(`--pulse --lead-bias 0.2 --lead-in --drop-orphan --carrier-bias 2.0` → `repeat.py` → `answer.py`),
+staged compete zips untouched:
+`1f913` **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (1 yellow; **15/15 builds pass
+ELEMENTS** since the walls line was refuted) · `1f767` **1 red** (D3, E-drop branch — we hold 6.0
+events/bar where his human drops to 3.0) · `1f333` **2 red** (BREATHING bar 163 · SCATTER bar 81).
+**2 of 4 ship, both reliably.**
+⚠️**Four of the day's clearances were THRESHOLD changes, not map changes** — every one made because
+the code fired on humans: ELEMENTS 0.50x→0.10x (fired on 34 % of human pairs), EMPTY 0.60x→0.30x
+(25.9 % → 8.4 %), D3's absolute step claim **dropped** (reddened 85 % of human maps), and D3's
+`abs_lag` 1.0→2.0. Only `answer.py` changed a map. **Do not read the improved page as a better
+builder except where a pass is named.**
+★**The two remaining reds are BOTH validated against real human controls** (2026-09-13ah/aj), so
+neither is a threshold artefact.
 
 ❓**THE ONE DECISION THAT IS KYLE'S**: P4b's rule says a red map is not staged, because *"losing with a
 known red teaches nothing the page did not say"*. Today's reds come from codes invented **after** these
@@ -295,20 +304,14 @@ and his ear is the arbiter — on that reading the fix is right, but it is his c
 ✅**Staged**: `1f335` is a blind A/B of the fix against its own baseline (`compete.py --against`,
 does not count toward the win rate). Default stays **off** until he plays it.
 
-### ✅ `REPEAT_P` 0.55 → 0.25 (2026-09-13aa) — improves every songset map, costs nothing
-It restricts the draw to a figure played in the last **6 notes**, and was **never wired into
-`autobuild`** (6th such knob), so every shipped map used 0.55 blind. It moves `idiom_local` almost
-linearly and leaves 4-bar echo FLAT ⇒ at 0.55 it was paying our weakest idiom axis for nothing.
-4 songs x 3 seeds: `idiom_local` **+0.020 to +0.043, outside 2se on all four**, echo not falling
-anywhere, coverage and judge p inside noise, no map gaining a red. `--repeat-p 0.55` reproduces the
-old builds byte-for-byte. ⇒**Check what a knob measurably MOVES, not what its pass is named after.**
-✅**0.00 swept too (2026-09-13ab): keep 0.25.** 0.00 moves only `idiom_local`, from the human
-median to its upper range (70th-86th pct), with echo, coverage, typicality and hits all unchanged.
-Both are inside the human range and nothing separates them ⇒ the median is the defensible default.
-⬜**Open, and only Kyle's ear can settle it**: is local variety ASPIRATIONAL (median = floor, per
-the standing rule) or merely typical? `mapjudge` cannot answer it. Not staged — five pairs are
-already waiting on P5 and a sixth adds nothing.
-
+### ⬜ Is LOCAL VARIETY aspirational or merely typical? (outcome in `PROGRESS.md` 2026-09-13aa-ab)
+`REPEAT_P` is now 0.25, which lands `idiom_local` on the human median; 0.00 lands at the 70th-86th
+percentile and **nothing else moves** (echo, coverage, typicality, hits all unchanged). Both are
+inside the human range, so the median is the defensible default and 0.00 has no evidence behind it.
+⬜**Only Kyle's ear can settle which**: the standing rule says the corpus median is a FLOOR for
+aspirational axes, and `mapjudge` scores typicality so it cannot tell these apart. Not staged as a
+pair — five already wait on P5 and a sixth adds nothing.
+★**The rule it paid for: check what a knob measurably MOVES, not what its pass is named after.**
 ### 🔧 P0.4 — RUN EVERY PER-SONG THRESHOLD AGAINST THE HUMAN-vs-HUMAN PANEL (NEW, 2026-09-13ad)
 **The panel exists now**: 172 songs mapped by 2+ DIFFERENT mappers, 119 where both wall, **285
 ordered pairs** (`outputs/dup_songs_2026-09-13.json`). It is the project's first control that is
@@ -355,6 +358,22 @@ exactly one boundary each, **0 collisions, 0 parity violations, judge p up on al
 songset — no norm, so no general lever. The LAG is the part with human evidence.
 🔴Runs after `idiomize` and `repeat.py`, before walls — it is the only pass that moves a TIME.
 
+### 🔴 BREATHING on `1f333` (bars 163-169) — the red is REAL, the obvious fix is REFUTED
+✅**The query is sound** (2026-09-13aj, 300 cross-difficulty zips): a human played through **0 of 63**
+rests reading his Expert against his own ExpertPlus (0 % of maps red), and 13 of 77 the other way
+(4 % red). So the seven bars we play through on `1f333` are a genuine defect.
+🔴**"Thin the quiet bars" is REFUTED** (140 human maps, each bar at its percentile within its OWN
+song): in their quietest decile humans still play a median **5 notes/bar** and leave only **7.7 %**
+of bars empty; the whole gradient quietest→loudest is **5 → 7**. Energy does not announce a rest.
+⬜**THE OPEN QUESTION, and the next command to run**: `1f333`'s rest sits at percentile **0.01-0.06**,
+*below* the 0.00-0.10 band measured — too coarse to speak to it. **Split that band (0-2 %, 2-5 %,
+5-10 %) over the same 140 maps.** If humans leave a large share of bottom-2 % bars empty there is a
+song-visible signal and a narrow rule; if not, a rest is a style choice the song does not announce
+and BREATHING cannot be fixed from the audio alone.
+⚠️**n=3, one song, NOT generalisable**: his rest *ends* on a section boundary (F ends 169, G starts
+170) but only 1 of his 3 long rests *starts* on one. Testing that on the corpus needs the structure
+cache, which holds **27 songs** against 5 373 maps.
+
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**
   Split by the song's own section labels: on blocks inside a returning section we sit at **0.613
@@ -394,48 +413,23 @@ songset — no norm, so no general lever. The LAG is the part with human evidenc
   whole bimodality. ⇒**Any change that makes a map parity-hostile silently degrades
   `idiom_coverage` and nothing notices** (the verdict page does not read it; only `mapjudge` would).
 
-### ✅ P0.5 — DONE 2026-09-13x, and the cause was not where it looked
-**The passes disagreed about RESETS.** `fix_parity` alternates unconditionally; `idiomize` allowed
-a same-parity repeat when there was time to re-cock. The fixer runs last, so **every reset the
-sampler placed was guaranteed to be rewritten by a vocabulary-blind pass** — 319-351 of 728
-directions on a stressed map, taking the share of transitions in the human top-500 from 0.998 to
-0.587. ★**And it cost nothing in parity terms: the shipped map already had no resets** (`fix_parity`
-removes them all; every songset build reads `resets 0` against a human's 2). The choice was only
-**who picks the direction**. ⇒`STRICT_PARITY = True`; `--allow-resets` reproduces the old path.
-**Sweep**: byte-identical maps on 3 of 4 songs, `1f8d6` coverage 0.817±0.024 → 0.844±0.008, 0
-violations, no new red. Also added `_revocab` as a safety net (re-picks the fixer's directions
-INSIDE their parity class, preferring the vocabulary; control byte-identical).
-⇒**A default whose value is protective is worth having when its measured cost is zero.**
-✅**Re-decided 2026-09-13y.** Under `STRICT_PARITY` the collapse is **gone** — every seed inside
-the control band with a *tighter* spread than the control, so the 09-13v refutation was the parity
-leak, not the lever. **The real cost is LOCAL**: `idiom_local` 36.8 → 21.9 pct, `diagonal_share`
-17.6 → 5.7, `angle_change` 15.3 → 5.2, judge p −0.2 to −0.3 (~4.3 se), while `idiom_jsd` and
-`idiom_top50` improve. ⇒a coherent **trade** — the whole-map distribution bought with local
-repetition, pushing the wrong way on the one idiom axis this repo already calls *"globally right,
-locally wrong"*. 🔴**Default OFF; it IS now a usable style lever.** Does not clear SCATTER (room
-0.462 → 0.642 against a line at 1.00).
-⬜**What this leaves for SCATTER — and the price any mechanism must beat** (measured 2026-09-13z,
-n=499). Echo and local variety are different quantities (r = −0.387) and humans trade them cheaply:
-**+0.16 of echo costs them 0.037 of local**, i.e. about **0.23 local per 1.0 echo**. Our lever pays
-**0.80-1.00** — 3-4x the human price — and we start *below* the humans at our own echo anyway
-(ours 0.843-0.851 against their 0.869-0.878).
-✅**DoD FOR ANY FUTURE SCATTER MECHANISM: buy echo at better than ~0.25 of `idiom_local` per 1.0 of
-echo, measured against humans AT THE RESULTING ECHO, never against the pooled median.**
-⬜Untried: raise echo by returning to a figure **at a distance** (across phrases) rather than by
-repeating it locally — the human's echo survives a 16-transition window being varied, so his
-returns are far apart. `repeat.py` does this for labelled section repeats only, and that half is
+### ⬜ SCATTER — the price any future mechanism must beat (outcome in `PROGRESS.md` 2026-09-13v-z)
+Echo and local variety are **different quantities** (r = −0.387, n=499) and humans trade them
+cheaply: **+0.16 of echo costs them 0.037 of local**, about **0.23 local per 1.0 echo**.
+`--map-memory` pays **0.80-1.00** — 3-4x the human price — and we start *below* the humans at our
+own echo anyway (ours 0.843-0.851 against their 0.869-0.878).
+✅**DoD FOR ANY FUTURE SCATTER MECHANISM: buy echo at better than ~0.25 of `idiom_local` per 1.0
+of echo, measured against humans AT THE RESULTING ECHO, never against the pooled median.**
+⬜**Untried**: raise echo by returning to a figure **at a distance** (across phrases) rather than
+by repeating it locally — the human's echo survives a 16-transition window staying varied, so his
+returns are far apart. `repeat.py` does this for labelled section repeats only and that half is
 already at parity; the open part is first-occurrence bars.
-
-### 🔧 (superseded) make `_reparity` vocabulary-aware
-**Evidence**: above. The repair picks any direction that satisfies parity; it should pick among
-directions the mined vocabulary knows for that transition, falling back to the current behaviour
-only when none is legal.
-**DoD**: on the seeds that collapse today (`autobuild_ab767`, `--map-memory 4`, seeds 3 and 4),
-`idiom_coverage` stays inside the control band **0.79-0.86** while **parity violations stay at 0**
-and resets do not rise; the control arm reproduces its current output **byte-for-byte**.
-⬜Then re-run `price_memory_cov.sh` and re-decide the `--map-memory` default against the outlier
-criterion (we sit at the 95th-98th percentile of vocabulary entropy on every songset song).
-⬜**Hypothesis worth one measurement**: this may also be what the palette FILTER hit on 2026-09-12i
+⬜Also untried: a memory that is **per section** rather than map-wide (a mapper's vocabulary
+drifts), and whether his first-occurrence echo draws on the SAME figures as his returning blocks.
+### ⬜ Left over from the parity work (outcome in `PROGRESS.md` 2026-09-13w-y)
+⬜**Hypothesis worth one measurement**: the vocabulary-blind `fix_parity` may also be what the
+palette FILTER hit on 2026-09-12i (coverage 0.618) — same shape, same fixer, never measured that
+way.
 (coverage 0.618) — same shape, same fixer, never measured that way.
   ⬜**Next**: 1f333 needs the last 0.18 of echo from somewhere that is not the song's structure and
   not a wider dose of this. Candidates: a memory that is **per section** rather than map-wide (a
