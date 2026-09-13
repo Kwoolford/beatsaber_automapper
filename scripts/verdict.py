@@ -324,6 +324,18 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
             yellows += 1
     absence = absence_lines(arrs)
     margins = code_margins(arrs)
+    # ★The density codes report their own margin now (`queries.q_events(report=…)`), so this
+    # page prefers the query's number over anything recomputed here. Only codes that did NOT
+    # fire are shown a margin — for one that fired, the bars in its `why` are the story.
+    try:
+        _rep: dict = {}
+        Q.q_events(arrs, report=_rep)
+        for _code, (_txt, _room) in _rep.items():
+            if _code in {h[0] for h in hits}:
+                continue
+            margins[_code] = _txt + ("   ⚠️NO MARGIN" if _room < 1 + NEAR_FRAC else "")
+    except Exception:  # noqa: BLE001
+        pass
     reds += sum(1 for a in absence if a["state"] == "🔴")
     yellows += sum(1 for a in absence if a["state"] == "🟡")
     tut_word, tut_diffs = tutor_line(sid, arrs)

@@ -365,9 +365,15 @@ does not count toward the win rate). Default stays **off** until he plays it.
 ⇒**Read "2 of 4 ship" as "2 of 4 ship, and all three non-failing maps are one small change from a
 red".** ★It also explains why levers kept appearing to *break* a map (the taper and `--lead-in`, both
 on 1f8d6): they were **nudging maps with no room**, and the page could not tell that from damage.
-  ⬜**Still not general**: EMPTY · D1 · D6 · FLOW · D2 · D4 · D3 · BREATHING fire on per-window
-  comparisons with no scalar, so their margin must come from the query. ★When that lands, **delete**
-  `code_margins()` rather than extend it — it duplicates thresholds that belong in `queries.py`.
+  ✅**2026-09-13n — THE QUERY REPORTS ITS OWN MARGIN** for EMPTY · D1 · D6: `q_events(report=…)`,
+  **optional and write-only**, verified byte-identical without it on 3 songs and by the bench
+  (not refuted). ★**The flagship `1f913`, which prints "nothing located", has TWO codes with no
+  margin**: D6 worst window **1.65×** against a red at 2×, and SCATTER **+0.118** against +0.150.
+  ⇒*"Nothing located"* reads as what it always was — **no defect FOUND**, not a map with room.
+  ⬜**Left**: `q_vocals` (D4) deliberately **not** patched — no single `return hits` in its body and
+  guessing a variable name at the end of a long session risks a **wrong** margin, which is worse than
+  none. FLOW · D2 · D3 · BREATHING likewise. **DoD**: each remaining query takes `report`, and
+  `code_margins()` is **DELETED** — it duplicates thresholds that belong in `queries.py`.
 - **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
 ### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything

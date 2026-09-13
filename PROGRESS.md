@@ -7,6 +7,39 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13n — The query reports its own margin, and the "nothing located" map has TWO on the edge
+
+`queries.q_events` takes an optional `report` dict and records how close EMPTY / D1 / D6 came.
+⚠️**Write-only and optional**: every existing caller passes nothing and gets a byte-identical
+return — verified directly (`hits == hits_without_report` on three songs) and by the bench
+(**not refuted, 4 strong hits, 0 false fires**). That is the contract this repo scores itself with,
+so it had to be provable rather than assumed.
+
+The page shows a margin only for codes that did **not** fire; for one that did, the bars in its
+`why` are the story.
+
+### ★★ What it found on the flagship
+`1f913` prints **`SHIP? YES — nothing located`** and now also prints:
+
+| code | margin |
+|---|---|
+| **D6** | worst window **1.65×** his events — red at/above 2× ⚠️**NO MARGIN** |
+| **SCATTER** | echo gap **+0.118** — red at +0.150 ⚠️**NO MARGIN** |
+
+**The only map all session to read completely clean has two codes within 25 % of red.** `1f8d6`'s
+picture completes too: wall coverage at exactly 0.50×, lead-hand at 1, D1 and SCATTER comfortable.
+
+⇒*"Nothing located"* has been the best result this project can print. It now reads as what it
+always was — **no defect FOUND**, not a map with room — and the page says which way it is leaning.
+
+⬜**Left**: `q_vocals` (D4) was deliberately **not** patched — its body has no single `return hits`
+and I would have been guessing at a variable name at the end of a long session; a wrong margin is
+worse than none. FLOW · D2 · D3 · BREATHING likewise. **DoD**: each remaining query takes `report`,
+and `code_margins()` in `verdict.py` is **deleted** — it duplicates thresholds that belong in
+`queries.py` and says so in its own docstring.
+
+---
+
 ## 2026-09-13m — ★★Margins on the query codes too, and EVERY clean map turns out to be on an edge
 
 `verdict.py` now prints how much room a **passing** code has, for the two query codes whose

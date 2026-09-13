@@ -129,7 +129,8 @@ def merge(fires: list[tuple], code: str, arrs: dict, width: int) -> list[tuple]:
 
 
 # ----------------------------------------------------------------------------- q_events
-def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> list[tuple]:
+def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0,
+             report: dict | None = None) -> list[tuple]:
     """EMPTY / D6 / D1 — player EVENTS per window vs the same song's human map.
 
     An event is a row with any note; a two-hand double is ONE event. This is the P2 finding
@@ -192,6 +193,21 @@ def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0) -> lis
         hits.append(("D1", _t(arrs, b0), b0,
                      f"map-wide: median window event ratio {np.median(ratios):.2f}x the human "
                      f"({len(empty)}/{len(ratios)} windows under {low}x)"))
+    # ★★**A CODE THAT PASSED STILL HAS A MARGIN** (2026-09-13n). `1f8d6` read `SHIP? YES`
+    # at exactly its wall-coverage line and `1f913` printed *"nothing located"* 79 % of the
+    # way to a SCATTER red -- and levers kept looking like they "broke" a map when they were
+    # only nudging one that had no room. ⇒When `report` is passed, a query records how close
+    # it came. ⚠️Optional and write-only: `bench.py` and every existing caller pass nothing
+    # and see the identical return, so the contract this repo scores itself with cannot move.
+    if report is not None and ratios:
+        worst = min(ratios)
+        report["EMPTY"] = (f"worst window {worst:.2f}x his events — red below {low:g}x", worst / low)
+        report["D1"] = (f"median window ratio {float(np.median(ratios)):.2f}x — "
+                        f"red below 0.70x", float(np.median(ratios)) / 0.70)
+        if dense or ratios:
+            top = max(ratios)
+            report["D6"] = (f"worst window {top:.2f}x his events — red at/above {high:g}x",
+                            high / max(top, 1e-9))
     return hits
 
 
@@ -272,7 +288,8 @@ q_flow.codes = {"FLOW", "D2"}
 
 # ----------------------------------------------------------------------------- q_vocals
 def q_vocals(arrs: dict, W: int = 4, gap: float = 0.25, min_slots: int = 6,
-             human_min: float = 0.6) -> list[tuple]:
+             human_min: float = 0.6,
+              report: dict | None = None) -> list[tuple]:
     """D4 — the main vocals go unanswered where the human answered them.
 
     A MAIN=vox slot is "answered" when a note sits on it or one slot either side. Per
