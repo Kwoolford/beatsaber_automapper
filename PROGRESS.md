@@ -17276,3 +17276,53 @@ hits throughout), so nothing about the gate has changed yet.
 ⚠️These rows are **not** comparable to 2026-09-12i's palette rows: this build carries `--pulse
 --lead-in --drop-orphan --carrier-bias` and its control reads coverage 0.766 where that run's read
 0.992. Read arms against their own control, never across sessions.
+
+
+## 2026-09-13s — three seeds: `--map-memory` works on its own axis, does not clear the red, stays OFF
+
+Three seeds x {0, 4} x {1f913, 1f333}, full builds with `repeat.py` after. Mean ± sd:
+
+| song | mem | vocabulary entropy | block echo | idiom_coverage | located hits |
+|---|---|---|---|---|---|
+| 1f913 | 0 | 5.515 ± 0.017 | 0.576 ± 0.010 | 0.849 ± 0.011 | 0, 0, 0 |
+| 1f913 | 4 | **4.976 ± 0.058** | **0.599 ± 0.004** | 0.866 ± 0.007 | 0, 0, 0 |
+| 1f333 | 0 | 5.884 ± 0.063 | 0.486 ± 0.001 | 0.842 ± 0.015 | 12, 12, 12 |
+| 1f333 | 4 | **5.437 ± 0.072** | **0.537 ± 0.007** | 0.783 ± 0.046 | 12, 12, 12 |
+
+Entropy and echo both move well outside 2sd on both songs. **`idiom_coverage` moves +0.017 and
+−0.058, both INSIDE 2sd — not resolvable**, so the one-seed collapses (0.515 and 0.439) were seed
+noise, not the palette failure repeating. ⚠️"Not resolvable at n=3" is not "safe": the 1f333 m=4
+arm's own sd is 0.046, the widest number in the table.
+
+Read as SCATTER's own margin (`q_scatter(report=…)`, red below 1.00):
+
+| song | mem 0 | mem 4 |
+|---|---|---|
+| 1f333 | 0.43 ± 0.00 | **0.77 ± 0.05** |
+| 1f913 | 1.67 ± 0.06 | **1.82 ± 0.03** |
+
+⇒**It closes 60 % of 1f333's distance to the line and does not cross it** (gap +0.24 → +0.18 against
+a red at +0.15). Its located hits stay at 12 in all six builds. 🔴**DECIDED: `--map-memory` ships as
+a flag, default OFF** — the red does not clear, the axis the pass exists for is unresolved rather
+than unharmed, and the palette cost a revert for exactly the "promising on the aimed axis" reading.
+It is a well-behaved variety lever, which is a thing Kyle's UI wants either way.
+
+### ⚠️Correction to 2026-09-13q: one of the two no-margin readings was the SEED
+
+Reading the same margins across six 1f913 builds:
+
+| code | best (seed 0) | seeds 1-3, mem 0 | seeds 1-3, mem 4 |
+|---|---|---|---|
+| D3 | 1.00 | 1.00 · 1.00 · 1.00 | 1.00 · 1.00 · 1.00 |
+| SCATTER | **1.21** | 1.67 · 1.75 · 1.59 | 1.84 · 1.78 · 1.84 |
+
+★**D3 reads exactly 1.00 on every seed and every arm** — it is structural, not a coincidence of one
+build, and the claim stands stronger than it was made. ★**SCATTER's 1.21 was one unlucky seed**;
+three other seeds of the same configuration read 1.59-1.75. ⇒**A margin is a property of a BUILD,
+not of a builder, until it is read across seeds.** The margin machinery is what made this checkable
+at all, and it disagreed with its own first headline within the hour.
+
+⏱Running: `scripts/price_memory_songset.sh` — the same 3 seeds x {0, 4} on `1f767` and `1f8d6`, the
+two maps that already ship. `1f767`'s human has the songset's WIDEST vocabulary (5.90 bits, 99th
+percentile) and we already beat his echo there, so if narrowing helps on that song too the
+mechanism is not "match the human's vocabulary".

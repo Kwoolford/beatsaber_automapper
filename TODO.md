@@ -310,11 +310,17 @@ does not count toward the win rate). Default stays **off** until he plays it.
   byte-identical): boost, with the palette's median guard, any candidate whose landing this map has
   ALREADY played. Not the palette (nothing decided in advance, no candidate removed, so it cannot
   force an out-of-vocabulary transition) and not `REPEAT_P` (6 notes vs 4 bars).
-  One seed: `1f913` monotone with **`idiom_coverage` RISING** 0.766→0.853 as echo goes 0.507→0.595;
-  `1f333` coverage reverses twice (0.838→0.515→0.840→0.439) and no red moved. 🔴**A knob whose
-  effect reverses twice as the dose rises is not a dose response** — `price_memory_seeds.sh`
-  (3 seeds × {0,4} × both songs) decides it. **DoD**: the 3-seed spread separates signal from seed,
-  `idiom_coverage` does not fall below its control, and 1f333's SCATTER margin moves.
+  ✅**3 SEEDS (2026-09-13s)**: entropy −0.54/−0.45 and echo +0.023/+0.051, all outside 2sd;
+  `idiom_coverage` +0.017/−0.058, both **inside 2sd** ⇒ the one-seed collapses were seed noise, not
+  the palette failure repeating. **1f333's SCATTER room goes 0.43 → 0.77 (red below 1.00)** — 60 % of
+  the distance, gap +0.24 → +0.18 against a +0.15 line — and its 12 located hits do not move.
+  🔴**DECIDED: default OFF, kept as a variety lever.** The red does not clear and the axis the pass
+  exists for is *unresolved*, not *unharmed* (the 1f333 arm's own sd is 0.046, the widest number in
+  the table). ⏱`price_memory_songset.sh` (1f767 · 1f8d6, the two that ship) running.
+  ⬜**Next**: 1f333 needs the last 0.18 of echo from somewhere that is not the song's structure and
+  not a wider dose of this. Candidates: a memory that is **per section** rather than map-wide (a
+  mapper's vocabulary drifts), and asking whether his first-occurrence echo comes from the SAME
+  figures as his returning blocks or a different set.
 - **The density family (EMPTY · D6 · D4) is ONE defect and at its ceiling.** Our per-song nps sd is
   0.48 against his 1.00; the ratio correlates **+0.751** with D6 and **−0.474** with EMPTY. Predicting
   his density from the song tops out at **R² 0.231** (bpm + onset rate) — better than the constant,
