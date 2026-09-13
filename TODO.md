@@ -324,6 +324,25 @@ does not count toward the win rate). Default stays **off** until he plays it.
   🔴**DECIDED: default OFF and NOT UI-ready** (a lever that breaks a third of builds is not the
   "well-behaved lever" the standing rule says to keep). Kept as a flag with the instability
   documented at `MEMORY_BOOST`.
+  ★★★**2026-09-13w — THE CAUSE IS `_reparity`, AND IT IS A LATENT PIPELINE BUG.** `idiomize()`
+  itself is clean (0 fallbacks, **0** out-of-vocabulary transitions even on a collapsing seed); the
+  damage is done AFTER it returns by `idiomize_zip`'s `_reparity`, which rewrites DIRECTIONS with
+  no reference to the vocabulary. Control: **0** rewrites on every seed. `--map-memory 4`: 0, 0,
+  **319**, **351** — turning 0 out-of-vocabulary transitions into **114** and **149**. That is the
+  whole bimodality. ⇒**Any change that makes a map parity-hostile silently degrades
+  `idiom_coverage` and nothing notices** (the verdict page does not read it; only `mapjudge` would).
+
+### 🔧 P0.5 — make `_reparity` vocabulary-aware (NEW, 2026-09-13w, blocks `--map-memory`)
+**Evidence**: above. The repair picks any direction that satisfies parity; it should pick among
+directions the mined vocabulary knows for that transition, falling back to the current behaviour
+only when none is legal.
+**DoD**: on the seeds that collapse today (`autobuild_ab767`, `--map-memory 4`, seeds 3 and 4),
+`idiom_coverage` stays inside the control band **0.79-0.86** while **parity violations stay at 0**
+and resets do not rise; the control arm reproduces its current output **byte-for-byte**.
+⬜Then re-run `price_memory_cov.sh` and re-decide the `--map-memory` default against the outlier
+criterion (we sit at the 95th-98th percentile of vocabulary entropy on every songset song).
+⬜**Hypothesis worth one measurement**: this may also be what the palette FILTER hit on 2026-09-12i
+(coverage 0.618) — same shape, same fixer, never measured that way.
   ⬜**Next**: 1f333 needs the last 0.18 of echo from somewhere that is not the song's structure and
   not a wider dose of this. Candidates: a memory that is **per section** rather than map-wide (a
   mapper's vocabulary drifts), and asking whether his first-occurrence echo comes from the SAME
