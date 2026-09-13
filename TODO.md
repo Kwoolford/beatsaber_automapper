@@ -10,7 +10,7 @@ item is **deleted** from here. A completed item is history, not work. Curated 20
 4,076 lines), 2026-08-14 (from 652), **2026-09-02 (re-planned around the audit in
 [`docs/audit_2026-09-02_buildmap.md`](docs/audit_2026-09-02_buildmap.md))**, and **2026-09-10
 (from 629: ten shipped P-sections collapsed to one toolbox table, one query table, and the open
-items grouped by tool)**, and **2026-09-12 (from 671: the day's ten shipped findings collapsed into P0.7 / P0.8 / P0.9, three live builder items)**. ⚠️Roughly a third of what is left is the permanent **REFERENCE** tail —
+items grouped by tool)**, **2026-09-13 (from 874: the day's nine measured levers collapsed to one table, the seven landmines to one list)**, and **2026-09-12 (from 671: the day's ten shipped findings collapsed into P0.7 / P0.8 / P0.9, three live builder items)**. ⚠️Roughly a third of what is left is the permanent **REFERENCE** tail —
 landmines that each cost a session. Curate the WORK half; leave those.
 
 📖**A read of any map is one command:** `python scripts/verdict.py <map.zip>`. Before believing a
@@ -38,7 +38,9 @@ rich score (VOX pitch + lyric, LEAD, BASS, KIT, sections) exists only as HTML dr
 (`outputs/{event,percussion,melody,lyrics,structure,chords,onset}_cache/`). The missing thing is
 **one join: song and map on ONE time lattice, as text and as arrays.**
 
-**Build:** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
+**Build (best known, 2 of 4 ship):** `autobuild <audio> --pulse --lead-bias 0.2 --lead-in
+--drop-orphan --carrier-bias 2.0` then `repeat.py <zip> --out <zip> --song <id>`.
+**Build (shipped defaults):** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
 chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), then
 `agent_mapper/repeat.py <zip> --out <zip> --song <id>` (2026-09-12, not yet wired in) — or the
 per-section loop in 📖`agent_mapper/WORKFLOW.md`, which **beats autobuild** and by a wide margin:
@@ -99,9 +101,10 @@ left is the builder and Kyle's ear.
 3. **Four rows can refute a norm, never establish one** (2026-09-12b) — two songset readings reversed at
    corpus scale in one session. Take mechanism claims to ≥100 maps.
 
-**Where the songset stands** (`outputs/repeat_2026-09-12/`, staged zips untouched):
-`1f913` **SHIP? YES — nothing located** · `1f767` SHIP? YES (1 yellow) · `1f8d6` ELEMENTS + lead-hand ·
-`1f333` **SCATTER — the last red**, and it is P0.8's 64 %-first-occurrence problem.
+**Where the songset stands** — best known build, `outputs/best_2026-09-13/`, staged zips untouched:
+`1f913` **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (2 yellow) · `1f767` 1 red (D3) ·
+`1f333` 4 red (EMPTY · D3 · BREATHING · SCATTER).
+**2 of 4 now ship from a FRESH autobuild**; the session began with all four failing their own gate.
 
 ❓**THE ONE DECISION THAT IS KYLE'S**: P4b's rule says a red map is not staged, because *"losing with a
 known red teaches nothing the page did not say"*. Today's reds come from codes invented **after** these
@@ -111,9 +114,9 @@ and it takes one command. → **P5 is still the only thing that moves the headli
 (`compete.py verdict <sid> X|Y|tie --because …`) → then **P6**.
 🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
 
-⚠️**Two builder landmines found 2026-09-12, read before touching either**: `--pulse` is a **trade**, not a
-defect (it buys FLOW and pays ABSENCE; `--no-pulse` is strictly worse on 1f8d6) — see P0.7; and the
-**palette must not be turned on** — see P0.9.
+⚠️**Read THE BUILDER'S LEVERS below before touching any of them** — nine are measured, seven are off,
+and three of the nine are nulls. ⚠️`--pulse` is a **trade**, not a defect (it buys FLOW and pays
+ABSENCE; `--no-pulse` is strictly worse on 1f8d6) — see P0.7.
 
 ---
 
@@ -262,379 +265,69 @@ through to `queries.cross_difficulty` · the TUTOR line uncoloured.
 - ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties; bites only on a song
   with no human map.
 
-## 🔴 P0.8 — SCATTER: the builder answer is built, and the last red is 1f333
-`agent_mapper/repeat.py` (2026-09-12c–e). When the song's own **section labels** say a phrase returns, the
-block's figure comes back — times and hands kept, cells and directions copied, **no threshold** (a per-block
-fingerprint maxes out at 0.47 *between two passes of the same section*, so any threshold under that chooses
-how many blocks fire). ★★**A reset is a parity PHASE problem**: one-note repair fails in both directions,
-inverting a RUN frees every block. Source is **chosen** per block from every earlier occurrence, keeping the
-one that survives with most of its figure intact.
-**Now**: SCATTER clears on **3 of 4** at 0 resets and 0 violations; `1f913` reads `SHIP? YES — nothing
-located`. 🔴**1f333 alone still fails** (echo 0.480 vs his 0.710) because **64 % of its bars are a first
-occurrence** — structure-driven repetition has the least to work with there.
-★★**The remaining gap is VOCABULARY, not structure**: where a section repeats we match or beat the human;
-where it does not we are 0.13–0.27 below him and he still echoes 0.36–0.67. He reuses a small set of shapes
-over music he has never played before.
-⬜**Tasks**: a palette form that raises echo while leaving `idiom_coverage` in the human band (see P0.9);
-wire `repeat.py` into `autobuild` the session 1f333 clears.
+## 🔧 THE BUILDER'S LEVERS — every one measured 2026-09-12/13, all default OFF but two
+`PROGRESS.md 2026-09-12…2026-09-13g` has the full working. Control arm rebuilds **byte-identical**
+at every default; that check is mandatory before reading any sweep.
 
-## 🔴 P0.9 — the vocabulary palette: real lever, no safe form yet
-Human maps use **28.5 shapes/hand** (p10 18, p90 43) with the top ten covering **82 %** of notes; ours use
-34–60 at 53–65 %, and concentration correlates with block echo at **r = +0.654** (n=400). `idiomize --palette N`
-commits the map to N landing shapes and raises echo on **12 of 12** corpus songs (+0.063, sd 0.020).
-🔴**But all three forms damage `idiom_coverage`**, the axis `idiomize` exists to move — filter **0.618**
-(1.7 pct), flat boost 0.998 (97.5), banded boost 0.997 (96.9), against **0.992 (94.1)** with it off.
-**Default is 0. Do not turn it on.**
-★★**Why**: `idiom_coverage` counts **transitions**; the palette constrains **landing shapes**. Two different
-vocabularies, and we are wrong on both in opposite directions — human 23.6 shapes/hand at coverage 0.909,
-ours 41 at 0.992. A human reuses *few shapes reached by varied transitions* (~9 % outside the top-500); we use
-*many shapes reached by only the commonest transitions*.
-⬜**Next**: the reverse pairing — keep frequency weighting for the draw but **allow a tail transition when it
-reaches a palette landing**. **DoD**: echo gain on ≥10 songs AND `idiom_coverage` inside the human IQR AND not
-in the judge's worst-3.
-★★**AND THE METHOD RULE THIS COST**: *when changing a pass, the DoD must include the axis that pass was BUILT
-for, not only the axis the change aims at* — and **a sweep of a sub-pass is not a build**; only a full
-`autobuild` from audio caught this.
-
-## 🔴🔴 P0.6b — FLOW IS THE BIGGEST RED ON THE SONGSET, AND IT IS LOCATED (2026-09-12o)
-The whole songset through ONE chain (`autobuild --pulse --lead-bias 0.2` → `repeat.py`), parity
-violations 0 and resets 0 everywhere:
-
-| song | reds |
-|---|---|
-| 1f767 | D6 (18 % of bars) · ABSENCE lead-hand (0 vs his 24) |
-| 1f8d6 | **FLOW** (12 %) |
-| 1f913 | **FLOW** (16 %) |
-| 1f333 | EMPTY (15 %) · **FLOW** (19 %) · D3 · BREATHING · SCATTER |
-
-★**FLOW is red on 3 of 4 and yellow on the 4th** — a bigger lever than SCATTER, which is red only
-on 1f333.
-
-🔴**Two hypotheses refuted first**: not the dotted-eighth period (the selection is inert, P0.7), and
-**not invented fill notes** — the offending events sit on a real audio onset **95–99 %** of the
-time, same as all events.
-
-★★★**WHAT IT IS:**
-
-| song | our odd-16th notes | **isolated** | his | **isolated** |
-|---|---|---|---|---|
-| 1f913 | 125 | **77.6 %** | 97 | **25.8 %** |
-| 1f8d6 | 75 | **94.7 %** | 0 | — |
-| 1f333 | 235 | **88.9 %** | 144 | **2.1 %** |
-| 1f767 | 57 | **66.7 %** | 3 | — |
-
-**The human plays odd 16ths freely and almost never ALONE — he leads into them.** We play 67–95 %
-of ours with the previous slot empty. ⇒FLOW is not "we play off the grid" and not "we invent
-notes"; it is **"we play the 'e' and the 'a' with nothing leading in"**. ★The map-wide rates look
-innocent (1f913 12.4 % vs his 12.3 %): the COUNT is right, the APPROACH is not.
-
-✅**BUILT 2026-09-12p — `--lead-in`** (mapctl picker + autobuild, **default off**): when an odd slot
-is taken and the slot before carries a real event the picker passed over, take that too. Control arm
-rebuilds **byte-identical** to baseline. **Isolated share falls 20–28 points on 4 of 4**: 1f913
-77.6→58.5 · 1f8d6 94.7→73.0 · 1f333 88.9→60.8 · 1f767 66.7→46.4 (human 0–26 %).
-🔴**It clears FLOW on NONE.** Bar coverage 1f913 16→12 % · 1f333 19→13 % · 1f767 10→4 % (yellow) ·
-**1f8d6 12→14 %, worse**, plus a new ELEMENTS red (more notes ⇒ fewer wall slots survive). Judge p
-fell on two: 1f8d6 0.655→0.372, 1f333 0.692→0.293 — **adding notes moves density**. DoD NOT MET.
-✅**2026-09-12q — the lead-in now reads the UNTHINNED supply, and FLOW goes red-on-3 → red-on-1.**
-Isolated share baseline → v1 → **v2**: 1f913 77.6→58.5→**31.7 %** (human 25.8) · 1f333 88.9→60.8→
-**35.0** · 1f767 66.7→46.4→44.4 · 1f8d6 94.7→73.0→73.0. FLOW: **1f913 🔴16 %→🟡7 % and `SHIP? YES`
-— the first map to ship from a FRESH autobuild** · 1f333 🔴19→🟡3 % (5 reds → 4) · 1f767 🟡10→6 % ·
-**1f8d6 🔴12→14 %, still red**.
-🔴**Default stays OFF — the cost is real**: judge p falls on **all four** (1f913 0.572→0.435,
-1f8d6 0.655→0.372, 1f333 0.692→0.501, 1f767 0.293→0.230); notes +1.3 %…+9.6 % (1f333 breaks the
-±5 % DoD); 1f8d6 gains an ELEMENTS red (fewer wall slots survive); and 1f913's judge now flags
-**`handedness` 0.000 at the 1.5th human percentile** — the added lead-ins land evenly and make the
-map *more* balanced than any human. ⚠️A fix that overshoots a second axis, same family as the
-palette's `idiom_coverage`.
-✅✅**2026-09-12r — `--drop-orphan` CLEARS FLOW ON ALL FOUR, and TWO maps now SHIP from a fresh
-build.** Where no lead-in exists, drop the orphan rather than play it cold — the human's own answer
-(he plays ~0 odd 16ths on 1f8d6/1f767) — and it **pays back the density `--lead-in` spends**.
-Isolated share → **0.0 % on all four**; notes within **±5 %**; parity violations and resets 0.
-**`1f913` = `SHIP? YES — nothing located`** · **`1f8d6` = `SHIP? YES`, 2 yellow** · 1f767 down to
-D6 alone · 1f333 5 reds → 4, FLOW gone.
-🔴**Two costs, and the default stays OFF**: (a) we **overshoot** — 0.0 % isolated where humans sit
-at 0–26 % (1f913's own human is 25.8 %), the *more human than human* shape again; (b) **1f8d6 pays**
-— judge p 0.655→0.281 and `idiom_jsd` from the 4.0th to the **0.8th** percentile. 1f913 and 1f333
-have **no judge flags at all**.
-✅**2026-09-12s — PRICED ON 12 CORPUS SONGS, both arms, each against its own human**
-(`scripts/price_flowfix.sh`, `outputs/price_2026-09-12/`): isolated share **62.4 % → 0.0 %, lower on
-12/12**; **FLOW hits 41 → 0**; **songs with any FLOW 10 → 0**. The result holds well outside the
-songset.
-🔴🔴**AND IT NEEDS A DENSITY FLOOR BEFORE IT CAN BE A DEFAULT**: `1fa48` goes **736 → 494 notes
-(−32.9 %)** and gains an **EMPTY red across 29 % of bars** — the orphan drop took a third of the map.
-2 of 12 are outside ±5 % (the other is `1f3d7`, +7.6 %).
-🔴**2026-09-12t — BOTH GUARDS REFUTED, measured over 16 songs.** A **window gate** (drop only where
-the 2-bar orphan share ≥ 30 %, `q_flow`'s own trigger) did not spare `1fa48` — its windows *do*
-exceed 30 %, it still lost 35.6 % — and let FLOW back onto 2/16 with 4 songs outside ±5 %. ★**A
-build-time gate cannot reproduce `q_flow`: the query is RELATIVE to the song's own human** (≥ 20
-points over *his* isolated share) and the builder has no human map, nor should it. A **per-bar cap**
-at 0.40 halves the outlier (−39.3 → −21.6 %) and also lets FLOW back onto 2/16.
-
-| arm | songs with FLOW | worst note change | outside ±5 % |
+| lever | default | what it does | measured |
 |---|---|---|---|
-| **ungated** | **0 / 16** | −39.3 % | **1** |
-| window gate | 2 / 16 | −35.6 % | 4 |
-| bar cap 0.40 | 2 / 16 | −21.6 % | 2 |
+| `walls.py` corridors | **ON** | wall durations in the human's 3 modes, corridors where onsets thin | coverage 0.40× → **0.98×** his, ELEMENTS fires 59 % → 21 % |
+| `repeat.py` | **ON** (manual) | a section's figure comes back when the song repeats | SCATTER clears on 3 of 4; **1f913 = "nothing located"** |
+| `--lead-in --drop-orphan` | off | take the on-grid note before an odd 16th, else drop it | **FLOW 62 hits → 0 across 16 songs**; ⚠️−0.022 typicality |
+| `--carrier-bias` | off (1.0) | vocals can win the carrier ranking, not just the busiest stem | D4 **29 → 23**; ⚠️no song clears, 3 regress |
+| `--nps-from-song` | off | density from bpm + onset rate, not the fixed 4.17 | our nps sd 0.48 → 0.64 (his 1.00); reds flat |
+| `--palette` | off | commit the map to N landing shapes/hand | echo +0.063 on 12/12 · 🔴wrecks `idiom_coverage` |
+| `--hand-run-p` | off | a takeover sometimes holds a run of 4+ | runs≥4 0 → 9–21 · ⚠️costs `idiom_coverage` |
+| `--energy-slope` | off (0.60) | how hard energy scales the budget | 🔴NULL on D6 |
+| `--vocal-keep` | off (1.0) | gentler accent cut on a vocal spec | 🔴NULL — the cut was never binding |
 
-⇒**Ungated is the best arm** and `DROP_BAR_CAP` defaults to 1.0. The whole residual is **one song**
-whose orphans really are a third of its picks and which had **no FLOW to fix**.
-✅**2026-09-12u — THE OUTLIER WAS A KNOWN LANDMINE AND IS FIXED.** On `1fa48` the **human plays
-87.2 % of his notes on "odd" 16ths with 90 % of them isolated** — the odd 16th **IS the felt beat**
-there, exactly what `q_flow`'s docstring has warned since it was written (*1f335 at 195 bpm*).
-`q_flow` is safe because it is **relative to the human**; my drop rule was **absolute**, so it
-deleted the main grid. ⇒`ODD_FRAME_MAX` — the builder has no human but it has the **song**: above
-that share of picks on odd 16ths, the frame is flipped and there is nothing to drop.
-⚠️**I set it from the wrong quantity first**: 0.50 came from the **onsets** while the code reads
-**picks**, and the check runs **per section**, so one busy section tripped it and cost FLOW on 3/16.
-On the quantity the code sees the gap is far wider — 1fa48 **88.6 %**, every other song **≤ 32 %**.
+**Best known build** (2 of 4 ship): `autobuild <audio> --pulse --lead-bias 0.2 --lead-in
+--drop-orphan --carrier-bias 2.0` then `repeat.py`.
+`1f913` **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (2 yellow) · `1f767` 1 red (D3) ·
+`1f333` 4 red (EMPTY · D3 · BREATHING · SCATTER).
 
-| arm | songs with FLOW | worst note change | outside ±5 % |
-|---|---|---|---|
-| ungated | 0 / 16 | **−39.3 %** | 1 |
-| window gate | 2 / 16 | −35.6 % | 4 |
-| bar cap 0.40 | 2 / 16 | −21.6 % | 2 |
-| frame 0.50 | 3 / 16 | +22.1 % | 2 |
-| **frame 0.70** | **0 / 16** | **−4.7 % / +14.0 %** | **1** |
+### ❓ THE ONE DECISION THAT IS KYLE'S — the FLOW fix is a TRADE
+**FLOW → 0 on all 16 songs, against 23-metric typicality worsening 0.511 → 0.533 (worse on 11/16).**
+The repo's own rules say a PASS is *not defective, not good*, typicality is a floor never a rank,
+and his ear is the arbiter — on that reading the fix is right, but it is his call.
+✅**Staged**: `1f335` is a blind A/B of the fix against its own baseline (`compete.py --against`,
+does not count toward the win rate). Default stays **off** until he plays it.
 
-✅**FLOW 62 hits → 0 across 16 songs**, notes mean **+0.6 %**, one song outside ±5 % and it gains
-**no new red**. Songset holds: `1f913` = `SHIP? YES — nothing located`, `1f8d6` = `SHIP? YES`.
-🔴**2026-09-12v — MEASURED, and the answer is a TRADE, not a free win.** `mapjudge --top 30` prints
-all 23 metrics. `idiom_jsd` is fine (mean pct 16.9 → 20.5, worst −3.7 pts). **But the full table
-shows what the worst-N list hid**: `role_swap_rate` and `handedness` each move > 15 percentile
-points on **10 of 16** songs, `angle_harsh_frac` on 8, `ioi_cond_entropy` on 6. The aggregate:
+### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
+- **SCATTER on `1f333`** — 64 % of its bars are a first occurrence, so section-driven repetition has
+  nothing to copy. The rest of the gap is **vocabulary**: where a section repeats we match or beat
+  him; where it does not he still echoes 0.36–0.67 and we do not.
+- **The density family (EMPTY · D6 · D4) is ONE defect and at its ceiling.** Our per-song nps sd is
+  0.48 against his 1.00; the ratio correlates **+0.751** with D6 and **−0.474** with EMPTY. Predicting
+  his density from the song tops out at **R² 0.231** (bpm + onset rate) — better than the constant,
+  not enough to move a red. ⛔**"Tune the density" is retired** until someone has a better predictor.
+- **D3** (drop timing) — 6 songs, 14 hits, never investigated.
+- **The pulse pass never holds a pulse** (P0.7 below) and `--pulse` is a trade, not a defect.
 
-| | baseline | with the fix | better on |
-|---|---|---|---|
-| judge rank score (mean extremeness, lower = closer to human) | **0.511** | **0.533** | 5 / 16 |
-| mean \|percentile − 50\| over 23 metrics | 25.6 | 26.6 | 5 / 16 |
+### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything
+**Seven times in one session the builder reproduced the corpus MEAN and missed the per-song or
+per-window VARIATION**: wall duration (pooled marginal, not the 3 modes) · the pulse (an interval
+sometimes, never held) · hand runs (the mean run length, never the tail) · the vocabulary (no per-map
+palette) · block echo · per-song density · D4's windows.
+⇒**When a read says we are inside the human range on the mean and outside on the spread, the fix is
+never a rate knob — it is a hold/commit mechanism, and a rate knob will saturate trying.**
 
-**The map gets slightly less human-typical overall, on 11 of 16.** ★My DoD named only `idiom_jsd`
-and would have passed this — **measure the AGGREGATE as well as the named axis.**
-❓**THIS IS KYLE'S CALL.** The trade is exact: **FLOW (62 hits across 14 of 16 songs, a defect he
-can HEAR) → 0, against 23-metric typicality worsening by 0.022.** The repo's own rules say a PASS is
-*not defective, not good*, typicality is a floor never a rank, and his ear is the arbiter — on that
-reading the fix is probably right, but it is a trade.
-✅**2026-09-12w — IT IS STAGED.** `compete.py stage --against <zip> --against-label BASELINE` is new:
-a blind A/B of **two of our own maps**, so a builder CHANGE can go in front of his ear instead of
-being decided on metrics. **`1f335` is staged: the FLOW fix against its own baseline** — the
-strongest case in the corpus (16 FLOW hits at baseline) and deliberately *not* one of the four, so
-nothing pre-registered is disturbed. ⚠️It does not count toward the win rate. Default stays **OFF**
-until he plays it.
-
-## ✅→🔵 P5.1 — the prediction file is protected (2026-09-12x)
-A `--restage` run destroyed 1f913's 2026-09-10 entry, prediction and caveat included; it was
-rebuilt from `PROGRESS.md` prose and is marked `RECONSTRUCTED`.
-🔴**"Track it in git" was the WRONG fix and would have been worse than the bug**: `/for_review/` is
-ignored on purpose because the key holds the **X/Y roles**, so committing it would put the answers
-in the diff stream and on the remote — **unblinding every pair**. ★**When a file needs history, ask
-what else versioning it publishes.** ⇒`_save_key` rotates a timestamped copy beside the file (last
-20), at the exposure the key already has.
-✅`--restage` now **refuses** a record carrying `predict` and needs `--drop-prediction` as a second
-deliberate flag. Verified: 1f767 refused, 1f335 (no prediction) re-stages freely, 1f913's
-reconstructed prediction survives. **Five pairs staged and intact.**
-⚠️**`idiom_jsd` is STILL UNMEASURED at n=12** — I scraped the judge's *flagged-metrics* list, so a
-song where it was never flagged returned a sentinel that got averaged with real percentiles.
-★**Scrape the full metric table, not the worst-list**, or an absent flag reads as a value.
-
-
-## 🔴 P0.7 — the pulse pass never holds a pulse, and `--pulse` is a TRADE
-★★**`--pulse` is not a defect to remove — it buys FLOW and pays ABSENCE:**
-
-| song | `--pulse` | `--no-pulse` |
-|---|---|---|
-| 1f913 | 1 red — FLOW | 1 red — ABSENCE (doubles unused) |
-| 1f8d6 | 1 red — FLOW | **2 reds** — ELEMENTS + lead-hand |
-
-🔴**`--no-pulse` must NOT be recommended** — it removes FLOW by removing notes (1f913: 745 vs 1013,
-human 1272). **The red moves; it does not clear.** The build command in CURRENT STATE stays as it is.
-
-🔴🔴**And the pass is inert. `PERIODS` is the FOURTH unwired knob in this repo** (`width`,
-`travel_target` in `idiomize_zip`, `--travel-target` at the CLI, now this). Removing the dotted eighth
-and rebuilding two songs from audio gives **the same md5**. ★**The cause is the SCORE**:
-`quantise_phrase` ranks `(period, phase)` by how exactly it reproduces the input, and **period 1 phase 0
-reproduces it perfectly**, so the finest lattice always wins. What `--pulse` actually changes is the
-`MAX_EMPTY_RUN` fill. ⚠️**Do not sweep `PERIODS`** until the score changes — it compares identical maps.
-
-🔴**"Coarsest wins" is REFUTED** (2026-09-12l). `COUNT_TOL` shipped, **default 0.0 = old behaviour, not
-on**: accept any period inside a count tolerance, prefer the coarsest. On an 8th-grid phrase it returns a
-**dotted-eighth** lattice — it manufactures exactly the off-grid figure FLOW catches. ⇒Coarser is not
-better; the score must prefer the interval the **events** are on.
-⬜**Also unlocated**: on a jittery phrase (gaps 3,2,3,3,2) `quantise` returns its input at every tolerance
-and every period set — the `best is None` fallback fires there, a second inertness.
-**DoD**: on an 8th-grid phrase the pass returns an 8th lattice, `PERIODS` provably changes the output, and
-FLOW drops toward the human's **3 %** of off-grid phrases — *without* the ABSENCE reds `--no-pulse` buys.
-
-
-## 🔴 P0.10 — lead-hand passages: the tail, not the mean, and `--lead-bias` CANNOT fix it
-1f8d6 reads **0 lead-hand passages against his 27**. Measured over **200 human Experts**:
-
-| | ours | human p10 | median | p90 |
-|---|---|---|---|---|
-| mean hand-run length | **1.15–1.32** | 1.23 | 1.35 | 1.62 |
-| runs of ≥ 4 per map | **0–4** | 1 | **10** | 32 |
-
-★**Our MEAN is inside the human range** — we alternate about as often as he does. What we never
-produce is the **tail**. Only 6 % of human maps have no run of 4+; a median 7 % of a human map's
-notes sit inside one.
-🔴**`--lead-bias` is refuted as the fix**: swept 0.2/0.4/0.6/0.8 on 1f8d6 → **0 runs of ≥4 every
-time**, and the mean run saturates at 0.4. Cause, one line in `mapctl`:
-`period = max(2, int(round(1.0 / lead_bias)))` — that floor makes the counter **2 for every bias
-≥ 0.4**, so the lead hand **can never repeat twice in a row**. `verdict.py` no longer names it.
-🔴**No song-side placement signal** (n=250): human runs sit at local onset rate **1.023** of the
-song's own against **1.091** outside, higher inside on only 41 % of maps. ⇒Do not invent a rule.
-✅**BUILT 2026-09-12n — `--hand-run-p`** (mapctl + autobuild, **default 0.0 = off**): at a takeover,
-sometimes start a **held run** whose length is drawn from the human tail (measured over 108 842 runs:
-`1: 73.1 % · 2: 20.5 % · 3: 4.0 % · 4: 1.3 % · 5: 0.5 % · 6+: 0.7 %`).
-Raw runs≥4 on 1f8d6: **0 → 9 → 12 → 21** at p 0/0.03/0.06/0.12, mean run 1.31 → 1.44, note count
-unchanged, **parity violations 0 and resets 0** at every arm, and p=0 is **byte-identical** to the
-baseline. 0.03–0.06 lands inside the human band on both axes.
-⚠️Cost: `idiom_coverage` 0.987 → 0.994 with a `!`, judge p 0.683 → 0.653 — the same axis the palette
-broke. ⬜**Do not default it on** until that is priced on ≥10 songs.
-🔴**And the red it was aimed at is on the CURATED map, not the builder**: `R__1f8d6` reads 0
-passages, the **fresh `autobuild` already reads ✅ with 3–4**. ⇒Re-check which artifact a red belongs
-to before building a mechanism for it.
-⚠️**`verdict.py`'s count is not the raw one** — the page reads 4 → 4 → 6 where the raw run count
-reads 0 → 12 → 21, because it counts on the score lattice. **Measure a DoD with the tool that will
-judge it.**
-
-
-## 🔴 P0.11 — D6 / over-density: it is NOT the energy curve (2026-09-12y)
-`1f767`'s last red is D6 (12 % of bars; bars 17-24 = 25 events vs his 11, 2.3×).
-★★**CONFIRMED n=16, and it inverts the standing story**: per 4-bar block, corr(our over/under-play
-ratio, block energy) = **+0.293, positive on 13/16**, with a **median block ratio of 1.04**. ⇒**We
-over-play the LOUD blocks relative to the human, not the quiet ones**, and map-wide we match him.
-The breathing this project has chased since August is there; what is missing is **his restraint in
-the loud parts**. ⚠️`1f767` (−0.310) is one of only 3 exceptions — a misleading place to have started.
-✅**`autobuild --energy-slope` is a new, wired lever** (default 0.60 = shipped, control byte-identical;
-on 1f913 the correlation falls +0.688 → +0.506 across 0.60 → 0).
-🔴**NULL — it does not fix D6**: 1f767 3 → 2 hits, 1f333 unchanged at 2 and its EMPTY gets *worse*
-(4 → 5) at slope 0. Default stays 0.60.
-★★★**2026-09-12z — SOLVED, and D6 + EMPTY ARE ONE DEFECT.** It is neither the energy shape nor the
-blocks: it is the **per-song density SPREAD**. Our nps sd is **0.48** against his **1.00** (means
-3.73 vs 3.61, ranges 3.00–4.50 vs **1.30–5.16**) — we match his average and reproduce half his
-variation. Correlation with the our/his nps ratio: **D6 +0.751**, **EMPTY −0.474**. Where we out-play
-him → D6 (1f9a0 his 1.30 vs our 3.00 = 4 hits; 1f767 2.75 vs 4.10 = 3). Where we under-play him →
-EMPTY (1f335 his 4.28 vs our 3.35 = **16 hits**; 1f3d7 5.16 vs 3.65 = 7).
-🔴NOT RESOLVABLE on the way: *"he thins where the song is busy"* — ours +0.111, his −0.104, signs
-running −0.669…+0.581, 10/16 barely above chance.
-★**Sixth instance today of one shape: we reproduce the corpus MEAN and not the per-song VARIATION**
-(walls · pulse · hand runs · vocabulary · block echo · now density).
-✅**And the song predicts his density**: over **300 human Experts**, R² = **0.259** from bpm
-(**+0.415**), onset rate (+0.342) and duration — residual sd **1.02** against the fixed
-`HUMAN_NPS 4.17` target's **1.18**, so a song-side target cuts the error ~14 %. ★Beside the
-backlogged ML note that crude audio features reach R² 0.185 for this, and actionable because
-`autobuild --nps` and P0.1's density gate already exist.
-🔴**2026-09-13 — BUILT, AND THE PREDICTOR IS TOO WEAK. This is a boundary, not a bug.**
-`autobuild --nps-from-song` (fit on 400 human Experts, **all 16 evaluation songs HELD OUT**; held
-out it cuts the density error sd **1.67 → 1.36**, corr **+0.689**; control byte-identical).
-✅**It does what it says**: our nps sd **0.48 → 0.64** (his 1.00), sd of the our/his ratio
-**0.37 → 0.31**. The 2026-09-12z mechanism is confirmed twice and is steerable.
-🔴**The reds do not move**: D6 **12 → 12** hits (6 → 5 songs), EMPTY **43 → 40** (12 → 11).
-A 19 % error reduction cannot carry a ratio from 2.31 to 1.0 — `1f9a0` goes 2.31 → 2.05 (predicted
-3.01 nps, his map is **1.55**) and `1f767` does not move at all. **The songs carrying the reds are
-the ones the predictor misses.**
-★**The boundary**: R² 0.231 from bpm + onset rate is near the ceiling of cheap features — the
-backlogged ML work got r = 0.046 (Stage-1) and R² = 0.185 (crude audio) on the same quantity.
-Closing it needs features nobody has found, or **the human's own map, which is not available at
-build time and would be fitting to the reference** (`h_dist` by another route).
-⇒Default **OFF**, flag kept. **DoD PARTLY MET** — spread condition passed, red-count condition
-failed. ⛔**"Tune the density" is retired as a line of attack** until someone has a better predictor.
-
-
-## 🔴 P0.12 — D4 is the biggest live red, and it is a DISTRIBUTION defect (2026-09-13b)
-**Triage over all 16 songs, each against its own human:**
-
-| code | songs | hits | status |
-|---|---|---|---|
-| EMPTY | 12 | 43 | closed — density ceiling |
-| **D4** | **10** | **29** | ★**untouched, biggest live one** |
-| SCATTER | 8 | 8 | `repeat.py` exists |
-| D6 | 6 | 12 | same root as EMPTY, closed |
-| D3 | 6 | 14 | untouched |
-| BREATHING · ELEMENTS · D1 | 3 · 1 · 1 | | local |
-
-★**FLOW does not appear at all** — the `--lead-in --drop-orphan` fix holds across all 16.
-
-★★**D4 is NOT a coverage deficit.** Vocal slots answered within ±1: **ours 75.8 %, his 73.6 %**, and
-he answers more on only **6/16**. We follow the vocal line MORE than he does map-wide, yet D4 fires
-on 10/16 — and the songs with the biggest *surplus* are **clean** (`1f9a0` +38.9 pts, `1f767` +17.5,
-both 0 hits) while `1fa32` at −0.1 pts has **6**. Map-wide gap ↔ D4 correlates only **+0.440**.
-⇒**We answer the vocals as often as he does and miss the particular 4-bar windows where he is locked
-onto them** — the same shape FLOW had, and the **seventh** instance today of *the mean is right, the
-variation is not*.
-⚠️**Retires the standing framing**: *"the ML generator does not follow the vocal line"* and *"0.217
-positives per slot against a corpus 0.245"* are **coverage** claims, and coverage is not the problem
-on the agent path.
-★★★**2026-09-13c — D4 COLLAPSES INTO DENSITY. Three of the five live reds are ONE defect.**
-🔴Not the carrier: our notes on a vocal onset are **0.461 inside** the D4 windows vs **0.420
-outside** — *higher* inside. "We follow the drums there instead" is **refuted**.
-★★★**It is local under-density, 10/10 songs**: our notes ÷ his = **0.74 inside** the D4 windows
-against **0.97 outside**, lower inside on **10 of 10**, under him (<0.8) on **9 of 10**. The query
-asks a vocal-shaped question and finds a density hole — the vocal slots go unanswered because
-*everything* there goes unplayed.
-⇒**EMPTY (12 songs) · D6 (6) · D4 (10) are ONE defect.** Three of the five live codes are the same
-thing. The per-SONG half is closed (predictor ceiling R² 0.231); the per-WINDOW half is now named:
-**0.97 map-wide, 0.74 in the holes**.
-🔴**2026-09-13d — FOUR BUILDER-SIDE EXPLANATIONS ELIMINATED, none survives:**
-
-| hypothesis | result |
-|---|---|
-| the energy curve is too flat | 🔴REFUTED — the correlation runs the *other* way |
-| we follow a different instrument there | 🔴REFUTED — vocal share **higher** inside (0.461 vs 0.420) |
-| **the accent cut is harsher there** | 🔴NOT RESOLVABLE — 0.660 vs 0.718, **6/10**, spread −0.451…+0.215 |
-| the onset supply is thinner there | 🟡too small — −6 % supply against a **−24 %** note deficit (8/10) |
-
-★**The accent-cut negative matters**: it was flagged as a *convergence of two lines* and explicitly
-**not** called a finding. The direct test says no — so labelling it a hypothesis saved building the
-fifth thing today on an unmeasured story.
-★★**2026-09-13e — READING THE SCORE FOUND IT IN ONE PASS.** Asking the score *"at the slots where he
-plays and we do not, what is the song doing?"* over **241** such slots on 10 songs:
-
-| what the song is doing there | MISSED | COVERED | lift |
-|---|---|---|---|
-| **vocal onset** | **40.7 %** | 26.6 % | **+14.1 pts** |
-| vocal sustain | 32.4 % | 28.3 % | +4.1 |
-| lead onset | 19.9 % | 19.2 % | +0.7 |
-| kit | 12.4 % | 13.3 % | −0.8 |
-| bass | 4.6 % | 4.9 % | −0.3 |
-
-★★**The lift is on the vocal onset and nowhere else** — lead, bass and kit flat to within a point.
-The holes are not generic thinness; they land on the **vocal line specifically**.
-⚠️**This CORRECTS 2026-09-13c**, which said *"D4 is not a vocal-following defect"* and retired the
-vocal framing. That measured **share of OURS** on vocals (higher inside); this measures **share of
-MISSED** (much higher inside). Both true, opposite conclusions. ★**A share-of-ours and a
-share-of-missed are different measurements and I conflated them.** The EMPTY/D6/D4 consolidation
-still holds for the *level*; "the vocal framing is retired" does not.
-★★★**2026-09-13f — ROOT CAUSE: the carrier is picked by EVENT COUNT, so the vocals never win.**
-Four candidates killed first: the **accent cut** (`--vocal-keep` 1.5/2.0 → D4 **29→27**, notes
-**−0.0 %**; not binding), the **150 ms per-hand floor** (at the missed vocal onsets we have a note
-within 150 ms **0.0 % of the time, 9/9 songs**), and *"a different instrument in those windows"*
-(D4 sections follow vocals **more** — 33 % vs 16 %, lower on 0/10).
-★★**On 5 of the 10 songs, `0 %` of sections follow the vocal stem — and D4 fires on all of them.**
-`1fa32`: all six sections follow `bass/low-stab`, on a song with a full lyric lane. `1f65d`: piano
-then guitar, never the voice. ⇒**The difference is between SONGS, not between windows**, which is
-why the per-window test misled me twice.
-🔴**And the cause is a comment the code does not honour:**
-```
-# Melodic stems, in the order they are preferred as a section's carrier.
-MELODIC = ("vocals", "other", "guitar", "piano", "bass")
-ranked = sorted(..., key=lambda kv: -kv[1])     # by EVENT COUNT — the order decides nothing
-```
-A steady bass or piano line always out-counts a sung line. ★**Fifth documented-but-unwired thing
-today** after `width`, `travel_target` (×2) and `PERIODS`. **This codebase's comments describe
-intent the code does not implement, and only a measurement catches it.**
-✅**2026-09-13g — WIRED: `autobuild --carrier-bias`** multiplies the vocal classes' counts *for
-ranking only*, so `MELODIC`'s documented preference finally decides something. Default **1.0** = old
-behaviour, control byte-identical, and it is **graded not blanket** (1fa32 0/6 → 5/6 → 6/6 sections
-on vocals; 1f8d6 saturates at 5/7).
-**Over 12 songs**: **D4 hits 29 → 25 → 23** (−21 % at bias 4.0), `1f9f0` clears outright (2→0),
-`1fa32` 6→3, `1f65d` 5→3. EMPTY 40→40, D6 7→7, **FLOW 0 throughout**; notes +1.6 %, 2 outside ±5 %.
-🔴**But D4's SONG COUNT does not move: 10 → 10.** Three songs get worse (`1f8ce` 2→3, `1f333` 2→3,
-`1f767` 0→1) and the rest keep a hit. ⇒**Default stays 1.0. A partial fix**: the root cause was
-right and the lever does exactly what the diagnosis predicted, without clearing a single red.
-⬜**What is left**: the remaining D4 hits are in sections where the vocal is **already** the carrier,
-so the question is no longer *which* stem we follow but **how much of it we take** — which is the
-density family, at its measured ceiling (R² 0.231).
+### 🔴 AND THE LANDMINES THIS SESSION PAID FOR
+1. **Verify the CONTROL ARM reproduces the known baseline BYTE-FOR-BYTE before reading a sweep.** An
+   indentation slip made every later build flag conditional on a new one; the sweep looked monotone
+   and the control was a different builder.
+2. **Measure a DoD with the TOOL THAT WILL JUDGE IT**, not a reimplementation — mine disagreed 3×.
+3. **Measure the AGGREGATE as well as the named axis.** A DoD naming one metric passed a change that
+   moved 23-metric typicality the wrong way on 11 of 16 songs.
+4. **Scrape the judge's FULL table (`--top 30`), never its worst-N list** — an absent flag reads as a
+   value and silently confounds the column.
+5. **A share-of-OURS and a share-of-MISSED are different measurements.** Conflating them made me
+   retire the vocal framing, wrongly, for two iterations.
+6. **Check which ARTIFACT a red belongs to** before building a mechanism for it — one belonged to a
+   three-week-old map, not the builder.
+7. 🔴🔴**FIVE documented-but-unwired things found in one day**: `width`, `travel_target` (×2),
+   `PERIODS`, and `MELODIC`'s preference order. **This codebase's comments describe intent the code
+   does not implement, and only a measurement ever catches it.**
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
