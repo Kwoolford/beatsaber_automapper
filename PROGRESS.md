@@ -7,6 +7,48 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12v — The FLOW fix costs TYPICALITY across the whole table. It is Kyle's call, not mine.
+
+The last DoD condition, measured properly at last. `mapjudge --top 30` prints all **23** metrics, so
+the worst-N scrape that confounded 2026-09-12s is gone.
+
+### The metric I was chasing is fine
+`idiom_jsd` human percentile, 16 songs, paired: mean **16.9 → 20.5**, **+3.6 points**, worse on 6 of
+16 with a worst case of **−3.7 points**. Small, and not the problem.
+
+### 🔴 The full table shows what the worst-N list hid
+Metrics moving **> 15 percentile points** on at least one song:
+
+| metric | songs moved | example |
+|---|---|---|
+| `role_swap_rate` | **10 / 16** | 1f65d 89 → 27 |
+| `handedness` | **10 / 16** | 1f8a3 72 → 5 |
+| `angle_harsh_frac` | 8 / 16 | 1f336 48 → 20 |
+| `ioi_cond_entropy` | 6 / 16 | 1f9a0 88 → 66 |
+| `role_asymmetry` | 5 / 16 | 1f65d 44 → 25 |
+
+⇒The rule perturbs **hand-role and flow** metrics broadly. Some moves go toward the human median and
+some away, so the count alone says nothing — the aggregate does:
+
+| | baseline | **with the fix** | better on |
+|---|---|---|---|
+| judge rank score (mean extremeness, lower = closer to human) | **0.511** | **0.533** | 5 / 16 |
+| mean \|percentile − 50\| over all 23 metrics | 25.6 | 26.6 | 5 / 16 |
+
+🔴**The map gets slightly LESS human-typical overall, on 11 of 16 songs.** `1fb3f` is the outlier
+(0.370 → 0.555). ★My original DoD asked only about `idiom_jsd` and would have passed this.
+**Measure the aggregate as well as the named axis.**
+
+### ⇒ This is a decision for Kyle, and P5 is how it gets settled
+The trade is now exact: **FLOW — a defect he can hear, 62 hits across 14 of 16 songs — goes to
+zero, and 23-metric typicality worsens by 0.022.** This repo's own rules say a PASS is *not
+defective, not good*, that typicality is a floor and never a rank, and that his ear is the
+arbiter. On that reading the fix is probably right. But it is a trade, not a free win, and the
+mechanism for settling it already exists: **stage a blind A/B of the FLOW fix** (`compete.py`)
+alongside the pair he already has. ⬜Default stays **OFF** until he plays one.
+
+---
+
 ## 2026-09-12u — ★★★The outlier was a KNOWN LANDMINE: the odd 16th is not always the offbeat
 
 `1fa48` lost a third of its notes to `--drop-orphan` and had **no FLOW to fix**. The reason is one

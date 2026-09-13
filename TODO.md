@@ -398,9 +398,24 @@ On the quantity the code sees the gap is far wider — 1fa48 **88.6 %**, every o
 
 ✅**FLOW 62 hits → 0 across 16 songs**, notes mean **+0.6 %**, one song outside ±5 % and it gains
 **no new red**. Songset holds: `1f913` = `SHIP? YES — nothing located`, `1f8d6` = `SHIP? YES`.
-⬜**THE ONE THING LEFT BEFORE THE DEFAULT FLIPS**: measure `idiom_jsd` properly — `mapjudge` prints
-only its worst-N list, so it needs a full-table read (the n=12 attempt was confounded by a sentinel,
-2026-09-12s). ★The palette is exactly why this is checked **before** the flip.
+🔴**2026-09-12v — MEASURED, and the answer is a TRADE, not a free win.** `mapjudge --top 30` prints
+all 23 metrics. `idiom_jsd` is fine (mean pct 16.9 → 20.5, worst −3.7 pts). **But the full table
+shows what the worst-N list hid**: `role_swap_rate` and `handedness` each move > 15 percentile
+points on **10 of 16** songs, `angle_harsh_frac` on 8, `ioi_cond_entropy` on 6. The aggregate:
+
+| | baseline | with the fix | better on |
+|---|---|---|---|
+| judge rank score (mean extremeness, lower = closer to human) | **0.511** | **0.533** | 5 / 16 |
+| mean \|percentile − 50\| over 23 metrics | 25.6 | 26.6 | 5 / 16 |
+
+**The map gets slightly less human-typical overall, on 11 of 16.** ★My DoD named only `idiom_jsd`
+and would have passed this — **measure the AGGREGATE as well as the named axis.**
+❓**THIS IS KYLE'S CALL.** The trade is exact: **FLOW (62 hits across 14 of 16 songs, a defect he
+can HEAR) → 0, against 23-metric typicality worsening by 0.022.** The repo's own rules say a PASS is
+*not defective, not good*, typicality is a floor never a rank, and his ear is the arbiter — on that
+reading the fix is probably right, but it is a trade. ⬜**Settle it the way P4b exists to settle
+things: stage a blind A/B of the FLOW fix** (`compete.py`) beside the pair he already has. Default
+stays **OFF** until he plays one.
 ⚠️**`idiom_jsd` is STILL UNMEASURED at n=12** — I scraped the judge's *flagged-metrics* list, so a
 song where it was never flagged returned a sentinel that got averaged with real percentiles.
 ★**Scrape the full metric table, not the worst-list**, or an absent flag reads as a value.
