@@ -344,9 +344,19 @@ removes them all; every songset build reads `resets 0` against a human's 2). The
 violations, no new red. Also added `_revocab` as a safety net (re-picks the fixer's directions
 INSIDE their parity class, preferring the vocabulary; control byte-identical).
 ⇒**A default whose value is protective is worth having when its measured cost is zero.**
-⬜**This reopens `--map-memory`** — its refutation was entirely the collapse this fixes. Re-run
-`price_memory_cov.sh` with strict parity and re-decide against the outlier criterion (we sit at the
-95th-98th percentile of vocabulary entropy on every songset song).
+✅**Re-decided 2026-09-13y.** Under `STRICT_PARITY` the collapse is **gone** — every seed inside
+the control band with a *tighter* spread than the control, so the 09-13v refutation was the parity
+leak, not the lever. **The real cost is LOCAL**: `idiom_local` 36.8 → 21.9 pct, `diagonal_share`
+17.6 → 5.7, `angle_change` 15.3 → 5.2, judge p −0.2 to −0.3 (~4.3 se), while `idiom_jsd` and
+`idiom_top50` improve. ⇒a coherent **trade** — the whole-map distribution bought with local
+repetition, pushing the wrong way on the one idiom axis this repo already calls *"globally right,
+locally wrong"*. 🔴**Default OFF; it IS now a usable style lever.** Does not clear SCATTER (room
+0.462 → 0.642 against a line at 1.00).
+⬜**What this leaves for SCATTER**: every route through *narrowing the whole-map vocabulary* is now
+measured and each costs local variety. The untried direction is the opposite one — **raise LOCAL
+echo without narrowing the map-wide vocabulary** (`idiom_local` says we recycle a handful locally
+already, so the two are not the same quantity). Needs a read of what the human's local vs map-wide
+vocabularies look like on the same maps before anything is built.
 
 ### 🔧 (superseded) make `_reparity` vocabulary-aware
 **Evidence**: above. The repair picks any direction that satisfies parity; it should pick among
