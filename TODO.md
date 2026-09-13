@@ -320,8 +320,12 @@ step and lag. Each is a per-song claim resting on a single human, and the same s
 apply.
 **DoD**: for each code, the share of ordered human pairs it fires on, and a threshold chosen so
 that share is under ~5-10 %; `bench.py score queries:q_all` stays not refuted after each change.
-⚠️Needs each pair's AUDIO for the song-relative codes (D3's energy, D4's vocals) — SCATTER, EMPTY
-and D6 are map-only and can be done immediately.
+✅**Map-only codes DONE 2026-09-13ae** (`scripts/exp_human_panel.py`, 536 difficulty-matched pairs):
+**EMPTY 0.60 → 0.30** (red on 25.9 % of human pairs → 8.4 %; pinned from below by Kyle's labelled
+window at 0.28) · **D6 2.0x kept** (8.6 %) · **SCATTER +0.15 kept** (7.1 %, near the 91st percentile
+of the human gap distribution). Bench not refuted throughout.
+⬜**Left: D3 and D4**, which need each pair's AUDIO (energy boundaries, vocal stems). Both compare
+us to ONE reference human and neither has been tested this way.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**

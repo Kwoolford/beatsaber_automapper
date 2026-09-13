@@ -129,13 +129,29 @@ def merge(fires: list[tuple], code: str, arrs: dict, width: int) -> list[tuple]:
 
 
 # ----------------------------------------------------------------------------- q_events
-def q_events(arrs: dict, W: int = 4, low: float = 0.6, high: float = 2.0,
+def q_events(arrs: dict, W: int = 4, low: float = 0.30, high: float = 2.0,
              report: dict | None = None) -> list[tuple]:
     """EMPTY / D6 / D1 — player EVENTS per window vs the same song's human map.
 
     An event is a row with any note; a two-hand double is ONE event. This is the P2 finding
     in one number: the 08-03 maps had human note counts and half the human's events.
     EMPTY: window where the human has ≥ 12 events and ours < `low`×.
+
+    🔴🔴**`low` 0.60 → 0.30 on 2026-09-13ae, from the human-vs-human panel.** Read as 536
+    difficulty-matched ordered pairs (two DIFFERENT mappers, same song, ~4-bar windows), the
+    old line put a top mapper **RED on 25.9 %** of pairs and flagged something on 54.1 %. It
+    was largely measuring how much two mappers differ, which is style. 0.30 gives **8.4 %**
+    red. ⚠️Window size moves the absolute number (61 % at 4 s, 32 % at 16 s) but never the
+    direction. ★The bench keeps its EMPTY strong hit either way — `1f8d6-empty` is labelled
+    DEFECT by Kyle and still fires at 0.30 — so the tighter line loses no labelled defect and
+    sheds two thirds of the false fires. ★**0.30 is pinned from BOTH sides**: the labelled
+    window sits at **0.28**, so anything below ~0.28 loses Kyle's defect entirely (raw windows
+    on that row go 8 / 4 / 3 / 1 / 0 at low = 0.60 / 0.40 / 0.35 / 0.30 / 0.25), and anything
+    above climbs the human false-fire rate. ⚠️The verdict page's merged SPANS are not monotone
+    across those thresholds even though the raw windows are — 0.40 merges two adjacent windows
+    and prints fewer spans than 0.35. Count raw windows, not printed spans.
+    ⚠️`high` (D6) was measured on the same panel and LEFT ALONE: 2.0x puts a human red on
+    8.6 %, already inside the band this project aims for.
     D6 (nps wasted): once, map-wide, when ≥ 50 % of our events are two-hand doubles and that
     is ≥ 20 points above the human's share — the note count looks human, the player gets
     half the events (set A: 56-66 % doubles vs humans 7-34 %; Hunger AGENT 4 % → silent).

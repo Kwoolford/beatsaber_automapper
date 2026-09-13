@@ -17818,3 +17818,48 @@ claim needs its own query; this branch was never measuring it.
 **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** (2 yellow) · `1f767` 1 red (D3) · `1f333`
 4 red. ★This is the **fifth** absolute norm this project has had to retire, and the first retired
 by a genuine human-vs-human panel rather than by a single counter-example.
+
+
+## 2026-09-13ae — the panel judges the density codes: EMPTY 0.60 → 0.30, D6 left alone
+
+`scripts/exp_human_panel.py` runs the map-only codes over the human-vs-human panel as **536
+difficulty-matched ordered pairs**.
+
+⚠️**Difficulty matching was not optional and was not the answer.** EMPTY and D6 are LEVEL claims
+and `queries.py` refuses them across difficulties, so the first run — which took whichever
+difficulty each zip happened to carry — was invalid. Matching Expert-to-Expert and
+ExpertPlus-to-ExpertPlus barely moved the numbers (EMPTY 49.3 % → 47.2 %), so the confound was
+real to control for and **was not** what the codes were reading.
+
+Read at the verdict page's own red rule (a code is RED at ≥ 10 % of windows, yellow below):
+
+| code | RED on human pairs | flags something on |
+|---|---|---|
+| EMPTY at 0.60x | **25.9 %** | 54.1 % |
+| D6 at 2.0x | 8.6 % | 32.1 % |
+| SCATTER at +0.15 | 7.1 % | — |
+
+⇒**EMPTY put a top mapper red against another top mapper a quarter of the time.** It was largely
+measuring how much two mappers differ, which is style. **D6 and SCATTER are already inside the
+band this project aims for and were left alone** — SCATTER's gap distribution (p90 +0.127, p95
++0.168) puts its +0.15 line near the 91st percentile, which is where a red line belongs.
+
+Sweeping EMPTY against the panel: 0.60 → 25.9 %, 0.50 → 17.0 %, 0.40 → 13.4 %, 0.35 → 11.6 %,
+**0.30 → 8.4 %**, 0.25 → 7.5 %.
+
+★★**0.30 is pinned from both sides.** Kyle's labelled `1f8d6-empty` row has its worst window at
+**0.28**, so its raw windows go **8 / 4 / 3 / 1 / 0** at low = 0.60 / 0.40 / 0.35 / 0.30 / 0.25 —
+below ~0.28 the labelled defect disappears entirely. 0.30 is the tightest round value that keeps
+it while shedding two thirds of the false fires. Bench: **not refuted, 4 strong hits, 0 false
+fires**; margins all still agree with their queries.
+
+⚠️**A display trap worth the note**: the page's merged SPANS are non-monotone across those
+thresholds even though the raw windows are strictly monotone — 0.40 merges two adjacent windows
+and prints fewer spans than 0.35. **Count raw windows, not printed spans.**
+
+### What it does to the songset
+
+`1f333` goes **4 red → 3 red** (EMPTY clears); `1f8d6` goes 2 yellow → 1 yellow. ⚠️**The maps did
+not change** — a threshold did, and on this evidence `1f333`'s EMPTY was more likely a style
+difference than a defect. Standing: `1f913` ships · `1f8d6` ships · `1f767` 1 red (D3) · `1f333`
+3 red (D3 · BREATHING · SCATTER). **SCATTER is again the last red that is genuinely ours.**
