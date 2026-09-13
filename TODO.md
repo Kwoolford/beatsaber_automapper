@@ -587,10 +587,28 @@ thing. The per-SONG half is closed (predictor ceiling R² 0.231); the per-WINDOW
 ★**The accent-cut negative matters**: it was flagged as a *convergence of two lines* and explicitly
 **not** called a finding. The direct test says no — so labelling it a hypothesis saved building the
 fifth thing today on an unmeasured story.
-⬜**NEXT — stop testing aggregates and READ one.** Four hypotheses, four eliminations. Open the score
-at a D4 window: `score.py <map> --song <sid> --vs auto --bars a-b` on `1fa32` (6 hits, the most) or
-`1f333`. ★This is what the whole plan's DoD asks for and the one tool not yet pointed at it.
-**DoD**: name in words what the human plays there that we do not, then check that word on ≥10 songs.
+★★**2026-09-13e — READING THE SCORE FOUND IT IN ONE PASS.** Asking the score *"at the slots where he
+plays and we do not, what is the song doing?"* over **241** such slots on 10 songs:
+
+| what the song is doing there | MISSED | COVERED | lift |
+|---|---|---|---|
+| **vocal onset** | **40.7 %** | 26.6 % | **+14.1 pts** |
+| vocal sustain | 32.4 % | 28.3 % | +4.1 |
+| lead onset | 19.9 % | 19.2 % | +0.7 |
+| kit | 12.4 % | 13.3 % | −0.8 |
+| bass | 4.6 % | 4.9 % | −0.3 |
+
+★★**The lift is on the vocal onset and nowhere else** — lead, bass and kit flat to within a point.
+The holes are not generic thinness; they land on the **vocal line specifically**.
+⚠️**This CORRECTS 2026-09-13c**, which said *"D4 is not a vocal-following defect"* and retired the
+vocal framing. That measured **share of OURS** on vocals (higher inside); this measures **share of
+MISSED** (much higher inside). Both true, opposite conclusions. ★**A share-of-ours and a
+share-of-missed are different measurements and I conflated them.** The EMPTY/D6/D4 consolidation
+still holds for the *level*; "the vocal framing is retired" does not.
+⬜**NEXT — the fix is specific**: in a window where the vocal is the main line, the budget must not
+skip vocal onsets. `events.py` already types them (`stem == "vocals"`), so this is a **priority
+inside the accent cut**, not a new detector. **DoD**: the missed-slot vocal lift falls toward 0 and
+D4's 10 songs drop, with the note count staying inside ±5 %.
 
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets

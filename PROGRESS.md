@@ -7,6 +7,43 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-13e — ★★Reading the score found it in one pass: the notes we MISS are the VOCAL onsets
+
+Four aggregate hypotheses died in 2026-09-13d. Opening `score.py` at a D4 window (`1fa32` bars
+41-44) and then asking the score one question — **at the slots where the human plays and we do not,
+what is the song doing?** — answered it immediately. Over the **241** such slots across 10 songs,
+against the 474 slots where he plays and we do cover:
+
+| what the song is doing there | share of MISSED | share of COVERED | lift |
+|---|---|---|---|
+| **vocal onset** | **40.7 %** | 26.6 % | **+14.1 pts** |
+| vocal sustain | 32.4 % | 28.3 % | +4.1 |
+| lead onset | 19.9 % | 19.2 % | +0.7 |
+| kit | 12.4 % | 13.3 % | −0.8 |
+| bass onset | 4.6 % | 4.9 % | −0.3 |
+
+★★**The lift is on the vocal onset and nowhere else.** Lead, bass and kit are flat to within a
+point. The holes are not generic thinness — **they land on the vocal line specifically.**
+
+### ⚠️ This CORRECTS 2026-09-13c, which I stated too strongly
+That entry concluded *"D4 is not a vocal-following defect, it is local under-density"* and retired
+the vocal framing. It measured **what share of OUR notes sit on vocals** inside the windows (0.461
+vs 0.420 outside — higher, hence "not vocal"). That is a different question from **what share of the
+notes we MISS sit on vocals**, and the two have opposite answers. Both are true:
+- of the notes we **do** play there, a normal share are on vocals;
+- of the notes we **miss** there, a disproportionate share are — **+14.1 points**.
+⇒**D4 is density AND vocal-specific**: we are thin in those windows, and the thinness falls on the
+vocal onsets. The consolidation of EMPTY/D6/D4 into one density defect still holds for the *level*;
+what does not hold is "the vocal framing is retired". ★**A share-of-ours and a share-of-missed are
+different measurements and I conflated them.**
+
+⬜**Next**: the fix direction is now specific — in a window where the vocal is the main line, the
+budget must not skip vocal onsets. `events.py` already types them (`stem == "vocals"`), so this is a
+priority inside the accent cut, not a new detector. **DoD**: the missed-slot vocal lift falls toward
+0 and D4's 10 songs drop, without the note count leaving ±5 % (2026-09-12s's lesson).
+
+---
+
 ## 2026-09-13d — The local density holes: four builder-side explanations eliminated, none survives
 
 2026-09-13c named the target: **we play 0.97 of the human's notes across a map and 0.74 inside the
