@@ -7,6 +7,52 @@ This file is a historical record of what was done, what worked, and what didn't.
 
 ---
 
+## 2026-09-12u — ★★★The outlier was a KNOWN LANDMINE: the odd 16th is not always the offbeat
+
+`1fa48` lost a third of its notes to `--drop-orphan` and had **no FLOW to fix**. The reason is one
+this repo already wrote down, arriving on a new tool.
+
+| song | odd share of the song's ONSETS | our odd notes | **his odd notes** | **his isolated** |
+|---|---|---|---|---|
+| **1fa48** | **57.1 %** | **88.6 %** | **87.2 %** | **90.0 %** |
+| 1f3d7 | 41.4 % | 31.9 % | 33.7 % | 32.6 % |
+| 1f913 | 40.9 % | 15.1 % | 10.9 % | 25.8 % |
+| 1f8d6 | 27.3 % | 9.3 % | 0.0 % | 0.0 % |
+
+★★**On `1fa48` the human plays 87 % of his notes on "odd" 16ths, 90 % of them isolated.** He is
+doing exactly what we are doing. **The odd 16th IS the felt beat on that song** — which is precisely
+what `q_flow`'s docstring has said since it was written (*"1f335 is notated at 195 bpm, so its odd
+16th is the felt 8th… an absolute rule called 20 spans of it shifted"*). `q_flow` is safe because it
+is **relative to the human**; my drop rule was **absolute**, so it deleted the main grid.
+⇒**The builder has no human, but it has the SONG.** `ODD_FRAME_MAX`: when that share of picks is on
+odd 16ths, the frame is flipped and there is no offbeat to drop.
+
+### ⚠️ And I set the threshold from the wrong quantity first
+0.50 came from the **onsets** (1fa48 57 %, others 27–45 %) while the code reads **picks**, and the
+check runs **per section** — so one busy section tripped it and cost FLOW clearance on 3 of 16.
+On the quantity the code sees, the separation is far wider: **1fa48's map is 88.6 % odd, every other
+song ≤ 32 %**. At **0.70**:
+
+| arm | songs with FLOW | worst note change | outside ±5 % |
+|---|---|---|---|
+| ungated | 0 / 16 | **−39.3 %** | 1 |
+| window gate | 2 / 16 | −35.6 % | 4 |
+| bar cap 0.40 | 2 / 16 | −21.6 % | 2 |
+| frame 0.50 | 3 / 16 | +22.1 % | 2 |
+| **frame 0.70** | **0 / 16** | **−4.7 % / +14.0 %** | **1** |
+
+✅**FLOW hits 62 → 0 across 16 songs, notes mean +0.6 %, one song outside ±5 %** — and that song
+(`1fa48`, +14.0 %, the lead-in adding with the drop correctly skipped) has **exactly the same two
+reds as its baseline**, no new ones. Songset unchanged: `1f913` `SHIP? YES — nothing located`,
+`1f8d6` `SHIP? YES`.
+
+⬜**Before the default flips**: `idiom_jsd` is still unmeasured — the n=12 read was confounded by my
+sentinel (2026-09-12s) and `mapjudge` prints only its worst-N list, so it needs a full-table read.
+That is the one condition of the DoD not yet checked, and the palette is exactly why it gets checked
+before the flip and not after.
+
+---
+
 ## 2026-09-12t — Two guards for the orphan drop, both REFUTED. Ungated is the best arm.
 
 2026-09-12s left one problem: `1fa48` loses a third of its notes to `--drop-orphan`. Two guards

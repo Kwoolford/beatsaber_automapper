@@ -378,10 +378,29 @@ at 0.40 halves the outlier (−39.3 → −21.6 %) and also lets FLOW back onto 
 
 ⇒**Ungated is the best arm** and `DROP_BAR_CAP` defaults to 1.0. The whole residual is **one song**
 whose orphans really are a third of its picks and which had **no FLOW to fix**.
-⬜**What is left before the default**: (a) understand `1fa48` — why a third of its picks are orphan
-odd 16ths at all, which smells like a build defect upstream of this rule; (b) measure `idiom_jsd`
-properly (the n=12 read was confounded, see 2026-09-12s). **DoD**: FLOW stays 0 on the 16, no song
-outside ±5 % on notes, `idiom_jsd` no worse.
+✅**2026-09-12u — THE OUTLIER WAS A KNOWN LANDMINE AND IS FIXED.** On `1fa48` the **human plays
+87.2 % of his notes on "odd" 16ths with 90 % of them isolated** — the odd 16th **IS the felt beat**
+there, exactly what `q_flow`'s docstring has warned since it was written (*1f335 at 195 bpm*).
+`q_flow` is safe because it is **relative to the human**; my drop rule was **absolute**, so it
+deleted the main grid. ⇒`ODD_FRAME_MAX` — the builder has no human but it has the **song**: above
+that share of picks on odd 16ths, the frame is flipped and there is nothing to drop.
+⚠️**I set it from the wrong quantity first**: 0.50 came from the **onsets** while the code reads
+**picks**, and the check runs **per section**, so one busy section tripped it and cost FLOW on 3/16.
+On the quantity the code sees the gap is far wider — 1fa48 **88.6 %**, every other song **≤ 32 %**.
+
+| arm | songs with FLOW | worst note change | outside ±5 % |
+|---|---|---|---|
+| ungated | 0 / 16 | **−39.3 %** | 1 |
+| window gate | 2 / 16 | −35.6 % | 4 |
+| bar cap 0.40 | 2 / 16 | −21.6 % | 2 |
+| frame 0.50 | 3 / 16 | +22.1 % | 2 |
+| **frame 0.70** | **0 / 16** | **−4.7 % / +14.0 %** | **1** |
+
+✅**FLOW 62 hits → 0 across 16 songs**, notes mean **+0.6 %**, one song outside ±5 % and it gains
+**no new red**. Songset holds: `1f913` = `SHIP? YES — nothing located`, `1f8d6` = `SHIP? YES`.
+⬜**THE ONE THING LEFT BEFORE THE DEFAULT FLIPS**: measure `idiom_jsd` properly — `mapjudge` prints
+only its worst-N list, so it needs a full-table read (the n=12 attempt was confounded by a sentinel,
+2026-09-12s). ★The palette is exactly why this is checked **before** the flip.
 ⚠️**`idiom_jsd` is STILL UNMEASURED at n=12** — I scraped the judge's *flagged-metrics* list, so a
 song where it was never flagged returned a sentinel that got averaged with real percentiles.
 ★**Scrape the full metric table, not the worst-list**, or an absent flag reads as a value.

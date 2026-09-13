@@ -74,6 +74,15 @@ DROP_WINDOW_MIN = 0.0
 # problem is ONE song whose orphans genuinely are a third of its picks -- and which had no FLOW
 # to fix. ⇒1.0 = no cap, the measured-best default. 0.40 is kept for the song that needs it.
 DROP_BAR_CAP = 1.0
+
+# ★**Above this share of picks on odd 16ths, the odd 16th IS the felt beat** and
+# `--drop-orphan` must not fire. See the note at its call site.
+# ⚠️**0.50 was the first value and it was measured on the wrong quantity** — the song's ONSETS
+# (1fa48 57 %, others 27-45 %) while the code reads PICKS, and the check runs PER SECTION, so a
+# single busy section tripped it and cost FLOW clearance on 3 of 16 songs. On the quantity the
+# code actually sees, the separation is far wider: 1fa48's finished map is **88.6 %** odd and
+# every other song of 16 is **<= 32 %**. 0.70 sits in that gap.
+ODD_FRAME_MAX = 0.70
 SUBDIV = 4
 
 # ★The measured bias of our own phase estimator, in beats: our fitted bar grid sits
@@ -830,8 +839,24 @@ def cmd_auto(a) -> int:
     # add-only version cost judge p on all four songs (2026-09-12q).
     if getattr(a, "drop_orphan", False):
         have = set(picks)
-        orphan = [(b, sl) for b, sl in picks
-                  if sl % 2 == 1 and sl >= 1 and (b, sl - 1) not in have]
+        # 🔴🔴**THE ODD 16TH IS NOT ALWAYS THE OFFBEAT.** `q_flow`'s docstring has said since
+        # it was written that at 195 bpm on `1f335` the odd 16th IS the felt 8th, and that an
+        # absolute rule called 20 spans of it "shifted". The same landmine arrives here:
+        # on `1fa48` **57 % of the song's own onsets sit on odd 16ths**, its human plays
+        # **87.2 %** of his notes there with **90 %** of them isolated, and `q_flow` correctly
+        # never fires (FLOW 0 in both arms) because it is RELATIVE to that human. This rule is
+        # absolute, so it dropped a third of the map -- the main grid -- for no defect at all.
+        # ⇒The builder has no human, but it does have the SONG: when most of its onsets are on
+        # odd 16ths, the frame is flipped and there is no offbeat to drop. Measured separation
+        # is clean: 1fa48 57.1 %, every other song of 16 sits at 27-45 %.
+        _odd = sum(1 for _b, _sl in picks if _sl % 2 == 1)
+        if picks and _odd / len(picks) >= ODD_FRAME_MAX:
+            print(f"drop-orphan: skipped -- {_odd / len(picks):.0%} of this song's picks are "
+                  f"on odd 16ths, so the odd 16th is the felt beat here")
+            have = None
+        orphan = [] if have is None else [
+            (b, sl) for b, sl in picks
+            if sl % 2 == 1 and sl >= 1 and (b, sl - 1) not in have]
         # 🔴🔴**ONLY WHERE THE DEFECT ACTUALLY IS.** Priced on 12 corpus songs
         # (2026-09-12s), a map-wide drop cleared FLOW on all 10 songs that had it AND took
         # `1fa48` from 736 notes to 494 (-32.9 %) with a new EMPTY red over 29 % of bars --
