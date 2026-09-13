@@ -346,9 +346,14 @@ bar line where the human median is **0.00**). Neither is a threshold artefact.
 neither control can reach it). Nothing currently rests on it.
 ⬜**D4 remains untested** — no reference-free branch, and it needs vocal stems for a pair whose
 audio does not align.
-⬜**ACTIONABLE, in the builder**: `1f333` bar 170 answers an energy jump 2.5 beats late. The human
-norm is to answer ON the bar line (median 0.00 beats, p90 0.75). A builder rule that guarantees a
-note at an E-jump bar line is a small, well-evidenced change.
+✅**BUILT 2026-09-13ai — `agent_mapper/answer.py`.** Moves (never adds) the first note of a late
+energy rise onto the earliest onset at/after the bar line, guarded by the 150 ms floor. **`1f333`
+3 red → 2 red**; 1 boundary answered across the whole songset; over 48 built maps it fires on 18,
+exactly one boundary each, **0 collisions, 0 parity violations, judge p up on all 6 checked**.
+★Narrow on purpose: the same section shows our density inverted (8 notes/bar at energy 0.21, 2 at
+0.70), but the human's own energy-to-density correlation runs **−0.035 to +0.623** across the
+songset — no norm, so no general lever. The LAG is the part with human evidence.
+🔴Runs after `idiomize` and `repeat.py`, before walls — it is the only pass that moves a TIME.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**

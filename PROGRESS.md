@@ -17956,3 +17956,47 @@ median answer is **0.00 beats**.
 which `q_drops` skips across difficulties by its own rule — so this control cannot exercise it and
 the panel cannot either. It is the only part of D3 with no evidence behind it. It fires on neither
 songset red, so nothing currently rests on it.
+
+
+## 2026-09-13ai — ✅ `agent_mapper/answer.py`: land a note when the energy rises. One red down.
+
+The first builder change today that comes from a measured human norm rather than a threshold.
+
+**The evidence came first.** Over 774 energy jumps in 120 human maps, the human's first note after
+the jump lands at a median of **0.00 beats** past the bar line (p75 0.25, **p90 0.75**). It is one
+of the few things human mappers agree on — the same measurement found they agree on nothing about
+how much to step the density. And `q_drops`' lag clause, controlled against 150 mappers' own two
+difficulties, fires on **0.0-0.3 %** of their jumps, so when it fires on us it means something.
+
+**The pass.** For each bar whose mean energy rises by ≥ 0.25 over the previous bar, if the map's
+first note there lands later than **0.75 beats** (the human p90), move that note back to the
+earliest cached onset at or after the bar line. It **moves** a note, never adds one — count,
+colours and cut directions are asserted unchanged — and it refuses the move when it would break the
+**150 ms** per-hand floor.
+
+### What it does, measured
+
+| check | result |
+|---|---|
+| boundaries answered across the whole songset | **1** (`1f333` bar 170: 2.50 beats late → +0.41, onto a real onset) |
+| fires on, over 48 built maps | 18 maps, **exactly one boundary each** |
+| notes moved onto an existing same-hand instant | **0** |
+| parity violations, 6 builds where it fired | **0 before, 0 after** |
+| judge p on those 6 | **improves on all six**, +0.047 to +0.057 |
+| judge p on the 3 songset maps it does not touch | identical |
+
+⇒**`1f333` goes 3 red → 2 red** (D3 clears; BREATHING and SCATTER remain), and the other three
+songset pages are untouched. **Songset: `1f913` ships · `1f8d6` ships · `1f767` 1 red (D3, E-drop)
+· `1f333` 2 red.**
+
+★**Why it is narrow on purpose.** The same section of `1f333` also shows our density inverted —
+8 notes/bar at energy 0.21 and 2 at energy 0.70 — which invites a general "track the energy better"
+lever. Measured across the songset, the human's own energy-to-density correlation runs from
+**−0.035** (1f913) to **+0.623** (1f767), so there is no norm to aim at and a general lever would be
+the pooled-marginal mistake for the tenth time. The **lag** is the part with a human norm behind it,
+so the lag is the only part this pass touches.
+
+⚠️`1f767`'s D3 is the **E-drop** branch (we hold 6.0 where he drops to 3.0) — a different claim,
+which this pass does not address and should not.
+🔴**Pipeline order**: after `idiomize` and `repeat.py`, before walls. It is the only pass that moves
+a TIME, so anything that places cells against times must run first.
