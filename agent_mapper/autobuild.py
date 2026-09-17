@@ -49,6 +49,19 @@ sys.path.insert(0, str(AM))
 # ceiling -- Kyle called 6.18 nps unplayable and the judge independently rejects at
 # 6.10, so the usable band is roughly 2.7-5.1.
 HUMAN_NPS = 4.17
+# A requested density is corrected when the built map misses it by more than this (P0.1's gate
+# is ±15 %; one rescaled rebuild lands well inside it).
+DENSITY_TOL = 0.05
+
+
+def _achieved_nps(zp, ref) -> float | None:
+    """The map's density exactly as the judge measures it (notes, doubles counted twice)."""
+    from beatsaber_automapper.evaluation import mapjudge as mj
+    try:
+        res = mj.judge_zip(zp, reference=ref)
+    except Exception:  # noqa: BLE001
+        return None
+    return next((m.value for m in res.metrics if m.name == "nps"), None)
 # How big an energy rise counts as a boundary worth breathing before.
 TAPER_RISE = 0.15
 # Melodic stems, in the order they are preferred as a section's carrier. Drums are
@@ -411,6 +424,9 @@ def main() -> int:
                     help="a style name from style.py --list. Sets the density and "
                          "vocabulary targets; --nps overrides its density.")
     ap.add_argument("--nps", type=float, default=None)
+    ap.add_argument("--no-density-correct", action="store_true",
+                    help="do not rebuild when a requested --nps/--style density is missed "
+                         "(the budget counts swings; doubles add notes)")
     ap.add_argument("--nps-from-song", action="store_true",
                     help="predict the density from the song instead of using the fixed "
                          "corpus median. Fit on 400 human Experts with the songset held out; "
@@ -598,80 +614,97 @@ def main() -> int:
     if a.notes_only:
         a.walls = a.arcs = a.chains = 0
 
-    print(f"=== SEE: {a.audio.name}")
-    rows = plan(a.audio, nps, energy_slope=a.energy_slope, carrier_bias=a.carrier_bias,
-                taper=a.taper, taper_bars=a.taper_bars)
-    print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
-          f"(events -> accent pct)")
-    print("-" * 78)
-    for r in rows:
-        cp = f"{r['carrier_pct']}" if r["carrier_pct"] else "all"
-        dp = f"{r['drums_pct']}" if r["drums_pct"] else "all"
-        print(f"{r['bar0']:>4}-{r['bar1']:<7} {str(r['role']):<10} {r['energy']:>5.2f} "
-              f"{r['budget']:>7}  {str(r['carrier']):<18} "
-              f"({r['carrier_n']}->{cp})  drums({r['drums_n']}->{dp})")
+    def _make(nps: float) -> tuple[pathlib.Path, list[dict]]:
+        print(f"=== SEE: {a.audio.name}")
+        rows = plan(a.audio, nps, energy_slope=a.energy_slope, carrier_bias=a.carrier_bias,
+                    taper=a.taper, taper_bars=a.taper_bars)
+        print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
+              f"(events -> accent pct)")
+        print("-" * 78)
+        for r in rows:
+            cp = f"{r['carrier_pct']}" if r["carrier_pct"] else "all"
+            dp = f"{r['drums_pct']}" if r["drums_pct"] else "all"
+            print(f"{r['bar0']:>4}-{r['bar1']:<7} {str(r['role']):<10} {r['energy']:>5.2f} "
+                  f"{r['budget']:>7}  {str(r['carrier']):<18} "
+                  f"({r['carrier_n']}->{cp})  drums({r['drums_n']}->{dp})")
 
-    print(f"\n=== BUILD")
-    build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
-          phrase_bars=a.phrase_bars, lead_bias=a.lead_bias, hand_run_p=a.hand_run_p,
-          lead_in=a.lead_in, drop_orphan=a.drop_orphan, vocal_keep=a.vocal_keep,
-          lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
-          pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
-          adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,
-          doubles=a.doubles, accent_slots=a.accent_slots,
-          doubles_rate=a.doubles_rate, phase_shift=a.phase_shift,
-          phase_calibrate=a.phase_calibrate, density_search=a.density_search,
-          phase_outlier=a.phase_outlier)
-    out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
-    run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
+        print(f"\n=== BUILD")
+        build(a.audio, a.name, rows, a.verbose, pulse=a.pulse,
+              phrase_bars=a.phrase_bars, lead_bias=a.lead_bias, hand_run_p=a.hand_run_p,
+              lead_in=a.lead_in, drop_orphan=a.drop_orphan, vocal_keep=a.vocal_keep,
+              lead_phrase_bars=a.lead_phrase_bars, pulse_fill=a.pulse_fill,
+              pulse_sync=a.pulse_sync, snap_onsets=a.snap_onsets,
+              adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,
+              doubles=a.doubles, accent_slots=a.accent_slots,
+              doubles_rate=a.doubles_rate, phase_shift=a.phase_shift,
+              phase_calibrate=a.phase_calibrate, density_search=a.density_search,
+              phase_outlier=a.phase_outlier)
+        out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
+        run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 
-    if not a.no_idiomize:
-        print(f"\n=== DRESS (idiomize)")
-        import idiomize as I
-        kw = {}
-        if "crossover" in sargs:
-            kw["crossover"] = sargs["crossover"]
-        if "top_k" in sargs:
-            kw["top_k"] = sargs["top_k"]
-        if "width" in sargs:
-            kw["width"] = sargs["width"]
-        if a.travel_target is not None:
-            kw["travel_target"] = a.travel_target
-        # An explicit --width beats the style's choice: it is the knob being A/B'd.
-        if a.width is not None:
-            kw["width"] = a.width
-        # 🔴🔴**PALETTE IS OFF BY DEFAULT, AND WAS WRONGLY DEFAULTED ON FOR ONE COMMIT.**
-        # It commits the map to N landing shapes per hand instead of drawing a fresh idiom
-        # at every note, and on 12 corpus songs x 3 seeds it raises 4-bar block echo
-        # 0.423 -> 0.486 (better on 12 of 12) with the vocabulary 41.2 -> 26.1 per hand
-        # against a human 23.6. **That sweep measured four things and none of them was
-        # `idiom_coverage`** -- the metric this whole pass exists to move. A full build
-        # then showed the cost, on the same song and seed:
-        #   palette 0            coverage 0.992  human pct 94.1   judge p 0.572
-        #   palette 20 (filter)  coverage 0.618  human pct  1.7 ! judge p 0.538
-        #   palette 20 (boost)   coverage 0.998  human pct 97.5 ! judge p 0.333
-        # Hard-filtering to palette landings leaves whatever idioms happen to land there,
-        # which is the long tail; boosting instead overshoots into the "more human than
-        # human" range. ⇒Both forms are flagged by the judge and neither may be a default.
-        # See `PROGRESS.md 2026-09-12i`. The lever is real for echo and is kept as a flag.
-        kw.setdefault("palette", a.palette)
-        # ★`--map-memory` is the OTHER form of the same idea, kept separate on purpose: it
-        # decides nothing in advance and removes no candidate, so it cannot push a
-        # transition out of the vocabulary the way the palette filter did. Default off
-        # until a full build shows what it costs `idiom_coverage` -- the axis this pass
-        # exists to move, and the one the palette sweep forgot to measure.
-        kw.setdefault("memory_boost", a.map_memory)
-        kw.setdefault("strict_parity", not a.allow_resets)
-        # ★`repeat_p` had never been reachable from a full build until 2026-09-13aa, so every
-        # map this project has shipped used 0.55 unexamined. Isolated sweep, 6 seeds: it moves
-        # `idiom_local` almost linearly (0.900 / 0.865 / 0.812 / 0.755 at p = 0 / .25 / .55 /
-        # .80) and leaves 4-bar block echo FLAT (0.454 / 0.450 / 0.441 / 0.436) -- i.e. it
-        # costs the axis this repo already calls our weakest idiom axis and buys nothing on
-        # the defect it was written for. The human median `idiom_local` is 0.867.
-        if a.repeat_p is not None:
-            kw["repeat_p"] = a.repeat_p
-        n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
-        print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
+        if not a.no_idiomize:
+            print(f"\n=== DRESS (idiomize)")
+            import idiomize as I
+            kw = {}
+            if "crossover" in sargs:
+                kw["crossover"] = sargs["crossover"]
+            if "top_k" in sargs:
+                kw["top_k"] = sargs["top_k"]
+            if "width" in sargs:
+                kw["width"] = sargs["width"]
+            if a.travel_target is not None:
+                kw["travel_target"] = a.travel_target
+            # An explicit --width beats the style's choice: it is the knob being A/B'd.
+            if a.width is not None:
+                kw["width"] = a.width
+            # 🔴🔴**PALETTE IS OFF BY DEFAULT, AND WAS WRONGLY DEFAULTED ON FOR ONE COMMIT.**
+            # It commits the map to N landing shapes per hand instead of drawing a fresh idiom
+            # at every note, and on 12 corpus songs x 3 seeds it raises 4-bar block echo
+            # 0.423 -> 0.486 (better on 12 of 12) with the vocabulary 41.2 -> 26.1 per hand
+            # against a human 23.6. **That sweep measured four things and none of them was
+            # `idiom_coverage`** -- the metric this whole pass exists to move. A full build
+            # then showed the cost, on the same song and seed:
+            #   palette 0            coverage 0.992  human pct 94.1   judge p 0.572
+            #   palette 20 (filter)  coverage 0.618  human pct  1.7 ! judge p 0.538
+            #   palette 20 (boost)   coverage 0.998  human pct 97.5 ! judge p 0.333
+            # Hard-filtering to palette landings leaves whatever idioms happen to land there,
+            # which is the long tail; boosting instead overshoots into the "more human than
+            # human" range. ⇒Both forms are flagged by the judge and neither may be a default.
+            # See `PROGRESS.md 2026-09-12i`. The lever is real for echo and is kept as a flag.
+            kw.setdefault("palette", a.palette)
+            # ★`--map-memory` is the OTHER form of the same idea, kept separate on purpose: it
+            # decides nothing in advance and removes no candidate, so it cannot push a
+            # transition out of the vocabulary the way the palette filter did. Default off
+            # until a full build shows what it costs `idiom_coverage` -- the axis this pass
+            # exists to move, and the one the palette sweep forgot to measure.
+            kw.setdefault("memory_boost", a.map_memory)
+            kw.setdefault("strict_parity", not a.allow_resets)
+            # ★`repeat_p` had never been reachable from a full build until 2026-09-13aa, so every
+            # map this project has shipped used 0.55 unexamined. Isolated sweep, 6 seeds: it moves
+            # `idiom_local` almost linearly (0.900 / 0.865 / 0.812 / 0.755 at p = 0 / .25 / .55 /
+            # .80) and leaves 4-bar block echo FLAT (0.454 / 0.450 / 0.441 / 0.436) -- i.e. it
+            # costs the axis this repo already calls our weakest idiom axis and buys nothing on
+            # the defect it was written for. The human median `idiom_local` is 0.867.
+            if a.repeat_p is not None:
+                kw["repeat_p"] = a.repeat_p
+            n, nfb = I.idiomize_zip(out, out, seed=a.seed, **kw)
+            print(f"  re-placed {n - nfb}/{n} note cells from the human vocabulary")
+        return out, rows
+
+    out, rows = _make(nps)
+    # ★★CLOSED-LOOP DENSITY (2026-09-17e). `plan` budgets swing EVENTS, but doubles then add a
+    # second note on accent slots, and the judge's `nps` counts NOTES. So `--nps 4.0` delivered
+    # 4.91 (+23 %) and the P0.1 gate below FAILED the map it was asked to build -- every `--nps`
+    # and `--style` build was failing its own request. When a density was REQUESTED, measure the
+    # map and rebuild once with the request rescaled. A build with no request is untouched.
+    if nps_requested and not a.no_density_correct:
+        got = _achieved_nps(out, ref)
+        if got and abs(got / nps_requested - 1.0) > DENSITY_TOL:
+            nps2 = nps * nps_requested / got
+            print(f"\n=== DENSITY CORRECTION: asked {nps_requested:.2f}, got {got:.2f} nps -> "
+                  f"rebuilding with a budget of {nps2:.2f}")
+            out, rows = _make(nps2)
+            print(f"  now {_achieved_nps(out, ref):.2f} nps")
 
     # ★★WALLS — the element 96 % of human maps have and we shipped ZERO of.
     # Measured 2026-08-22 over the same 23 songs: human median **89 walls per map**,

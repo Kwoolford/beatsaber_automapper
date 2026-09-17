@@ -67,6 +67,13 @@ ARMS: dict[str, list[str]] = {
     # vocabulary lever a usable TRIAGE tool when the page says SCATTER?
     "tr_memory": ["--taper", "0.5", "--hand-run-p", "0.06", "--map-memory", "4"],
     "tr_palette": ["--taper", "0.5", "--hand-run-p", "0.06", "--palette", "20"],
+    # 2026-09-17d: the D3 and D6 reds left under the best build
+    "tr_taper08": ["--taper", "0.8", "--hand-run-p", "0.06"],
+    "tr_dbl015": ["--taper", "0.5", "--hand-run-p", "0.06", "--doubles-rate", "0.15"],
+    # D6 on 1f9a0/1fbfb is the OVER-DENSE branch (2.1-2.5x his events), not doubles: ask for the
+    # human map's own density, which /buildmap's study step has in hand.
+    "tr_nps188": ["--taper", "0.5", "--hand-run-p", "0.06", "--nps", "1.88"],
+    "tr_nps389": ["--taper", "0.5", "--hand-run-p", "0.06", "--nps", "3.89"],
 }
 
 # lever -> (what the request says, the column that should move, direction lo→hi)

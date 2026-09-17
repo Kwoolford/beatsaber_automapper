@@ -18399,3 +18399,26 @@ right trade *for a map that already carries the named defect*.
 margin (`red_margins`, new; `margins` still means "passed codes only") with the room number, so the
 agent can apply it. 1f333's SCATTER reads room 0.23 → the page points to the tutor route instead.
 Suite 616 passed; `check_margins.py` ✅.
+
+## 2026-09-17d/e — the D3/D6 reds left under the best build; and `--nps` was failing its own gate
+
+**D3 and D6 triage — NOT SUPPORTED by the obvious levers** (`p6_levers.py`, 3 seeds each):
+- `--taper 0.8` on the three D3 songs (1f3d7, 1fa50, 1fb2a): **0 / 9 cleared**. Those D3 hits sit at
+  the song's FIRST energy jump (bars 5, 8): we under-play after it against the human's ×14-25 step,
+  and there is nothing before the jump for a taper to borrow from. ⬜An intro-specific rule.
+- `--doubles-rate 0.15` on the two D6 songs: **0 / 6 cleared** — both fire the OVER-DENSE branch
+  (2.1-2.5× his events), not the doubles one, so the verdict's D6 fix line only covers half the code.
+- Asking for the HUMAN's density (`--nps` = his nps, which `/buildmap`'s study step has): 1f9a0
+  **D6 cleared 3 / 3** (notes 770 → 477); 1fbfb not (asked 3.89, got 4.58) and gained a D3.
+
+**🔴 THE FINDING UNDER IT: `--nps` WAS NEVER HONOURED.** `plan()` budgets swing EVENTS; doubles add
+a second note on accent slots; the judge's `nps` counts NOTES. Asked 3.0 → 3.3-4.0; asked 4.0 →
+4.91 (+23 %); asked 5.0 → 4.4-6.1. **And `autobuild`'s own P0.1 gate then FAILED the map** — every
+`--nps` and `--style` build was failing the request it was given (`density: 4.91 nps vs requested
+4.00 (+23 %) - MISSED`). Another knob documented as doing something it did not.
+**FIX (`autobuild`, closed loop)**: when a density was requested, measure the built map with the
+judge's own `nps` and, if it misses by > 5 % (`DENSITY_TOL`), rebuild once with the budget rescaled
+by requested/achieved. `--no-density-correct` turns it off. **Verified**: `--nps 4.0` on 1f913 now
+lands **4.17 (+4 %)** and the map flips **FAIL → PASS**; a build with no request is byte-identical
+to the 09-13 baseline. ⚠️The P6 style and `--nps` rows in `docs/style_levers.md` were measured
+before this fix — their DENSITY columns overstate the request.
