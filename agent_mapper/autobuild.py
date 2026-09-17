@@ -133,9 +133,13 @@ def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60,
     def classes_in(stem: str, b0: int, b1: int) -> dict[str, int]:
         if trust.get(stem) is False:
             return {}
+        # ★Offer only classes `mapctl --follow` will accept (2026-09-17m): a stem with too few
+        # events to cluster tags them with its own name but LISTS no classes, and the build died
+        # on `--follow bass/bass: bass has []` (held-out 20937, 8 bass events).
+        listed = set((d.get("stems", {}).get(stem) or {}).get("classes", {}))
         out: dict[str, int] = {}
         for e in d["events"]:
-            if e["stem"] == stem and b0 <= e["bar"] <= b1:
+            if e["stem"] == stem and b0 <= e["bar"] <= b1 and e["cls"] in listed:
                 out[e["cls"]] = out.get(e["cls"], 0) + 1
         return out
 

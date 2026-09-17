@@ -18528,3 +18528,16 @@ E.** Read the page header's `E =` line before trusting a D3 / BREATHING read.
 **Phase 2 (2026-09-17l)**: the fixed `answer.py` applied to all 108 held-out builds moved notes on 36
 of them and changed **no red and no ship** in any arm (base 16, runs 20, taper+runs 17 of 36) — under
 real energy the late-answer D3 it targets is rare on these songs. Wired now; neutral here.
+
+## 2026-09-17m — the general build replicates on 23 more fresh songs; one planner/builder mismatch fixed
+
+**Held-out 2** (`data/heldout2/`, 24 more corpus songs, same selection rule, seed 0; one failed to
+build — below): base vs `--hand-run-p 0.06`, 23 songs: ships **6 → 10**, reds 30 → 24 (−7 / +1),
+**4 songs gain a ship, none loses one**; every page on real audio E. SCATTER is again the top red
+(9 base / 8 runs). ⇒Across both held-out sets hand runs are +4 and +4 ships with nothing broken.
+🔴**Bug**: on 20937 `plan()` offered `bass/bass` as a carrier — the stem had 8 events, too few to
+cluster, so the cache tags them with the stem's name but LISTS no classes, and `mapctl --follow`
+refused (`bass has []`). `classes_in` now offers only listed classes. 20937 builds and PASSes;
+controls: 1f913 byte-identical; 1f333 differs by ONE note — the one `answer.py` moves, now 0.014
+beats (its −4.5 ms offset) from before, the game-clock fix of 09-17l. Songset best maps rebuilt on
+the current code (`outputs/best_2026-09-17/`), pages unchanged.

@@ -200,7 +200,8 @@ def resolve_song(spec: str | None, map_path: pathlib.Path) -> tuple[str, pathlib
     else:
         sid = map_path.stem.split("__")[-1].split("_")[0]
         how = f"GUESSED from the map filename '{map_path.name}' — pass --song to be sure"
-    for d in (REPO / "data" / "eval_songset", REPO / "data" / "test_songs", REPO / "data" / "heldout"):
+    for d in (REPO / "data" / "eval_songset", REPO / "data" / "test_songs", REPO / "data" / "heldout",
+              REPO / "data" / "heldout2"):
         for ext in (".ogg", ".egg", ".mp3", ".wav"):
             c = d / f"{sid}{ext}"
             if c.exists():
