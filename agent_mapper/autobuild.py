@@ -460,9 +460,9 @@ def main() -> int:
                          "to the human idiom_top50/idiom_coverage.")
     ap.add_argument("--palette", type=int, default=0,
                     help="commit the map to N landing shapes per hand (0 = off, the "
-                         "default). ⚠️It raises 4-bar block echo on 12 of 12 corpus songs "
-                         "AND damages idiom_coverage in both of its forms -- see "
-                         "PROGRESS.md 2026-09-12i before turning it on.")
+                         "default). Raises 4-bar block echo (SCATTER room +0.23-0.29) with "
+                         "idiom_coverage intact since STRICT_PARITY, but costs judge p ~0.17 "
+                         "and local variety -- PROGRESS.md 2026-09-16b.")
     ap.add_argument("--verbose", action="store_true")
     # ★★TWO ENTRY POINTS, NOT ONE LEVER (P4 decide-and-log, 2026-09-02). Doubles, the
     # lead hand and `--doubles-rate` are applied ONLY inside the `--pulse` branch of

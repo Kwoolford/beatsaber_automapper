@@ -286,7 +286,7 @@ at every default; that check is mandatory before reading any sweep.
 | `--lead-in --drop-orphan` | off | take the on-grid note before an odd 16th, else drop it | **FLOW 62 hits → 0 across 16 songs**; ⚠️−0.022 typicality |
 | `--carrier-bias` | off (1.0) | vocals can win the carrier ranking, not just the busiest stem | D4 **29 → 23**; ⚠️no song clears, 3 regress |
 | `--nps-from-song` | off | density from bpm + onset rate, not the fixed 4.17 | our nps sd 0.48 → 0.64 (his 1.00); reds flat |
-| `--palette` | off | commit the map to N landing shapes/hand | echo +0.063 on 12/12 · 🔴wrecks `idiom_coverage` |
+| `--palette` | off | commit the map to N landing shapes/hand | SCATTER room +0.23-0.29, coverage intact since STRICT_PARITY (09-16b) · ⚠️judge p −0.17, ~0.5 local per echo |
 | `--hand-run-p` | off | a takeover sometimes holds a run of 4+ | runs≥4 0 → 9–21 · ⚠️costs `idiom_coverage` |
 | `--energy-slope` | off (0.60) | how hard energy scales the budget | 🔴NULL on D6 |
 | `--vocal-keep` | off (1.0) | gentler accent cut on a vocal spec | 🔴NULL — the cut was never binding |
@@ -425,10 +425,9 @@ already at parity; the open part is first-occurrence bars.
 ⬜Also untried: a memory that is **per section** rather than map-wide (a mapper's vocabulary
 drifts), and whether his first-occurrence echo draws on the SAME figures as his returning blocks.
 ### ⬜ Left over from the parity work (outcome in `PROGRESS.md` 2026-09-13w-y)
-⬜**Hypothesis worth one measurement**: the vocabulary-blind `fix_parity` may also be what the
-palette FILTER hit on 2026-09-12i (coverage 0.618) — same shape, same fixer, never measured that
-way.
-(coverage 0.618) — same shape, same fixer, never measured that way.
+✅The leak itself is CLOSED (`STRICT_PARITY` at the source + `_revocab` on whatever the fixer still
+rewrites). ✅**CONFIRMED 2026-09-16b**: the same leak was the palette's 09-12i collapse — coverage
+now flat across 12 seeds. Palette is a stable STYLE lever (UI-able), not a SCATTER fix.
   ⬜**Next**: 1f333 needs the last 0.18 of echo from somewhere that is not the song's structure and
   not a wider dose of this. Candidates: a memory that is **per section** rather than map-wide (a
   mapper's vocabulary drifts), and asking whether his first-occurrence echo comes from the SAME

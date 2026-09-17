@@ -575,8 +575,8 @@ def idiomize_zip(src: pathlib.Path, dst: pathlib.Path, *, seed: int = 0,
         # 149, which is the whole of that flag's `idiom_coverage` collapse (0.99 → 0.53-0.59).
         # ⇒Any change that makes a map more parity-hostile silently degrades coverage and
         # nothing notices: the verdict page does not read it, only `mapjudge` would.
-        # ⬜FIX: choose among repairs the VOCABULARY knows, not any direction that satisfies
-        # parity. DoD at `TODO.md`.
+        # ✅CLOSED 2026-09-13x/y: `STRICT_PARITY` stops the sampler placing the resets the fixer
+        # rewrites, and `_revocab` re-picks any rewrite it still makes inside its parity class.
         new = _reparity(new, bpm)
         # The invariant survives: the fixer changes DIRECTIONS, never times, colours
         # or the count -- re-asserted here because that is what makes the A/B valid.

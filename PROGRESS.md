@@ -18099,3 +18099,32 @@ rests.
 rests in would clear the code *by construction* — the query reads the same human — and teach the
 page nothing. The honest lever is P6's "breathe" style request, whose placement is a choice, and
 Kyle's ear on the staged `1f333` pair.
+
+## 2026-09-16b — `--palette` no longer breaks `idiom_coverage`: the 09-12i collapse WAS the parity leak
+
+`scripts/price_palette_strict.sh` + `scripts/eval_palette_strict.py` (logs
+`logs/overnight/palette_strict{,_eval}_2026-09-16.log`). Best build ± `--palette 20`, 1f333 and 1f8d6,
+seeds 4-9, then `repeat.py` (no `answer.py`, so 1f333 reads 3 red, not 2).
+
+**Control.** ⚠️The planned baseline was wrong: `memory_cov2_2026-09-13` predates `REPEAT_P`
+0.55 → 0.25 and differs from today's build on 558 of 1433 notes. A fresh default rebuild reproduces
+`repeatp_2026-09-13/rp0.25_s1__1f333` **byte-for-byte** (and the unset default equals `--repeat-p
+0.25`), so that is the control. ★**Check the baseline's DATE against the commit log, not only its
+flags.**
+
+| per song, 6 seeds | 1f333 Δ (se) | 1f8d6 Δ (se) |
+|---|---|---|
+| `idiom_coverage` | −0.006 (−1.6) | +0.014 (+2.2) |
+| `idiom_local` | −0.019 (−4.5) | −0.020 (−3.0) |
+| `idiom_jsd` (lower is better) | +0.024 (+4.7) | +0.017 (+2.1) |
+| judge p | **−0.161 (−4.1)** | **−0.189 (−4.1)** |
+| SCATTER room (1.00 = line) | +0.233 (+4.3), 0.50 → 0.74 | +0.287 (+6.4) |
+| verdict reds | 3 → 3 | unchanged |
+
+**CONFIRMED: the coverage collapse is gone** — both arms sit at 0.82-0.85 on every seed, no
+bimodality (the TODO's hypothesis that 09-12i's 0.618 was `fix_parity`, same as `--map-memory`).
+⇒the palette is now a **stable, well-behaved style lever** and can go in the UI table.
+**Not a default**: it clears no red (1f333 room tops out at 0.88), costs judge p ~0.17 at 4 se and
+worsens `idiom_jsd`. Exchange rate: echo +0.035/+0.043 (Δroom × 0.15 line) for −0.02 local ⇒
+**~0.5 local per 1.0 echo** — half of `--map-memory`'s 0.8-1.0 but twice the human ~0.25, so it
+fails the SCATTER DoD.
