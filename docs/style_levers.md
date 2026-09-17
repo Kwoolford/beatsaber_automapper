@@ -94,12 +94,12 @@ the single-seed losses (1f65d, 1f8a3, 1fb44) are seed noise.
 🔴**Held-out check (12 corpus songs never used to tune anything, 3 seeds)**: ships **6 → 7 of 36**,
 reds 60 → 55 — lead-hand ABSENCE 12 → 2 (the runs generalise) but **D3 15 → 18 and JUDGE 9 → 12**
 (the taper does not). The 23-song gain is partly selection. Single-lever split pending.
-✅**Resolved after the parity-slip fix (2026-09-17i, 3 seeds each)**:
+✅**Resolved after the parity-slip fix (2026-09-17i; held-out re-measured on real audio energy 09-17l; 3 seeds each)**:
 
 | arm vs fixed base | eval (69) ships | held-out (36) ships | held-out reds added |
 |---|---|---|---|
-| `--hand-run-p 0.06` | 20 → 23 | 11 → **14** | **none** |
-| `--taper 0.5 --hand-run-p 0.06` | 20 → **28** | 11 → 11 | D3 ×3 |
+| `--hand-run-p 0.06` | 20 → 23 | 16 → **20** | **none** |
+| `--taper 0.5 --hand-run-p 0.06` | 20 → **28** | 16 → 17 | D3 ×6 |
 
 ⇒**`--hand-run-p 0.06` joins the general best build** (it generalises); **`--taper` stays a style
 lever** — its eval gain is specific to the songs it was developed on. The songset best build keeps

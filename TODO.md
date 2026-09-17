@@ -40,8 +40,8 @@ rich score (VOX pitch + lyric, LEAD, BASS, KIT, sections) exists only as HTML dr
 
 **Build (best known, 2026-09-17, after the parity-slip fix):** `autobuild <audio> --pulse --lead-bias 0.2
 --lead-in --drop-orphan --carrier-bias 2.0 --hand-run-p 0.06` → `repeat.py` → `answer.py` (each
-`<zip> --out <zip> --song <id>`). Measured: eval 20 → 23 of 69 ships, **held-out 11 → 14 of 36 with
-nothing added**. `--taper 0.5` is a STYLE lever ("breathe before the drop"): it lifts the eval set
+`<zip> --out <zip> --song <id>`). Measured: eval 20 → 23 of 69 ships, **held-out 16 → 20 of 36 with
+nothing added** (re-measured on real audio energy, 09-17l). `--taper 0.5` is a STYLE lever ("breathe before the drop"): it lifts the eval set
 20 → 28 but not the held-out set (11 → 11, adds D3) — use it on the songset (1f767 ships with it).
 **Build (shipped defaults):** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
 chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), then
@@ -108,7 +108,10 @@ seed 0, post-fix), staged compete zips untouched: `1f913` **SHIP** · `1f8d6` **
 (the taper clears its D3) · `1f333` **2 red** (BREATHING · SCATTER). **3 of 4 ship.**
 ★**2026-09-17i — the biggest fix of the night was a BUG, not a lever**: `idiomize`'s fallback could leave a
 parity slip that `fix_parity` cascaded through the rest of the hand (312 of 382 directions rewritten on
-one held-out song). Fixed (`idiomize.UNSLIP`): held-out ships 6 → 11 of 36, judge FAILs 9 → 3.
+one held-out song). Fixed (`idiomize.UNSLIP`): held-out judge FAILs 9 → 3 and ships up by 5 (read on event-loudness E; see 09-17l).
+★**2026-09-17l — two more silent bugs**: `score.py` used EVENT LOUDNESS as E on any song outside
+`data/eval_songset` (D3/BREATHING read differently there), and `answer.py` was a no-op on every fresh song.
+Both fixed; held-out re-measured: base **16**, hand runs **20** of 36; D3 is 3/36 there, not 15.
 ★**A held-out set exists now** (`data/heldout/`, 12 songs; `p6_levers.py --audio-dir data/heldout`) — use
 it for anything tuned on the 23 eval songs; the taper's eval gain did not survive it.
 ⚠️Ship counts are seed-noisy (base 5 / 5 / 8 of 23 across seeds) — never read one seed.

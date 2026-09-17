@@ -18525,3 +18525,6 @@ hand runs generalise, the taper does not. SCATTER triage is unchanged (its read 
 ⏱Phase 2 running: the fixed `answer.py` applied to the held-out zips (`answered_heldout_s*`).
 ★**LANDMINE: any verdict on a song outside `data/eval_songset` before 2026-09-17l used event-loudness
 E.** Read the page header's `E =` line before trusting a D3 / BREATHING read.
+**Phase 2 (2026-09-17l)**: the fixed `answer.py` applied to all 108 held-out builds moved notes on 36
+of them and changed **no red and no ship** in any arm (base 16, runs 20, taper+runs 17 of 36) — under
+real energy the late-answer D3 it targets is rare on these songs. Wired now; neutral here.
