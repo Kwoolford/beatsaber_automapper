@@ -18422,3 +18422,13 @@ by requested/achieved. `--no-density-correct` turns it off. **Verified**: `--nps
 lands **4.17 (+4 %)** and the map flips **FAIL → PASS**; a build with no request is byte-identical
 to the 09-13 baseline. ⚠️The P6 style and `--nps` rows in `docs/style_levers.md` were measured
 before this fix — their DENSITY columns overstate the request.
+
+## 2026-09-17f — re-measured with `--nps` honoured: presets hit more, still not clean
+
+`--nps 3.0 / 5.0` now land 2.9-3.2 / 4.4-5.4 (1f8d6 capped at 4.36 by its supply). Style presets
+hit **12-16 of 20-24** targets (was 7-13), but every one still adds a red on some songset map (mostly
+D3 on 1f333); flowing and technical make 1f767 ship. Human-density D6 test, 3 seeds: 1f9a0 D6
+cleared 3/3 **but D4 added 3/3**; 1fbfb D6 stays at 3.98 nps (his 3.89) and D3 is added — its D6 is
+LOCAL over-density, not a map-wide level. `verdict.py`'s D6 fix line now says which branch the
+doubles rate can fix. `docs/style_levers.md` updated; stale pre-fix builds kept in
+`outputs/p6_levers_2026-09-17/stale_predensityfix/`.

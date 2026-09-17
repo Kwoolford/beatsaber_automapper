@@ -24,7 +24,7 @@ Base page: `1f333` 2 red (BREATHING · SCATTER) · `1f767` 1 red (D3) · `1f8d6`
 | **one hand leads** | `--lead-bias` | 0.0 – 0.5 | role asymmetry 0.08 → 0.16 | none | +0.03 |
 | **more walls** | `--walls` | 40 – 160 | wall count exactly as asked | none (no metric reads walls) | 0.00 |
 | **more variety / diagonals** | `--width` | 1 – 8 | local variety 0.75 → 0.94; diagonal share 0.05 → 0.32 | none | width 1: **−0.48** (vertical share 0.95) |
-| **faster / denser** | `--nps` | 3.0 – 5.0 | nps 3.3–4.0 → 4.4–6.1 | **D6 on 1f333 and 1f767 at 5.0** ⇒ keep ≤ ~4.5; 6.18 is the density Kyle called unplayable | −0.10 at 5.0 |
+| **faster / denser** | `--nps` | 3.0 – 5.0 | nps **2.9–3.2 → 4.4–5.4** (honoured since 2026-09-17e; 1f8d6 tops out at 4.36, the song's supply) | at 5.0: +D3 on 1f333, +D6 and lead-hand ABSENCE on 1f767 ⇒ keep ≤ ~4.5; 6.18 is the density Kyle called unplayable | — |
 | **figures come back** | `--palette` | 0 – 20 | SCATTER room 0.40 → 0.68 on 1f333 (line 1.00) | 1f8d6 lead-hand passage at 20 | −0.15 |
 | **figures come back** | `--map-memory` | 0 – 4 | SCATTER room 0.40 → 0.64 on 1f333 | none | −0.20 |
 
@@ -82,17 +82,21 @@ defaults, like every P6 lever: the best build is a documented flag set, not a de
 Targets are human percentiles (a style is a position on a continuum — the corpus has no clusters).
 Hit rate = share of a preset's targets landed within ±20 percentile points, over the 4 songs.
 
-| preset | targets hit | page vs base |
-|---|---|---|
-| human | 13/20 | = |
-| calm | 7/20 | +D3 on 1f333 |
-| dense | 13/20 | +D6 on 1f333, 1f767 |
-| flowing | 10/24 | +D3 on 1f333, +lead-hand ABSENCE on 1f767 |
-| technical | 12/24 | +lead-hand ABSENCE and +D6 on 1f767 |
+| preset | targets hit | nps landed | page vs base |
+|---|---|---|---|
+| human | **16/20** | 4.2–4.4 | +D3,D4 on 1f333 · +lead-hand ABSENCE on 1f767 |
+| calm | **12/20** | 3.7–3.9 | +D1,D3 on 1f333 · 1f767 still red |
+| dense | **15/20** | 4.4–5.6 | +D6 on 1f767 |
+| flowing | **14/24** | 4.2–4.4 | +D3 on 1f333 · **1f767 ships** |
+| technical | **16/24** | 4.2–4.7 | +D3 on 1f333 · **1f767 ships** |
+
+⚠️Re-measured 2026-09-17e after `--nps` became a closed loop — the first table (7-13 hits) was built
+on a density request the builder never honoured; the old builds are kept in
+`outputs/p6_levers_2026-09-17/stale_predensityfix/`.
 
 Orderings the presets claim (per song): nps calm < dense **4/4** · peak_nps 3/4 · crossover
 flowing < technical **4/4** · travel calm < technical 3/4 · angle_change flowing < technical 2/4 ·
 ebpm_burst calm < dense **0/4**.
-⇒**P6's DoD ("three presets build clean with the named column moved") is NOT met**: no preset is
-clean on the songset, and hit rates are 35-65 %. The single-lever rows above are the usable UI
+⇒**P6's DoD ("three presets build clean with the named column moved") is NOT met**: every preset
+adds a red on some songset map (mostly D3 on 1f333), though hit rates are now 58-80 %. The single-lever rows above are the usable UI
 today; presets need their targets mapped to the levers that demonstrably move them.

@@ -62,7 +62,10 @@ tutor = _load("tutor")
 CODES = [
     ("EMPTY", "empty / not playing the song", "mapctl auto --bars a-b --target-notes N, or copy the tutor's rows (tutor.py --bars, mapedit.py from)"),
     ("D1", "very slow overall", "raise --nps / --target-notes per section; read q_events ratios"),
-    ("D6", "nps wasted (doubles / over-dense)", "mapctl clear --bars a-b then auto with --doubles-rate lower or a smaller --target-notes"),
+    ("D6", "nps wasted (doubles / over-dense)",
+     "read the why: 'doubles' -> lower --doubles-rate; 'over-dense' -> the doubles rate does nothing "
+     "(0/6 on the eval set): mapctl clear --bars a-b then auto with a smaller --target-notes, or "
+     "rebuild at the tutor's density (--nps; cleared 1f9a0 3/3 but added D4, did not clear 1fbfb)"),
     ("FLOW", "does not flow (jitter off the grid)", "mapedit.py: move the odd-16th notes onto the 8th grid, or clear+auto without --pulse"),
     ("D2", "slightly off beat (shifted grid)", "mapedit.py shift --bars a-b, or re-init with --phase-shift; check ON/±ms in the score"),
     ("D4", "not following the main vocals", "mapctl auto --bars a-b --follow vocals; the why names the unanswered words"),
