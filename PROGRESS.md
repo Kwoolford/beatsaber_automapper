@@ -18445,3 +18445,38 @@ jump into the two after (equal spans, so moved exactly). On 1f3d7 bar 5 the afte
 **23 songs, seed 0, on top of the best build**: only 4 songs change; reds −3 / +1; **ships 11 → 10**
 (1fb3f gains SCATTER); median p Δ 0.000. ⇒**NOT SUPPORTED; stays OFF.** Where D3 still fires it is
 a per-song human step (×14-25 at an intro) that no budget move reaches.
+
+## 2026-09-17h/i — a held-out set deflated the best build, and found a pipeline bug worth more than it
+
+**Held-out set** (new): 12 corpus songs never used to tune anything (`data/heldout/`, git-ignored;
+`p6_levers.py --audio-dir`), each with an Expert human map and an onset cache, 3 seeds.
+Taper + runs, pre-fix: ships **6 → 7 of 36** (vs 18 → 29 on the eval set). Runs generalised
+(lead-hand ABSENCE 12 → 2); the taper did not (D3 15 → 18). ★**The 23 eval songs are no longer a
+clean test for anything tuned on them.**
+
+**🔴🔴 THE BUG (fixed, `idiomize.UNSLIP`)**: the new JUDGE FAILs traced to held-out 4a592, where
+`--hand-run-p` took `idiom_coverage` 0.675 → **0.196**. Before `fix_parity` there was ONE same-parity
+slip per hand; after it **312 of 382 directions were rewritten** — the fixer repairs a slip by
+flipping the second note, which breaks the next pair, and so on to the end of the hand, blind to the
+vocabulary (65 rewrites without runs). The slips came from `idiomize`'s FALLBACK keeping a direction
+that repeated the hand's parity. Fix: a fallback that would repeat the parity is mirrored, and any
+slip left is resolved by flipping the SHORTER side (`_unslip`) before the fixer runs. 4a592: **0
+rewrites**; coverage 0.675 → 0.782 (base), 0.196 → 0.690 (runs, FAIL → PASS).
+Same bug family as 2026-09-13w (`--map-memory`), one level deeper: STRICT_PARITY stopped the sampler
+placing resets, but a fallback could still slip.
+
+**Re-evaluated with the fix (3 seeds)**:
+
+| set | arm | ships | reds | judge FAILs |
+|---|---|---|---|---|
+| held-out (36) | base | 6 → **11** | 60 → 54 | 9 → **3** |
+| held-out | runs | 7 → **14** | 54 → 43 | 12 → **3** |
+| held-out | taper + runs | 7 → 11 | 55 → 45 | 12 → 3 |
+| eval (69) | base | 18 → 20 | 78 → 75 | 9 → 9 |
+| eval | taper + runs | 29 → 28 | 55 → 54 | 6 → 6 |
+
+Median judge p and coverage Δ are 0.000 — most builds never slipped; the fix removes the failure
+tail. **Levers under the fix, held-out**: `--hand-run-p 0.06` ships 11 → 14, removes lead-hand
+ABSENCE ×11, **adds nothing, no song worse** ⇒ it GENERALISES. Taper + runs: 11 → 11, adds D3 ×3,
+two songs worse ⇒ **the taper helps only the songs it was developed on**. Eval, under the fix:
+taper + runs 20 → 28 ships.
