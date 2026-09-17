@@ -41,11 +41,12 @@ rich score (VOX pitch + lyric, LEAD, BASS, KIT, sections) exists only as HTML dr
 **Build (best known, 2026-09-17, after the parity-slip fix):** `autobuild <audio> --pulse --lead-bias 0.2
 --lead-in --drop-orphan --carrier-bias 2.0 --hand-run-p 0.06` → `repeat.py` → `answer.py` (each
 `<zip> --out <zip> --song <id>`). Measured: eval 20 → 23 of 69 ships, **held-out 16 → 20 of 36 with
-nothing added** (re-measured on real audio energy, 09-17l). `--taper 0.5` is a STYLE lever ("breathe before the drop"): it lifts the eval set
-20 → 28 but not the held-out set (11 → 11, adds D3) — use it on the songset (1f767 ships with it).
+nothing added** (re-measured on real audio energy, 09-17l); replicated on a 2nd held-out set, 6 → 10 of 23
+(09-17m). `--taper 0.5` is a STYLE lever ("breathe before the drop"): it lifts the eval set 20 → 28 but not
+the held-out set (16 → 17, adds D3) — use it on the songset (1f767 ships with it).
 **Build (shipped defaults):** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
 chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), then
-`agent_mapper/repeat.py <zip> --out <zip> --song <id>` (2026-09-12, not yet wired in) — or the
+`agent_mapper/repeat.py <zip> --out <zip> --song <id>` then `answer.py` (manual chain steps) — or the
 per-section loop in 📖`agent_mapper/WORKFLOW.md`, which **beats autobuild** and by a wide margin:
 fresh autobuild + repeat gives 1f333 **5 reds** where the curated chain gives 1.
 ⚠️**Never compare a fresh autobuild against a staged map** — they are different processes.
@@ -93,7 +94,7 @@ with *"reach for this when…"* (P4), and the verdict names the tool for every r
    header) and whisper's language probability decide whether a blank VOX lane is the song or the
    tool. Read the header before reading the page.
 
-### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle (updated 2026-09-16)
+### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle (updated 2026-09-17)
 **The toolbox is done** (P1 · P1b · P0 · P2 · P2b · P3 · P4 · P4b · P5b · P5c); what is left is the
 builder and Kyle's ear.
 
@@ -102,6 +103,9 @@ builder and Kyle's ear.
 2. **A clean bench row is evidence only if the row COULD HAVE FAILED** — the rows with teeth are
    `humanplus-*` / `humanexp-*`, the human-vs-human panel, and one zip's two difficulties.
 3. **Four rows can refute a norm, never establish one** — take mechanism claims to ≥ 100 maps.
+4. **Anything tuned on the 23 eval songs needs a HELD-OUT set before it is a win** (2026-09-17h) —
+   `data/heldout/` (12) and `data/heldout2/` (24), `p6_levers.py --audio-dir …`. The taper's eval gain did
+   not survive one; hand runs did, twice.
 
 **Songset** — best build `outputs/best_2026-09-17/` (the general build above **plus `--taper 0.5`**,
 seed 0, post-fix), staged compete zips untouched: `1f913` **SHIP** · `1f8d6` **SHIP** · `1f767` **SHIP**
@@ -112,8 +116,6 @@ one held-out song). Fixed (`idiomize.UNSLIP`): held-out judge FAILs 9 → 3 and 
 ★**2026-09-17l — two more silent bugs**: `score.py` used EVENT LOUDNESS as E on any song outside
 `data/eval_songset` (D3/BREATHING read differently there), and `answer.py` was a no-op on every fresh song.
 Both fixed; held-out re-measured: base **16**, hand runs **20** of 36; D3 is 3/36 there, not 15.
-★**A held-out set exists now** (`data/heldout/`, 12 songs; `p6_levers.py --audio-dir data/heldout`) — use
-it for anything tuned on the 23 eval songs; the taper's eval gain did not survive it.
 ⚠️Ship counts are seed-noisy (base 5 / 5 / 8 of 23 across seeds) — never read one seed.
  ⚠️Four of 09-13's clearances were THRESHOLD changes made because the code fired on humans;
 only `answer.py` changed a map.
