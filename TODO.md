@@ -365,14 +365,12 @@ rests reading his Expert against his own ExpertPlus (0 % of maps red), and 13 of
 🔴**"Thin the quiet bars" is REFUTED** (140 human maps, each bar at its percentile within its OWN
 song): in their quietest decile humans still play a median **5 notes/bar** and leave only **7.7 %**
 of bars empty; the whole gradient quietest→loudest is **5 → 7**. Energy does not announce a rest.
-⬜**THE OPEN QUESTION, and the next command to run**: `1f333`'s rest sits at percentile **0.01-0.06**,
-*below* the 0.00-0.10 band measured — too coarse to speak to it. **Split that band (0-2 %, 2-5 %,
-5-10 %) over the same 140 maps.** If humans leave a large share of bottom-2 % bars empty there is a
-song-visible signal and a narrow rule; if not, a rest is a style choice the song does not announce
-and BREATHING cannot be fixed from the audio alone.
-⚠️**n=3, one song, NOT generalisable**: his rest *ends* on a section boundary (F ends 169, G starts
-170) but only 1 of his 3 long rests *starts* on one. Testing that on the corpus needs the structure
-cache, which holds **27 songs** against 5 373 maps.
+✅**CLOSED 2026-09-16a — a rest is the mapper's choice, not a song signal.** Bottom-2 % bars and
+runs of quiet bars are rested ≤ 18 % (typically 3-9 %) over 2×140 maps; drum dropouts 9-10 %
+(n too small). On the envelope-aligned human panel BREATHING fires on **3.4 %** of pairs — kept —
+but a second mapper plays through 16-25 % of a first mapper's rests.
+🔴**Decided: no builder pass** — emptying the reference's rest bars clears the code by
+construction. Leave `1f333`'s red to Kyle's ear / P6's "breathe" lever.
 
 ### 🔴 WHAT IS ACTUALLY LEFT, and why each is hard
 - **SCATTER on `1f333` — MEASURED 2026-09-13r, and the framing above was too kind to structure.**

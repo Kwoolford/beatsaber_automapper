@@ -18050,3 +18050,52 @@ nothing here says a bottom-few-percent rule would or would not work.
 (F ends 169, G starts 170) but only **1 of his 3** long rests *starts* at one. That is n=3 on one
 song — an observation, not a finding. The same question on the corpus would need the structure
 cache, which currently holds 27 songs against 5 373 maps.
+
+## 2026-09-16a — BREATHING: the song does not announce a rest; the code survives the panel
+
+Closes the question 2026-09-13aj left open. `scripts/exp_quiet_bars.py` (new) and
+`scripts/exp_human_panel.py --breathing` (new mode).
+
+### The bottom of the energy distribution does not predict a rest — REFUTED (2 samples of 140)
+
+Control first: the within-span 0-10 % row reproduces the recorded one (5.0 notes/bar, **7.8 %**
+empty vs 7.7 %), so the earlier number was the *span* population (whole-song gives 22 %, intro and
+outro).
+
+| span band | median n | empty | bar inside a 2+ bar rest |
+|---|---|---|---|
+| 0.00-0.02 | 3.0 | 12.7 % | **6.1 %** |
+| 0.02-0.05 | 5.0 | 6.7 % | 4.0 % |
+| 0.05-0.10 | 5.0 | 5.9 % | 4.2 % |
+
+Mid-song rests exist in only **27 of 140** maps. A rest is a run, so the rule was also read on
+RUNS of ≥2/3/4 consecutive quiet bars (percentile < 0.02/0.05, absolute E < 0.20/0.30/0.40).
+Pre-registered: a narrow rule exists iff some row rests ≥ 50 % of its runs. **Best row 18 % on
+n=11; typical 3-9 %; seed 1 agrees.** ⇒humans play through >90 % of their song's quietest runs.
+`1f333`'s rest (bars 163-169, percentile 0.000-0.047) is a mapper's choice, not a song signal.
+⚪Per-stem (drums drop out): precision 9-10 %, recall 62 % — but **14 songs, 16 rest bars** —
+NOT YET MEASURABLE, and the precision points the same way.
+
+### BREATHING against two DIFFERENT mappers — threshold KEPT, with a caveat
+
+The map-only half of P0.4 never ran BREATHING. It needs a shared time base, which the panel lacks
+(different cuts), so each pair is now aligned by cross-correlating the two maps' event-density
+envelopes (0.25 s bins, ±60 s). **Aligner validated**: a known +7.3 s self-shift recovered 29/30;
+same-audio E/E+ pairs correlate median r 0.74. **Analogue validated against the real query's
+recorded control** (300 zips): E-vs-own-E+ 0 % through (recorded 0 %), E+-vs-own-E 20.8 % through,
+3.5 % maps red (recorded 16.9 % / 4.0 %).
+
+| population | pairs | rests | played through by the other human | pairs red |
+|---|---|---|---|---|
+| aligned r ≥ 0.5 | 268 | 49 (in 25 pairs) | **24.5 %** | 9 = **3.4 %** of pairs |
+| aligned r ≥ 0.7 | — | 32 (in 17 pairs) | **15.6 %** | 3 |
+
+⇒**Under P0.4's 5-10 % line — KEPT.** ⚠️But conditioned on the reference RESTING (which is
+`1f333`'s situation) a second top mapper plays through 1 rest in 4-6, the same rate as the same
+mapper's own harder difficulty. n is small (17-25 pairs). BREATHING is a real, human-controlled
+code whose clearance can only come from the reference: no song feature measured predicts where he
+rests.
+★**Decision (decide-and-log): no builder pass for it.** A pass that empties the bars the reference
+rests in would clear the code *by construction* — the query reads the same human — and teach the
+page nothing. The honest lever is P6's "breathe" style request, whose placement is a choice, and
+Kyle's ear on the staged `1f333` pair.

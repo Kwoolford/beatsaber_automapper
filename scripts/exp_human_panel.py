@@ -151,10 +151,127 @@ def fires(a, b) -> dict:
                 echo_gap=(kb - ka) if ka == ka and kb == kb else float("nan"))
 
 
+ALIGN_BIN = 0.25      # s, the density envelope `align` cross-correlates
+ALIGN_MAX = 60.0      # s, the widest lag searched (the cut spread's p90 is 46.5 s)
+ALIGN_MIN_R = 0.5     # pairs whose envelopes correlate less are not read
+REST_BARS = 2         # queries.q_breathing
+REST_MIN_EVENTS = 4
+REST_PER_BAR = 2.0
+
+
+def align(a, b) -> tuple[float, float]:
+    """(shift in s to ADD to A's times so it sits on B's, peak correlation).
+
+    ★BREATHING needs the two maps on one time base, which `load`'s first-note origin does not give
+    (2026-09-13af: two uploads are different CUTS). Both maps follow the same music, so their event
+    density envelopes cross-correlate; the peak is the offset.
+    """
+    ta = np.array([t for t, _ in a])
+    tb = np.array([t for t, _ in b])
+    n = int(max(ta.max(), tb.max()) / ALIGN_BIN) + 1
+    ea = np.bincount((ta / ALIGN_BIN).astype(int), minlength=n).astype(float)
+    eb = np.bincount((tb / ALIGN_BIN).astype(int), minlength=n).astype(float)
+    ea = (ea - ea.mean()) / (ea.std() + 1e-9)
+    eb = (eb - eb.mean()) / (eb.std() + 1e-9)
+    k = int(ALIGN_MAX / ALIGN_BIN)
+    best, lag = -1.0, 0
+    for s in range(-min(k, n - 40), min(k, n - 40) + 1):
+        x, y = (ea[:n - s], eb[s:]) if s >= 0 else (ea[-s:], eb[:n + s])
+        if len(x) < 40:
+            continue
+        r = float(np.dot(x, y) / len(x))
+        if r > best:
+            best, lag = r, s
+    return lag * ALIGN_BIN, best
+
+
+def breathing(a, b, bar_b: float, shift: float) -> tuple[int, int]:
+    """(rests B leaves inside its span, how many A plays through) — `q_breathing` on seconds.
+
+    A rest is a gap between consecutive B events of at least REST_BARS bars *of empty bars*: a gap
+    of g seconds holds floor(g / bar - 1) whole empty bars at worst, so require g >= (REST_BARS + 1)
+    bars, which is conservative (fewer rests read, never a phrase tail counted as one).
+    """
+    tb = sorted({round(t, 3) for t, _ in b})
+    ta = np.array(sorted({round(t + shift, 3) for t, _ in a}))
+    rests = through = 0
+    for t0, t1 in zip(tb, tb[1:]):
+        g = t1 - t0
+        if g < (REST_BARS + 1) * bar_b:
+            continue
+        rests += 1
+        lo, hi = t0 + 0.5 * bar_b, t1 - 0.5 * bar_b        # keep phrase tails / pickups out
+        n = int(((ta > lo) & (ta < hi)).sum())
+        if n >= REST_MIN_EVENTS and n / ((hi - lo) / bar_b) >= REST_PER_BAR:
+            through += 1
+    return rests, through
+
+
+def main_breathing() -> int:
+    """Difficulty-matched ordered pairs, envelope-aligned, BREATHING only."""
+    dups = json.loads(DUPS.read_text())
+    rows = []
+    unaligned = 0
+    for song, entries in dups.items():
+        for want in ("Expert", "ExpertPlus"):
+            per = {}
+            for stem, mapper in entries:
+                zp = RAW / f"{stem}.zip"
+                if not zp.exists() or mapper in per:
+                    continue
+                try:
+                    s = load(zp, want)
+                    bpm = _bpm(zp)
+                except Exception:  # noqa: BLE001
+                    s = None
+                if s is None or not bpm:
+                    continue
+                per[mapper] = (stem, s[1], 240.0 / bpm)
+            for (ma, (sa, A, _)), (mb, (sb, B, bar_b)) in itertools.permutations(per.items(), 2):
+                shift, r = align(A, B)
+                if r < ALIGN_MIN_R:
+                    unaligned += 1
+                    continue
+                rests, thru = breathing(A, B, bar_b, shift)
+                rows.append(dict(song=song.split("|")[0][:40], a=sa, b=sb, difficulty=want,
+                                 shift=shift, r=r, rests=rests, through=thru))
+    read = [x for x in rows if x["rests"]]
+    R = sum(x["rests"] for x in rows)
+    T = sum(x["through"] for x in rows)
+    print(f"{len(rows)} aligned ordered pairs (r >= {ALIGN_MIN_R}; {unaligned} not aligned), "
+          f"{len(read)} where the reference human rests at all")
+    print(f"rests read {R}, played through by the OTHER human {T} = {T / max(R, 1):.1%}")
+    red = sum(1 for x in read if x["through"])
+    print(f"BREATHING red on {red}/{len(rows)} pairs = {red / max(len(rows), 1):.1%} "
+          f"(of pairs with a rest: {red / max(len(read), 1):.1%})")
+    for lo in (0.5, 0.7, 0.85):
+        sub = [x for x in read if x["r"] >= lo]
+        if sub:
+            rr = sum(x["rests"] for x in sub)
+            tt = sum(x["through"] for x in sub)
+            print(f"  alignment r >= {lo:.2f}: {len(sub)} pairs, played through {tt}/{rr} = "
+                  f"{tt / max(rr, 1):.1%}, pairs red {sum(1 for x in sub if x['through'])}")
+    return 0
+
+
+def _bpm(zp: pathlib.Path) -> float:
+    with zipfile.ZipFile(zp) as zf:
+        info = next(n for n in zf.namelist() if n.split("/")[-1].lower() == "info.dat")
+        meta = json.loads(zf.read(info).decode("utf-8-sig"))
+    for k in ("_beatsPerMinute", "beatsPerMinute"):
+        if k in meta:
+            return float(meta[k])
+    return float((meta.get("audio") or {}).get("bpm") or 0.0)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", help="write the per-pair records here")
+    ap.add_argument("--breathing", action="store_true",
+                    help="envelope-align each pair and read BREATHING (2026-09-16)")
     a = ap.parse_args()
+    if a.breathing:
+        return main_breathing()
 
     dups = json.loads(DUPS.read_text())
     rows, skipped = [], 0
