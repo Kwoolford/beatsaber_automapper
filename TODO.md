@@ -421,7 +421,13 @@ of echo, measured against humans AT THE RESULTING ECHO, never against the pooled
 🔴**"Return at a distance" REFUTED 2026-09-16c** — his first-occurrence echo is the same from near
 and far sources (0.499 / 0.496, 436 blocks); we are ~0.13 under at both. Same vocabulary-width gap.
 Only 16 % of his best sources are returning blocks.
-⬜Still untried: a memory that is **per section** rather than map-wide (a mapper's vocabulary drifts).
+🔴**Per-section memory NOT SUPPORTED 2026-09-16d** — the human block-overlap curve is flat past 8
+bars; ours is the same shape 0.15 lower. ⇒SCATTER = figure-vocabulary WIDTH, uniformly.
+⬜**NEXT HYPOTHESIS (2026-09-16d)**: humans are narrow in FIGURES but varied in ORDER. Both width
+levers repeat transitions. Test first, build second: over 500 human Experts, is `idiom_local`
+independent of figure entropy (r ≈ 0)? If yes, a palette/memory boost that PENALISES re-using the
+last-k transitions (not figures) should buy echo without the local cost. **DoD**: echo gain ≥ the
+palette's on 1f333 at ≤ 0.25 local per 1.0 echo, `idiom_coverage` flat, judge p within 2 se.
 ### ⬜ Left over from the parity work (outcome in `PROGRESS.md` 2026-09-13w-y)
 ✅The leak itself is CLOSED (`STRICT_PARITY` at the source + `_revocab` on whatever the fixer still
 rewrites). ✅**CONFIRMED 2026-09-16b**: the same leak was the palette's 09-12i collapse — coverage

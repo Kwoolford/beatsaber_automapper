@@ -18151,3 +18151,22 @@ blocks: first-occurrence material echoes first-occurrence material.
 ⚠️This block split (fixed 4-bar grid, ≥ half the bars in `section_repeats`) gives 1f333's human
 **0.666** where 2026-09-13r's gave 0.597 (ours 0.429 vs 0.418): a different population, so compare
 rows only within one table.
+
+## 2026-09-16d — a per-section memory has nothing to follow: vocabulary barely drifts
+
+Mean pairwise overlap of two 4-bar blocks, by how far apart they are (bars):
+
+| distance | 4-8 | 12-24 | 28-48 | 52-96 | 100+ |
+|---|---|---|---|---|---|
+| humans, 24 structure-cache songs | 0.445 | 0.399 | 0.407 | 0.391 | 0.356 |
+| the songset's 4 humans | 0.445 | 0.410 | 0.422 | 0.416 | 0.412 |
+| **our 4 best builds** | 0.295 | 0.269 | 0.273 | 0.256 | 0.245 |
+
+Past the adjacent block the human curve is **flat** (the songset humans to within 0.01 out to 100+
+bars); ours has the **same shape, 0.14-0.17 lower everywhere**. ⇒no drift for a per-section memory
+to track — **NOT SUPPORTED**, not built. With 09-16c, every SCATTER candidate in TODO reduces to
+one uniform quantity: **figure-vocabulary width**.
+★**The open question that is left is sharper**: humans hold a narrow set of figures AND a high
+`idiom_local` (16-note transition variety); both our width levers buy narrowness by repeating
+TRANSITIONS (local −0.02 per +0.04 echo). A narrow figure set visited in a varied ORDER would move
+echo without touching local — see TODO.
