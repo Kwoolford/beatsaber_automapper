@@ -18273,3 +18273,17 @@ beat-timed object moved by `offset/spb` and `_songTimeOffset` = 0, both judged w
 plausibly exactly the phase-baked maps). A fair guard measures off-grid **relative to the map's own
 grid phase** (circular mean of beat fractions), not to t=0. That is a judge change and needs the
 human reference recalibrated in the same commit. Not made tonight.
+
+## 2026-09-16i — a `grid_r` confidence gate for per-song phase is NOT SUPPORTED
+
+`scripts/exp_phase_choice.py` over the 23 calibrated builds and the same 23 with
+`--no-phase-calibrate` (`price_phase_songset16_raw.sh`), precision with the offset applied.
+- Raw vs calibrated is a **wash**: raw wins on 9, loses on 11; the raw offset is simply the
+  calibrated one shifted ~−20 ms on every song.
+- **`grid_r` does not separate them** (r = +0.246 with Δ, the wrong sign for a "trust raw when the
+  grid fit is weak" gate): the two lowest-`grid_r` neighbours of 1f9a0 LOSE with raw (1fbfb −0.064,
+  1fa32 −0.110). The only gates that come out ahead (`grid_r ≤ 0.18-0.19`) select 1f9a0 almost alone
+  — a fit to n=1, not a rule.
+- Against the human's own best shift, calibrated sits closer (median |residual| 10 ms, ≤ 20 ms on
+  16) than raw (20 ms, 14). ⇒**Keep the calibration.** 1f9a0 stays an unexplained single-song phase
+  failure; its human's best shift is 0 where the cohort's is −30 ms, so the song itself is unusual.

@@ -402,8 +402,9 @@ Its best global shift is a constant −70 ms (0.556 → 0.758); raw phase (`--no
 right for it (0.654, residual = the −30/−40 ms detector bias) but wrong for the cohort (1f333
 0.940 → 0.869, 1fa32 0.881 → 0.772). The +0.053-beat calibration is a cohort constant fit on
 phase-0-by-convention songs.
-⬜**Per-song phase**: an estimator (or a confidence gate on `grid_r` — 1f9a0's is 0.18) that keeps
-the raw fit when it is trustworthy. **DoD**: over the 23 songs, applied precision ≥ calibrated on
+⬜**Per-song phase**: an estimator that keeps the raw fit when it is trustworthy. 🔴A `grid_r` gate
+is NOT SUPPORTED (09-16i: raw vs calibrated is 9 wins / 11 losses, uncorrelated with `grid_r`);
+the next candidate needs a signal that is not the grid-fit strength. **DoD**: over the 23 songs, applied precision ≥ calibrated on
 ≥ 21 and 1f9a0 ≥ 0.65, the best-shift residual within ±20 ms of the human's on every song.
 ⬜Then selection: even at its right phase 1f9a0 is 0.654 against a 0.822 floor.
 🔴**BLOCKER FOR ANY PHASE WORK — the judge cannot see phase**: `mapjudge`/`scorecard` ignore
