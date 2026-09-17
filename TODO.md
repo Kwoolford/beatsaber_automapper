@@ -412,22 +412,19 @@ construction. Leave `1f333`'s red to Kyle's ear / P6's "breathe" lever.
   `idiom_coverage` and nothing notices** (the verdict page does not read it; only `mapjudge` would).
 
 ### ⬜ SCATTER — the price any future mechanism must beat (outcome in `PROGRESS.md` 2026-09-13v-z)
-Echo and local variety are **different quantities** (r = −0.387, n=499) and humans trade them
-cheaply: **+0.16 of echo costs them 0.037 of local**, about **0.23 local per 1.0 echo**.
-`--map-memory` pays **0.80-1.00** — 3-4x the human price — and we start *below* the humans at our
-own echo anyway (ours 0.843-0.851 against their 0.869-0.878).
-✅**DoD FOR ANY FUTURE SCATTER MECHANISM: buy echo at better than ~0.25 of `idiom_local` per 1.0
-of echo, measured against humans AT THE RESULTING ECHO, never against the pooled median.**
+🔴**The "0.23 local per 1.0 echo" human rate was endpoint-selected** (2026-09-16e): the OLS slope over
+499 maps is **0.47**, and the curve is flat near echo 0.50 and steep above. `--map-memory` pays
+0.80-1.00 (~2x), `--palette` 0.44-0.53.
+✅**DoD FOR ANY FUTURE SCATTER MECHANISM: `idiom_local` no further below humans AT THE RESULTING
+ECHO (±0.05, `exp_vocabulary.stats`) than the control is** — palette passes on 1f8d6 (−0.001) and
+fails on 1f333 (−0.022 → −0.034). Never a pooled rate, never a pooled median.
 🔴**"Return at a distance" REFUTED 2026-09-16c** — his first-occurrence echo is the same from near
 and far sources (0.499 / 0.496, 436 blocks); we are ~0.13 under at both. Same vocabulary-width gap.
 Only 16 % of his best sources are returning blocks.
 🔴**Per-section memory NOT SUPPORTED 2026-09-16d** — the human block-overlap curve is flat past 8
 bars; ours is the same shape 0.15 lower. ⇒SCATTER = figure-vocabulary WIDTH, uniformly.
-⬜**NEXT HYPOTHESIS (2026-09-16d)**: humans are narrow in FIGURES but varied in ORDER. Both width
-levers repeat transitions. Test first, build second: over 500 human Experts, is `idiom_local`
-independent of figure entropy (r ≈ 0)? If yes, a palette/memory boost that PENALISES re-using the
-last-k transitions (not figures) should buy echo without the local cost. **DoD**: echo gain ≥ the
-palette's on 1f333 at ≤ 0.25 local per 1.0 echo, `idiom_coverage` flat, judge p within 2 se.
+🔴**"Narrow in figures, varied in order" REFUTED 2026-09-16e** — in humans local tracks figure
+entropy (r +0.625). Every SCATTER mechanism now reduces to width, and humans pay local for it too.
 ### ⬜ Left over from the parity work (outcome in `PROGRESS.md` 2026-09-13w-y)
 ✅The leak itself is CLOSED (`STRICT_PARITY` at the source + `_revocab` on whatever the fixer still
 rewrites). ✅**CONFIRMED 2026-09-16b**: the same leak was the palette's 09-12i collapse — coverage

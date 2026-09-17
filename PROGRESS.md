@@ -18170,3 +18170,32 @@ one uniform quantity: **figure-vocabulary width**.
 `idiom_local` (16-note transition variety); both our width levers buy narrowness by repeating
 TRANSITIONS (local −0.02 per +0.04 echo). A narrow figure set visited in a varied ORDER would move
 echo without touching local — see TODO.
+
+## 2026-09-16e — "narrow in figures, varied in order" REFUTED; and the 0.23 exchange rate was endpoint-selected
+
+**The hypothesis** (09-16d): humans narrow their figure set without losing `idiom_local`, so a lever
+that narrows figures but not transitions could buy echo free. **REFUTED** over 499 human Experts
+(`exp_vocabulary.py`, NaN-local rows dropped): `idiom_local` tracks figure entropy at **r = +0.625**;
+the narrow half sits at local median **0.834** against the wide half's **0.899**. Holding entropy
+fixed, echo and local are nearly unrelated (partial r = +0.136) ⇒ the whole trade runs through
+vocabulary width, and humans pay it too.
+
+**🔴CORRECTION to 2026-09-13z's "humans pay 0.23 local per 1.0 echo"** — that figure came from the
+first four echo bins (0.880 → 0.843) and left out the fifth (0.789). Over all 499 maps the OLS slope
+is **0.47**; binned medians today: echo 0.40-0.50 → 0.923, 0.50-0.60 → 0.892, 0.60-0.70 → 0.854,
+0.70-0.80 → 0.806. The human curve is **flat near 0.50 and steepens above**, so one pooled rate is the
+wrong DoD. What stands is the conditional form 09-13z also wrote: **our local vs humans AT OUR
+RESULTING ECHO.** Palette (09-16b builds, 6 seeds, `exp_vocabulary.stats`):
+
+| | echo | our local | humans at that echo (±0.05) | gap |
+|---|---|---|---|---|
+| 1f333 P0 | 0.497 | 0.883 | 0.905 | −0.022 |
+| 1f333 P20 | 0.533 | 0.864 | 0.898 | **−0.034** |
+| 1f8d6 P0 | 0.547 | 0.891 | 0.894 | −0.003 |
+| 1f8d6 P20 | 0.593 | 0.871 | 0.872 | **−0.001** |
+
+⇒palette holds human parity on 1f8d6 and widens the gap on 1f333 (pooled rates 0.53 / 0.44, both
+near the corrected human 0.47). `--map-memory`'s 0.80-1.00 is still ~2x worse than humans, not 4x.
+Palette stays off (judge p −0.17 at 4 se is the binding cost, and it clears no red).
+★**Same shape as the palette's 09-12i finding: a DoD number read from a subset of bins is a
+selection, not a rate — fit all the data or keep the conditional form.**
