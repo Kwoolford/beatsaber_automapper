@@ -28,6 +28,22 @@ Base page: `1f333` 2 red (BREATHING · SCATTER) · `1f767` 1 red (D3) · `1f8d6`
 | **figures come back** | `--palette` | 0 – 20 | SCATTER room 0.40 → 0.68 on 1f333 (line 1.00) | 1f8d6 lead-hand passage at 20 | −0.15 |
 | **figures come back** | `--map-memory` | 0 – 4 | SCATTER room 0.40 → 0.64 on 1f333 | none | −0.20 |
 
+✅**Held-out replication (2026-09-17j, 12 songs never used for tuning, seed 0, post-fix)** — every
+lever moves its column on **12 / 12**:
+
+| lever | column, median lo → hi | reds added at hi vs base | judge p Δ |
+|---|---|---|---|
+| `--doubles-rate` 0.1 → 0.6 | double share 0.06 → 0.29 | lead-hand ABSENCE ×2 | −0.08 |
+| `--lead-bias` 0 → 0.5 | role asymmetry 0.07 → 0.13 | lead-hand ×1 | +0.01 |
+| `--walls` 40 → 160 | walls as asked | none | 0.00 |
+| `--width` 1 → 8 | local variety 0.73 → 0.91 | lead-hand ×3, SCATTER ×1 | +0.05 |
+| `--palette` 0 → 20 | SCATTER room 1.48 → 1.83 | lead-hand ×2 | −0.11 |
+| `--map-memory` 0 → 4 | SCATTER room 1.48 → 1.75 | lead-hand ×2 | −0.16 |
+| `--nps` 3 → 5 | nps 3.08 → 5.00 | **D6 ×3**, lead-hand ×2 | −0.02 |
+
+The lead-hand reds are the fragile ABSENCE row this table's base does not protect (it predates
+`--hand-run-p` joining the best build); D6 at 5.0 confirms the ≤ ~4.5 range.
+
 Notes:
 - `--width 1` is legal but extreme: nearly every swing vertical, judge p collapses. Offer 2–8.
 - Neither vocabulary lever clears 1f333's SCATTER (room 0.23), and both cost local variety. But as a

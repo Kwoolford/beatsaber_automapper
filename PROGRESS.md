@@ -18480,3 +18480,12 @@ tail. **Levers under the fix, held-out**: `--hand-run-p 0.06` ships 11 → 14, r
 ABSENCE ×11, **adds nothing, no song worse** ⇒ it GENERALISES. Taper + runs: 11 → 11, adds D3 ×3,
 two songs worse ⇒ **the taper helps only the songs it was developed on**. Eval, under the fix:
 taper + runs 20 → 28 ships.
+
+## 2026-09-17j — the P6 lever table replicates on the held-out songs
+
+Seven levers × lo/hi on the 12 held-out songs (seed 0, post-fix; `outputs/p6_heldout_2026-09-17/`):
+**every one moves its named column on 12 / 12** (doubles, lead bias, walls, width, palette,
+map-memory, nps — now honoured, median 3.08 → 5.00). Costs at the high setting are the fragile
+lead-hand ABSENCE row (this table's base predates `--hand-run-p` in the best build) and **D6 on 3 of 12
+at `--nps 5`** — the ≤ ~4.5 range holds. ⇒The lever half of `docs/style_levers.md` is general, not a
+songset artefact. (Presets and "follow the vocals" remain unsolved.)
