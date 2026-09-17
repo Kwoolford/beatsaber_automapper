@@ -41,8 +41,8 @@ rich score (VOX pitch + lyric, LEAD, BASS, KIT, sections) exists only as HTML dr
 **Build (best known, 2026-09-17, after the parity-slip fix):** `autobuild <audio> --pulse --lead-bias 0.2
 --lead-in --drop-orphan --carrier-bias 2.0 --hand-run-p 0.06` → `repeat.py` → `answer.py` (each
 `<zip> --out <zip> --song <id>`). Measured: eval 20 → 23 of 69 ships, **held-out 16 → 20 of 36 with
-nothing added** (re-measured on real audio energy, 09-17l); replicated on a 2nd held-out set, 6 → 10 of 23
-(09-17m). `--taper 0.5` is a STYLE lever ("breathe before the drop"): it lifts the eval set 20 → 28 but not
+nothing added** (re-measured on real audio energy, 09-17l); replicated on a 2nd held-out set, 21 → 30 ships
+over 3 seeds (09-17o). `--taper 0.5` is a STYLE lever ("breathe before the drop"): it lifts the eval set 20 → 28 but not
 the held-out set (16 → 17, adds D3) — use it on the songset (1f767 ships with it).
 **Build (shipped defaults):** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
 chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), then

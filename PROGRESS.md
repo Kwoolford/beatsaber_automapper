@@ -18552,3 +18552,11 @@ Result: ≥ 0.7 cleared **2 / 3** (3da3a 0.74 → 0.92, still red) — the predi
 Exploratory `--palette 8` on the five deep reds: 1 / 5 cleared (0.59 → 1.39), judge p down to
 0.14-0.27 on all five — near the 0.10 FAIL line. **Not a tool.** Deep SCATTER (< 0.6, 10 cases so far)
 still has none.
+
+## 2026-09-17o — held-out 2 at three seeds: hand runs CONFIRMED
+
+Base vs `--hand-run-p 0.06` on the 24 held-out-2 songs (20937 builds since 09-17m), seeds 0/1/2:
+ships **6 → 10, 6 → 10, 9 → 10**; pooled **21 → 30**, reds 90 → 70 (removed lead-hand ABSENCE ×21,
+doubles ABSENCE ×3, SCATTER ×1; added SCATTER ×4, lead-hand ×1). Per song over the three seeds:
+**8 songs ship more often, 1 less** (3158c). Together with held-out 1 (16 → 20 of 36, none worse),
+hand runs are the one builder change tonight that holds on two sets of songs nothing was tuned on.
