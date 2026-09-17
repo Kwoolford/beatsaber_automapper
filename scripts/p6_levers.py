@@ -76,6 +76,8 @@ ARMS: dict[str, list[str]] = {
     "tr_nps188": ["--taper", "0.5", "--hand-run-p", "0.06", "--nps", "1.88"],
     "tr_nps389": ["--taper", "0.5", "--hand-run-p", "0.06", "--nps", "3.89"],
     # 2026-09-17g: the taper at energy jumps INSIDE sections (where the leftover D3s sit)
+    # 2026-09-17k: the SCATTER triage rule on the held-out set, on top of the GENERAL best build
+    "runs_palette": ["--hand-run-p", "0.06", "--palette", "20"],
     "tr_intra": ["--taper", "0.5", "--hand-run-p", "0.06", "--taper-intra", "0.5"],
 }
 

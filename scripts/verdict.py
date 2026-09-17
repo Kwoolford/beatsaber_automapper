@@ -77,9 +77,9 @@ CODES = [
     ("BREATHING", "playing through the rest he leaves",
      "mapedit.py delete the notes in his rest (the score shows E and an empty KIT there); or mapctl clear --bars a-b"),
     ("SCATTER", "nothing comes back to lock into",
-     "if its margin reads >= 0.6, rebuild with autobuild --palette 20 (eval set: cleared 10 of "
-     "11 such, 0 new reds, judge p -0.15; below 0.5 it cleared 0 of 3); otherwise tutor.py <song> "
-     "--bars a-b then mapedit.py from — copy the figure the human REPEATS into the blocks named"),
+     "if its margin reads >= 0.7, rebuild with autobuild --palette 20 (eval + held-out: cleared 11 "
+     "of 11 such; 0.6-0.7 cleared 2 of 5; below 0.6 none; judge p -0.15 to -0.2); otherwise "
+     "tutor.py <song> --bars a-b then mapedit.py from — copy the figure the human REPEATS"),
 ]
 # ★BREATHING is ALWAYS_RED: a rest is a PLACE, not a share. The seven bars of 1f333 are 3 % of
 # the map and no share threshold would ever have called them -- Kyle names them by ear.
@@ -288,8 +288,8 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
     # is worse than no margin.
     margins: dict[str, str] = {}
     # ★A FIRED code's margin, kept apart so `margins` keeps meaning "codes that passed". The fix
-    # for SCATTER depends on it (2026-09-17c: `--palette 20` clears 10 of 11 reds whose room is
-    # >= 0.6 and 0 of 3 below 0.5), so the page prints it on the red line.
+    # for SCATTER depends on it (2026-09-17c/k: `--palette 20` clears 11 of 11 reds whose room is
+    # >= 0.7, 2 of 5 at 0.6-0.7, none below), so the page prints it on the red line.
     red_margins: dict[str, str] = {}
     try:
         _rep: dict = {}

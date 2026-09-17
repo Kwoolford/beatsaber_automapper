@@ -48,8 +48,9 @@ Notes:
 - `--width 1` is legal but extreme: nearly every swing vertical, judge p collapses. Offer 2–8.
 - Neither vocabulary lever clears 1f333's SCATTER (room 0.23), and both cost local variety. But as a
   **triage** step they work: on the 8 songs × 3 seeds where SCATTER fires under the best build,
-  `--palette 20` clears it on **10 of 17** with no new red (**9 of 9** when the red's room is ≥ 0.7,
-  0 of 3 below 0.5). `verdict.py` now prints that rule on the SCATTER line (PROGRESS 2026-09-17c).
+  `--palette 20` clears it on **10 of 17** with no new red. **Held-out check** (9 reds, general
+  build): the pre-registered "≥ 0.6 clears ≥ 4 of 5" FAILED (3 of 5). Pooled: room **≥ 0.7 → 11 of 11**,
+  0.6–0.7 → 2 of 5, below 0.6 → 0. `verdict.py` prints the ≥ 0.7 rule on the SCATTER line.
 
 ## 🔴 Levers that do NOT answer their request
 

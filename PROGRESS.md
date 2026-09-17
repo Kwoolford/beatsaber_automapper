@@ -18489,3 +18489,13 @@ map-memory, nps — now honoured, median 3.08 → 5.00). Costs at the high setti
 lead-hand ABSENCE row (this table's base predates `--hand-run-p` in the best build) and **D6 on 3 of 12
 at `--nps 5`** — the ≤ ~4.5 range holds. ⇒The lever half of `docs/style_levers.md` is general, not a
 songset artefact. (Presets and "follow the vocals" remain unsolved.)
+
+## 2026-09-17k — the SCATTER triage rule on the held-out set: tightened from 0.6 to 0.7
+
+Nine held-out SCATTER reds under the general best build (3 songs × 3 seeds), rebuilt with
+`--palette 20` on top. **Pre-registered: room ≥ 0.6 clears ≥ 4 of 5, < 0.5 clears 0 of 2.**
+Result: ≥ 0.6 cleared **3 of 5 — the prediction FAILED**; < 0.5 cleared 0 of 2 (held); 0.54-0.57
+cleared 0 of 2. Palette lifted room by +0.26 to +0.47 every time; what decides is the start.
+Pooled with the eval set: **room ≥ 0.7 → 11 of 11**, 0.6-0.7 → 2 of 5, < 0.6 → 0. One new red in 9
+(lead-hand ABSENCE); judge p fell more on held-out (−0.04 to −0.51, median ≈ −0.2).
+⇒`verdict.py`'s SCATTER line now says ≥ 0.7. A rule fitted on one set lost its edge band on another.
