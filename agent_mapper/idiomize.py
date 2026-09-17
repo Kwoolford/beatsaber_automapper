@@ -381,6 +381,11 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
             # one -- an invented cell is exactly what this pass exists to remove.
             n_fallback += 1
             nx, ny, d_to = int(r.get("x", 0)), int(r.get("y", 0)), int(r.get("d", 8))
+            # ★The kept direction came from a pass that never saw this hand's parity, so it can
+            # repeat the last swing's -- a SLIP that the fixer then cascades through the rest of
+            # the hand (2026-09-17i). Mirror it instead; the cell is still the original one.
+            if UNSLIP and _parity_of(d_to) is not None and _parity_of(d_to) == h.parity:
+                d_to = _FLIP.get(d_to, d_to)
 
         out[i] = (nx, ny, d_to)
         if pick is not None:
@@ -411,11 +416,12 @@ def _reparity(notes: list[dict], bpm: float) -> list[dict]:
         from beatsaber_automapper.generation.postprocess import fix_parity
     except Exception:  # noqa: BLE001
         return notes
-    order = sorted(range(len(notes)), key=lambda i: (notes[i].get("b", 0.0),
-                                                     notes[i].get("c", 0)))
-    cn = [ColorNote(beat=float(notes[i].get("b", 0.0)), x=int(notes[i].get("x", 0)),
-                    y=int(notes[i].get("y", 0)), color=int(notes[i].get("c", 0)),
-                    direction=int(notes[i].get("d", 0))) for i in order]
+    src = _unslip(notes) if UNSLIP else notes
+    order = sorted(range(len(src)), key=lambda i: (src[i].get("b", 0.0),
+                                                   src[i].get("c", 0)))
+    cn = [ColorNote(beat=float(src[i].get("b", 0.0)), x=int(src[i].get("x", 0)),
+                    y=int(src[i].get("y", 0)), color=int(src[i].get("c", 0)),
+                    direction=int(src[i].get("d", 0))) for i in order]
     try:
         fixed = fix_parity(DifficultyBeatmap(version="3.0.0", color_notes=cn))
     except Exception:  # noqa: BLE001
@@ -429,6 +435,42 @@ def _reparity(notes: list[dict], bpm: float) -> list[dict]:
         out[slot]["y"] = int(fn.y)
         out[slot]["d"] = int(fn.direction)
     return _revocab(notes, out)
+
+
+# ★★**RESOLVE A PARITY SLIP BY FLIPPING THE SHORTER SIDE** (2026-09-17i). `fix_parity` repairs a
+# same-parity pair by flipping the SECOND note, which breaks the next pair, which it flips too --
+# so ONE slip anywhere in a hand rewrites every direction after it, blind to the vocabulary.
+# Measured on held-out 4a592 with `--hand-run-p 0.06`: **1 violation per hand before the fixer,
+# 312 of 382 directions rewritten after it**, `idiom_coverage` 0.675 → 0.196 and a judge FAIL
+# (without runs: 65 rewrites). A phase slip can only be healed by flipping a whole side of it, so
+# flip whichever side is shorter; `_revocab` then re-picks the flipped notes inside their new parity
+# class. The fixer runs afterwards unchanged and finds nothing left to cascade.
+UNSLIP = True
+_FLIP = {0: 1, 1: 0, 4: 6, 6: 4, 5: 7, 7: 5}
+
+
+def _unslip(notes: list[dict]) -> list[dict]:
+    """Remove same-parity slips per hand by flipping the shorter side of each (fixer's own rule)."""
+    out = [dict(n) for n in notes]
+    for color in {int(n.get("c", 0)) for n in out}:
+        idx = sorted((i for i in range(len(out)) if int(out[i].get("c", 0)) == color),
+                     key=lambda i: float(out[i].get("b", 0.0)))
+        for _ in range(len(idx)):
+            slip = None
+            for k in range(1, len(idx)):
+                a, b = int(out[idx[k - 1]]["d"]), int(out[idx[k]]["d"])
+                if a in (2, 3, 8) or b in (2, 3, 8):
+                    continue
+                if (_parity_of(a) == _parity_of(b)):
+                    slip = k
+                    break
+            if slip is None:
+                break
+            side = idx[:slip] if slip <= len(idx) - slip else idx[slip:]
+            for i in side:
+                d = int(out[i]["d"])
+                out[i]["d"] = _FLIP.get(d, d)
+    return out
 
 
 def _revocab(before: list[dict], after: list[dict]) -> list[dict]:
