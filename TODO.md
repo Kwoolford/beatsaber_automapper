@@ -410,8 +410,8 @@ the raw fit when it is trustworthy. **DoD**: over the 23 songs, applied precisio
 `_songTimeOffset`, the only place export writes it. And the field is **deprecated** in-game (BSMG:
 "unstable behavior", gone in v4); humans bake timing into beats. ❓**Kyle**: does a large-offset map
 (1f9a0 −34 ms, 1fa32 +45 ms) feel off? Options: (a) judge applies the offset — right only if the game
-does; (b) export bakes phase into beats — `offgrid_frac` goes ~1.0 (human p90 0.48), so that guard
-needs re-reading first; (c) shift the audio, judge told the shift. Measure with `exp_phase_sweep.py`.
+does; (b) export bakes phase into beats — PRICED 09-16h: only `offgrid_frac` pays (→1.0, p down on
+11/23); fix = measure off-grid against the map's OWN phase + recalibrate the reference; (c) shift the audio, judge told the shift. Measure with `exp_phase_sweep.py`.
 
 ### P0.6 — hand role: `--lead-bias 0.20` under `cyclic`. Landmine only
 An operating point is not portable across a change in how the knob works.

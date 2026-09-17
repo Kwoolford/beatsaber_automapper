@@ -18258,3 +18258,18 @@ UNVERIFIED — Kyle's ear on a map with a large offset is the cheapest test.
 **Not changed tonight (decide-and-log):** fixing the judge alone is only right if the game applies
 the field; baking the phase into beats moves `offgrid_frac` (human p90 0.483) to ~1.0 on most maps;
 shifting the audio needs the judge told about the shift. See TODO P1.0.
+
+## 2026-09-16h — the price of baking the phase into beats is ONE guard metric
+
+`scripts/exp_bake_phase.py` (option b of 09-16g): each of the 23 builds copied with every
+beat-timed object moved by `offset/spb` and `_songTimeOffset` = 0, both judged with `mapjudge`.
+- `onset_precision` moves to the offset-APPLIED value, as intended — the judge can now see phase.
+- **`offgrid_frac` → 1.000 (98.5th human pct)** on every song whose |shift| > 0.01 beat, which pulls
+  p down on **11 of 23** (e.g. 1f333 0.726 → 0.501, 1f9f0 0.782 → 0.501); songs with ≤ 3 ms offsets
+  are unchanged. No PASS → FAIL from the guard; the one flip (1fb71, offset −1 ms, p 0.156 → 0.083)
+  is not the guard (its offgrid stays 0) — rounding the beats to 4 dp moved the IOI metrics, n=1,
+  unexplained.
+⇒**The guard penalises a practice ~10 % of humans use** (human `offgrid_frac` p90 0.483, 9.9 % > 0.5 —
+plausibly exactly the phase-baked maps). A fair guard measures off-grid **relative to the map's own
+grid phase** (circular mean of beat fractions), not to t=0. That is a judge change and needs the
+human reference recalibrated in the same commit. Not made tonight.
