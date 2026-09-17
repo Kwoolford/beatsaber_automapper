@@ -346,6 +346,9 @@ Moves (never adds) the first note of a late energy rise onto the earliest onset 
   ✅**DoD for any new one**: `idiom_local` no further below humans AT THE RESULTING ECHO (±0.05,
   `exp_vocabulary.stats`) than the control is — palette passes on 1f8d6, fails on 1f333. Never a
   pooled rate (the old "0.23" was endpoint-selected; OLS says 0.47).
+  ✅**Triage tool (09-17c)**: `--palette 20` clears SCATTER on 10 of 17 fired builds (9/9 when room
+  ≥ 0.7, 0/3 below 0.5), no new reds; the verdict page now prints the red's room and the rule.
+  ⬜Deep reds (room < 0.5, e.g. 1f333 at 0.23) still have no tool.
   ⚠️Nothing in the song predicts width (r² 0.039) — it is mapper style, so an unfixable red is a
   live possibility; **never optimise echo directly**.
 - **D3 (1f767 E-drop bar 42; 1f333 lag bar 170, fixed by `answer.py`)** — D3 is *"breathe before

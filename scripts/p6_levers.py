@@ -63,6 +63,10 @@ ARMS: dict[str, list[str]] = {
     # pass since 09-13). Give the map runs of its own and ask whether the taper is then free.
     "runs": ["--hand-run-p", "0.06"],
     "taper_runs": ["--taper", "0.5", "--hand-run-p", "0.06"],
+    # 2026-09-17c: SCATTER is the commonest red left under the new best build (8 songs). Is a
+    # vocabulary lever a usable TRIAGE tool when the page says SCATTER?
+    "tr_memory": ["--taper", "0.5", "--hand-run-p", "0.06", "--map-memory", "4"],
+    "tr_palette": ["--taper", "0.5", "--hand-run-p", "0.06", "--palette", "20"],
 }
 
 # lever -> (what the request says, the column that should move, direction lo→hi)

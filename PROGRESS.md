@@ -18379,3 +18379,23 @@ byte-for-byte — `BEST2` was seed 0) and reads the verdict page. Full table:
   `outputs/best_2026-09-17/` ships **3 of 4** (1f767's D3 cleared; 1f333 keeps BREATHING + SCATTER).
   Defaults unchanged (P6 levers stay default-off). ⚠️The base itself ships 5 / 5 / 8 across seeds —
   a single-seed ship count is noise.
+
+## 2026-09-17c — SCATTER has a triage tool now: `--palette 20` when the red's room is ≥ 0.6
+
+SCATTER is the commonest red left under the new best build (17 of 69 builds, 8 songs). Rebuilding
+those 8 songs × 3 seeds with the best build plus a vocabulary lever (`p6_levers.py` arms
+`tr_palette` / `tr_memory`, 48 builds):
+
+| arm | SCATTER cleared | ships (of 24) | reds added | judge p Δ | `idiom_local` Δ |
+|---|---|---|---|---|---|
+| + `--palette 20` | **10 / 17** | 2 → 8 | **none** | −0.148 | −0.022 |
+| + `--map-memory 4` | 9 / 17 | 2 → 7 | lead-hand ABSENCE ×2 | −0.150 | −0.024 |
+
+★**The clear depends on how far over the line the red is** (palette): starting room ≥ 0.7 →
+**9 / 9** cleared; ≥ 0.6 → 10 / 11; < 0.5 → 0 / 3. ⇒a TRIAGE rule, not a default: typicality pays
+~0.15 of p, which the repo's own rule (a PASS is not-defective; typicality is a floor) says is the
+right trade *for a map that already carries the named defect*.
+**Wired**: `verdict.py`'s SCATTER fix line now names the rule, and every RED line prints its own
+margin (`red_margins`, new; `margins` still means "passed codes only") with the room number, so the
+agent can apply it. 1f333's SCATTER reads room 0.23 → the page points to the tutor route instead.
+Suite 616 passed; `check_margins.py` ✅.
