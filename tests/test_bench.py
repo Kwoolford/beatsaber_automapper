@@ -16,7 +16,7 @@ bench = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(bench)
 
 CODES = {"D1", "D2", "D3", "D4", "D5", "D6", "EMPTY", "FLOW", "ELEMENTS",
-         "HANDROLE", "BREATHING", "ONBEAT_MAIN"}
+         "HANDROLE", "BREATHING", "ONBEAT_MAIN", "SCATTER"}
 
 
 def test_labels_well_formed():

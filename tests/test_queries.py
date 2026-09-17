@@ -62,13 +62,16 @@ def test_events_empty_d6_doubles_and_overdense():
     T = len(a["bar"])
     a["human"] = _map(T, alt8(T))                                   # 8 events / bar
     # ours: doubles on every beat in bars 1-12 (4 events/bar, 100 % doubles), same as human after
-    a["map"] = _map(T, [(s, "D") for s in range(0, 12 * PER, 4)] + alt8(T, 12 * PER))
+    # 2026-09-16: EMPTY is red below 0.30x (was 0.60x), so bars 1-12 play 2 doubles/bar (0.25x);
+    # bars 13-16 match his count but all as doubles, so the map-wide doubles branch of D6 fires
+    a["map"] = _map(T, [(s, "D") for s in range(0, 12 * PER, 8)]
+                    + [(s, "D") for s in range(12 * PER, T, 2)])
     hits = Q.q_events(a)
     codes = [h[0] for h in hits]
     assert "EMPTY" in codes and "D6" in codes and "D1" in codes     # median ratio 0.5: very slow
     e = [h for h in hits if h[0] == "EMPTY"]
     assert e[0][2] == 1 and e[0][4] == 12 and "doubles" in e[0][3]
-    assert "60%" in [h for h in hits if h[0] == "D6"][0][3]
+    assert "100%" in [h for h in hits if h[0] == "D6"][0][3]
     # the other direction: 2x the human's events is D6 too
     b = _arrs(8)
     T = len(b["bar"])

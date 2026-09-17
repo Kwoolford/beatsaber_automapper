@@ -34,7 +34,10 @@ def test_verdict_red_names_bars_and_tool(tmp_path):
     a = _arrs(16)
     T = len(a["bar"])
     a["human"] = _map(T, alt8(T))                                   # 8 events / bar
-    a["map"] = _map(T, [(s, "D") for s in range(0, 12 * PER, 4)] + alt8(T, 12 * PER))
+    # 2026-09-16: EMPTY is red below 0.30x (was 0.60x), so bars 1-12 play 2 doubles/bar (0.25x);
+    # bars 13-16 match his count but all as doubles, so the map-wide doubles branch of D6 fires
+    a["map"] = _map(T, [(s, "D") for s in range(0, 12 * PER, 8)]
+                    + [(s, "D") for s in range(12 * PER, T, 2)])
     v = V.verdict(_npz(tmp_path, a), song="1f8d6", with_bench=False)
     by = {ln["code"]: ln for ln in v["lines"]}
     assert by["EMPTY"]["state"] == "🔴" and by["EMPTY"]["spans"].startswith("1-12")

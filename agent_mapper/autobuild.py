@@ -337,9 +337,9 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
             if doubles:
                 # ★Humans put both hands on ~16 % of note instants; we placed ZERO
                 # until 2026-08-21. `mapctl` had the flag the whole time.
-                cmd += ["--doubles", "--accent-slots", str(accent_slots)]
-                if doubles_rate < 1.0:
-                    cmd += ["--doubles-rate", str(doubles_rate)]
+                # always pass the rate: mapctl's default is no longer 1.0 (P1.3)
+                cmd += ["--doubles", "--accent-slots", str(accent_slots),
+                        "--doubles-rate", str(doubles_rate)]
             if lead_bias > 0:
                 # ⚠️`--seed` used to reach `idiomize` ONLY, so the lead-hand RNG ran at
                 # seed 0 no matter what was asked for. Every "3 seeds" reading of a

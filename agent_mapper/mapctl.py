@@ -1378,13 +1378,17 @@ def main() -> int:
     p.add_argument("--doubles", action="store_true",
                    help="both hands on bar downbeats where stems agree; how a human "
                         "adds density without speeding either hand up")
-    p.add_argument("--doubles-rate", type=float, default=1.0,
+    # ★Defaults match `autobuild` (P1.3, 2026-09-16): a bare `--doubles` used to mean
+    # `0,8` at rate 1.0 while every documented command and `autobuild` meant the eighth-note
+    # set at 0.3 -- the same flag, two behaviours. The documented pair lands double share
+    # 0.141-0.203 on the songset (human p25-p75 0.089-0.212), 0 violations.
+    p.add_argument("--doubles-rate", type=float, default=0.3,
                    help="fraction of eligible accent slots that become doubles; 1.0 = "
                         "all of them. Lets the slot set stay wide (for a human on-beat "
-                        "share) while the RATE lands on the human 0.275")
-    p.add_argument("--accent-slots", default="0,8",
-                   help="slots that count as a strong beat for doubles (0,8 = beats "
-                        "1 and 3). Downbeats alone are too few to reach a human rate.")
+                        "share) while the RATE lands near the human double share")
+    p.add_argument("--accent-slots", default="0,2,4,6,8,10,12,14",
+                   help="slots that count as a strong beat for doubles (default: the "
+                        "eighth notes, as autobuild; 0,8 = beats 1 and 3 only)")
     p.add_argument("--doubles-stems", type=int, default=2,
                    help="how many stems must agree for a downbeat to count as an accent")
     p.add_argument("--min-gap-ms", type=float, default=150.0,

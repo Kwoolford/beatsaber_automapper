@@ -18199,3 +18199,21 @@ near the corrected human 0.47). `--map-memory`'s 0.80-1.00 is still ~2x worse th
 Palette stays off (judge p −0.17 at 4 se is the binding cost, and it clears no red).
 ★**Same shape as the palette's 09-12i finding: a DoD number read from a subset of bins is a
 selection, not a rate — fit all the data or keep the conditional form.**
+
+## 2026-09-16f — ✅ P1.3 DONE: `mapctl auto`'s doubles defaults now equal `autobuild`'s; the suite was red
+
+**DoD met.** The documented `mapctl auto --pulse --lead-bias 0.2 --doubles --doubles-rate 0.3
+--accent-slots <eighths>`, run whole-song on the songset: double share **1f333 0.141 · 1f767 0.197 ·
+1f8d6 0.182 · 1f913 0.203** — all inside human p25-p75 (0.089-0.212) — with **0 violations, 0
+resets**. The trap was a BARE `--doubles`, which meant `0,8` at rate 1.0. `mapctl`'s defaults are now
+the eighth-note set at 0.3 (doubles stay OFF by default, as `WORKFLOW.md` intends: they go where the
+tutor puts them); a bare `--doubles` on 1f913 now gives 0.203, same as the documented command.
+`autobuild` now ALWAYS passes `--doubles-rate` (it used to omit it at 1.0, which would have silently
+become 0.3). `plan_hunger.sh` pins the old `0,8`/1.0. **Control: the best-build autobuild is
+byte-identical** before and after.
+
+🔴**The test suite had been RED since 2026-09-13** — 3 failures, all fixtures behind a shipped change:
+`test_bench` did not know the `SCATTER` code, and two EMPTY fixtures sat at 0.5x, between the old
+0.60x and the new 0.30x line. Fixtures rebuilt (0.25x, all doubles), not the threshold. Now **611
+passed**; `bench.py` not refuted; `check_margins.py` ✅. ★The landmine *"a filtered pytest hides the
+exit code"* in a new form: a threshold change was committed with its own tests failing.

@@ -4,7 +4,7 @@
 #  so a double can never be placed. Sparse accent pass -> doubles land -> fill around.
 set -e
 M="python agent_mapper/mapctl.py"; N=${1:-hunger}
-$M auto $N --bars 1-216   --follow drums --every 4 --lead L --doubles      # the accents
+$M auto $N --bars 1-216   --follow drums --every 4 --lead L --doubles --accent-slots 0,8 --doubles-rate 1.0      # the accents (pinned: pre-P1.3 defaults)
 $M auto $N --bars 1-8     --follow bass   --every 2 --lead L               # intro: sparse
 $M auto $N --bars 9-16    --follow drums  --every 2 --lead R
 $M auto $N --bars 17-32   --follow drums  --every 2 --lead L --wide        # drums heavy

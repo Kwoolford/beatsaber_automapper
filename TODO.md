@@ -397,12 +397,6 @@ monotone and default-off — they ship in a UI (`feedback-levers-are-user-facing
 
 ## 🔵 CARRIED FORWARD — still live, lower than P0–P6
 
-### P1.3 — the two build paths disagree on doubles; the hand path can still ship ~zero
-`autobuild` (doubles ON, 8 accent slots) lands 10–20 %; `mapctl auto` with the documented flags
-reached **0.010** on `24e6c` because the gate is `slot ∈ accent_slots AND ≥ 2 stems agree`.
-**Tasks**: make `mapctl auto`'s defaults equal `autobuild`'s; measure `double_share` across the
-songset. **DoD**: the documented command lands p25–p75 (0.089–0.212), `viol` unchanged.
-
 ### P1.0 — `1f9a0` (93 bpm) fails `onset_precision` 0.474; a finer grid is REFUTED
 Binding constraint is note **selection**, not the grid (`--adaptive-subdiv` hurt 10/10). Untried:
 choose events by distance to a scored onset; pulse lattice prefers onset-carrying phases.
