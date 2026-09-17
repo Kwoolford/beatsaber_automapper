@@ -49,8 +49,9 @@ Notes:
 - Neither vocabulary lever clears 1f333's SCATTER (room 0.23), and both cost local variety. But as a
   **triage** step they work: on the 8 songs × 3 seeds where SCATTER fires under the best build,
   `--palette 20` clears it on **10 of 17** with no new red. **Held-out check** (9 reds, general
-  build): the pre-registered "≥ 0.6 clears ≥ 4 of 5" FAILED (3 of 5). Pooled: room **≥ 0.7 → 11 of 11**,
-  0.6–0.7 → 2 of 5, below 0.6 → 0. `verdict.py` prints the ≥ 0.7 rule on the SCATTER line.
+  build): the pre-registered "≥ 0.6 clears ≥ 4 of 5" FAILED (3 of 5). Pooled over three song sets
+  (2026-09-17n): room **≥ 0.7 → 13 of 14** (≥ 0.8 → 10 of 10), 0.6–0.7 → 2 of 5, below 0.6 → 0 of 10.
+  A stronger palette (8) cleared 1 of 5 deep reds and dropped judge p to 0.14–0.27 — not a tool. `verdict.py` prints the ≥ 0.7 rule on the SCATTER line.
 
 ## 🔴 Levers that do NOT answer their request
 

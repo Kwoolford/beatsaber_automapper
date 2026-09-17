@@ -77,8 +77,8 @@ CODES = [
     ("BREATHING", "playing through the rest he leaves",
      "mapedit.py delete the notes in his rest (the score shows E and an empty KIT there); or mapctl clear --bars a-b"),
     ("SCATTER", "nothing comes back to lock into",
-     "if its margin reads >= 0.7, rebuild with autobuild --palette 20 (eval + held-out: cleared 11 "
-     "of 11 such; 0.6-0.7 cleared 2 of 5; below 0.6 none; judge p -0.15 to -0.2); otherwise "
+     "if its margin reads >= 0.7, rebuild with autobuild --palette 20 (three song sets: cleared 13 "
+     "of 14 such, 10 of 10 at >= 0.8; 0.6-0.7 2 of 5; below 0.6 none; judge p -0.1 to -0.35); otherwise "
      "tutor.py <song> --bars a-b then mapedit.py from — copy the figure the human REPEATS"),
 ]
 # ★BREATHING is ALWAYS_RED: a rest is a PLACE, not a share. The seven bars of 1f333 are 3 % of

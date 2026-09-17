@@ -18541,3 +18541,14 @@ refused (`bass has []`). `classes_in` now offers only listed classes. 20937 buil
 controls: 1f913 byte-identical; 1f333 differs by ONE note — the one `answer.py` moves, now 0.014
 beats (its −4.5 ms offset) from before, the game-clock fix of 09-17l. Songset best maps rebuilt on
 the current code (`outputs/best_2026-09-17/`), pages unchanged.
+
+## 2026-09-17n — SCATTER triage, third song set (pre-registered)
+
+Held-out 2, eight SCATTER reds under the general build. **Pre-registered**: room ≥ 0.7 → palette 20
+clears 3 / 3; deep reds (< 0.6) → 0 / 5.
+Result: ≥ 0.7 cleared **2 / 3** (3da3a 0.74 → 0.92, still red) — the prediction missed by one; deep
+0 / 5 as predicted. Pooled over three sets: **≥ 0.7 → 13 / 14, ≥ 0.8 → 10 / 10**, 0.6-0.7 → 2 / 5,
+< 0.6 → 0 / 10. No new reds in 8; judge p −0.08 to −0.36.
+Exploratory `--palette 8` on the five deep reds: 1 / 5 cleared (0.59 → 1.39), judge p down to
+0.14-0.27 on all five — near the 0.10 FAIL line. **Not a tool.** Deep SCATTER (< 0.6, 10 cases so far)
+still has none.
