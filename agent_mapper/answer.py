@@ -54,14 +54,21 @@ MIN_GAP_SEC = 0.150  # the per-hand floor, non-negotiable
 BEATS_PER_BAR = 4
 
 
-def _energy_per_bar(sid: str, bpm: float, nb: int):
-    """Mean RMS per bar from `score.py`'s cache, or None when the song has not been scored."""
+def _energy_per_bar(sid: str, bpm: float, nb: int, audio: pathlib.Path | None = None,
+                    offset: float = 0.0):
+    """Mean RMS per bar (`score.py`'s energy), on the GAME clock (offset + beat·spb).
+
+    🔴**Until 2026-09-17l this read the cache only** (`_energy(sid, None)`), and in the build chain
+    `answer.py` runs BEFORE `verdict.py`, which is what writes that cache — so on every song that had
+    never been scored it printed "nothing to answer" and did nothing (all 36 held-out builds). The
+    zip carries the song, so the energy is computed from it when the cache is missing.
+    """
     from agent_mapper import score as S
-    t, rms = S._energy(sid, None)
+    t, rms = S._energy(sid, audio)
     if t is None:
         return None
     spb = 60.0 / bpm
-    edges = np.arange(nb + 1) * BEATS_PER_BAR * spb
+    edges = offset + np.arange(nb + 1) * BEATS_PER_BAR * spb
     idx = np.searchsorted(t, edges)
     return np.array([rms[idx[i]:max(idx[i + 1], idx[i] + 1)].mean() if idx[i] < len(rms) else 0.0
                      for i in range(nb)])
@@ -77,14 +84,15 @@ def _onsets(sid: str) -> np.ndarray | None:
         return None
 
 
-def answer(notes: list[dict], bpm: float, sid: str, report: bool = False) -> tuple[list[dict], int]:
+def answer(notes: list[dict], bpm: float, sid: str, report: bool = False,
+           audio: pathlib.Path | None = None, offset: float = 0.0) -> tuple[list[dict], int]:
     """Move the first note of each late-answered energy rise onto the rise. Returns (notes, moved)."""
     if not notes:
         return notes, 0
     spb = 60.0 / bpm
     beats = [float(n.get("b", 0.0)) for n in notes]
     nb = int(max(beats) // BEATS_PER_BAR) + 1
-    em = _energy_per_bar(sid, bpm, nb)
+    em = _energy_per_bar(sid, bpm, nb, audio, offset)
     if em is None:
         if report:
             print(f"  no energy for {sid} — nothing to answer (run score.py on it first)")
@@ -106,7 +114,8 @@ def answer(notes: list[dict], bpm: float, sid: str, report: bool = False) -> tup
         # where the song actually offers an attack
         target = float(lo)
         if ons is not None:
-            cand = [float(o) / spb for o in ons if lo * spb <= float(o) < (lo + LATE_BEATS) * spb]
+            cand = [(float(o) - offset) / spb for o in ons
+                    if lo * spb <= float(o) - offset < (lo + LATE_BEATS) * spb]
             if cand:
                 target = min(cand)
         # the per-hand floor decides whether the move is legal
@@ -151,7 +160,9 @@ def main() -> int:
             bpm = float((meta.get("audio") or {}).get("bpm") or 0.0)
         d = json.loads((tmp / dat).read_text(encoding="utf-8-sig"))
         notes = d.get("colorNotes") or []
-        new, moved = answer(notes, bpm, a.song, report=a.report)
+        offset = float(meta.get("_songTimeOffset") or 0.0)
+        aud = next((tmp / n for n in names if n.lower().endswith((".egg", ".ogg"))), None)
+        new, moved = answer(notes, bpm, a.song, report=a.report, audio=aud, offset=offset)
         assert len(new) == len(notes)
         for o, q in zip(notes, new):
             assert o.get("c") == q.get("c") and o.get("d") == q.get("d")

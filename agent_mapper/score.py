@@ -200,12 +200,39 @@ def resolve_song(spec: str | None, map_path: pathlib.Path) -> tuple[str, pathlib
     else:
         sid = map_path.stem.split("__")[-1].split("_")[0]
         how = f"GUESSED from the map filename '{map_path.name}' — pass --song to be sure"
-    for d in (REPO / "data" / "eval_songset", REPO / "data" / "test_songs"):
+    for d in (REPO / "data" / "eval_songset", REPO / "data" / "test_songs", REPO / "data" / "heldout"):
         for ext in (".ogg", ".egg", ".mp3", ".wav"):
             c = d / f"{sid}{ext}"
             if c.exists():
                 return sid, c, how
+    # 🔴2026-09-17l: without audio, E silently falls back to EVENT LOUDNESS — a different curve with
+    # different jumps — so D3 / BREATHING read differently on any song outside the folders above
+    # (every held-out verdict did, until this). The map zip carries the song: use it.
+    got = _audio_from_zip(map_path, sid)
+    if got is not None:
+        return sid, got, how + " (audio taken from the map zip)"
     return sid, None, how + " (no audio found — E from events, no onset recompute)"
+
+
+def _audio_from_zip(map_path: pathlib.Path, sid: str) -> pathlib.Path | None:
+    """Extract the song file from a map zip into the score cache (once per song id)."""
+    import zipfile
+    dst_dir = OUT / "score_cache" / "audio"
+    for ext in (".ogg", ".egg"):
+        c = dst_dir / f"{sid}{ext}"
+        if c.exists():
+            return c
+    try:
+        with zipfile.ZipFile(map_path) as zf:
+            name = next((n for n in zf.namelist() if n.lower().endswith((".egg", ".ogg"))), None)
+            if name is None:
+                return None
+            dst_dir.mkdir(parents=True, exist_ok=True)
+            out = dst_dir / f"{sid}.ogg"
+            out.write_bytes(zf.read(name))
+            return out
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _load_json(p: pathlib.Path) -> dict | None:
