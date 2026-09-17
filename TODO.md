@@ -107,7 +107,11 @@ staged compete zips untouched: `1f913` **SHIP** · `1f8d6` **SHIP** · `1f767` *
 clears its D3) · `1f333` **2 red** (BREATHING · SCATTER). **3 of 4 ship.** The two new flags were
 measured on all 23 eval songs at 3 seeds: ships **18 → 29** of 69, reds **78 → 55**, judge FAILs
 9 → 6, taper+runs ships at least as often as base on **every** song (PROGRESS 2026-09-17b).
-⚠️Ship counts are seed-noisy (base 5 / 5 / 8 of 23 across seeds) — never read one seed. ⚠️Four of 09-13's clearances were THRESHOLD changes made because the code fired on humans;
+⚠️Ship counts are seed-noisy (base 5 / 5 / 8 of 23 across seeds) — never read one seed.
+🔴**HELD-OUT CAVEAT (2026-09-17h)**: on 12 corpus songs the flags were never tuned on, the pair ships
+**6 → 7 of 36** (reds 60 → 55): the hand runs generalise (lead-hand ABSENCE 12 → 2) but the taper does
+NOT — D3 15 → 18, JUDGE 9 → 12. The 23-song gain is partly selection (the taper was developed on those
+songs). ⏱Single-lever held-out arms are running; the recommendation may narrow to `--hand-run-p` alone. ⚠️Four of 09-13's clearances were THRESHOLD changes made because the code fired on humans;
 only `answer.py` changed a map.
 **Both 1f333 reds are real and, as of 2026-09-16, neither has a builder fix with evidence behind it**
 (see *What is left*): BREATHING is a mapper's choice the song does not announce, SCATTER is

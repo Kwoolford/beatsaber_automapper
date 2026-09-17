@@ -31,6 +31,7 @@ AM = REPO / "agent_mapper"
 OUT = REPO / "outputs" / "p6_levers_2026-09-17"
 SONGS = ("1f333", "1f767", "1f8d6", "1f913")
 BASE = ["--pulse", "--lead-bias", "0.2", "--lead-in", "--drop-orphan", "--carrier-bias", "2.0"]
+AUDIO_DIR = REPO / "data" / "eval_songset"
 SEED = "0"   # BEST2 (outputs/best_2026-09-13b) is seed 0 — verified byte-identical 2026-09-17
 
 # arm name -> extra flags. Pairs named <lever>_lo / <lever>_hi are read as a lever.
@@ -115,7 +116,7 @@ def build(sid: str, arm: str) -> pathlib.Path | None:
     OUT.mkdir(parents=True, exist_ok=True)
     tmp = OUT / f"{arm}__{sid}.tmp.zip"
     cmds = [
-        [sys.executable, str(AM / "autobuild.py"), str(REPO / "data" / "eval_songset" / f"{sid}.ogg"),
+        [sys.executable, str(AM / "autobuild.py"), str(AUDIO_DIR / f"{sid}.ogg"),
          *merged_flags(ARMS[arm]), "--seed", SEED, "--name", f"p6 {arm} {sid}", "--out", str(tmp)],
         [sys.executable, str(AM / "repeat.py"), str(tmp), "--out", str(tmp), "--song", sid],
         [sys.executable, str(AM / "answer.py"), str(tmp), "--out", str(tmp), "--song", sid],
@@ -262,13 +263,15 @@ def report() -> int:
 
 
 def main() -> int:
-    global OUT, SONGS, SEED
+    global OUT, SONGS, SEED, AUDIO_DIR
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--arms", nargs="*", default=None)
     ap.add_argument("--songs", nargs="*", default=None, help="default: the four songset maps")
     ap.add_argument("--out", type=pathlib.Path, default=None, help="default: " + str(OUT))
     ap.add_argument("--seed", default=None, help="default: " + SEED)
+    ap.add_argument("--audio-dir", type=pathlib.Path, default=None,
+                    help="where <sid>.ogg lives (default data/eval_songset; held-out: data/heldout)")
     a = ap.parse_args()
     if a.out:
         OUT = a.out
@@ -276,6 +279,8 @@ def main() -> int:
         SONGS = tuple(a.songs)
     if a.seed is not None:
         SEED = str(a.seed)
+    if a.audio_dir is not None:
+        AUDIO_DIR = a.audio_dir
     if a.report:
         return report()
     for arm in (a.arms or ARMS):

@@ -74,7 +74,10 @@ Over the 69 builds: removed lead-hand ABSENCE ×16, SCATTER ×3, D1 ×3, JUDGE �
 SCATTER ×3, lead-hand ABSENCE ×2. `idiom_coverage` Δ median +0.001 (p10 −0.089 — the tail cost
 `--hand-run-p` was known for). Per song, taper+runs ships at least as often as base on **all 23**;
 the single-seed losses (1f65d, 1f8a3, 1fb44) are seed noise.
-⇒**The pair joins the recommended best build** (TODO START HERE). It stays OFF in `autobuild`'s
+🔴**Held-out check (12 corpus songs never used to tune anything, 3 seeds)**: ships **6 → 7 of 36**,
+reds 60 → 55 — lead-hand ABSENCE 12 → 2 (the runs generalise) but **D3 15 → 18 and JUDGE 9 → 12**
+(the taper does not). The 23-song gain is partly selection. Single-lever split pending.
+⇒**The pair joins the recommended best build** (TODO START HERE) — provisionally. It stays OFF in `autobuild`'s
 defaults, like every P6 lever: the best build is a documented flag set, not a default.
 
 ## Presets (`autobuild --style NAME`, `agent_mapper/style.py`)
