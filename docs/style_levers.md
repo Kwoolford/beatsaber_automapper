@@ -2,7 +2,7 @@
 
 **P6.** One row per request a player might make, with the build lever that answers it, the range
 that stays clean, and the column that shows it moved. Every row was measured on the **real
-best-build chain** (`autobuild --pulse --lead-bias 0.2 --lead-in --drop-orphan --carrier-bias 2.0`
+best-build chain as of 2026-09-13** (`autobuild --pulse --lead-bias 0.2 --lead-in --drop-orphan --carrier-bias 2.0`
 → `repeat.py` → `answer.py`, seed 0 — the base arm reproduces `outputs/best_2026-09-13b/`
 byte-for-byte) on the four songset maps, and the page cost is read off `verdict.py` against that
 base. Script: `scripts/p6_levers.py` (`--report` reprints the numbers). Data:
@@ -50,7 +50,30 @@ Removed: D3 (1f767), D1 + SCATTER (1f3d7), SCATTER (1fbda), JUDGE (1fb71), lead-
 had one passage or none to spare — the taper thins the run that was holding the row green.
 On the songset, adding `--hand-run-p 0.06` (held one-hand runs, inside the human band) keeps
 1f8d6 shipping: **taper + runs ships 3/4 with no new red** (base 2/4). The 23-song check of that
-pair is below.
+pair:
+
+| arm (23 songs, seed 0) | ships | reds removed / added | median judge p Δ | `idiom_coverage` Δ |
+|---|---|---|---|---|
+| base | 5 | — | — | — |
+| `--taper 0.5` | 7 | −7 / +3 (all lead-hand ABSENCE) | +0.000 | −0.011 |
+| `--hand-run-p 0.06` | 8 | −8 / +1 (SCATTER on 1fa50) | +0.059 | +0.001 |
+| **`--taper 0.5 --hand-run-p 0.06`** | **11** | **−10 / +2** (SCATTER on 1f335, 1fa50) | **+0.115** | −0.004 |
+
+No shipping map is lost by any arm at seed 0.
+✅**REPLICATED at seeds 1 and 2** — base vs taper+runs, 23 songs each:
+
+| seed | ships | total reds | median judge p Δ |
+|---|---|---|---|
+| 0 | 5 → 11 | 27 → 19 | +0.115 |
+| 1 | 5 → 9 | 26 → 18 | +0.064 |
+| 2 | 8 → 9 | 25 → 18 | +0.068 |
+
+Over the 69 builds: removed lead-hand ABSENCE ×16, SCATTER ×3, D1 ×3, JUDGE ×3, D3 ×3; added
+SCATTER ×3, lead-hand ABSENCE ×2. `idiom_coverage` Δ median +0.001 (p10 −0.089 — the tail cost
+`--hand-run-p` was known for). Per song, taper+runs ships at least as often as base on **all 23**;
+the single-seed losses (1f65d, 1f8a3, 1fb44) are seed noise.
+⇒**The pair joins the recommended best build** (TODO START HERE). It stays OFF in `autobuild`'s
+defaults, like every P6 lever: the best build is a documented flag set, not a default.
 
 ## Presets (`autobuild --style NAME`, `agent_mapper/style.py`)
 

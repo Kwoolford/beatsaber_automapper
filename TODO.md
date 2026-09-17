@@ -38,8 +38,9 @@ rich score (VOX pitch + lyric, LEAD, BASS, KIT, sections) exists only as HTML dr
 (`outputs/{event,percussion,melody,lyrics,structure,chords,onset}_cache/`). The missing thing is
 **one join: song and map on ONE time lattice, as text and as arrays.**
 
-**Build (best known, 2 of 4 ship):** `autobuild <audio> --pulse --lead-bias 0.2 --lead-in
---drop-orphan --carrier-bias 2.0` then `repeat.py <zip> --out <zip> --song <id>`.
+**Build (best known, 2026-09-17 — 3 of 4 songset maps ship; 23 eval songs 18 → 29 ships over 3 seeds):**
+`autobuild <audio> --pulse --lead-bias 0.2 --lead-in --drop-orphan --carrier-bias 2.0 --taper 0.5
+--hand-run-p 0.06` then `repeat.py <zip> --out <zip> --song <id>` then `answer.py` (same args).
 **Build (shipped defaults):** `python agent_mapper/autobuild.py <audio> --pulse --lead-bias 0.2` ([FULL] walls/arcs/
 chains and phase-calibrate are the defaults since P0; `--notes-only`, `--no-phase-calibrate`), then
 `agent_mapper/repeat.py <zip> --out <zip> --song <id>` (2026-09-12, not yet wired in) — or the
@@ -100,11 +101,13 @@ builder and Kyle's ear.
    `humanplus-*` / `humanexp-*`, the human-vs-human panel, and one zip's two difficulties.
 3. **Four rows can refute a norm, never establish one** — take mechanism claims to ≥ 100 maps.
 
-**Songset** — best build `outputs/best_2026-09-13b/` (`autobuild --pulse --lead-bias 0.2 --lead-in
---drop-orphan --carrier-bias 2.0` → `repeat.py` → `answer.py`), staged compete zips untouched:
-`1f913` **SHIP? YES — nothing located** · `1f8d6` **SHIP? YES** · `1f767` **1 red** (D3 E-drop) ·
-`1f333` **2 red** (BREATHING · SCATTER). **2 of 4 ship**, and every shipping map has a code with no
-margin. ⚠️Four of 09-13's clearances were THRESHOLD changes made because the code fired on humans;
+**Songset** — best build `outputs/best_2026-09-17/` (`autobuild --pulse --lead-bias 0.2 --lead-in
+--drop-orphan --carrier-bias 2.0 --taper 0.5 --hand-run-p 0.06` → `repeat.py` → `answer.py`, seed 0),
+staged compete zips untouched: `1f913` **SHIP** · `1f8d6` **SHIP** · `1f767` **SHIP** (the taper
+clears its D3) · `1f333` **2 red** (BREATHING · SCATTER). **3 of 4 ship.** The two new flags were
+measured on all 23 eval songs at 3 seeds: ships **18 → 29** of 69, reds **78 → 55**, judge FAILs
+9 → 6, taper+runs ships at least as often as base on **every** song (PROGRESS 2026-09-17b).
+⚠️Ship counts are seed-noisy (base 5 / 5 / 8 of 23 across seeds) — never read one seed. ⚠️Four of 09-13's clearances were THRESHOLD changes made because the code fired on humans;
 only `answer.py` changed a map.
 **Both 1f333 reds are real and, as of 2026-09-16, neither has a builder fix with evidence behind it**
 (see *What is left*): BREATHING is a mapper's choice the song does not announce, SCATTER is

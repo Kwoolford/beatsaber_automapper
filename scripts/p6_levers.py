@@ -249,17 +249,20 @@ def report() -> int:
 
 
 def main() -> int:
-    global OUT, SONGS
+    global OUT, SONGS, SEED
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--report", action="store_true")
     ap.add_argument("--arms", nargs="*", default=None)
     ap.add_argument("--songs", nargs="*", default=None, help="default: the four songset maps")
     ap.add_argument("--out", type=pathlib.Path, default=None, help="default: " + str(OUT))
+    ap.add_argument("--seed", default=None, help="default: " + SEED)
     a = ap.parse_args()
     if a.out:
         OUT = a.out
     if a.songs:
         SONGS = tuple(a.songs)
+    if a.seed is not None:
+        SEED = str(a.seed)
     if a.report:
         return report()
     for arm in (a.arms or ARMS):

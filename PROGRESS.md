@@ -18348,3 +18348,34 @@ With the judge now on the game clock (09-16j), 1f9a0 was re-read end to end.
   independent signal that separates true from false fires (≥ 3 true positives, 0 false on the eval
   set), or Kyle's ear preferring 1f9a0 at −85 ms.
 Tests: `tests/test_phase_outlier.py` (fires / agrees / never trusts a half-slot lock).
+
+## 2026-09-17b — ✅ P6 measured, and `--taper 0.5 --hand-run-p 0.06` joins the best build (3 seeds × 23 songs)
+
+`scripts/p6_levers.py` builds every style preset and request lever on the REAL best-build chain
+(`autobuild … → repeat.py → answer.py`, seed 0; the base arm reproduces `outputs/best_2026-09-13b/`
+byte-for-byte — `BEST2` was seed 0) and reads the verdict page. Full table:
+`docs/style_levers.md`.
+- **Levers that move their column on 4/4 songset maps**: `--doubles-rate`, `--lead-bias`, `--walls`,
+  `--width`, `--nps` (D6 at 5.0 ⇒ ≤ ~4.5), `--palette`, `--map-memory`.
+- 🔴**`--carrier-bias` does not answer "follow the vocals"** (D4 unchanged or worse at 4.0).
+- 🔴**Presets are not UI-ready**: 35-65 % of targets hit, every preset adds a red on some song, and
+  calm < dense on `ebpm_burst` holds 0/4. P6's DoD (three presets clean) is NOT met.
+- 🔴**A measurement bug caught mid-analysis**: the first "page cost" read only query codes, so a map
+  whose single red was an ABSENCE row read "no cost". `p6_levers.all_reds` now reads every row the
+  SHIP line counts, and its count equals `reds` on all 96 pages.
+- **The taper's one cost is the lead-hand ABSENCE row** (23 songs: ships 5 → 7, reds −7/+3, all three
+  added reds that row on maps holding it green with one passage). `--hand-run-p 0.06` supplies the
+  runs, and the pair:
+
+| seed | ships (of 23) | total reds | median judge p Δ |
+|---|---|---|---|
+| 0 | 5 → 11 | 27 → 19 | +0.115 |
+| 1 | 5 → 9 | 26 → 18 | +0.064 |
+| 2 | 8 → 9 | 25 → 18 | +0.068 |
+
+  CONFIRMED at 3 seeds: 18 → 29 ships of 69, reds 78 → 55 (−34 / +5), judge FAILs 9 → 6,
+  `idiom_coverage` Δ median +0.001 (p10 −0.089), and per song the pair ships at least as often as
+  base on all 23. ⇒**Recommended best build** is now `… --taper 0.5 --hand-run-p 0.06`; songset
+  `outputs/best_2026-09-17/` ships **3 of 4** (1f767's D3 cleared; 1f333 keeps BREATHING + SCATTER).
+  Defaults unchanged (P6 levers stay default-off). ⚠️The base itself ships 5 / 5 / 8 across seeds —
+  a single-seed ship count is noise.
