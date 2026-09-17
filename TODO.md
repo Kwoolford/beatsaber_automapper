@@ -407,12 +407,8 @@ is NOT SUPPORTED (09-16i: raw vs calibrated is 9 wins / 11 losses, uncorrelated 
 the next candidate needs a signal that is not the grid-fit strength. **DoD**: over the 23 songs, applied precision ≥ calibrated on
 ≥ 21 and 1f9a0 ≥ 0.65, the best-shift residual within ±20 ms of the human's on every song.
 ⬜Then selection: even at its right phase 1f9a0 is 0.654 against a 0.822 floor.
-🔴**BLOCKER FOR ANY PHASE WORK — the judge cannot see phase**: `mapjudge`/`scorecard` ignore
-`_songTimeOffset`, the only place export writes it. And the field is **deprecated** in-game (BSMG:
-"unstable behavior", gone in v4); humans bake timing into beats. ❓**Kyle**: does a large-offset map
-(1f9a0 −34 ms, 1fa32 +45 ms) feel off? Options: (a) judge applies the offset — right only if the game
-does; (b) export bakes phase into beats — PRICED 09-16h: only `offgrid_frac` pays (→1.0, p down on
-11/23); fix = measure off-grid against the map's OWN phase + recalibrate the reference; (c) shift the audio, judge told the shift. Measure with `exp_phase_sweep.py`.
+✅**The judge now sees phase** (09-16j): the game applies `_songTimeOffset` (IL-traced, 1.45.0 and
+modded 1.40.8), and `mapjudge`/`scorecard` now do too. No bake needed.
 
 ### P0.6 — hand role: `--lead-bias 0.20` under `cyclic`. Landmine only
 An operating point is not portable across a change in how the knob works.

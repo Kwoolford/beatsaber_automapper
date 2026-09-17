@@ -106,7 +106,29 @@ def note_times(beatmap, bpm: float) -> list[float]:
     if bpm <= 0:
         return []
     spb = 60.0 / bpm
-    return sorted({round(n.beat * spb, 4) for n in beatmap.color_notes})
+    # ★The game's clock is `songTimeOffset + beat * spb` (2026-09-16g/j: traced in the IL of Beat
+    # Saber 1.45.0 and the modded 1.40.8 -- CustomLevelLoader reads `_songTimeOffset` from a v2
+    # info.dat and AudioTimeSyncController subtracts it from the audio time). Export writes the
+    # fitted grid phase ONLY there, so ignoring it scored every agent map at phase 0. All 5 373
+    # corpus human maps carry 0, so the human reference is unchanged by this.
+    off = float(getattr(beatmap, "song_time_offset", 0.0) or 0.0)
+    return sorted({round(off + n.beat * spb, 4) for n in beatmap.color_notes})
+
+
+def zip_song_time_offset(path) -> float:
+    """`_songTimeOffset` from a map zip's info.dat (0.0 when absent or unreadable)."""
+    import json
+    import zipfile
+    try:
+        with zipfile.ZipFile(path) as zf:
+            nm = next((n for n in zf.namelist()
+                       if pathlib.PurePosixPath(n).name.lower() == "info.dat"), None)
+            if nm is None:
+                return 0.0
+            meta = json.loads(zf.read(nm).decode("utf-8-sig", "ignore"))
+        return float(meta.get("_songTimeOffset") or 0.0)
+    except Exception:  # noqa: BLE001
+        return 0.0
 
 
 def match_offsets(times: list[float], onsets: np.ndarray,

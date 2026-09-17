@@ -18287,3 +18287,35 @@ human reference recalibrated in the same commit. Not made tonight.
 - Against the human's own best shift, calibrated sits closer (median |residual| 10 ms, ≤ 20 ms on
   16) than raw (20 ms, 14). ⇒**Keep the calibration.** 1f9a0 stays an unexplained single-song phase
   failure; its human's best shift is 0 where the cohort's is −30 ms, so the song itself is unusual.
+
+## 2026-09-16j — ✅ THE GAME APPLIES `_songTimeOffset` (traced in its IL); the judge now does too
+
+Kyle cannot play for ~14 h and asked for results I can be confident in without his ear, so the
+offset question of 09-16g was settled from the game's own code instead.
+**Static IL trace** (`dnfile` + `dncil`, scratch venv) of Beat Saber **1.45.0** (Steam) and the
+modded **1.40.8** BSManager instance he plays:
+- `StandardLevelInfoSaveData.DeserializeFromJSONString` reads `_songTimeOffset` from a v2 info.dat
+  (ours is 2.1.0) → `CustomLevelLoader.LoadBeatmapLevelAsync` → `CreateBeatmapLevelFromV3` →
+  `BeatmapLevel.songTimeOffset`.
+- Single player: `GameplayCoreInstaller.InstallBindings` passes `BeatmapLevel::songTimeOffset` into
+  `AudioTimeSyncController.InitData`; `AudioTimeSyncController.Update` sets
+  `songTime = audioTime − (songTimeOffset + audioLatency)` ⇒ **a note sounds at
+  `offset + beat·spb`** — exactly export's convention (`mapctl export`) and `score.py`'s.
+- Mods: **SongCore never references it; CustomJSONData parses `"_songTimeOffset"` and passes it
+  to the base constructor unchanged**; ScoreSaber's replay controller uses it.
+⇒BSMG's "deprecated / unstable" does not describe these builds for v2 info. **Export is right
+in-game; `mapjudge` was the one wrong.** CONFIRMED (static reading, not a play test).
+
+**Fix**: `alignment.note_times` now reads an optional `song_time_offset` from the beatmap;
+`mapjudge.judge_zip` / `map_record` and `scorecard._load_any` set it from the zip
+(`alignment.zip_song_time_offset`). **All 5 373 corpus human maps carry offset 0**, so the human
+reference and the P0.2 floor are untouched — verified: 3 human maps give identical p / precision /
+scatter before and after. Ours now read the applied precision (1f9a0 0.480 → 0.556, 1f913 0.926 →
+0.940, 1fa32 0.897 → 0.881), and ★**`offset_mad_ms` falls on all four checked (20 → 19, 13.7 → 10.3,
+9.3 → 8.6, 10.8 → 9.4)** — the game-clock times are more consistent against the onsets, independent
+evidence the correction is right. Suite 613 passed (new `test_alignment_offset.py`), bench not
+refuted, margins ✅. ⚠️1f333's p moves 0.726 → 0.692 because its scatter moved further into the
+tight tail — typicality, not a defect.
+⇒Option (b) (bake phase into beats) is **not needed**; the `offgrid_frac` guard question of 09-16h
+is moot. Every historical `mapjudge` alignment number for an agent map was read at phase 0, but the
+offsets are ≤ 20 ms on 21/23 songs, so conclusions built on them stand; 1f9a0/1fa32 were the exposed ones.

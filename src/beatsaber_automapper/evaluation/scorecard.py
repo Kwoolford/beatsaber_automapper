@@ -274,9 +274,12 @@ def _load_any(path: pathlib.Path):
     notes = [ColorNote(beat=b, x=int(x), y=int(y), color=int(c), direction=int(d))
              for (b, x, y, c, d) in recs]
 
+    from beatsaber_automapper.evaluation.alignment import zip_song_time_offset
+
     class _BM:
         color_notes = notes
         bomb_notes: list = []
+        song_time_offset = zip_song_time_offset(path)   # the game applies it (alignment.note_times)
 
     return _BM(), float(_zip_bpm(str(path)) or 120.0), onsets_for(path)
 

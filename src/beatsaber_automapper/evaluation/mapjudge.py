@@ -170,12 +170,14 @@ def active_metrics(exclude_axes: set[str] | None = None) -> list[tuple[str, str,
 class _BM:
     """Minimal DifficultyBeatmap shim (same one audit_eval_suite.py uses)."""
 
-    def __init__(self, notes):
+    def __init__(self, notes, song_time_offset: float = 0.0):
         self.color_notes = sorted(notes, key=lambda n: n.beat)
         self.bomb_notes = []
+        self.song_time_offset = song_time_offset
 
 
-def map_record(notes, bpm: float, onsets=None) -> dict[str, float]:
+def map_record(notes, bpm: float, onsets=None,
+               song_time_offset: float = 0.0) -> dict[str, float]:
     """Every candidate metric for one map, plus the parity hard gate.
 
     Missing metrics are simply absent from the dict -- never filled with a
@@ -186,7 +188,7 @@ def map_record(notes, bpm: float, onsets=None) -> dict[str, float]:
         alignment, flow, handrole, idiom, playfeel, rhythm, swing_sim,
     )
 
-    bm = _BM(notes)
+    bm = _BM(notes, song_time_offset)
     rec: dict[str, float] = {}
 
     for fn, kwargs in (
@@ -537,6 +539,12 @@ def report(res: JudgeResult, *, alpha: float = 0.10, top: int = 8) -> str:
 # --------------------------------------------------------------------------
 # CLI
 # --------------------------------------------------------------------------
+def alignment_offset(path) -> float:
+    """The zip's `_songTimeOffset` -- the game applies it (see `alignment.note_times`)."""
+    from beatsaber_automapper.evaluation.alignment import zip_song_time_offset
+    return zip_song_time_offset(path)
+
+
 def judge_zip(path, *, difficulty: str = "Expert", onsets=None,
               reference: dict | None = None, alpha: float = 0.10,
               nps_request: float | None = None) -> JudgeResult:
@@ -564,7 +572,8 @@ def judge_zip(path, *, difficulty: str = "Expert", onsets=None,
     if not notes:
         raise RuntimeError(f"no notes found in {path}")
 
-    rec = map_record(notes, bpm, onsets=onsets)
+    rec = map_record(notes, bpm, onsets=onsets,
+                     song_time_offset=alignment_offset(path))
     return judge(rec, reference or load_reference(), label=path.stem,
                  nps_request=nps_request)
 
