@@ -116,7 +116,11 @@ vocabulary width, which is mapper style.
 ❓**THE DECISIONS THAT ARE KYLE'S** (the pairs are staged either way; nothing blocks on them):
 1. **P5 — play ONE pair** (`compete.py verdict <sid> X|Y|tie --because …`). It is the only thing
    that moves the headline, and the only test of whether BREATHING/SCATTER matter to the ear.
-2. Stage red maps (tests the codes) or rebuild first (tests the builder)?
+2. Stage red maps (tests the codes) or rebuild first (tests the builder)? ★**Rebuild is now ready**
+   (2026-09-17): `compete.py`'s `BEST` resolves 1f767 / 1f8d6 / 1f913 to the SHIPPING
+   `best_2026-09-17` maps (1f333 keeps its 1-red p4b_loop map). The command that would restage —
+   `compete.py stage --songset --restage --drop-prediction` — erases the pre-registered predictions,
+   so it was NOT run.
 3. The FLOW fix is a trade (`1f335` staged as its own A/B); `--taper` and `--palette` are style
    levers waiting on his ear.
 🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.

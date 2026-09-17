@@ -67,7 +67,12 @@ NAMES = {"1f333": "Hunger", "1f8d6": "Fallen Kingdom",
 # 1f333 silently swapped the map that went through the loop (and carries the BREATHING fix)
 # for the coarse build — 1 red became 5 and the tutor line 31/49 became 15/49. Any new output
 # directory holding a looped map belongs at the FRONT of this list the day it is created.
+# ★ORDER = best page first, per song (2026-09-17). `best_2026-09-17` (the taper + hand-run build)
+# ships 1f767, 1f8d6 and 1f913 but reads 2 red on 1f333, where the curated p4b_loop map reads 1 —
+# so it goes SECOND, which is exactly where the only p4b_loop song is 1f333. Re-check with
+# verdict.py before reordering: a new dir at the front silently downgraded 1f333 once.
 BEST = ["outputs/p4b_loop/LOOP__{sid}.zip",
+        "outputs/best_2026-09-17/BEST3__{sid}.zip",
         "outputs/p4_loop/LOOP__{sid}.zip",
         "outputs/p4/NOPULSE__{sid}.zip",
         "outputs/p0_songset_2026-09-02/NEW__{sid}.zip"]
