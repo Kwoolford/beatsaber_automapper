@@ -77,7 +77,16 @@ the single-seed losses (1f65d, 1f8a3, 1fb44) are seed noise.
 🔴**Held-out check (12 corpus songs never used to tune anything, 3 seeds)**: ships **6 → 7 of 36**,
 reds 60 → 55 — lead-hand ABSENCE 12 → 2 (the runs generalise) but **D3 15 → 18 and JUDGE 9 → 12**
 (the taper does not). The 23-song gain is partly selection. Single-lever split pending.
-⇒**The pair joins the recommended best build** (TODO START HERE) — provisionally. It stays OFF in `autobuild`'s
+✅**Resolved after the parity-slip fix (2026-09-17i, 3 seeds each)**:
+
+| arm vs fixed base | eval (69) ships | held-out (36) ships | held-out reds added |
+|---|---|---|---|
+| `--hand-run-p 0.06` | 20 → 23 | 11 → **14** | **none** |
+| `--taper 0.5 --hand-run-p 0.06` | 20 → **28** | 11 → 11 | D3 ×3 |
+
+⇒**`--hand-run-p 0.06` joins the general best build** (it generalises); **`--taper` stays a style
+lever** — its eval gain is specific to the songs it was developed on. The songset best build keeps
+it because it clears 1f767's D3. It stays OFF in `autobuild`'s
 defaults, like every P6 lever: the best build is a documented flag set, not a default.
 
 ## Presets (`autobuild --style NAME`, `agent_mapper/style.py`)
