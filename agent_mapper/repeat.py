@@ -313,11 +313,36 @@ def apply_repeats(notes: list[dict], plan: list[tuple[int, int, str]],
                 break
         if best is None:
             continue
+        orig = {i: (notes[i].get("x"), notes[i].get("y"), notes[i].get("d"))
+                for i in best[3]}
         for i, (x, y, dd) in best[3].items():
             notes[i]["x"], notes[i]["y"], notes[i]["d"] = x, y, dd
-        moved += best[1]
+        # ★★A copied figure must not land on a cell the OTHER hand plays at the same instant
+        # (2026-09-17q). `copy_from` works one hand at a time, so it could stack two notes in one
+        # cell — 10 of them on 1f333, unplayable, and no instrument looked. Any note that collides
+        # goes back to its own cell; the echo is kept everywhere it is legal.
+        reverted = _uncollide(notes, orig)
+        moved += max(best[1] - reverted, 0)
         kept += 1
     return moved, kept
+
+
+def _uncollide(notes: list[dict], orig: dict) -> int:
+    """Revert any note in `orig` that shares a beat AND a cell with another note."""
+    from collections import defaultdict
+    reverted = 0
+    for _ in range(4):
+        seen = defaultdict(list)
+        for i, n in enumerate(notes):
+            seen[(round(float(n.get("b", 0.0)), 4), int(n.get("x", 0)), int(n.get("y", 0)))].append(i)
+        bad = [i for v in seen.values() if len(v) > 1 for i in v if i in orig]
+        if not bad:
+            break
+        for i in bad:
+            x, y, d = orig[i]
+            notes[i]["x"], notes[i]["y"], notes[i]["d"] = x, y, d
+            reverted += 1
+    return reverted
 
 
 def repeat_zip(src: pathlib.Path, dst: pathlib.Path, song: str | None = None,

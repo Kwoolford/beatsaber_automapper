@@ -18568,3 +18568,55 @@ ABSENCE reds 9 → 3 → 3 → 1; median `idiom_coverage` 0.821 / 0.830 / 0.823 
 0.714 / 0.726 / 0.736 / 0.680. ⇒The gain does not depend on the exact value; 0.06 is a sound middle
 for the best build, and **0.03-0.12 is the safe UI range** (0.12 buys one ship for a small coverage /
 p cost). Row added to `docs/style_levers.md`.
+
+## 2026-09-17r — 🔴🔴 THE DRIFT: the agent suite became a script-tuning loop, and Kyle caught it in one listen
+
+**What he said** (2026-09-17, after being handed a fresh `autobuild` map): *"Is this a map hand made?
+There are blatantly obvious parity errors… theres a booming bass in the background on tempo that is
+so obviously ignored. Did you audit this map before handing it off?"* and then: *"If I wanted to
+autogenerate a map I would use the machine learning model we have been training for months. The
+purpose and goal of the agent building suite was to do exactly what I just laid out"* — plan and
+vision for the song, read the notesheet as a listener would, design a flow, then build **note by
+note / segment by segment**.
+
+**What I handed him**: one `autobuild.py` invocation + `repeat.py` + `answer.py`, ~30 seconds, no
+score read, no listen, no plan. Then I quoted its own verdict page (`SHIP? YES — nothing located`)
+as if that were evidence of quality — the exact misreading `TODO.md`'s first rule forbids.
+
+**What the map actually had**, found in minutes once someone looked: **red and blue notes in the
+SAME cell at the same beat with the same cut direction** — 7 on 1f913, 26 on 1f333, **0 in every
+human map**, and present since at least 2026-09-13 (`BEST2__1f913`: 12). Unplayable, in every map
+this project has shipped, and **invisible to every instrument**: the page's PLAYABILITY line reads
+parity alternation and resets only. Fixed today (`idiomize` occupancy guard + `repeat._uncollide`);
+the full chain now reads 0 at every stage. ⬜The verdict gate still needs the check (below).
+
+### How the drift happened — the mechanism, not the excuse
+1. **P1-P4 built the hand-build tools and then the work moved off them.** `score.py` (read a map as
+   a score), `mapedit.py` (edit at `bar.beat.sub`), `tutor.py` (what the human did here) all exist
+   and work. The last curated, hand-edited map is `outputs/p4b_loop/LOOP__1f333.zip` (2026-09-12).
+   Everything since is a FLAG STRING on a one-shot script.
+2. **The verdict page made a cheap number available**, and a cheap number is what an overnight loop
+   optimises. "Ships 18 → 29 of 69" can be produced without a human; "is this map fun" cannot. Every
+   session since 09-12 measured the builder's output at corpus scale instead of building one map well.
+3. **`/todo`'s own loop rewards it**: Step 5 says *queue the next experiment*, Step 6 says *enter the
+   autonomous research loop*, and the fastest legal experiment is always another sweep of another
+   flag. Nothing in the loop says *build a map by hand and read it*.
+4. **The levers multiplied**: `--taper`, `--hand-run-p`, `--palette`, `--map-memory`, `--carrier-bias`,
+   `--nps-from-song`, `--taper-intra`, `--phase-outlier` — each measured honestly, each a knob on a
+   generator the project does not want. The ML pipeline was already the generator; the agent suite
+   was supposed to be the opposite of it.
+5. **Quality became "no located defect".** With no one reading a map, the eight queries became the
+   definition of good, so anything they do not ask — cell collisions, whether the bass is followed,
+   whether a section's flow is fun — could not exist.
+
+### What this cost
+- Months-old unplayable note stacking shipped unnoticed, including into staged compete pairs.
+- The one thing that moves the headline (P5, Kyle plays a pair) still has **0 judged pairs**, while
+  the repo gained nine builder levers.
+- A booming on-tempo bass line ignored on 1f913 with a clean page — no query asks "which instrument
+  is this section following", and carrier choice ranks stems by EVENT COUNT, so a steady bass never wins.
+
+### The correction
+`TODO.md` now opens with an immutable CHARTER block (do not edit or delete), and the next work item
+is one map built the way the suite was meant to be used: plan → read → flow → build segment by
+segment, hand-edited, with the queries as a backstop, not the judge.

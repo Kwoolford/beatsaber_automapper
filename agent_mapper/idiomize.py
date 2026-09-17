@@ -312,6 +312,8 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
                                   int(records[i].get("c", 0))))
     out = [None] * len(records)
     n_fallback = 0
+    # cells already struck at each beat, so two hands never land in one cell (2026-09-17q)
+    busy: dict[float, set] = {}
 
     for i in order:
         r = records[i]
@@ -368,10 +370,20 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
             cands = [(e, w * (PALETTE_BOOST
                               if w >= mid and (h.x + e[0], h.y + e[1], e[3]) in pal else 1.0), x)
                      for e, w, x in cands]
+        # ★★**NO TWO NOTES IN ONE CELL AT ONE INSTANT** (2026-09-17q, Kyle: *"notes generated
+        # inside of each other, red and blue stacked with the same direction of swing so it's
+        # impossible"*). Both hands are redrawn independently, so a double could hand them the
+        # same cell: 7 collisions on 1f913 and 26 on 1f333, against **0 in every human map**, and
+        # nothing in the suite looked -- the page's playability line reads parity and resets only.
+        taken = busy.get(beat, set())
+        if taken:
+            cands = [c for c in cands if (h.x + c[0][0], h.y + c[0][1]) not in taken]
         pick = _pick(cands, rng, prefer_cross=cross_ok, width=width)
         if pick is None and cross_ok:
             cands = _candidates(ranked, counts, h, min(dt, 2.0), spb, top_k, False,
                                 travel_target, strict_parity)
+            if taken:
+                cands = [c for c in cands if (h.x + c[0][0], h.y + c[0][1]) not in taken]
             pick = _pick(cands, rng, prefer_cross=False, width=width)
         if pick is not None:
             dx, dy, _df, d_to, _c = pick
@@ -387,6 +399,14 @@ def idiomize(records, bpm: float, *, seed: int = 0, top_k: int = VOCAB_DEPTH,
             if UNSLIP and _parity_of(d_to) is not None and _parity_of(d_to) == h.parity:
                 d_to = _FLIP.get(d_to, d_to)
 
+        if (nx, ny) in taken:
+            # nothing legal was free: step to the nearest empty cell, preferring this hand's
+            # own side, rather than stack two notes in one place
+            free = [(cx, cy) for cx in range(4) for cy in range(3) if (cx, cy) not in taken]
+            if free:
+                nx, ny = min(free, key=lambda c: (abs(c[0] - nx) + abs(c[1] - ny),
+                                                  0 if c[0] in HOME[color] else 1))
+        busy.setdefault(beat, set()).add((nx, ny))
         out[i] = (nx, ny, d_to)
         if pick is not None:
             recent[color].append(pick)

@@ -1,5 +1,90 @@
 # Beat Saber Automapper — what we are working on next
 
+<!-- ══════════════════════════════════════════════════════════════════════════════════════════
+     IMMUTABLE CHARTER — DO NOT EDIT, SUMMARISE, CURATE OR DELETE THIS BLOCK.
+     Kyle, 2026-09-17. Every session reads this FIRST and checks its plan against it.
+     ══════════════════════════════════════════════════════════════════════════════════════════ -->
+
+## ⛔ CHARTER — WHAT THE AGENT BUILDING SUITE IS FOR (immutable)
+
+**The point of this suite is TOOLING THAT LETS AN LLM AGENT — a model in a harness, with tools it
+can call at will — BUILD A MAP BY HAND.** Not a script that emits a map. Not a generator with
+knobs. A model that studies a song, forms a plan, and then places and edits notes itself, calling
+as many tools as it needs, for as long as it takes.
+
+> **Kyle, 2026-09-17:** *"If I wanted to autogenerate a map I would use the machine learning model
+> we have been training and tuning for months. The purpose and goal of the agent building suite was
+> to do exactly what I just laid out."*
+>
+> **And what he laid out:** *"you spending the time to (A) create a plan/vision for the map. Is it a
+> power metal song, a groovy dance song, a fast tempo camelia song? Does the user ask for
+> easy/med/hard/exp/exp+ with fast tempo or do you want the difficulty to come from hard swings.
+> Then you reading the notesheet to understand the song as I would listen to it and create a plan
+> before making it. Then think of a flow that would be fun to play and then slowly note by note /
+> segment by segment — create the map."*
+>
+> **Kyle, 2026-09-02:** *"It does not need to one-shot build a map, or build it quickly. I want to
+> give it the tools so it can achieve a great map in the end… should be able to call more tools and
+> know it can, and recognise which parts need more tooling and attention to detail."*
+
+### The loop every map build MUST follow
+1. **PLAN / VISION first, written down, before any note.** What kind of song is this (power metal,
+   groovy dance, fast-tempo Camellia…)? What difficulty was asked for, and **where does the
+   difficulty come from** — tempo, density, or hard swings? What should the map's character be?
+2. **READ THE SONG as a listener would** — `agent_mapper/score.py` (kick/snare/hat, bass and lead
+   pitch, vocal pitch + lyric syllable, section, energy, onsets) and the top human map via
+   `tutor.py`. Name what each section is doing and what the map should follow there.
+3. **DESIGN THE FLOW** — how the hands move through each section, what makes it fun to play, where
+   it breathes, where it hits hard.
+4. **BUILD SEGMENT BY SEGMENT, NOTE BY NOTE**, editing with `mapedit.py`, reading the score back
+   after each segment. Zoom where it needs attention; coarse where it does not.
+5. **The queries / verdict / judge are a BACKSTOP, never the definition of good.** A clean page
+   means *no defect anyone wrote a query for*. It is not evidence the map is good, and it must
+   never be handed to Kyle as if it were.
+
+### Standing prohibitions
+- 🔴**Never hand Kyle a one-shot `autobuild` map and call it done.** `autobuild` is a *starting
+  sketch* for the agent to edit, or a control arm for a measurement — not a deliverable.
+- 🔴**Never quote a verdict page as quality.** Read the map yourself and say what you heard/read.
+- 🔴**Adding another generator knob is not progress.** If a session's output is a new flag on
+  `autobuild`, it has drifted. Build tooling that lets the AGENT decide and act instead.
+- 🔴**The ML pipeline is the autogenerator.** This suite exists because that is not what Kyle wants
+  from it. (Drift record: `PROGRESS.md` 2026-09-17r.)
+
+<!-- ════════════════════════ END IMMUTABLE CHARTER ════════════════════════ -->
+
+## 🎯 ACTIVE WORK ITEM — hand-build "SO TIRED ROCK" (NUEKI), by the charter loop
+
+**Audio**: `data/eval_songset/SO TIRED ROCK - NUEKI.mp3` (also in `data/test_songs/`).
+**Kyle's brief (2026-09-17)**: *"Map so tired rock. I want it to be a medium tempo expert level map
+with ~6 nps and to be simple flows with the hype fast drop sections to still be hard and fast
+tempo."*
+
+| ask | target |
+|---|---|
+| difficulty | **Expert** |
+| overall density | **~6 nps** (⚠️ 6.18 is the number Kyle once called unplayable — hold ~6, never above) |
+| body of the song | **medium tempo, SIMPLE FLOWS** — readable, comfortable hand paths |
+| drop / hype sections | **hard and fast** — the difficulty lives here, not spread evenly |
+
+**How to run it** (charter loop, not autobuild-and-ship):
+1. Write the PLAN first — song character, section map, where the difficulty comes from, what each
+   section follows (this is a rock song: the kick/snare backbone and the guitar/bass riff matter
+   more than the vocal in the heavy sections). Show Kyle the plan before building.
+2. Read the song with `score.py --sections` then `--bars a-b` on each section; there is no human map
+   of this song (`--vs` will be ⚪), so the song itself and the plan are the reference.
+3. Build segment by segment; `autobuild` may seed a section's rhythm, but every segment is read and
+   edited by hand before moving on.
+4. Keep a running note of decisions per section, so the finished map has a rationale Kyle can argue
+   with.
+**DoD**: Kyle plays it and wants to keep playing. The verdict page is run at the end as a backstop
+(and must show 0 note collisions — see below), never as the reason to ship.
+
+⬜**Gate still missing**: `verdict.py`'s PLAYABILITY block does not check for two notes in one cell
+at one instant. It read `parity violations 0` on a map with 26 of them (2026-09-17q). Add it as a
+hard red before the next map ships.
+
+
 **This file is forward-looking only.** What was done, and how it worked out, lives in
 [`PROGRESS.md`](PROGRESS.md); the agent-authoring trail is in
 [`agent_mapper/PROGRESS.md`](agent_mapper/PROGRESS.md). Evaluation-suite rationale is in
