@@ -18319,3 +18319,32 @@ tight tail — typicality, not a defect.
 ⇒Option (b) (bake phase into beats) is **not needed**; the `offgrid_frac` guard question of 09-16h
 is moot. Every historical `mapjudge` alignment number for an agent map was read at phase 0, but the
 offsets are ≤ 20 ms on 21/23 songs, so conclusions built on them stand; 1f9a0/1fa32 were the exposed ones.
+
+## 2026-09-17a — P1.0: 1f9a0's phase is fixable, but the onset-grid gate is not safe as a default
+
+With the judge now on the game clock (09-16j), 1f9a0 was re-read end to end.
+- **Finer grid REFUTED again, phase-aware**: snapping the event pool at the best phase, 1/8-beat
+  slots are worse than 1/4 on all 5 songs tried (1f9a0 0.685 → 0.644). Per stem, 1f9a0's events sit
+  on onsets fine (0.65-0.84) — the loss is the SNAP PHASE.
+- **The phase fix works on it**: `--phase-shift -0.081` (calibrated −34 → −87 ms) lifts
+  `onset_precision` 0.556 → 0.706 and — the independent check — **human notes we cover 0.303 →
+  0.834**, ours near a human note 0.125 → 0.328. (The human plays two positions ~60 ms apart; −87 ms
+  sits within 50 ms of both.)
+- **Is the onset grid a general per-song phase?** `scripts/exp_onset_grid_phase.py`, 400 corpus
+  maps: the phase with most onsets on a 1/4-beat line predicts the HUMAN's grid phase to ≤ 20 ms on
+  78 %, ≤ 30 ms on 92 %, after one constant (**detector reads 22.0 ms early** — the same −21 ms our
+  23 builds showed). Its failure mode is a HALF-SLOT lock (worst residuals all ≈ ±q/2).
+  🔴A bug caught by the new unit test: the share is flat over a ±tol plateau and `argmax` returned
+  its FIRST phase (~12 ms early); now the plateau centre. Corpus numbers barely moved (bias −21.4 →
+  −22.0).
+- **`mapctl init --phase-outlier` / `autobuild --phase-outlier`** (default OFF): replace the
+  calibrated phase with the bias-corrected onset-grid phase when they disagree by 30 ms .. half a
+  slot − 15 ms. **Control: on the 23 eval songs it changes 1f9a0 ONLY** (−34 → −85 ms, precision
+  0.556 → 0.698, human notes covered 0.303 → 0.823); the other 22 builds are byte-identical.
+- 🔴**Why it stays OFF**: treating each of 400 human maps as "our phase = his", the gate would fire
+  WRONGLY on **4.0 %** (moving a correct phase 30-48 ms away), against 1 true fire in 23 of ours.
+  That proxy overstates it (two of its listed songs, 1f9f0 and 1fbfb, did not fire in real builds),
+  but one positive case cannot outweigh a plausible 4 % harm rate. **DoD to flip**: a second
+  independent signal that separates true from false fires (≥ 3 true positives, 0 false on the eval
+  set), or Kyle's ear preferring 1f9a0 at −85 ms.
+Tests: `tests/test_phase_outlier.py` (fires / agrees / never trusts a half-slot lock).

@@ -297,11 +297,14 @@ def build(audio: pathlib.Path, name: str, rows: list[dict], verbose: bool,
           adaptive_subdiv: bool = False, seed: int = 0,
           doubles: bool = False, accent_slots: str = "0,2,4,6,8,10,12,14",
           doubles_rate: float = 0.3, phase_shift: float = 0.0,
-          phase_calibrate: bool = True, density_search: bool = False) -> None:
+          phase_calibrate: bool = True, density_search: bool = False,
+          phase_outlier: bool = False) -> None:
     init = [str(AM / "mapctl.py"), "init", str(audio), "--name", name, "--fresh"]
     if phase_shift:
         init += ["--phase-shift", str(phase_shift)]
     init += ["--phase-calibrate" if phase_calibrate else "--no-phase-calibrate"]
+    if phase_outlier:
+        init += ["--phase-outlier"]
     if adaptive_subdiv:
         init += ["--adaptive-subdiv"]
     run(init)
@@ -449,6 +452,8 @@ def main() -> int:
     ap.add_argument("--no-phase-calibrate", dest="phase_calibrate", action="store_false",
                     help="build on the raw, uncorrected phase estimate")
     ap.set_defaults(phase_calibrate=True)
+    ap.add_argument("--phase-outlier", action="store_true",
+                    help="P1.0 onset-grid phase gate (mapctl --phase-outlier). Default OFF")
     # ★LEG 3's second travel lever: re-weights candidates by HOW FAR each move
     # travels, where --width sets how MANY are considered. See idiomize.TRAVEL_TARGET.
     ap.add_argument("--travel-target", type=float, default=None,
@@ -615,7 +620,8 @@ def main() -> int:
           adaptive_subdiv=a.adaptive_subdiv, seed=a.seed,
           doubles=a.doubles, accent_slots=a.accent_slots,
           doubles_rate=a.doubles_rate, phase_shift=a.phase_shift,
-          phase_calibrate=a.phase_calibrate, density_search=a.density_search)
+          phase_calibrate=a.phase_calibrate, density_search=a.density_search,
+          phase_outlier=a.phase_outlier)
     out = a.out or (REPO / "outputs" / f"autobuild_{a.name}.zip")
     run([str(AM / "mapctl.py"), "export", a.name, "--out", str(out)], quiet=False)
 

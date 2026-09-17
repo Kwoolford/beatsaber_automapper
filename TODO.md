@@ -204,6 +204,11 @@ after it. ⬜The floor needs cached onsets (`scripts/build_onset_cache.py`); aut
 ⬜The two real fails are still unfixed: **`1f335` (0.735)** — EMPTY ×16 incl. bars 77-88 (1 event
 vs 31), FLOW ×16, D2 ×6 — and **`1f9a0` (0.475)**, D6 over-dense ×5, 657 events vs his 271.
 
+⬜**The judge fails a HUMAN for being too precise** (09-17): 1fb71's own human map FAILs p 0.083 on
+`offset_mad_ms` (5.1 ms, 0.7th pct) + `onset_precision` 0.991 (96th) — a song with very clean onsets
+makes every good map atypical. Two-sided tails were a measured choice (see `mapjudge.CANDIDATES`
+comment), so not changed; an alignment typicality read relative to the SAME song's human would fix it.
+
 **bench.py** — ⬜set-B ids for FLASH/GOCRYGO unresolved; set-B rows unreadable until those corpus
 songs get perception caches. ⬜**`bars_from: "kyle"` exists on no row yet** — P5 is where his
 finger lands on a bar. ⬜`24e6c-dod` stays UNLABELLED; flip to CLEAN when a pass agrees.
@@ -406,7 +411,10 @@ phase-0-by-convention songs.
 is NOT SUPPORTED (09-16i: raw vs calibrated is 9 wins / 11 losses, uncorrelated with `grid_r`);
 the next candidate needs a signal that is not the grid-fit strength. **DoD**: over the 23 songs, applied precision ≥ calibrated on
 ≥ 21 and 1f9a0 ≥ 0.65, the best-shift residual within ±20 ms of the human's on every song.
-⬜Then selection: even at its right phase 1f9a0 is 0.654 against a 0.822 floor.
+✅**`--phase-outlier` built 09-17a** (OFF): fires on 1f9a0 only of 23 (precision 0.556 → 0.698, human
+notes covered 0.303 → 0.823), 22 byte-identical; OFF because a corpus proxy says it would mis-fire on
+~4 % of songs. ⬜**DoD to flip**: a second signal separating true from false fires (≥ 3 true, 0 false).
+⬜Selection: at its right phase 1f9a0 is ~0.70 against a 0.822 floor.
 ✅**The judge now sees phase** (09-16j): the game applies `_songTimeOffset` (IL-traced, 1.45.0 and
 modded 1.40.8), and `mapjudge`/`scorecard` now do too. No bake needed.
 

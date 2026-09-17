@@ -93,6 +93,41 @@ SUBDIV = 4
 # tempo/phase fit ever changes, because it is a property of THAT fit.
 PHASE_BIAS_BEATS = 0.053
 
+# ★P1.0 phase-outlier gate (2026-09-17, `--phase-outlier`, default OFF). Over 400 corpus maps the
+# phase at which the most cached ONSETS sit on a 1/4-beat line predicts the human's own grid phase
+# to within 20 ms on 77 % and 30 ms on 92 %, once one constant is removed: the onset detector reads
+# **21.4 ms early** (`scripts/exp_onset_grid_phase.py`). Its failure mode is a HALF-SLOT lock (the
+# worst residuals are all +-q/2). So the gate replaces the calibrated phase only when the
+# bias-corrected onset grid disagrees by more than OUTLIER_MIN and clearly less than half a slot.
+# On the 23 eval songs it fires on 1f9a0 alone (excess -52 ms), where it moves the human notes we
+# cover 0.303 -> 0.834 and onset_precision 0.556 -> 0.706. One positive case: hence OFF.
+ONSET_GRID_BIAS_S = -0.0220
+OUTLIER_MIN_S = 0.030
+OUTLIER_HALF_SLOT_MARGIN_S = 0.015
+
+
+def onset_grid_phase(onsets, slot: float, tol: float = 0.025, step: float = 0.002):
+    """Phase (mod `slot`) at which the most onsets fall within `tol` of a slot line."""
+    import numpy as np
+    on = np.asarray(onsets, dtype=float)
+    phs = np.arange(0.0, slot, step)
+    share = np.array([np.mean(np.abs(((on - ph + slot / 2) % slot) - slot / 2) <= tol) for ph in phs])
+    # ★The share is FLAT across a +-tol plateau, so argmax returns the plateau's first phase --
+    # ~12 ms early on clean onsets (caught by tests/test_phase_outlier.py). Take its CENTRE.
+    top = phs[share >= share.max() - 1e-12]
+    ang = np.angle(np.mean(np.exp(2j * np.pi * top / slot)))
+    return float((ang / (2 * np.pi) * slot) % slot)
+
+
+def phase_outlier(phase: float, spb: float, onsets) -> float | None:
+    """The bias-corrected onset-grid phase when it disagrees enough to trust it, else None."""
+    q = spb / 4.0
+    implied = onset_grid_phase(onsets, q) - ONSET_GRID_BIAS_S
+    excess = ((implied - phase + q / 2) % q) - q / 2
+    if OUTLIER_MIN_S < abs(excess) < q / 2 - OUTLIER_HALF_SLOT_MARGIN_S:
+        return phase + excess
+    return None
+
 # Beat Saber cut directions.
 DIRS = {"U": 0, "D": 1, "L": 2, "R": 3, "UL": 4, "UR": 5, "DL": 6, "DR": 7, "X": 8}
 DIR_NAME = {v: k for k, v in DIRS.items()}
@@ -218,6 +253,19 @@ def cmd_init(a) -> int:
         g = dict(g, phase=g["phase"] + PHASE_BIAS_BEATS * g["spb"])
         print(f"  phase calibrated {PHASE_BIAS_BEATS:+.3f} beats "
               f"({PHASE_BIAS_BEATS * g['spb'] * 1000:+.1f} ms) — measured estimator bias")
+    if getattr(a, "phase_outlier", False):
+        import numpy as _np
+        f = pathlib.Path(__file__).resolve().parent.parent / "outputs" / "onset_cache" / f"{audio.stem}.npz"
+        if f.exists():
+            new_phase = phase_outlier(g["phase"], g["spb"], _np.load(f)["onsets"])
+            if new_phase is None:
+                print("  phase-outlier: onset grid agrees — calibrated phase kept")
+            else:
+                print(f"  phase-outlier: {g['phase'] * 1000:+.0f} ms -> {new_phase * 1000:+.0f} ms "
+                      "(onset grid disagrees beyond the detector bias)")
+                g = dict(g, phase=new_phase)
+        else:
+            print("  phase-outlier: no onset cache for this song — calibrated phase kept")
     if getattr(a, "adaptive_subdiv", False) and g["bpm"] < 150.0:
         subdiv = 8
         g = dict(g, slot=g["spb"] / subdiv)
@@ -1285,6 +1333,10 @@ def main() -> int:
     p.add_argument("--no-phase-calibrate", dest="phase_calibrate", action="store_false",
                    help="build on the raw, uncorrected phase estimate")
     p.set_defaults(phase_calibrate=True)
+    p.add_argument("--phase-outlier", action="store_true",
+                   help="P1.0: replace the calibrated phase with the bias-corrected ONSET-GRID "
+                        "phase when they disagree by 30 ms .. half a slot (needs the onset cache). "
+                        "Fires on 1f9a0 only of 23 songs. Default OFF (see ONSET_GRID_BIAS_S)")
     p.add_argument("--adaptive-subdiv", action="store_true",
                    help="🔴REFUTED 2026-08-21: 1/8-beat slots below 150 bpm make "
                         "onset_precision WORSE on 10 of 10 affected songs and cost "
