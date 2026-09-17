@@ -24,6 +24,7 @@ Base page: `1f333` 2 red (BREATHING · SCATTER) · `1f767` 1 red (D3) · `1f8d6`
 | **one hand leads** | `--lead-bias` | 0.0 – 0.5 | role asymmetry 0.08 → 0.16 | none | +0.03 |
 | **more walls** | `--walls` | 40 – 160 | wall count exactly as asked | none (no metric reads walls) | 0.00 |
 | **more variety / diagonals** | `--width` | 1 – 8 | local variety 0.75 → 0.94; diagonal share 0.05 → 0.32 | none | width 1: **−0.48** (vertical share 0.95) |
+| **one hand holds a run** | `--hand-run-p` | 0 – 0.12 | held-out (35 songs): ships 12 → 16 at 0.03 and 0.06, 17 at 0.12; lead-hand reds 9 → 3 → 1 | none at 0.03–0.06; SCATTER ×1 at 0.12 | 0.12: −0.03 (coverage 0.82 → 0.81) |
 | **faster / denser** | `--nps` | 3.0 – 5.0 | nps **2.9–3.2 → 4.4–5.4** (honoured since 2026-09-17e; 1f8d6 tops out at 4.36, the song's supply) | at 5.0: +D3 on 1f333, +D6 and lead-hand ABSENCE on 1f767 ⇒ keep ≤ ~4.5; 6.18 is the density Kyle called unplayable | — |
 | **figures come back** | `--palette` | 0 – 20 | SCATTER room 0.40 → 0.68 on 1f333 (line 1.00) | 1f8d6 lead-hand passage at 20 | −0.15 |
 | **figures come back** | `--map-memory` | 0 – 4 | SCATTER room 0.40 → 0.64 on 1f333 | none | −0.20 |

@@ -18560,3 +18560,11 @@ ships **6 → 10, 6 → 10, 9 → 10**; pooled **21 → 30**, reds 90 → 70 (re
 doubles ABSENCE ×3, SCATTER ×1; added SCATTER ×4, lead-hand ×1). Per song over the three seeds:
 **8 songs ship more often, 1 less** (3158c). Together with held-out 1 (16 → 20 of 36, none worse),
 hand runs are the one builder change tonight that holds on two sets of songs nothing was tuned on.
+
+## 2026-09-17p — `--hand-run-p` dose: a plateau from 0.03 to 0.12
+
+35 held-out songs (both sets, seed 0): ships base **12**, 0.03 **16**, 0.06 **16**, 0.12 **17**; lead-hand
+ABSENCE reds 9 → 3 → 3 → 1; median `idiom_coverage` 0.821 / 0.830 / 0.823 / 0.805; median judge p
+0.714 / 0.726 / 0.736 / 0.680. ⇒The gain does not depend on the exact value; 0.06 is a sound middle
+for the best build, and **0.03-0.12 is the safe UI range** (0.12 buys one ship for a small coverage /
+p cost). Row added to `docs/style_levers.md`.

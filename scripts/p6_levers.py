@@ -63,6 +63,9 @@ ARMS: dict[str, list[str]] = {
     # 2026-09-17: the taper costs 1f8d6 its LAST lead-hand passage (ABS:lead_runs, a zero-margin
     # pass since 09-13). Give the map runs of its own and ask whether the taper is then free.
     "runs": ["--hand-run-p", "0.06"],
+    # 2026-09-17p: dose check around the chosen value
+    "runs03": ["--hand-run-p", "0.03"],
+    "runs12": ["--hand-run-p", "0.12"],
     "taper_runs": ["--taper", "0.5", "--hand-run-p", "0.06"],
     # 2026-09-17c: SCATTER is the commonest red left under the new best build (8 songs). Is a
     # vocabulary lever a usable TRIAGE tool when the page says SCATTER?
