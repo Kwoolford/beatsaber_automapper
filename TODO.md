@@ -397,10 +397,21 @@ monotone and default-off — they ship in a UI (`feedback-levers-are-user-facing
 
 ## 🔵 CARRIED FORWARD — still live, lower than P0–P6
 
-### P1.0 — `1f9a0` (93 bpm) fails `onset_precision` 0.474; a finer grid is REFUTED
-Binding constraint is note **selection**, not the grid (`--adaptive-subdiv` hurt 10/10). Untried:
-choose events by distance to a scored onset; pulse lattice prefers onset-carrying phases.
-**DoD**: `onset_precision` rises without `pulse_stability` leaving 25–75 %.
+### P1.0 — `1f9a0` fails `onset_precision` 0.48: a PHASE outlier first, selection second (09-16g)
+Its best global shift is a constant −70 ms (0.556 → 0.758); raw phase (`--no-phase-calibrate`) is
+right for it (0.654, residual = the −30/−40 ms detector bias) but wrong for the cohort (1f333
+0.940 → 0.869, 1fa32 0.881 → 0.772). The +0.053-beat calibration is a cohort constant fit on
+phase-0-by-convention songs.
+⬜**Per-song phase**: an estimator (or a confidence gate on `grid_r` — 1f9a0's is 0.18) that keeps
+the raw fit when it is trustworthy. **DoD**: over the 23 songs, applied precision ≥ calibrated on
+≥ 21 and 1f9a0 ≥ 0.65, the best-shift residual within ±20 ms of the human's on every song.
+⬜Then selection: even at its right phase 1f9a0 is 0.654 against a 0.822 floor.
+🔴**BLOCKER FOR ANY PHASE WORK — the judge cannot see phase**: `mapjudge`/`scorecard` ignore
+`_songTimeOffset`, the only place export writes it. And the field is **deprecated** in-game (BSMG:
+"unstable behavior", gone in v4); humans bake timing into beats. ❓**Kyle**: does a large-offset map
+(1f9a0 −34 ms, 1fa32 +45 ms) feel off? Options: (a) judge applies the offset — right only if the game
+does; (b) export bakes phase into beats — `offgrid_frac` goes ~1.0 (human p90 0.48), so that guard
+needs re-reading first; (c) shift the audio, judge told the shift. Measure with `exp_phase_sweep.py`.
 
 ### P0.6 — hand role: `--lead-bias 0.20` under `cyclic`. Landmine only
 An operating point is not portable across a change in how the knob works.

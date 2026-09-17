@@ -18217,3 +18217,44 @@ byte-identical** before and after.
 0.60x and the new 0.30x line. Fixtures rebuilt (0.25x, all doubles), not the threshold. Now **611
 passed**; `bench.py` not refuted; `check_margins.py` ✅. ★The landmine *"a filtered pytest hides the
 exit code"* in a new form: a threshold change was committed with its own tests failing.
+
+## 2026-09-16g — 1f9a0 is a PHASE outlier, and the production judge cannot see phase at all
+
+`scripts/exp_phase_sweep.py` over the best build on all 23 eval songs (`price_phase_songset16.sh`,
+`outputs/phase16_2026-09-16/`), same matcher as the judge.
+
+**1. Not widespread — NOT REPRODUCED beyond one song.** Our best global shift has median **−30 ms**
+and so does the HUMAN maps' (the known onset-detector bias, C2 — not to be corrected). Relative to
+the humans our grid sits right on 22/23; median gain at the best shift **+0.014**. The outlier is
+**1f9a0**: best shift −70 ms on top of its offset (human 0 ms), gain **+0.20** (0.556 → 0.758).
+Its best shift is the same in every fifth of the song ⇒ phase, not a tempo drift.
+
+**2. The cohort `--phase-calibrate` (+0.053 beat) is what breaks it.** `--no-phase-calibrate`:
+
+| song | calibrated offset → precision (applied) | raw offset → precision (applied) | raw residual |
+|---|---|---|---|
+| **1f9a0** | −34 ms → 0.556 | **−69 ms → 0.654** | −40 ms (= the detector bias) |
+| 1f333 | −5 → 0.940 | −21 → 0.869 | |
+| 1f913 | −10 → 0.940 | −30 → 0.906 | |
+| 1fa32 | +45 → 0.881 | +26 → 0.772 | |
+
+⇒the raw phase is RIGHT for 1f9a0 (its human grid sits −0.094 beat ≈ −61 ms; raw said −69) and the
+calibration is right for the cohort. The calibration was fit on songs whose true phase is 0 by FILE
+CONVENTION, and 1f9a0 was dropped from that fit by the human-grid sanity gate — the trap PROGRESS
+2026-08 names. ⚠️Even at its right phase 1f9a0 reads 0.654 (< 0.822 floor): part of P1.0 really
+is selection.
+
+**3. 🔴 `mapjudge` IGNORES `_songTimeOffset`** (`alignment.note_times` = beat × 60/bpm, and neither
+`judge_zip` nor `scorecard._load_any` passes the offset). Export writes the fitted phase ONLY there,
+so the judge scores every agent map at phase 0 — on 1f9a0 it scores the *correct* phase **lower**
+(0.480 → 0.445). Offsets are ≤ 20 ms on 21/23 songs, so cohort numbers moved little (apply − ignore
+is net ≈ 0); 1f9a0 (−34/−69) and 1fa32 (+45) are where it bites. This is the instrument bug the
+2026-08 diag retracted, still live in the production judge.
+
+**4. ⚠️The field itself is deprecated.** BSMG: `_songTimeOffset` is *"deprecated due to unstable
+behavior in recent versions of the game, and unsupported starting from v4"*; human maps carry 0 and
+bake timing into the beats (1f9a0's human: x.906, x.406, x.156). Whether the game applies ours is
+UNVERIFIED — Kyle's ear on a map with a large offset is the cheapest test.
+**Not changed tonight (decide-and-log):** fixing the judge alone is only right if the game applies
+the field; baking the phase into beats moves `offgrid_frac` (human p90 0.483) to ~1.0 on most maps;
+shifting the audio needs the judge told about the shift. See TODO P1.0.
