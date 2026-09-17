@@ -18128,3 +18128,26 @@ bimodality (the TODO's hypothesis that 09-12i's 0.618 was `fix_parity`, same as 
 worsens `idiom_jsd`. Exchange rate: echo +0.035/+0.043 (Δroom × 0.15 line) for −0.02 local ⇒
 **~0.5 local per 1.0 echo** — half of `--map-memory`'s 0.8-1.0 but twice the human ~0.25, so it
 fails the SCATTER DoD.
+
+## 2026-09-16c — "return to a figure AT A DISTANCE" is not a separate mechanism — REFUTED before building
+
+`scripts/exp_echo_distance.py`. For every FIRST-OCCURRENCE 4-bar block (< half its bars in a
+labelled repeat), the echo reachable from only NEAR sources (≤ 8 bars back) against only FAR ones.
+
+| | first-occ blocks | echo | best source median | source > 8 bars | near-only | far-only |
+|---|---|---|---|---|---|---|
+| **humans, 24 structure-cache songs** | 436 | 0.582 | 12 bars | 57 % | **0.499** | **0.496** |
+| ours 1f333 | 31 | 0.429 | 40 | 71 % | 0.344 | 0.395 |
+| ours 1f767 | 9 | 0.395 | 4 | 22 % | 0.379 | 0.305 |
+| ours 1f8d6 | 18 | 0.442 | 16 | 56 % | 0.360 | 0.373 |
+| ours 1f913 | 14 | 0.441 | 16 | 64 % | 0.361 | 0.363 |
+
+⇒**A human's first-occurrence echo is equally available near and far** (0.499 vs 0.496); he does
+not favour distant returns. We sit ~0.13 below him at **both** distances. The gap is the
+vocabulary width 2026-09-13r already named, seen from another angle, not a missing long-range
+return — so a distance-return pass would target the same quantity `--map-memory` and `--palette`
+already move, at their exchange rate. Only 16 % of his best sources are themselves returning
+blocks: first-occurrence material echoes first-occurrence material.
+⚠️This block split (fixed 4-bar grid, ≥ half the bars in `section_repeats`) gives 1f333's human
+**0.666** where 2026-09-13r's gave 0.597 (ours 0.429 vs 0.418): a different population, so compare
+rows only within one table.

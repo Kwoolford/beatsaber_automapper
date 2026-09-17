@@ -418,12 +418,10 @@ cheaply: **+0.16 of echo costs them 0.037 of local**, about **0.23 local per 1.0
 own echo anyway (ours 0.843-0.851 against their 0.869-0.878).
 ✅**DoD FOR ANY FUTURE SCATTER MECHANISM: buy echo at better than ~0.25 of `idiom_local` per 1.0
 of echo, measured against humans AT THE RESULTING ECHO, never against the pooled median.**
-⬜**Untried**: raise echo by returning to a figure **at a distance** (across phrases) rather than
-by repeating it locally — the human's echo survives a 16-transition window staying varied, so his
-returns are far apart. `repeat.py` does this for labelled section repeats only and that half is
-already at parity; the open part is first-occurrence bars.
-⬜Also untried: a memory that is **per section** rather than map-wide (a mapper's vocabulary
-drifts), and whether his first-occurrence echo draws on the SAME figures as his returning blocks.
+🔴**"Return at a distance" REFUTED 2026-09-16c** — his first-occurrence echo is the same from near
+and far sources (0.499 / 0.496, 436 blocks); we are ~0.13 under at both. Same vocabulary-width gap.
+Only 16 % of his best sources are returning blocks.
+⬜Still untried: a memory that is **per section** rather than map-wide (a mapper's vocabulary drifts).
 ### ⬜ Left over from the parity work (outcome in `PROGRESS.md` 2026-09-13w-y)
 ✅The leak itself is CLOSED (`STRICT_PARITY` at the source + `_revocab` on whatever the fixer still
 rewrites). ✅**CONFIRMED 2026-09-16b**: the same leak was the palette's 09-12i collapse — coverage
