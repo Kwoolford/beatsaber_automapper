@@ -18499,3 +18499,29 @@ cleared 0 of 2. Palette lifted room by +0.26 to +0.47 every time; what decides i
 Pooled with the eval set: **room ≥ 0.7 → 11 of 11**, 0.6-0.7 → 2 of 5, < 0.6 → 0. One new red in 9
 (lead-hand ABSENCE); judge p fell more on held-out (−0.04 to −0.51, median ≈ −0.2).
 ⇒`verdict.py`'s SCATTER line now says ≥ 0.7. A rule fitted on one set lost its edge band on another.
+
+## 2026-09-17l — two silent energy bugs; the held-out numbers corrected
+
+🔴**`score.py` found audio only in `data/eval_songset` and `data/test_songs`.** On every other song
+the verdict's E fell back to EVENT LOUDNESS — a different curve with different jumps — so D3 and
+BREATHING read differently off the eval set, silently (the page header does say "E from events",
+nobody read it). Fixed: `data/heldout` is searched, and the map zip's own audio is the last resort.
+🔴**`answer.py` read the energy cache only**, which `verdict.py` writes AFTER it in the chain — so
+on every song never scored before it printed "nothing to answer" and did nothing (all 36 held-out
+builds). Fixed: it computes from the zip's audio; its energy bars and onsets are now on the game
+clock (offset + beat·spb) as well.
+
+**Held-out, re-measured with real audio energy** (same zips, 3 seeds):
+
+| arm | ships (of 36) | reds | added |
+|---|---|---|---|
+| base (post UNSLIP) | **16** (read 11 on the wrong E) | 42 | — |
+| `--hand-run-p 0.06` | **20** | 31 | **none**, no song worse |
+| `--taper 0.5 --hand-run-p 0.06` | 17 | 36 | D3 ×6, two songs worse |
+
+⇒**"D3 dominates fresh songs" (15 / 36) was the fallback energy**: under the general build it is
+3 / 36; SCATTER (9) is the top held-out red now. The conclusions of 09-17i stand and are sharper:
+hand runs generalise, the taper does not. SCATTER triage is unchanged (its read uses no energy).
+⏱Phase 2 running: the fixed `answer.py` applied to the held-out zips (`answered_heldout_s*`).
+★**LANDMINE: any verdict on a song outside `data/eval_songset` before 2026-09-17l used event-loudness
+E.** Read the page header's `E =` line before trusting a D3 / BREATHING read.
