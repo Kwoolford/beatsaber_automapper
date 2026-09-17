@@ -116,7 +116,7 @@ def predict_nps(audio: pathlib.Path) -> float | None:
 
 def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60,
          carrier_bias: float = 1.0, taper: float = 0.0,
-         taper_bars: int = 2) -> list[dict]:
+         taper_bars: int = 2, taper_intra: float = 0.0) -> list[dict]:
     """Per section: the carrier class, the backbone, and each one's accent budget."""
     import brief as B
     import events as E
@@ -221,7 +221,81 @@ def plan(audio: pathlib.Path, nps: float, energy_slope: float = 0.60,
             "drums_n": drums,
             "drums_pct": _pct(budget * (1 - share), drums),
         })
-    return _taper_rows(rows, taper, taper_bars)
+    rows = _taper_rows(rows, taper, taper_bars)
+    if taper_intra > 0:
+        g = B.grid(a)
+        rows = _intra_taper(rows, _energy_jumps(audio, g), taper_intra, taper_bars)
+    return rows
+
+
+# The per-bar energy rise `queries.q_drops` calls an E-jump. Kept equal to its default.
+INTRA_JUMP = 0.25
+
+
+def _energy_jumps(audio: pathlib.Path, g: dict) -> list[int]:
+    """1-based bars whose mean energy rises >= INTRA_JUMP over the previous bar.
+
+    Same energy (`score._energy`: RMS, 98th pct = 1.0) and the same rule as `q_drops`, with bars
+    laid on the fitted grid (`brief.bar_time`). ⚠️D3 reads these jumps bar by bar; the section
+    taper only ever acted at SECTION boundaries, and the D3 reds it could not clear all sit 4-27
+    bars INSIDE a section (2026-09-17g).
+    """
+    import numpy as np
+    import brief as B
+    import score as SC
+    t, rms = SC._energy(audio.stem, audio)
+    if t is None:
+        return []
+    nb = int(g["n_bars"])
+    em = []
+    for b in range(1, nb + 1):
+        t0 = B.bar_time(g, b)
+        sel = (t >= t0) & (t < t0 + g["bar_s"])
+        em.append(float(rms[sel].mean()) if sel.any() else 0.0)
+    return [b for b in range(2, nb + 1) if em[b - 1] - em[b - 2] >= INTRA_JUMP]
+
+
+def _intra_taper(rows: list[dict], jumps: list[int], taper: float, bars: int) -> list[dict]:
+    """The taper at an energy jump INSIDE a section: `bars` before give, `bars` after receive.
+
+    Equal spans on both sides, so the budget is MOVED exactly (never added). A jump at a
+    section's first bar is the section taper's job and is skipped here; a jump without `bars`
+    of room on both sides inside its segment is skipped too. `--taper-intra 0` = off.
+    """
+    out = list(rows)
+    for j in sorted(set(jumps)):
+        for k, r in enumerate(out):
+            if r.get("_intra") or not (r["bar0"] + bars <= j and j + bars - 1 <= r["bar1"]):
+                continue
+            if j == r["bar0"]:
+                break
+            pieces = []
+            if j - bars - 1 >= r["bar0"]:
+                pieces.append(_seg(r, r["bar0"], j - bars - 1, 1.0))
+            tail = _seg(r, j - bars, j - 1, max(1.0 - taper, 0.0))
+            land = _seg(r, j, j + bars - 1, 1.0 + taper)
+            tail["_intra"] = land["_intra"] = True
+            pieces += [tail, land]
+            if j + bars <= r["bar1"]:
+                pieces.append(_seg(r, j + bars, r["bar1"], 1.0))
+            out[k:k + 1] = pieces
+            break
+    return out
+
+
+def _seg(r: dict, b0: int, b1: int, scale: float) -> dict:
+    """Bars `b0..b1` of section row `r`, its budget pro-rated by span and then scaled."""
+    span = max(r["bar1"] - r["bar0"] + 1, 1)
+    f = (b1 - b0 + 1) / span
+    d = dict(r)
+    d["bar0"], d["bar1"] = b0, b1
+    d["budget"] = int(r["budget"] * f * scale)
+    d["pool_n"] = max(int(r["pool_n"] * f), 1)
+    d["drums_n"] = int(r["drums_n"] * f)
+    d["dur"] = round(r["dur"] * f, 1)
+    d["carrier_pct"] = _pct(d["budget"] * d["share"], d["pool_n"])
+    d["drums_pct"] = _pct(d["budget"] * (1 - d["share"]), d["drums_n"])
+    return d
 
 
 def _taper_rows(rows: list[dict], taper: float, bars: int) -> list[dict]:
@@ -507,6 +581,9 @@ def main() -> int:
                     help="move this fraction of the last bars' budget into the section that "
                          "follows an energy rise -- 'breathe before the drop'. 0 = off. The "
                          "budget is MOVED, not spent, so the note count should not change")
+    ap.add_argument("--taper-intra", type=float, default=0.0,
+                    help="the taper at energy jumps INSIDE a section (the jumps D3 reads): move this "
+                         "fraction of the 2 bars before into the 2 after. Default 0 = off")
     ap.add_argument("--taper-bars", type=int, default=2,
                     help="how many bars at the end of a section the taper applies to")
     ap.add_argument("--carrier-bias", type=float, default=1.0,
@@ -617,7 +694,7 @@ def main() -> int:
     def _make(nps: float) -> tuple[pathlib.Path, list[dict]]:
         print(f"=== SEE: {a.audio.name}")
         rows = plan(a.audio, nps, energy_slope=a.energy_slope, carrier_bias=a.carrier_bias,
-                    taper=a.taper, taper_bars=a.taper_bars)
+                    taper=a.taper, taper_bars=a.taper_bars, taper_intra=a.taper_intra)
         print(f"{'bars':<12} {'role':<10} {'nrg':>5} {'budget':>7}  carrier "
               f"(events -> accent pct)")
         print("-" * 78)

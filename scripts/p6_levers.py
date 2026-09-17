@@ -74,6 +74,8 @@ ARMS: dict[str, list[str]] = {
     # human map's own density, which /buildmap's study step has in hand.
     "tr_nps188": ["--taper", "0.5", "--hand-run-p", "0.06", "--nps", "1.88"],
     "tr_nps389": ["--taper", "0.5", "--hand-run-p", "0.06", "--nps", "3.89"],
+    # 2026-09-17g: the taper at energy jumps INSIDE sections (where the leftover D3s sit)
+    "tr_intra": ["--taper", "0.5", "--hand-run-p", "0.06", "--taper-intra", "0.5"],
 }
 
 # lever -> (what the request says, the column that should move, direction lo→hi)

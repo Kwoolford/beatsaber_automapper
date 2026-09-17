@@ -18432,3 +18432,16 @@ cleared 3/3 **but D4 added 3/3**; 1fbfb D6 stays at 3.98 nps (his 3.89) and D3 i
 LOCAL over-density, not a map-wide level. `verdict.py`'s D6 fix line now says which branch the
 doubles rate can fix. `docs/style_levers.md` updated; stale pre-fix builds kept in
 `outputs/p6_levers_2026-09-17/stale_predensityfix/`.
+
+## 2026-09-17g — the D3s left under the best build sit INSIDE sections; an intra-section taper does not fix them
+
+The D3 reds no lever cleared (1f3d7 bars 5/138, 1fb2a 8, 1fa50 11) are **4-27 bars inside a section**,
+and the section taper only acts at section boundaries — it could never have reached them. Most are the
+DENSITY clause (we step less than 0.8× his and play < 0.8× his after), not the lag.
+**Built `autobuild --taper-intra F`** (default 0): the same energy-jump rule as `q_drops` on the
+song's per-bar energy (`score._energy`, fitted grid), moving F of the two bars before each in-section
+jump into the two after (equal spans, so moved exactly). On 1f3d7 bar 5 the after-density rose 4.5 →
+7.5/bar — against a human ×25 step, not enough — and a landing next to an E-DROP made a new D3 at 99.
+**23 songs, seed 0, on top of the best build**: only 4 songs change; reds −3 / +1; **ships 11 → 10**
+(1fb3f gains SCATTER); median p Δ 0.000. ⇒**NOT SUPPORTED; stays OFF.** Where D3 still fires it is
+a per-song human step (×14-25 at an intro) that no budget move reaches.
