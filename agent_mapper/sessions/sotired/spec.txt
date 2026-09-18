@@ -1,0 +1,128 @@
+# SO TIRED ROCK — Expert — hand spec. One line per bar: 16 sixteenths.
+# x = a free single (compose.py picks the hand), d = both hands, l/r = that hand, . = rest
+#
+# ★DOUBLE GRAMMAR (learned on this build, see LOG.md): a double is a HIT, so both hands must
+# arrive at it in the same phase, and ideally both needing a DOWN swing. Between two doubles the
+# number of singles must be EVEN, and ≡ 2 mod 4 for a down-hit (≡ 0 needs a quarter-note gap
+# somewhere so one hand can take two in a row). Backbeat doubles 4 slots apart (1 or 3 singles
+# between) can NEVER satisfy this — the first draft had 75 of 99 doubles mixed or upward.
+# ⇒ choruses: one down-hit per bar on beat 1, with 6 (simple 8ths) or 10 (guitar 16ths) singles.
+# ⇒ streams: 2-bar phrases, hit + 26 sixteenths + breath.
+
+# ── INTRO (1-8): silence until the band lands on bar 4, then the guitar stabs. 24 singles.
+@fig A
+4:  d.......x...x.x.   # band enters on the kick; guitar stabs on 3 and 4
+5:  l...l...l...l...   # LEFT hand alone on the guitar's quarter-note stabs
+6:  r...r.r.r...r.r.   # RIGHT hand alone as the drums pick up
+7:  x.x.x...x...x...   # snare roll on beats 1-2
+8:  l...l...l.l.l.l.   # drums OUT: the guitar lick as a LEFT-hand solo
+
+# ── VERSE 1 (9-16): the singer's rhythm, snapped to 8ths; 16th pairs only where he sings two.
+9:  d...x...x.x.x.x.   # crash; guitar chops at 11-12; vocal pickup on the last 16th
+10: x.x.xxx.x.x.x...   # vox o.o.oo..oo..oo..
+11: x.x.x.x.xx..x.x.
+12: x.x.x.x.xxx.x.x.   # vox ooooooo — a 7-note run held to 8ths: simple flow   (9→13: 30)
+13: d...x.x.x.x.x.x.   # crash: phrase 2 of the verse
+14: xx..x.x.x.x.xx..
+15: x.x.x...x.x.x.x.
+16: x.x.x.x.xxx.x.x.   # (13→17: 30)
+
+# ── PRE-CHORUS (17-24): vocal leads; ringing guitar underneath; bar 24 = the run-up.
+@fig P
+17: d.x.xxx.xx..x.x.   # crash
+18: x.x.x.x.x.x.x.x.
+19: x.xxx.x.x.x.x.x.
+20: x.x.xx..xx..x.x.
+21: xx..x.x.x...d.x.   # crash on beat 4   (17→21.12: 38)
+22: x.x.x.x.xxx...xx
+23: x.x.xxx.xxx.xx..
+24: x...x.x.xxxxxxx.   # guitar + kick fill: first 16th run of the map   (21.12→25: 30)
+
+# ── CHORUS 1 (25-32): a down-hit every bar. 25 sung, 26-30 a GUITAR break, 31-32 sung.
+@fig C
+25: d.x.x.xxx.xxxxx.   # guitar xxxx at the end
+26: d.x.x.xxx.xxxxx.   # guitar x.x...xxx.xxxxxx
+27: d.x.xxx.xxx.xxx.   # guitar ..xxxxxxxxxxxxxx: gallop
+28: d.xx..xxxxxxx.x.   # guitar x..x..xxxxxx.xx.
+29: d...d.x.x.x.x...   # crash cluster: down-hit, up-hit, four 8ths
+30: d.xxx.x.xxx.xxx.
+31: d.x.xxx.xxx.xxx.   # vocals back, crashes on every beat
+32: d.xxx.x.x.x.d...   # both hands on the crash at beat 4, then air
+
+# ── HYPE 1 (33-40): the fast picking. 33-34 = build (drums thin), 35-40 = 2-bar streams.
+@fig H
+33: x.x.x.x.xxxxxxxx
+34: x.xxxxxxxxxxxxx.   # (32.12→35: 26)
+35: d.xxxxxxxxxxxxxx   # hit, 26 sixteenths, breath
+36: xxxxxxxxxxxxxxxx
+37: xxxxxxxxxxxxxxxx
+38: xxxxxxxxxxxx....   # 4-bar stream: hit + 58 sixteenths + breath
+39: d.xxxxxxxxxxxxxx   # 2-bar stream
+40: xxxxxxxxxxxx....   # the guitar breaks at 11-12 exactly where the phrase breathes
+
+# ── BREATH (41), then VERSE 2 (42-48): vocal-led, simple. (41→49: 62)
+@fig A
+41: d.......x...x...   # guitar almost stops: the player gets a bar to recover
+42: xx..xxx.x.x.xx..
+43: xx..x.x.xxx.x.x.
+44: x.x.x.x.x.x.x.x.
+45: x.x.x.x.x.x.xx..
+46: x.x.x.x.x.x.xxx.
+47: x.x.x.xxx.x.x.x.
+48: x.x.x.x.xxx.x...
+
+# ── BRIDGE (49-56): busier, top-row chops; 56 = drums out, the singer runs.
+@fig P
+49: d.x.xxx.xx..x.x.
+50: x.x.x.x.xxx.x.x.
+51: x.x.xxx.x.x.x.x.
+52: x.x.xxx.x...x.x.   # (49→53: 34)
+53: d.l.l.l.l...x.x.   # vocal rests: the left hand carries the guitar
+54: x.x.x.x.x.x.x.x.   # (53→55: 14)
+55: d.x...x.d.....x.   # crash clusters: two hits
+56: x.x.x.x.x.xxxx..   # second 16th run-up   (55.8→57: 10)
+
+# ── CHORUS 2 (57-64): lighter than chorus 1, the vocal leads; down-hit every bar.
+@fig C
+57: d...d.x.x.x.x...   # chorus 2 opens on two hits
+58: d.x.xxx.xxxxx.x.
+59: d.x...x.x.xxx...
+60: d...xxx.x...x.x.
+61: d.x.x...x...xxx.
+62: d...d.x.x.x.x...
+63: d.x.xxx.xxxxxx..
+64: d...d.x.x.x.x...   # last bar before hype 2: hit hit, run in
+
+# ── HYPE 2 (65-72): continuous picking, every bar. Top-row-led figure. 72 = kick fill.
+@fig H2
+65: d.xxxxxxxxxxxxxx
+66: xxxxxxxxxxxxxxxx
+67: xxxxxxxxxxxxxxxx
+68: xxxxxxxxxxxx....
+69: d.xxxxxxxxxxxxxx   # second 4-bar stream
+70: xxxxxxxxxxxxxxxx
+71: xxxxxxxxxxxxxxxx
+72: xxxxxxxxxxxx....   # kick fill rides the end of the last stream
+
+# ── FINAL CHORUS (73-80): down-hit every bar, the busiest chorus.
+@fig C
+73: d.....x.x.x.xxx.
+74: d.xxxxx.x.x.xxx.
+75: d.x.xxx.xxx.xxx.
+76: d.xxx.x.xxx.xxx.   # vox oo.oo.oooo
+77: d...d.x.xx..x...
+78: d.xxxxx.x.x.xxx.
+79: d.x.xxxxxxx.xx..   # vox oo..oooooo — the last run of the song
+80: d.xxx.x.x.x.d...   # crash on beat 4
+
+# ── OUTRO (81-89): winding down; 87 = the kick hits as down/up/down doubles; one last chord.
+@fig P
+81: r...r.r.r...r...   # outro opens with the RIGHT hand alone
+82: x.x.xx..xxx.x.x.   # (80.12→83: 14)
+83: d.x.x.x.x.x.x.x.
+84: x.xx..x.x.x.x...   # (83→85: 14)
+85: d.x.x.x...xxx.x.
+86: x.x.x.x.x.x.x...   # (85→87: 14)
+87: d...d...d...x.x.
+88: x.x.x.x.xxx.x...
+89: d...............

@@ -80,28 +80,22 @@ tempo."*
 **DoD**: Kyle plays it and wants to keep playing. The verdict page is run at the end as a backstop
 (and must show 0 note collisions — see below), never as the reason to ship.
 
-### ▶️ NEXT SESSION STARTS HERE — the So Tired Rock build, in order
+### ▶️ NEXT SESSION STARTS HERE
 
-W0 (perception) and W1 (collision red) are done (PROGRESS 2026-09-17s). Session `sotired` is
-initialised (123.0 BPM CONFIRMED, phase OK); it holds one placeholder note at `1.0` that the build
-must clear first.
+✅**Built** (PROGRESS 2026-09-18a): `outputs/for_kyle_2026-09-18/SO_TIRED_ROCK_Expert.zip`, rationale in
+📖`agent_mapper/sessions/sotired/LOG.md`. **The DoD is still open: Kyle plays it.** His verdict is
+the only evidence about quality; record it in LOG.md verbatim. Levers already named there: body
+density (chorus 2 / verse 2 → 10-single bars), splitting the 4-bar hype-2 streams, verse vocabulary.
 
-**W2 — ⏸ PLAN WRITTEN, WAITING ON KYLE:** 📖`agent_mapper/sessions/sotired/PLAN.md`. Do not place a
-note until he has read it. His answer settles the open questions below: body density (4.5-5.5 as
-planned, or raise to ~6), and whether the two hype sections (33-40, 65-71) are the drops he means.
+⬜**W5 — MIXED-DOUBLE read on `verdict.py`** (found building this map: 75/99 doubles mixed or both-up in a
+draft that was parity-clean). ⚠️Control FIRST: measure the mixed-double share on the 1109 unmodded
+human maps before choosing a colour; humans do write split doubles, so this may be a 🟡 with a
+share line, not a red. DoD: the rate on humans is known; a map whose choruses are backbeat doubles
+with one 8th between (`d.x.d.x.x.x.d.x.`, the draft's pattern) fires; the shipped map does not.
 
-**W3 — build segment by segment.** `mapctl init --fresh`, then one section at a time: place/edit with
-`mapedit.py` at `bar.beat.sub`, read it back with `score.py --bars a-b`, and write one line of
-rationale per section as you go. `autobuild`/`mapctl auto` may seed a section's rhythm, but **every
-segment is read and hand-edited before moving to the next** — an unedited seeded section is the drift
-the charter names. Keep the rationale log in `agent_mapper/sessions/`.
-
-**W4 — backstop, last.** `scripts/verdict.py` + `mapjudge` at the end only, and report to Kyle what
-*you read in the map*, not what the page said. A clean page is not the reason to ship.
-
-**Settled in the plan:** body difficulty = none (own-half hands, no crossovers, 8ths/quarters);
-hype = speed + lateral travel; per-section nps schedule is in PLAN.md. No human map ⇒ the plan is
-the only reference; say so in the handover.
+⬜**W6 — promote `compose.py`'s phrase-level hand planner into the suite** (`agent_mapper/`), so the
+next hand-built map starts with it. It's authoring tooling the agent drives (spec in, notes out), not a
+generator: every rhythm and cell choice stays in the spec.
 
 
 **This file is forward-looking only.** What was done, and how it worked out, lives in

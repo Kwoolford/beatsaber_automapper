@@ -18644,3 +18644,31 @@ was checked independently: a comb scan puts **123.0 BPM at 3.1× the mean** and 
 **W2 plan written**: `agent_mapper/sessions/sotired/PLAN.md` (force-added; `sessions/` is ignored).
 Body = 8ths/quarters, own-half hands, no crossovers. Hype = 16th streams following the picking.
 Budget ~975 notes, 5.6 nps whole file / ~5.9 over the played span, hype 8.5-9.
+
+## 2026-09-18a — ✅ SO TIRED ROCK hand-built by the charter loop (first map built the way Kyle asked)
+
+**Deliverable:** `outputs/for_kyle_2026-09-18/SO_TIRED_ROCK_Expert.zip`: 840 notes, 5.0 nps over
+the played span (4.77 whole file), hype sections 7.3 / 7.7, 0 parity violations, 0 resets,
+0 collisions. Rationale per section + every decision taken without Kyle:
+📖`agent_mapper/sessions/sotired/LOG.md` (plan: `PLAN.md`; source: `spec.txt` + `compose.py`).
+No autobuild anywhere: every bar's rhythm was written by hand against the per-stem lanes
+(`lanes.txt`), and the cells come from per-section figures.
+
+★★**The finding that matters beyond this map: MIXED DOUBLES are invisible to every instrument.**
+First full draft: **75 of 99 doubles were mixed (one hand up, one down) or both-up**, with parity
+violations 0, resets 0, `mapctl check` ✅. A double is a hit; both hands can only arrive at it in the
+same phase if the singles between two doubles are **even** in number (≡ 2 mod 4 for a down-hit, or
+≡ 0 with a quarter-note gap for one hand to repeat). Backbeat doubles 4 slots apart (1 or 3 singles
+between) can never satisfy it. `compose.py` now plans hands phrase by phrase and reports any phrase
+that can't land its hit; the shipped map has 0 mixed doubles, and its 6 up-hits are deliberate (down/up
+hit pairs). Same arithmetic forces stream phrasing: a double in a 16th stream needs a free 16th each
+side, so streams are hit + 26 (2 bars) or + 58 (4 bars) sixteenths + a 3-slot breath.
+
+**Backstop caught two real authoring slips** (verdict FLOW 🟡: 45 notes had drifted onto the "e"/"a"
+after 16th pairs; ABSENCE 🔴 lead-hand passages 0: strict alternation never gives one hand a run).
+Both fixed by edit, not by threshold. Final page: SHIP? YES, but 9 of 11 codes are ⚪ (no human map),
+so it says little here.
+
+**Decided without Kyle (he asked for no questions):** 5.0 nps where there are notes, not ~6. At
+123 BPM, 6 nps averaged over the file needs 16ths through the body, which contradicts "simple flows".
+The lever if he wants more is logged.
