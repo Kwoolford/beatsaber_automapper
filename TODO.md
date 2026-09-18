@@ -80,6 +80,19 @@ tempo."*
 **DoD**: Kyle plays it and wants to keep playing. The verdict page is run at the end as a backstop
 (and must show 0 note collisions — see below), never as the reason to ship.
 
+### 🎮 FOR KYLE — to do when you have time (left 2026-09-18)
+
+1. **Play it:** `outputs/for_kyle_2026-09-18/SO_TIRED_ROCK_Expert.zip` → unzip into
+   `CustomLevels/` (shows as "SO TIRED ROCK" by NUEKI, Expert, preview starts at the hype-1 drop).
+2. **Skim the why:** 📖`agent_mapper/sessions/sotired/LOG.md` (one table + the four decisions made
+   without you).
+3. **Tell the next session, in any words — these are the decisions I took on your behalf:**
+   - **Density:** 5.0 nps played (4.8 whole file) instead of ~6. Too easy in the verses/choruses?
+   - **Drops:** are bars **33–40 (1:02)** and **65–72 (2:04)** the "hype fast" sections you meant?
+   - **Hype 2:** two unbroken ~8 s 16th streams. Fun or tiring?
+   - **Anything that felt wrong, with a rough time** (the log maps bars ↔ times).
+4. Your words go into LOG.md verbatim. They are the DoD, and the only real evidence about quality.
+
 ### ▶️ NEXT SESSION STARTS HERE
 
 ✅**Built** (PROGRESS 2026-09-18a): `outputs/for_kyle_2026-09-18/SO_TIRED_ROCK_Expert.zip`, rationale in
@@ -112,11 +125,11 @@ items grouped by tool)**, **2026-09-13 (from 874: the day's nine measured levers
 landmines that each cost a session. Curate the WORK half; leave those.
 
 📖**A read of any map is one command:** `python scripts/verdict.py <map.zip>`. Before believing a
-clean one, read `START THE NEXT SESSION HERE` below.
+clean one, read the charter at the top.
 
 ---
 
-## 📍 CURRENT STATE — goal and audit framing (2026-09-02); live status is in START HERE below
+## 📍 CURRENT STATE — goal and audit framing (2026-09-02); live status is in the ▶️ block above
 
 > ★★**THE GOAL (Kyle, 2026-09-02):** *"a tool suite that empowers the LLM to create a map like the
 > best mappers, and a user can make requests to have specific mapping styles… the eval suite still
@@ -192,7 +205,9 @@ with *"reach for this when…"* (P4), and the verdict names the tool for every r
    header) and whisper's language probability decide whether a blank VOX lane is the song or the
    tool. Read the header before reading the page.
 
-### ▶️ START THE NEXT SESSION HERE — no GPU, no questions for Kyle (updated 2026-09-17)
+### 📦 BUILDER-ERA STATE (2026-09-17) — reference only; the session starts at the ▶️ block above
+⚠️Written before the charter; its "best build" numbers are autobuild measurements, and the
+`best_2026-09-17` maps carry 7-26 two-colour collisions (PROGRESS 2026-09-17s).
 **The toolbox is done** (P1 · P1b · P0 · P2 · P2b · P3 · P4 · P4b · P5b · P5c); what is left is the
 builder and Kyle's ear.
 
@@ -405,7 +420,7 @@ at every default; that check is mandatory before reading any sweep.
 | `--taper` | off (0) | move budget from the bars before an energy rise to the bars after | D3 11 → 7 hits · 1f767 ships · ⚠️1f8d6 ship → 2 red (zero-margin crossings) |
 | `--map-memory` | off (0) | boost landings this map already played | SCATTER room +0.2-0.3, stable since STRICT_PARITY · ⚠️local cost ~2x human, judge p −0.2 |
 
-**Best known build** and where each songset map stands: see START HERE.
+**Best known build** and where each songset map stands: see BUILDER-ERA STATE.
 
 ### ❓ THE ONE DECISION THAT IS KYLE'S — the FLOW fix is a TRADE
 **FLOW → 0 on all 16 songs, against 23-metric typicality worsening 0.511 → 0.533 (worse on 11/16).**
