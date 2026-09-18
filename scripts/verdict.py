@@ -102,6 +102,34 @@ def load_arrays(src: pathlib.Path, song: str | None, vs: str):
     return arrs, dict(sid=sid, m=m, mc=mc, hc=hc, vs=vsm, header=header), song_obj
 
 
+def collisions(m) -> list[tuple[float, int, int, str]]:
+    """Every (beat, x, y, kind) where two objects share a cell at one instant.
+
+    ★2026-09-17q: the PLAYABILITY line read `parity violations 0` on a 1f333 build with 26 of
+    these (red and blue stacked in one cell) -- parity and resets cannot see them.
+    kind: `two_colour` (red + blue in one cell: impossible) and `note_on_bomb` are RED;
+    `dup_same` (one colour twice: cut as one) is a yellow; bomb on bomb is ignored.
+    Control, 1109 unmodded human maps (2026-09-17s): two_colour 0 maps, note_on_bomb 1,
+    dup_same 9 -- while every collision in the four best_2026-09-17 builds is two_colour.
+    ⚠️Noodle / Mapping Extensions maps move objects off the grid and fire here; not our case.
+    """
+    cell: dict[tuple[int, int, int], list] = defaultdict(list)
+    for n in m.notes:
+        cell[(round(float(n.beat) * 48), int(n.x), int(n.y))].append(int(n.color))
+    for b in m.bombs:
+        cell[(round(float(b["b"]) * 48), int(b["x"]), int(b["y"]))].append(None)
+    out = []
+    for k, objs in sorted(cell.items()):
+        if len(objs) < 2:
+            continue
+        cols = {c for c in objs if c is not None}
+        kind = ("two_colour" if len(cols) > 1 else "note_on_bomb" if cols and None in objs
+                else "dup_same" if cols else "")
+        if kind:
+            out.append((k[0] / 48, k[1], k[2], kind))
+    return out
+
+
 def _span(h: tuple) -> tuple[int, int]:
     b0 = int(h[2]); b1 = int(h[4]) if len(h) > 4 and h[4] else b0
     return b0, b1
@@ -275,9 +303,13 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
         # his count + 2 (no human: past 12) — read `mapedit.py resets`, never ship blind.
         limit = 2 * play["human_resets"] + 2 if play["human_resets"] is not None else 12
         play["reset_warn"] = play["resets"] > limit
-        if play["violations"]:
+        m = built["m"]
+        allc = collisions(m)
+        play["collisions"] = [(b, x, y, int(b // 4) + 1) for b, x, y, k in allc if k != "dup_same"]
+        play["duplicates"] = sum(1 for c in allc if c[3] == "dup_same")
+        if play["violations"] or play["collisions"]:
             reds += 1
-        elif play["reset_warn"]:
+        elif play["reset_warn"] or play["duplicates"]:
             yellows += 1
     absence = absence_lines(arrs)
     # ★★**EVERY code reports its own margin** (2026-09-13q). This page recomputed two of
@@ -372,11 +404,20 @@ def render(v: dict) -> str:
     L.append("")
     p = v["playability"]
     if p:
-        st = "🔴" if p["violations"] else ("🟡" if p.get("reset_warn") else "✅")
+        cols = p.get("collisions") or []
+        st = "🔴" if (p["violations"] or cols) else (
+            "🟡" if (p.get("reset_warn") or p.get("duplicates")) else "✅")
         hr = p.get("human_resets")
         L.append(f"{st} PLAYABILITY  parity violations {p['violations']} · resets {p['resets']}"
                  + (f" (human {hr})" if hr is not None else "")
+                 + f" · collisions {len(cols)}"
+                 + (f" · same-colour duplicates {p['duplicates']}" if p.get("duplicates") else "")
                  + "  (unplayable is non-negotiable)")
+        if cols:
+            L.append(f"{'':>13s}two objects in one cell at one instant, bars "
+                     + ", ".join(sorted({str(c[3]) for c in cols}, key=int)[:12])
+                     + ("  …" if len({c[3] for c in cols}) > 12 else "")
+                     + "  — mapedit.py move/delete one of each pair")
         if p.get("reset_warn"):
             L.append(f"{'':>13s}read:  mapedit.py <map> resets   — reconcile with ONE note per hand "
                      "(place / delete / flip … X), not a chain of flips")
@@ -425,8 +466,11 @@ def render(v: dict) -> str:
     fix = [ln for ln in v["lines"] if ln["state"] == "🔴"]
     if v["ship"] == "NO":
         order = ", ".join(f"{ln['code']} (bars {ln['spans'].split(' …')[0]})" for ln in fix)
-        if p and p["violations"]:
-            order = f"PLAYABILITY ({p['violations']} violations)" + (", " + order if order else "")
+        if p and (p["violations"] or p.get("collisions")):
+            what = ", ".join(w for w in (f"{p['violations']} violations" if p["violations"] else "",
+                                         f"{len(p['collisions'])} collisions" if p.get("collisions") else "")
+                             if w)
+            order = f"PLAYABILITY ({what})" + (", " + order if order else "")
         j = v["judge"]
         if j and j.get("verdict") not in (None, "PASS"):
             order += (", " if order else "") + f"JUDGE ({'; '.join(j['why']) or 'p < 0.10'})"
