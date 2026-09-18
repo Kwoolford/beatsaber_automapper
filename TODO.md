@@ -80,41 +80,15 @@ tempo."*
 **DoD**: Kyle plays it and wants to keep playing. The verdict page is run at the end as a backstop
 (and must show 0 note collisions — see below), never as the reason to ship.
 
-⬜**Gate still missing**: `verdict.py`'s PLAYABILITY block does not check for two notes in one cell
-at one instant. It read `parity violations 0` on a map with 26 of them (2026-09-17q). Add it as a
-hard red before the next map ships.
-
 ### ▶️ NEXT SESSION STARTS HERE — the So Tired Rock build, in order
 
-Nothing has been built yet. The session that was going to start it ended before the first tool call
-landed. Work these in order; **W1 and W2 are prep and can be done while the stems extract.**
+W0 (perception) and W1 (collision red) are done (PROGRESS 2026-09-17s). Session `sotired` is
+initialised (123.0 BPM CONFIRMED, phase OK); it holds one placeholder note at `1.0` that the build
+must clear first.
 
-**W0 — PERCEPTION IS COLD.** Only `structure_cache` and `onset_cache` hold this song. Missing:
-`event_cache`, `percussion_cache`, `melody_cache`, `lyrics_cache`, `chords_cache`, `score_cache`.
-⇒ **first command of the session**, detached, because `events.py` runs `htdemucs_6s`:
-```bash
-cd /home/kyle/repos/beatsaber_automapper && source .venv/bin/activate
-mkdir -p logs/sotired
-nohup python agent_mapper/events.py "data/test_songs/SO TIRED ROCK - NUEKI.mp3" \
-      > logs/sotired/events.log 2>&1 &
-```
-Then, while it runs: `structure.py --validate`, `percussion.py --validate`, `melody.py` (⚠️no
-`--validate`), `brief.py`. **Read each validator's verdict before using its output** — a section
-letter set that fails its control is unusable and the plan must go by density instead.
-⚠️`lyrics.py` hallucinates on low-vocal passages; check `language_probability` before believing a word
-of it. This is a rock song with vocals, so lyrics should be usable — verify, don't assume.
-
-**W1 — add the note-collision hard red to `verdict.py`** (the ⬜ above). Two notes sharing a beat
-and an `(x,y)` cell is unplayable and no instrument in the suite sees it. Do this BEFORE the build so
-the backstop is real when the map reaches it. DoD: a red on `outputs/for_kyle_2026-09-17/AGENT__1f333.zip`
-(26 collisions, pre-fix build) and clean on the post-fix chain output.
-
-**W2 — write the PLAN, show Kyle, do not place a note until he has seen it.** Charter step 1. It must
-name: the song's character and what an Expert map of it should *feel* like; the section map with bar
-ranges; **which instrument the map follows in each section** (rock ⇒ kick/snare backbone and the
-guitar riff in the heavy parts, not the vocal); where the ~6 nps budget is spent — deliberately
-**under** 6 through the simple-flow body so the drops can run **well above** it while the song still
-averages ~6; and which signals were unusable so they cannot silently steer it.
+**W2 — ⏸ PLAN WRITTEN, WAITING ON KYLE:** 📖`agent_mapper/sessions/sotired/PLAN.md`. Do not place a
+note until he has read it. His answer settles the open questions below: body density (4.5-5.5 as
+planned, or raise to ~6), and whether the two hype sections (33-40, 65-71) are the drops he means.
 
 **W3 — build segment by segment.** `mapctl init --fresh`, then one section at a time: place/edit with
 `mapedit.py` at `bar.beat.sub`, read it back with `score.py --bars a-b`, and write one line of
@@ -125,13 +99,9 @@ the charter names. Keep the rationale log in `agent_mapper/sessions/`.
 **W4 — backstop, last.** `scripts/verdict.py` + `mapjudge` at the end only, and report to Kyle what
 *you read in the map*, not what the page said. A clean page is not the reason to ship.
 
-**Open questions to settle in the plan, not mid-build:**
-- Where is the difficulty in the simple-flow body — pure rate, or transition cost (`--width`,
-  crossovers) at a lower rate? Kyle asked for **simple flows**, which argues for low transition cost
-  there and all the difficulty saved for the drops.
-- ~6 nps is the *average*; decide the per-section nps schedule up front so the drops have room.
-- No human map of this song exists ⇒ `--vs` is ⚪ and `tutor.py` has no reference. The plan is the
-  only reference; say so in the handover.
+**Settled in the plan:** body difficulty = none (own-half hands, no crossovers, 8ths/quarters);
+hype = speed + lateral travel; per-section nps schedule is in PLAN.md. No human map ⇒ the plan is
+the only reference; say so in the handover.
 
 
 **This file is forward-looking only.** What was done, and how it worked out, lives in

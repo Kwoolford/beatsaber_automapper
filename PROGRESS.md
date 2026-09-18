@@ -18620,3 +18620,27 @@ the full chain now reads 0 at every stage. ⬜The verdict gate still needs the c
 `TODO.md` now opens with an immutable CHARTER block (do not edit or delete), and the next work item
 is one map built the way the suite was meant to be used: plan → read → flow → build segment by
 segment, hand-edited, with the queries as a backstop, not the judge.
+
+## 2026-09-17s — the note-collision gate, and the So Tired Rock perception + plan
+
+**W1 ✅ `verdict.py` PLAYABILITY now reds note collisions.** CONFIRMED on the DoD: the pre-fix
+`for_kyle_2026-09-17/AGENT__1f333.zip` reads **26** (the known count), a fresh post-fix chain build
+of 1f333 reads **0**. Control against **1109 unmodded human maps**: two-colour stacks (red + blue in
+one cell) in **0**, note-on-bomb in 1, same-colour duplicates in 9 (a copy-paste artifact cut as one;
+now a 🟡), bomb-on-bomb ignored. Noodle / Mapping Extensions maps fire here (off-grid objects); ours
+are never modded. 🔴**Every one of the four `outputs/best_2026-09-17/` builds carries 7-26 two-colour
+collisions**, so the "songset 3 of 4 ship" line for that build was on unplayable maps. They predate
+the idiomize fix; any re-read of them must rebuild first.
+
+**W0 ✅ perception for SO TIRED ROCK (NUEKI)** runs in ~1 min end to end (`events.py` 20 s). Verdicts:
+guitar stem z=+9.6 ✅, drums z=+19.9 ✅, **lyrics UNUSABLE** ("Thank you." ×6, p=0.25; the vocal stem
+is active, so it's a singer Whisper can't read, not an instrumental), **section letters UNUSABLE**
+(intro and drops share "A"), **energy flat** 0.75-0.82 from bar 9 on. The `r=0.24 ⚠️weak` tempo fit
+was checked independently: a comb scan puts **123.0 BPM at 3.1× the mean** and every ±0.5 neighbour at
+~1.05, so the tempo is CONFIRMED; kit hits land on the quarter slots every bar, so the phase is too.
+★**The guitar stem is what separates the sections on this song**: 5 events/bar in the verse up to
+**16-17/bar of short stabs at 104-128 ms in bars 33-40 and 65-71**, the two hype sections.
+
+**W2 plan written**: `agent_mapper/sessions/sotired/PLAN.md` (force-added; `sessions/` is ignored).
+Body = 8ths/quarters, own-half hands, no crossovers. Hype = 16th streams following the picking.
+Budget ~975 notes, 5.6 nps whole file / ~5.9 over the played span, hype 8.5-9.
