@@ -134,6 +134,41 @@ def fingerprint(m) -> dict[str, float]:
             f[f"{hn}_gap_med_s"] = float(np.median(gs))
             f[f"{hn}_swing_ps_max4"] = float(1 / max(np.percentile(gs, 2), 1e-3))
 
+    # ---- ergonomics (2026-10-05): what a player's body notices that a share cannot
+    MIRROR = {0: 0, 1: 1, 2: 3, 3: 2, 4: 5, 5: 4, 6: 7, 7: 6, 8: 8}
+    f["dbl_mirror"] = _share(sum(b.x == 3 - r.x and b.y == r.y and b.direction == MIRROR[r.direction]
+                                 for r, b in dbl), len(dbl))
+    # centre middle cells hide what comes next (vision block) when anything follows within 0.5 s
+    allb = np.array([n.beat for n in notes])
+    vb = 0
+    for n in notes:
+        if n.y == 1 and n.x in (1, 2):
+            k = np.searchsorted(allb, n.beat + 1e-6)
+            vb += k < len(allb) and (allb[k] - n.beat) * spb < 0.5
+    f["vision_block"] = vb / len(notes)
+    fast_big, fast_turn, swings = 0, 0, 0
+    for c in (0, 1):
+        hs = []
+        for n in notes:
+            if n.color == c and (not hs or round(hs[-1].beat * Q) != round(n.beat * Q)):
+                hs.append(n)
+        for a, b in zip(hs, hs[1:]):
+            g = (b.beat - a.beat) * spb
+            swings += 1
+            fast_big += g < 0.25 and math.hypot(b.x - a.x, b.y - a.y) >= 2
+            fast_turn += (g < 0.25 and a.direction in VEC and b.direction in VEC
+                          and _angle(a.direction, b.direction) <= 90)
+    f["fast_big_move"] = _share(fast_big, swings)
+    f["fast_sharp_turn"] = _share(fast_turn, swings)
+    # hand role: do the two hands keep different rhythms / jobs? (FLOW 2026-09: "no hand role")
+    def _hand_profile(c):
+        ph = [round(n.beat * Q) % Q for n in notes if n.color == c]
+        return np.bincount([p_ * 4 // Q for p_ in ph], minlength=4) / max(len(ph), 1)
+    f["role_phase_l1"] = float(np.abs(_hand_profile(0) - _hand_profile(1)).sum())
+    lg, rg = f.get("L_gap_med_s"), f.get("R_gap_med_s")
+    if lg and rg:
+        f["role_gap_ratio"] = float(max(lg, rg) / max(min(lg, rg), 1e-6))
+
     # ---- hands together
     f["hand_balance"] = abs(f.get("L_share", 0) - f.get("R_share", 0))
     seq = []
@@ -157,14 +192,16 @@ def fingerprint(m) -> dict[str, float]:
     rx = [(n.beat, n.x) for n in notes if n.color == 1]
     if lx and rx:
         rb = np.array([b for b, _ in rx]); rxx = np.array([x for _, x in rx])
-        cross = 0
+        cross = fcross = 0
         for b, x in lx:
             i = np.searchsorted(rb, b)
             j = [k for k in (i - 1, i) if 0 <= k < len(rb)]
             k = min(j, key=lambda k: abs(rb[k] - b))
             if abs(rb[k] - b) <= 1.0 and x > rxx[k]:
                 cross += 1
+                fcross += abs(rb[k] - b) * spb <= 0.15
         f["crossover"] = cross / len(lx)
+        f["fast_crossover"] = fcross / len(lx)
 
     # ---- time: spacing of instants
     eg = np.diff([t / Q for t in ticks])

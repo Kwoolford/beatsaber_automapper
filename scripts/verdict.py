@@ -337,6 +337,9 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
         pass
     reds += sum(1 for a in absence if a["state"] == "🔴")
     yellows += sum(1 for a in absence if a["state"] == "🟡")
+    unnamed = unnamed_line(src) if src.suffix == ".zip" else None
+    if unnamed and unnamed["state"] == "🟡":
+        yellows += 1
     tut_word, tut_diffs = tutor_line(sid, arrs)
     jd = judge(src, sid) if src.suffix == ".zip" else None
     # P0's gate stands: parity -> alignment floor -> requested density -> typicality.
@@ -350,11 +353,49 @@ def verdict(src: pathlib.Path, song: str | None = None, vs: str = "auto",
     return dict(map=str(src), song=sid, n_bars=n_bars, human=human, lines=lines, reds=reds,
                 difficulty=str(arrs.get("difficulty", "")),
                 human_difficulty=str(arrs.get("human_difficulty", "")),
-                yellows=yellows, ship=ship, playability=play, absence=absence, margins=margins, red_margins=red_margins, tutor=tut_word,
+                yellows=yellows, ship=ship, playability=play, absence=absence, unnamed=unnamed, margins=margins, red_margins=red_margins, tutor=tut_word,
                 tutor_diffs=tut_diffs, judge=jd, header=(built["header"] if built else []),
                 bench=(None if bench_res is None else
                        dict(line=bench_res["line"], bad=bench_res["bad"],
                             hits=bench_res["hits"], n_rows=bench_res["n_rows"])))
+
+
+def unnamed_line(src: pathlib.Path) -> dict | None:
+    """UNNAMED — where the map sits outside humans on something NO query names (2026-10-05).
+
+    `scripts/outlier_sweep.py`: ~130 plain quantities vs the 400 human maps nearest in nps, and per
+    8-bar window vs 19 414 human windows. Every flaw Kyle found on load was one nobody had named
+    (colour stacks, 88 % both-down doubles, inward diagonals, centre vision blocks on 100 % of the
+    09-17 autobuilds); on his labels it reads Hunger_AGENT (DEFECT) 22/23 windows vs Hunger_BEFORE
+    (PREFERRED) 4. 🟡 only: a far tail is a place to READ, not a proven defect — no feature here has
+    a human control showing it costs play. Thresholds are the held-out human p95s.
+    """
+    try:
+        sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+        import outlier_sweep as O
+        from agent_mapper.score import load_map
+        from agent_mapper.fingerprint import fingerprint
+        names, X, ids = O.load_table()
+        ctl = json.loads((O.TABLE.parent / "control.json").read_text())
+        lctl = json.loads((O.TABLE.parent / "lcontrol.json").read_text())
+        m = load_map(src)
+        pl = O.place(fingerprint(m), names, X, ids, exclude=src.stem)
+        fl = sorted(O.flags(pl), key=lambda r: r[2])
+        n0 = sum(r[7] == 0 for r in pl)
+        ln, lX, llnps, lids = O.lload()
+        ws = O.windows(m)
+        lw = [(b, O.lplace(f, ln, lX, llnps, lids, exclude=src.stem)) for b, f in ws]
+        lw = [(b, h) for b, h in lw if h]
+    except Exception as e:  # noqa: BLE001
+        return dict(state="⚪", text=f"outlier sweep unavailable: {e!r}"[:120])
+    over = (len(fl) > ctl["pct"]["95"] or len(lw) > lctl["flagged_windows_per_map"]["95"] or n0 > 2)
+    worst = "; ".join(f"{nm} {v:.2f} (human p50 {p50:.2f}, {nmore}/{nref})"
+                      for nm, v, rar, side, p5, p50, p95, nmore, nref in fl[:4])
+    return dict(state="🟡" if over else "✅", n=len(fl), beyond_all=n0, windows=len(lw),
+                n_windows=len(ws), worst=worst, window_bars=[b for b, _ in lw],
+                text=(f"{len(fl)} map-wide far tails (human p95 {ctl['pct']['95']:.0f}), {n0} beyond EVERY "
+                      f"human (p95 2); {len(lw)}/{len(ws)} 8-bar windows (human p95 "
+                      f"{lctl['flagged_windows_per_map']['95']:.0f})"))
 
 
 def render(v: dict) -> str:
@@ -436,6 +477,14 @@ def render(v: dict) -> str:
                 "give one hand a passage: mapedit.py flip the colour of a run. ⚠️NOT "
                 "--lead-bias (0 runs of 4+ at every value); mapctl's --runs holds a run but "
                 "is a constant and autobuild does not expose it — see TODO P0.10"))
+    un = v.get("unnamed")
+    if un:
+        L.append(f"{un['state']} UNNAMED      {un['text']}")
+        if un.get("worst"):
+            L.append(f"{'':>13s}worst: {un['worst']}")
+        if un.get("window_bars"):
+            L.append(f"{'':>13s}windows at bars {', '.join(str(b) for b in un['window_bars'][:10])}"
+                     "  — python scripts/outlier_sweep.py local <map>")
     # ★No colour on this line since 2026-09-10d. The 50 % threshold that used to make it
     # ✅/🟡 was invented, and the difficulty control refuted it: on 1f333 a top mapper's OWN
     # other difficulty answers only **16/49** of the song's situations "his way" (both
