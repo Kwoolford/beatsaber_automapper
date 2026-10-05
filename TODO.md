@@ -82,8 +82,9 @@ tempo."*
 
 ### 🎮 FOR KYLE — to do when you have time (left 2026-09-18)
 
-1. **Play it:** `outputs/for_kyle_2026-09-18/SO_TIRED_ROCK_Expert.zip` → unzip into
-   `CustomLevels/` (shows as "SO TIRED ROCK" by NUEKI, Expert, preview starts at the hype-1 drop).
+1. **Play it — v2 first:** `outputs/for_kyle_2026-10-04/SO_TIRED_ROCK_Expert_v2.zip` (sub-name "v2").
+   v2 = v1 with the 60 chorus **inward up-diagonals** (red UR / blue UL, ~0 % in human maps) cut straight
+   up — found 2026-10-04 by `outlier_sweep.py local`. v1 is still at `outputs/for_kyle_2026-09-18/`.
 2. **Skim the why:** 📖`agent_mapper/sessions/sotired/LOG.md` (one table + the four decisions made
    without you).
 3. **Tell the next session, in any words — these are the decisions I took on your behalf:**

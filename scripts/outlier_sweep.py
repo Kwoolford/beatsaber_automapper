@@ -152,9 +152,148 @@ def report(paths, tail=TAIL, show_near=0):
                       f"   {nmore}/{nref}")
 
 
+
+
+# ============================================================================ LOCAL (8-bar windows)
+# The map-wide sweep says WHAT; Kyle's complaints arrive as WHERE ("bars 33-36"). Same features,
+# per 8-bar window, against the human windows nearest in LOCAL density. Map-wide-only features
+# (density shape, elements per minute) are dropped: a window cannot have them.
+WIN = 32                 # beats
+LTABLE = TABLE.parent / "human_windows.json"
+LK, LTAIL = 1000, 0.001
+LOCAL_SKIP = ("win_", "last_fifth", "first_fifth", "bar_rhythm", "longest_gap", "gap_long",
+              "_pm", "wall_", "nps", "events_ps", "swing_ps", "_shapes", "gap_med_beats")
+
+
+def windows(m, min_notes: int = 24):
+    import copy
+    from agent_mapper.fingerprint import fingerprint
+    if not m.notes:
+        return []
+    last = max(n.beat for n in m.notes)
+    out = []
+    for k in range(int(last // WIN) + 1):
+        a, b = k * WIN, (k + 1) * WIN
+        ns = [n for n in m.notes if a <= n.beat < b]
+        if len(ns) < min_notes:
+            continue
+        w = copy.copy(m)
+        w.notes, w.bombs, w.walls, w.arcs, w.chains = ns, [], [], [], []
+        f = fingerprint(w)
+        f["lnps"] = len(ns) / (WIN * 60 / m.bpm)
+        out.append((k * WIN // 4 + 1, f))       # first bar (4/4) of the window
+    return out
+
+
+def _lone(p):
+    from agent_mapper.score import load_map
+    try:
+        m = load_map(pathlib.Path(p))
+    except Exception:
+        return None
+    if len(m.notes) < 100 or any(not (0 <= n.x <= 3 and 0 <= n.y <= 2 and 0 <= n.direction <= 8)
+                                 for n in m.notes):
+        return None
+    sid = pathlib.Path(p).stem
+    return [dict(id=sid, bar=b, f=f) for b, f in windows(m)]
+
+
+def lbuild(n: int = 1500, seed: int = 0):
+    zips = sorted((ROOT / "data" / "raw").glob("*.zip"))
+    rng = np.random.default_rng(seed)
+    zips = [zips[i] for i in rng.choice(len(zips), size=min(n, len(zips)), replace=False)]
+    with ProcessPoolExecutor(16) as ex:
+        rows = [w for r in ex.map(_lone, map(str, zips), chunksize=8) if r for w in r]
+    LTABLE.write_text(json.dumps(rows))
+    print(f"{len(rows)} human windows from {len({r['id'] for r in rows})} maps -> {LTABLE}")
+
+
+def lload():
+    rows = json.loads(LTABLE.read_text())
+    names = sorted({k for r in rows for k in r["f"] if not any(s in k for s in LOCAL_SKIP)})
+    X = np.array([[r["f"].get(k, np.nan) for k in names] for r in rows], float)
+    lnps = np.array([r["f"]["lnps"] for r in rows])
+    ids = np.array([r["id"] for r in rows])
+    return names, X, lnps, ids
+
+
+def lplace(f, names, X, lnps, ids, exclude=None, tail=LTAIL):
+    d = np.abs(np.log(lnps) - np.log(f["lnps"]))
+    if exclude is not None:
+        d[ids == exclude] = np.inf
+    ref = np.argsort(d)[:LK]
+    out = []
+    for j, nm in enumerate(names):
+        v = f.get(nm, np.nan)
+        col = X[ref, j]
+        col = col[np.isfinite(col)]
+        if not np.isfinite(v) or len(col) < 200:
+            continue
+        lo, hi = np.mean(col <= v), np.mean(col >= v)
+        rar, side = (lo, "low") if lo < hi else (hi, "high")
+        if rar <= tail:
+            out.append((nm, v, rar, side, *np.percentile(col, [5, 50, 95]), int(round(rar * len(col))), len(col)))
+    return out
+
+
+def lcontrol(n: int = 300, seed: int = 1):
+    """Held-out: windows of human maps NOT in the table, so no window is read against itself."""
+    names, X, lnps, ids = lload()
+    used = set(ids.tolist())
+    zips = [z for z in sorted((ROOT / "data" / "raw").glob("*.zip")) if z.stem not in used]
+    rng = np.random.default_rng(seed)
+    zips = [zips[i] for i in rng.choice(len(zips), size=min(n, len(zips)), replace=False)]
+    with ProcessPoolExecutor(16) as ex:
+        maps = [r for r in ex.map(_lone, map(str, zips), chunksize=8) if r]
+    win_flag, map_wins, per_feat, nwin = [], [], {}, 0
+    for r in maps:
+        k = 0
+        for w in r:
+            fl = lplace(w["f"], names, X, lnps, ids)
+            nwin += 1
+            win_flag.append(len(fl))
+            k += bool(fl)
+            for x in fl:
+                per_feat[x[0]] = per_feat.get(x[0], 0) + 1
+        map_wins.append(k)
+    win_flag, map_wins = np.array(win_flag), np.array(map_wins)
+    res = dict(maps=len(maps), windows=nwin, window_flag_rate=float(np.mean(win_flag > 0)),
+               flagged_windows_per_map={str(q): float(np.percentile(map_wins, q)) for q in (50, 90, 95, 99)},
+               per_feature_window_rate={k: v / nwin for k, v in sorted(per_feat.items(), key=lambda kv: -kv[1])})
+    (TABLE.parent / "lcontrol.json").write_text(json.dumps(res, indent=1))
+    print(f"held-out human maps {res['maps']} ({nwin} windows): {res['window_flag_rate']:.1%} of windows flag;"
+          f" flagged windows per map p50 {res['flagged_windows_per_map']['50']:.0f}"
+          f" p90 {res['flagged_windows_per_map']['90']:.0f} p95 {res['flagged_windows_per_map']['95']:.0f}"
+          f" p99 {res['flagged_windows_per_map']['99']:.0f}")
+    print("most-firing:", ", ".join(f"{k} {v:.2%}" for k, v in list(res["per_feature_window_rate"].items())[:10]))
+
+
+def lreport(paths):
+    from agent_mapper.score import load_map
+    names, X, lnps, ids = lload()
+    cp = TABLE.parent / "lcontrol.json"
+    ctl = json.loads(cp.read_text()) if cp.exists() else None
+    for p in paths:
+        p = pathlib.Path(p)
+        ws = windows(load_map(p))
+        hits = [(b, lplace(f, names, X, lnps, ids, exclude=p.stem), f["lnps"]) for b, f in ws]
+        hits = [h for h in hits if h[1]]
+        cal = ""
+        if ctl:
+            c = ctl["flagged_windows_per_map"]
+            cal = (f"  {'🔴' if len(hits) > c['99'] else '🟡' if len(hits) > c['95'] else '⚪'}"
+                   f" human maps: p95 {c['95']:.0f} / p99 {c['99']:.0f}")
+        print(f"\n== {p.name}: {len(hits)} of {len(ws)} 8-bar windows outside every-but-0.1 % of human"
+              f" windows at their density{cal}")
+        for b, fl, ln in hits:
+            desc = "; ".join(f"{nm} {v:.2f} ({side}, human p50 {p50:.2f})"
+                             for nm, v, rar, side, p5, p50, p95, nm_, nr in sorted(fl, key=lambda x: x[2])[:4])
+            print(f"   bars {b:3}-{b+7:<3} ({ln:.1f} nps)  {desc}")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["build", "control", "map"])
+    ap.add_argument("cmd", choices=["build", "control", "map", "lbuild", "lcontrol", "local"])
     ap.add_argument("paths", nargs="*")
     ap.add_argument("--tail", type=float, default=TAIL)
     ap.add_argument("--near", type=float, default=0, help="also list features rarer than this")
@@ -163,6 +302,12 @@ def main():
         build()
     elif a.cmd == "control":
         control()
+    elif a.cmd == "lbuild":
+        lbuild()
+    elif a.cmd == "lcontrol":
+        lcontrol()
+    elif a.cmd == "local":
+        lreport(a.paths)
     else:
         report(a.paths, a.tail, a.near)
 

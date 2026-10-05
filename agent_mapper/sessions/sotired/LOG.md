@@ -75,6 +75,18 @@ check), lead-hand passages 5 ✅, judge PASS p=0.162 (deaf: no onset cache for t
 the eleven codes are ⚪ because there's no human map of this song, so **the page says very little
 here**. What I actually read is above.
 
+## 2026-10-04 — v2: the blindspot sweep's first finding on this map
+`scripts/outlier_sweep.py local` (8-bar windows vs 19 414 human windows at the same local density)
+flagged **all three choruses** (25-32, 57-64, 73-80): the chorus figure `C` ended each hand's cycle on
+an **inward up-diagonal** (red UR at (1,0), blue UL at (2,0)) — 24 % of swings there, where the human
+window median is **0 %**, and it made every red swing in the chorus a 135° turn instead of the 180°
+down/up. 60 notes, all chorus. **v2 = those 60 cut straight UP; nothing else changed**
+(`outputs/for_kyle_2026-10-04/SO_TIRED_ROCK_Expert_v2.zip`, sub-name "v2"; figure `C` in compose.py
+updated so a rebuild reproduces it). Local windows flagged: 3 → **0**; parity/resets/collisions 0.
+Still outside humans map-wide (deliberate "simple flows" choices, kept for Kyle's ear): hands never
+cross the centre (R col1 = L col2 = 0: 0-1 of 400 humans), alternation 97 % (human p95 89 %), every
+double same-row and 88 % both-down, red uses 10 shapes (human p5 16 — v2 narrowed it from 11).
+
 ## What is not known
 - **Nobody has played it.** Kyle's DoD is that he plays it and wants to keep playing.
 - Two 4-bar 16th streams (7.8 s each) in hype 2 is the most demanding thing in the map; if it's
