@@ -82,9 +82,11 @@ tempo."*
 
 ### 🎮 FOR KYLE — to do when you have time (left 2026-09-18)
 
-1. **Play it — v2 first:** `outputs/for_kyle_2026-10-04/SO_TIRED_ROCK_Expert_v2.zip` (sub-name "v2").
+1. **Play it — v3 first:** `outputs/for_kyle_2026-10-04/SO_TIRED_ROCK_Expert_v3.zip` (sub-name "v3").
    v2 = v1 with the 60 chorus **inward up-diagonals** (red UR / blue UL, ~0 % in human maps) cut straight
-   up — found 2026-10-04 by `outlier_sweep.py local`. v1 is still at `outputs/for_kyle_2026-09-18/`.
+   up; v3 = v2 with 24 doubles de-mirrored (96 % of v2's doubles were exact mirror images — "both hands
+   do the same thing"). Both found by the new blindspot sweep (`outlier_sweep.py`). v1 is still at
+   `outputs/for_kyle_2026-09-18/`. If v3 feels worse than v1 anywhere, that is the most useful answer.
 2. **Skim the why:** 📖`agent_mapper/sessions/sotired/LOG.md` (one table + the four decisions made
    without you).
 3. **Tell the next session, in any words — these are the decisions I took on your behalf:**

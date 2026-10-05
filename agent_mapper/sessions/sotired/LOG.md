@@ -87,6 +87,15 @@ Still outside humans map-wide (deliberate "simple flows" choices, kept for Kyle'
 cross the centre (R col1 = L col2 = 0: 0-1 of 400 humans), alternation 97 % (human p95 89 %), every
 double same-row and 88 % both-down, red uses 10 shapes (human p5 16 — v2 narrowed it from 11).
 
+**v3 (2026-10-05)** = v2 + varied doubles. The new `dbl_mirror` feature read v2's doubles as **96 %
+exact mirror images** (blue = red reflected; 0 of 399 humans; human median 17 %) — Kyle's ML-era
+words for it were *"both hands do the same thing"*. First attempt (move notes outward) widened the
+doubles to dx 2.20 (1 of 399 humans) — the sweep caught that too. Final rule: the 14 outer pairs
+(0,0)/(3,0) move one hand inward, alternating; every other inner pair (1,0)/(2,0) turns one hand's
+down into an OUTWARD down-diagonal, alternating. 24 notes, positions/diagonals only, parity
+untouched. Mirror and width flags clear; windows 0/11; verdict UNNAMED ✅.
+`outputs/for_kyle_2026-10-04/SO_TIRED_ROCK_Expert_v3.zip` (sub-name "v3").
+
 ## What is not known
 - **Nobody has played it.** Kyle's DoD is that he plays it and wants to keep playing.
 - Two 4-bar 16th streams (7.8 s each) in hype 2 is the most demanding thing in the map; if it's
