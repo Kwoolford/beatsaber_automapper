@@ -96,17 +96,31 @@ tempo."*
    - **Anything that felt wrong, with a rough time** (the log maps bars ↔ times).
 4. Your words go into LOG.md verbatim. They are the DoD, and the only real evidence about quality.
 
-### ▶️ NEXT SESSION STARTS HERE
+### ▶️ NEXT SESSION STARTS HERE (2026-10-05)
 
-✅**Built** (PROGRESS 2026-09-18a): `outputs/for_kyle_2026-09-18/SO_TIRED_ROCK_Expert.zip`, rationale in
-📖`agent_mapper/sessions/sotired/LOG.md`. **The DoD is still open: Kyle plays it.** His verdict is
-the only evidence about quality; record it in LOG.md verbatim. Levers already named there: body
-density (chorus 2 / verse 2 → 10-single bars), splitting the 4-bar hype-2 streams, verse vocabulary, **double vocabulary** (88 % both-down = beyond 2 of 4 737 human maps; W5 2026-10-04).
+✅**Blindspot sweep shipped** (PROGRESS 2026-10-04b, 2026-10-05c): `scripts/outlier_sweep.py map|local`
+(unnamed defects vs human maps of the same density), on the verdict page as 🟡 UNNAMED. So Tired Rock
+**v2/v3** built from its findings — Kyle plays v3 (FOR KYLE above). **The DoD is still his play.**
 
-⬜**W6 — promote `compose.py`'s phrase-level hand planner into the suite** (`agent_mapper/`), so the
-next hand-built map starts with it. It's authoring tooling the agent drives (spec in, notes out), not a
-generator: every rhythm and cell choice stays in the spec.
+⬜**W7 — HEAVY METAL LOVE (2f1e5), the BLIND hand-build** — the rigorous test of the agent mapper.
+State: song read ✅, lanes ✅ (`agent_mapper/sessions/hml/lanes.txt`), lyrics ✅, **PLAN written**
+(`sessions/hml/PLAN.md`, force-add: `sessions/` is ignored). No note placed yet. Two human maps exist
+(`2f1e5`, `2ef6a`) and have NOT been opened — keep it that way until the map is finished.
+Tasks: (1) W6 below; (2) spec section by section (verse → chorus → bridge → chorus 2), running
+`outlier_sweep.py map` + `local` after EACH section; (3) verdict + UNNAMED clean; (4) ONLY THEN open
+the humans: verdict `--vs`, fingerprint distance ours↔human vs human↔human (2f1e5↔2ef6a is the
+yardstick), songprint. **DoD**: on the fingerprint, ours sits within the human↔human distance on
+most features, with every exception named and argued; then Kyle plays it.
 
+⬜**W6 — promote `sessions/sotired/compose.py` → `agent_mapper/compose.py`**, figures and DOUBLE-PAIRS
+declared in the spec (`@figdef`, `@dbldef`), so doubles stop being mirrors by construction and the
+"even singles between hits" rule becomes optional (humans write 41 % mixed doubles). DoD: rebuilding
+So Tired Rock from its spec + figdefs reproduces v3 note-for-note.
+
+⬜**W8 — sweep follow-ups** (evidence: PROGRESS 2026-10-05c): (a) no feature has a human control
+showing it COSTS play — the cheapest is Kyle's v1/v3 verdict; (b) doubles +25 % is only 23 % detected,
+dead 8-bar sections 42 % map-wide / 0 % local; (c) re-read the 09-17 autobuild vision-block finding
+on a fresh build before anyone uses autobuild as a sketch again.
 
 **This file is forward-looking only.** What was done, and how it worked out, lives in
 [`PROGRESS.md`](PROGRESS.md); the agent-authoring trail is in
@@ -202,52 +216,7 @@ with *"reach for this when…"* (P4), and the verdict names the tool for every r
    header) and whisper's language probability decide whether a blank VOX lane is the song or the
    tool. Read the header before reading the page.
 
-### 📦 BUILDER-ERA STATE (2026-09-17) — reference only; the session starts at the ▶️ block above
-⚠️Written before the charter; its "best build" numbers are autobuild measurements, and the
-`best_2026-09-17` maps carry 7-26 two-colour collisions (PROGRESS 2026-09-17s).
-**The toolbox is done** (P1 · P1b · P0 · P2 · P2b · P3 · P4 · P4b · P5b · P5c); what is left is the
-builder and Kyle's ear.
-
-▶️**Read these three rules before believing any read.**
-1. **A clean page is evidence about the QUERIES, not the map** — ask what is ABSENT.
-2. **A clean bench row is evidence only if the row COULD HAVE FAILED** — the rows with teeth are
-   `humanplus-*` / `humanexp-*`, the human-vs-human panel, and one zip's two difficulties.
-3. **Four rows can refute a norm, never establish one** — take mechanism claims to ≥ 100 maps.
-4. **Anything tuned on the 23 eval songs needs a HELD-OUT set before it is a win** (2026-09-17h) —
-   `data/heldout/` (12) and `data/heldout2/` (24), `p6_levers.py --audio-dir …`. The taper's eval gain did
-   not survive one; hand runs did, twice.
-
-**Songset** — best build `outputs/best_2026-09-17/` (the general build above **plus `--taper 0.5`**,
-seed 0, post-fix), staged compete zips untouched: `1f913` **SHIP** · `1f8d6` **SHIP** · `1f767` **SHIP**
-(the taper clears its D3) · `1f333` **2 red** (BREATHING · SCATTER). **3 of 4 ship.**
-★**2026-09-17i — the biggest fix of the night was a BUG, not a lever**: `idiomize`'s fallback could leave a
-parity slip that `fix_parity` cascaded through the rest of the hand (312 of 382 directions rewritten on
-one held-out song). Fixed (`idiomize.UNSLIP`): held-out judge FAILs 9 → 3 and ships up by 5 (read on event-loudness E; see 09-17l).
-★**2026-09-17l — two more silent bugs**: `score.py` used EVENT LOUDNESS as E on any song outside
-`data/eval_songset` (D3/BREATHING read differently there), and `answer.py` was a no-op on every fresh song.
-Both fixed; held-out re-measured: base **16**, hand runs **20** of 36; D3 is 3/36 there, not 15.
-⚠️Ship counts are seed-noisy (base 5 / 5 / 8 of 23 across seeds) — never read one seed.
- ⚠️Four of 09-13's clearances were THRESHOLD changes made because the code fired on humans;
-only `answer.py` changed a map.
-**Both 1f333 reds are real and, as of 2026-09-16, neither has a builder fix with evidence behind it**
-(see *What is left*): BREATHING is a mapper's choice the song does not announce, SCATTER is
-vocabulary width, which is mapper style.
-
-❓**THE DECISIONS THAT ARE KYLE'S** (the pairs are staged either way; nothing blocks on them):
-1. **P5 — play ONE pair** (`compete.py verdict <sid> X|Y|tie --because …`). It is the only thing
-   that moves the headline, and the only test of whether BREATHING/SCATTER matter to the ear.
-2. Stage red maps (tests the codes) or rebuild first (tests the builder)? ★**Rebuild is now ready**
-   (2026-09-17): `compete.py`'s `BEST` resolves 1f767 / 1f8d6 / 1f913 to the SHIPPING
-   `best_2026-09-17` maps (1f333 keeps its 1-red p4b_loop map). The command that would restage —
-   `compete.py stage --songset --restage --drop-prediction` — erases the pre-registered predictions,
-   so it was NOT run.
-3. The FLOW fix is a trade (`1f335` staged as its own A/B); `--taper` and `--palette` are style
-   levers waiting on his ear.
-🔴**DECIDE-AND-LOG.** Nothing below may block on Kyle.
-
-⚠️**Read THE BUILDER'S LEVERS before touching any of them.**
-
----
+### 📦 Builder-era state + levers — moved to PROGRESS.md 2026-10-05c (charter: autobuild is a sketch, not the path)
 
 ## ✅→🔵 SHIPPED — the toolbox (P1 · P1b · P0 · P2 · P2b · P3 · P4 · P4b · P5b · P5c)
 Every one of these is DONE; what it taught is in `PROGRESS.md`. This section keeps only the
@@ -398,127 +367,6 @@ through to `queries.cross_difficulty` · the TUTOR line uncoloured.
   people who both did it right. Centring the level also bought the opposite failure: over-walled on 24 %.
 - ⬜`audit_map.py`'s ABSENCE reference (250 corpus maps) does not separate difficulties; bites only on a song
   with no human map.
-
-## 🔧 THE BUILDER'S LEVERS — every one measured 2026-09-12/16, all default OFF but two
-`PROGRESS.md 2026-09-12…2026-09-13g` has the full working. Control arm rebuilds **byte-identical**
-at every default; that check is mandatory before reading any sweep.
-
-| lever | default | what it does | measured |
-|---|---|---|---|
-| `walls.py` corridors | **ON** | wall durations in the human's 3 modes, corridors where onsets thin | coverage 0.40× → **0.98×** his, ELEMENTS fires 59 % → 21 % |
-| `repeat.py` | **ON** (manual) | a section's figure comes back when the song repeats | SCATTER clears on 3 of 4; **1f913 = "nothing located"** |
-| `--lead-in --drop-orphan` | off | take the on-grid note before an odd 16th, else drop it | **FLOW 62 hits → 0 across 16 songs**; ⚠️−0.022 typicality |
-| `--carrier-bias` | off (1.0) | vocals can win the carrier ranking, not just the busiest stem | D4 **29 → 23**; ⚠️no song clears, 3 regress |
-| `--nps-from-song` | off | density from bpm + onset rate, not the fixed 4.17 | our nps sd 0.48 → 0.64 (his 1.00); reds flat |
-| `--palette` | off | commit the map to N landing shapes/hand | SCATTER room +0.23-0.29, coverage intact since STRICT_PARITY (09-16b) · ⚠️judge p −0.17, ~0.5 local per echo |
-| `--hand-run-p` | off | a takeover sometimes holds a run of 4+ | runs≥4 0 → 9–21 · ⚠️costs `idiom_coverage` |
-| `--energy-slope` | off (0.60) | how hard energy scales the budget | 🔴NULL on D6 |
-| `--vocal-keep` | off (1.0) | gentler accent cut on a vocal spec | 🔴NULL — the cut was never binding |
-| `--taper` | off (0) | move budget from the bars before an energy rise to the bars after | D3 11 → 7 hits · 1f767 ships · ⚠️1f8d6 ship → 2 red (zero-margin crossings) |
-| `--map-memory` | off (0) | boost landings this map already played | SCATTER room +0.2-0.3, stable since STRICT_PARITY · ⚠️local cost ~2x human, judge p −0.2 |
-
-**Best known build** and where each songset map stands: see BUILDER-ERA STATE.
-
-### ❓ THE ONE DECISION THAT IS KYLE'S — the FLOW fix is a TRADE
-**FLOW → 0 on all 16 songs, against 23-metric typicality worsening 0.511 → 0.533 (worse on 11/16).**
-The repo's own rules say a PASS is *not defective, not good*, typicality is a floor never a rank,
-and his ear is the arbiter — on that reading the fix is right, but it is his call.
-✅**Staged**: `1f335` is a blind A/B of the fix against its own baseline (`compete.py --against`,
-does not count toward the win rate). Default stays **off** until he plays it.
-
-### ⬜ Is LOCAL VARIETY aspirational or merely typical? (outcome in `PROGRESS.md` 2026-09-13aa-ab)
-`REPEAT_P` is now 0.25, which lands `idiom_local` on the human median; 0.00 lands at the 70th-86th
-percentile and **nothing else moves** (echo, coverage, typicality, hits all unchanged). Both are
-inside the human range, so the median is the defensible default and 0.00 has no evidence behind it.
-⬜**Only Kyle's ear can settle which**: the standing rule says the corpus median is a FLOOR for
-aspirational axes, and `mapjudge` scores typicality so it cannot tell these apart. Not staged as a
-pair — five already wait on P5 and a sixth adds nothing.
-★**The rule it paid for: check what a knob measurably MOVES, not what its pass is named after.**
-### 🔧 P0.4 — every per-song threshold against a real human control (history: PROGRESS 2026-09-13ad-aj, 09-16a)
-Controls: the **human-vs-human panel** (`outputs/dup_songs_2026-09-13.json`, 172 songs, map-only codes;
-`exp_human_panel.py --breathing` aligns pairs by density envelope) and **one zip's two difficulties**
-(exact same audio). DoD per code: fires on < ~5-10 % of human pairs, `bench.py` not refuted.
-| code | control | result |
-|---|---|---|
-| ELEMENTS | panel | 0.50x fired on 34 % → **0.10x** |
-| EMPTY | panel | 0.60 (25.9 %) → **0.30** (8.4 %) |
-| D6 · SCATTER | panel | kept (8.6 % · 7.1 %) |
-| BREATHING | panel (aligned) + difficulties | kept (3.4 % of pairs; but a 2nd mapper plays through 16-25 % of a 1st's rests) |
-| D3 absolute | 120 human maps | step claim **dropped** (85 % red), lag kept at 2.0 beats |
-| D3 human-ref | difficulties | passes (2-5 % red) ⇒ both standing D3 reds are genuine |
-⬜**D3's LEVEL clause** — uncontrolled (skipped across difficulties; the panel has no shared audio).
-⬜**D4** — untested: no reference-free branch, and the panel's audio does not align. Per-pair audio
-cross-correlation would open it (the map-envelope aligner is validated, 09-16a).
-★**A row that never runs the code is not evidence at all** (`bench.py` cannot reach D3's no-human branch).
-
-### ✅ `agent_mapper/answer.py` (2026-09-13ai) — land a note when the energy rises
-Moves (never adds) the first note of a late energy rise onto the earliest onset after the bar line.
-1f333 3 red → 2. Runs after `idiomize`/`repeat.py`, before walls — the only pass that moves a TIME.
-⬜Not wired into `autobuild`; like `repeat.py` it is a manual step in the best-build chain.
-
-### 🔴 What is left on the songset, and why each is hard
-- **BREATHING (1f333 bars 163-169)** — ✅CLOSED as a builder item 2026-09-16a: no song feature
-  (energy band, quiet runs, drum dropouts) predicts where a human rests (≤ 18 % of runs). A pass
-  copying his rests clears the code by construction ⇒ **not built**; Kyle's ear / P6 "breathe".
-- **SCATTER (1f333 bar 81)** — the gap is **figure-vocabulary width**, uniformly (PROGRESS 09-13r,
-  09-16c-e): his echo is the same in returning and first-occurrence blocks, from near and far
-  sources, with no drift over the song; ours is ~0.15 lower everywhere. In humans local variety
-  tracks width too (r +0.625), so narrowing costs local for them as well.
-  Levers that narrow: `--palette` (stable since STRICT_PARITY, room +0.23-0.29, judge p −0.17) and
-  `--map-memory` (room +0.2-0.3, local cost ~2x human). **Neither clears it; both are STYLE levers.**
-  🔴Refuted mechanisms: distance-return · per-section memory · narrow-figures-varied-order.
-  ✅**DoD for any new one**: `idiom_local` no further below humans AT THE RESULTING ECHO (±0.05,
-  `exp_vocabulary.stats`) than the control is — palette passes on 1f8d6, fails on 1f333. Never a
-  pooled rate (the old "0.23" was endpoint-selected; OLS says 0.47).
-  ✅**Triage tool (09-17c)**: `--palette 20` clears SCATTER on 10 of 17 fired builds (9/9 when room
-  ≥ 0.7, 0/3 below 0.5), no new reds; the verdict page now prints the red's room and the rule.
-  ⬜Deep reds (room < 0.5, e.g. 1f333 at 0.23) still have no tool.
-  ⚠️Nothing in the song predicts width (r² 0.039) — it is mapper style, so an unfixable red is a
-  live possibility; **never optimise echo directly**.
-- **D3 (1f767 E-drop bar 42; 1f333 lag bar 170, fixed by `answer.py`)** — D3 is *"breathe before
-  the drop"*: he empties the 2 bars before a jump (ours ÷ his 1.47) and floods after (0.85).
-  `autobuild --taper` (v2, default 0) moves budget across the boundary: D3 11 → 7 hits, 1f767
-  ships, **but 1f8d6 goes ship → 2 red** — only because it was passing with **zero margin**.
-  ⬜Decide the taper default once margins are wider, or ship it as a P6 style lever.
-- **The density family (EMPTY · D6 · D4)** — one defect (our per-song nps sd 0.48 vs his 1.00) at
-  its ceiling: the best song predictor reaches R² 0.231. ⛔"Tune the density" is retired.
-- **The pulse pass never holds a pulse**, and `--pulse` is a trade (FLOW for ABSENCE), not a defect.
-
-### ✅ Margins — every code reports its own (PROGRESS 2026-09-13l-q)
-`room` = 1 + signed slack / line, **1.00 is the line**, invariant `room < 1.00` iff fired —
-🔧`python scripts/check_margins.py` (exit 1) after touching any query or threshold. A margin is a
-second implementation of the query: copy its GATE and POPULATION, not just its threshold.
-★**A map passing AT a threshold is not really passing**: at the 09-13 close, 1f8d6 (walls 0.50x,
-lead-hand 1), 1f767 (lead-hand 1) and 1f913 (echo +0.118 of 0.150; D6 1.65x of 2x; D3 exactly on
-the line) all shipped with no margin — so any lever that nudges them looks like it "broke" a map.
-★A margin says how close a map is to a LINE, not how close it is to being right.
-
-### ★★★ THE SHAPE EVERYTHING TODAY HAD — read this before building anything
-**Eight times in one session the builder reproduced the corpus MEAN and missed the per-song,
-per-window or per-SECTION VARIATION**: wall duration (pooled marginal, not the 3 modes) · the pulse
-(an interval sometimes, never held) · hand runs (the mean run length, never the tail) · the
-vocabulary (no per-map palette) · block echo · per-song density · D4's windows · and the
-within-section taper (D3).
-⇒**When a read says we are inside the human range on the mean and outside on the spread, the fix is
-never a rate knob — it is a hold/commit mechanism, and a rate knob will saturate trying.**
-
-### 🔴 AND THE LANDMINES THIS SESSION PAID FOR
-1. **Verify the CONTROL ARM reproduces the known baseline BYTE-FOR-BYTE before reading a sweep.** An
-   indentation slip made every later build flag conditional on a new one; the sweep looked monotone
-   and the control was a different builder.
-2. **Measure a DoD with the TOOL THAT WILL JUDGE IT**, not a reimplementation — mine disagreed 3×.
-3. **Measure the AGGREGATE as well as the named axis.** A DoD naming one metric passed a change that
-   moved 23-metric typicality the wrong way on 11 of 16 songs.
-4. **Scrape the judge's FULL table (`--top 30`), never its worst-N list** — an absent flag reads as a
-   value and silently confounds the column.
-5. **A share-of-OURS and a share-of-MISSED are different measurements.** Conflating them made me
-   retire the vocal framing, wrongly, for two iterations.
-6. **Check which ARTIFACT a red belongs to** before building a mechanism for it — one belonged to a
-   three-week-old map, not the builder.
-7. 🔴🔴**FIVE documented-but-unwired things found in one day**: `width`, `travel_target` (×2),
-   `PERIODS`, and `MELODIC`'s preference order. **This codebase's comments describe intent the code
-   does not implement, and only a measurement ever catches it.**
-
 
 ## 🟡 P6 — STYLE REQUESTS: "make it more X" as a lever table + presets
 `docs/style_levers.md` — one row per request (*faster · harder · more diagonals · more doubles ·
