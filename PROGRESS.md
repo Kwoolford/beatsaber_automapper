@@ -18672,3 +18672,29 @@ so it says little here.
 **Decided without Kyle (he asked for no questions):** 5.0 nps where there are notes, not ~6. At
 123 BPM, 6 nps averaged over the file needs 16ths through the body, which contradicts "simple flows".
 The lever if he wants more is logged.
+
+
+## 2026-10-04a — W5 mixed-double control: 🔴 premise NOT REPRODUCED; the shipped map overshot the other way
+
+Kyle has not played So Tired Rock yet (no feedback since 09-18), so the session took W5 off the stack.
+Control first (`scripts/exp_mixed_doubles.py`, every unmodded `data/raw` zip with ≥100 notes →
+**4 737 maps** with ≥20 up/down two-hand doubles; the 09-17 "1109" filter was narrower):
+
+| double type | pooled | per-map p50 | p95 | p99 |
+|---|---|---|---|---|
+| mixed (one up, one down) | **41.1 %** | 41.2 % | 66.7 % | 82.4 % |
+| both up | 26.3 % | 25.9 % | 45.5 % | 58.8 % |
+
+By context (`scripts/exp_mixed_doubles_ctx.py`, 1 500-map sample, 139 k doubles): mixed is
+40.8 % on the beat, 42.7 % on the 8th, 32.6 % when a hand played < ½ beat before. **Crossed** doubles
+are the one place humans avoid it (20.9 % mixed, 71 % both-down; n = 3 362).
+
+- 🔴**NOT REPRODUCED: mixed doubles are not a defect humans avoid.** No share line both fires on the
+  draft (76 % mixed = 97.8th pct) and stays quiet on humans at a rate worth gating; no locator either,
+  since humans do it on the downbeat as much as anywhere. **No verdict code added.** W5 deleted.
+- ★**The shipped map is the outlier**: 45 both-down / 6 both-up / **0 mixed** = 88 % both-down;
+  ≥ 88 % both-down occurs in **0.04 %** of human maps (2 of 4 737); ≤ 2 % mixed in 1.8 %. compose.py's
+  "singles between two hits must be EVEN" rule was the agent's own read of the draft, never played.
+  It is a choice, not a law. Logged in LOG.md as a lever for Kyle's play-test. Not changed before he plays.
+- Lesson (again): **check a rule against humans BEFORE writing it into the tooling**, not after; the
+  09-18 LOG asserted a playability law from one draft and zero controls.

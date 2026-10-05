@@ -53,6 +53,11 @@ open question in PLAN.md was decided and is logged here for him to argue with.
   `verdict.py` or mapjudge reads it.** `compose.py` now plans hands phrase by phrase and reports any
   phrase that can't land its hit; the finished map has **0 mixed doubles**, and its 6 up-hits are
   all deliberate (hit pairs, down then up).
+  🔴**2026-10-04 correction (W5 control, 4 737 human maps): humans write mixed doubles CONSTANTLY** —
+  median map 41 % mixed / 26 % both-up / 33 % both-down, on the downbeat as often as off it. The
+  draft's 76 % mixed was the 98th percentile; the shipped map's **88 % both-down sits beyond 2 human
+  maps in 4 737**. The fix overshot into a monotone double vocabulary. The "singles between hits must
+  be even" rule is a choice, not a playability law. If the doubles feel samey in play, this is why.
 - **A double inside a 16th stream needs a free 16th on each side**, or one hand swings twice in
   122 ms. A 2-bar stream phrase is therefore hit + 26 sixteenths + a 3-slot breath; a 4-bar one is
   hit + 58.

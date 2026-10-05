@@ -98,13 +98,7 @@ tempo."*
 ✅**Built** (PROGRESS 2026-09-18a): `outputs/for_kyle_2026-09-18/SO_TIRED_ROCK_Expert.zip`, rationale in
 📖`agent_mapper/sessions/sotired/LOG.md`. **The DoD is still open: Kyle plays it.** His verdict is
 the only evidence about quality; record it in LOG.md verbatim. Levers already named there: body
-density (chorus 2 / verse 2 → 10-single bars), splitting the 4-bar hype-2 streams, verse vocabulary.
-
-⬜**W5 — MIXED-DOUBLE read on `verdict.py`** (found building this map: 75/99 doubles mixed or both-up in a
-draft that was parity-clean). ⚠️Control FIRST: measure the mixed-double share on the 1109 unmodded
-human maps before choosing a colour; humans do write split doubles, so this may be a 🟡 with a
-share line, not a red. DoD: the rate on humans is known; a map whose choruses are backbeat doubles
-with one 8th between (`d.x.d.x.x.x.d.x.`, the draft's pattern) fires; the shipped map does not.
+density (chorus 2 / verse 2 → 10-single bars), splitting the 4-bar hype-2 streams, verse vocabulary, **double vocabulary** (88 % both-down = beyond 2 of 4 737 human maps; W5 2026-10-04).
 
 ⬜**W6 — promote `compose.py`'s phrase-level hand planner into the suite** (`agent_mapper/`), so the
 next hand-built map starts with it. It's authoring tooling the agent drives (spec in, notes out), not a
