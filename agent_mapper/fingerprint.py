@@ -68,8 +68,15 @@ def fingerprint(m) -> dict[str, float]:
     f["dbl_same_row"] = _share(sum(r.y == b.y for r, b in dbl), len(dbl))
     f["dbl_on_beat"] = _share(sum(round(r.beat * Q) % Q == 0 for r, b in dbl), len(dbl))
     f["stack_share"] = _share(sum(len(at[t][c]) > 1 for t in ticks for c in (0, 1)), len(ticks))
-    cells = collections.Counter((round(n.beat * Q), n.x, n.y) for n in notes)
-    f["cell_collisions"] = float(sum(v > 1 for v in cells.values()))
+    cells = collections.defaultdict(set)
+    for n in notes:
+        cells[(round(n.beat * Q), n.x, n.y)].add(n.color)
+    # ★two colours in one cell is unplayable and absent from humans (0 / 1 109, 2026-09-17s); a
+    # same-colour duplicate is a cut-as-one copy artifact some humans ship. Lumped together, ONE
+    # injected stack was flagged on 19 % of maps (sweep_sensitivity, 2026-10-05) — keep them apart.
+    f["two_colour_cells"] = float(sum(len(v) > 1 for v in cells.values()))
+    cnt = collections.Counter((round(n.beat * Q), n.x, n.y) for n in notes)
+    f["cell_collisions"] = float(sum(v > 1 for v in cnt.values()))
 
     # ---- per hand: directions, positions, transitions
     for c, hn in ((0, "L"), (1, "R")):

@@ -29,6 +29,9 @@ sys.path.insert(0, str(ROOT))
 TABLE = ROOT / "outputs" / "fingerprint" / "human_table.json"
 K = 400          # reference = the K human maps nearest in log-nps
 TAIL = 0.005     # two-sided: at most this share of the reference as extreme
+# Unplayable whatever the corpus says (36 / 5 244 human maps carry one — the corpus has bugs too):
+# any count above zero flags, with rarity 0. verdict.py's PLAYABILITY reds the same thing.
+HARD = {"two_colour_cells"}
 
 
 def _one(p):
@@ -86,6 +89,8 @@ def place(f: dict, names, X, ids, exclude: str | None = None, k: int = K):
         hi = np.mean(col >= v)
         # ties at a hard floor/ceiling (e.g. 0 collisions) are not rare
         rar, side = (lo, "low") if lo < hi else (hi, "high")
+        if nm in HARD and v > 0:
+            rar, side = 0.0, "HARD"
         out.append((nm, v, rar, side, *np.percentile(col, [5, 50, 95]),
                     int(round(rar * len(col))), len(col)))
     return out
@@ -231,6 +236,8 @@ def lplace(f, names, X, lnps, ids, exclude=None, tail=LTAIL):
             continue
         lo, hi = np.mean(col <= v), np.mean(col >= v)
         rar, side = (lo, "low") if lo < hi else (hi, "high")
+        if nm in HARD and v > 0:
+            rar, side = 0.0, "HARD"
         if rar <= tail:
             out.append((nm, v, rar, side, *np.percentile(col, [5, 50, 95]), int(round(rar * len(col))), len(col)))
     return out

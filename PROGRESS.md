@@ -18698,3 +18698,58 @@ are the one place humans avoid it (20.9 % mixed, 71 % both-down; n = 3 362).
   It is a choice, not a law. Logged in LOG.md as a lever for Kyle's play-test. Not changed before he plays.
 - Lesson (again): **check a rule against humans BEFORE writing it into the tooling**, not after; the
   09-18 LOG asserted a playability law from one draft and zero controls.
+
+## 2026-10-04b — 🔎 the BLINDSPOT SWEEP: unnamed-defect tooling, calibrated on humans, tested on Kyle's verdicts
+
+**Why** (Kyle, 2026-10-04, leaving 16 h): *"In the past they have all had flaws or obvious blindspots
+when I loaded them up… continue to develop tooling… if you are certain they are excellent, shift to
+the machine learning method."* Every query answers a NAMED defect; every shipped flaw was unnamed.
+
+### Built
+- `agent_mapper/fingerprint.py` — ~120 plain map quantities (per-hand direction/column/row shares,
+  rotation between swings, resets, movement, doubles by type, alternation, same-hand runs, spacing,
+  grid phase, density shape, bar-rhythm repetition, elements). Map-only ⇒ the reference is 5 244 maps.
+- `scripts/outlier_sweep.py` — `map`: each quantity vs the **400 human maps nearest in nps**, two-sided
+  tails ≤ 0.5 %; `local`: per **8-bar window** vs the 1 000 nearest of **19 414 human windows** by local
+  nps, tails ≤ 0.1 %. `HARD` set (`two_colour_cells`) flags any non-zero count.
+- `agent_mapper/songprint.py` + `scripts/songprint_sweep.py` — per-stem answered share / accent share /
+  which lane each 8-bar section follows, ours − human on ONE song, against **63 two-mapper songs**
+  (`scripts/cache_panel_events.py` cached 140 panel maps' events; 7 pairs dropped, tempo changes).
+- `scripts/sweep_sensitivity.py` — inject 8 known flaw kinds at 3 doses into 150 held-out human maps.
+
+### Calibration (held-out humans)
+map-wide: flags/map p50 **0**, p95 **5**, p99 11 · local: **7.8 %** of human windows flag, flagged
+windows/map p95 **5**, p99 8.
+
+### Tested on maps Kyle already judged — CONFIRMED where it matters
+| map | Kyle | map-wide | local windows |
+|---|---|---|---|
+| Hunger_AGENT | DEFECT (flow) | **18** 🔴 | **22 / 23** 🔴 |
+| Hunger_BEFORE | PREFERRED | — | 4 ⚪ |
+| human 1f333 | — | 0 | 2 |
+| AGENT__1f333 / 1f913 (09-17) | "blatant" errors | collisions 26 / 7 (0-1 of 400 humans) | — |
+| 1f8d6 / 1f333 AFTER2 (08-03) | EMPTY / A+ | doubles 59 % / 64 % (≤ 1 of 400) | — |
+36 latest held-out autobuilds: collisions on 67 % (humans 0.3 %), too-even cell spread 36 %, 16th gaps
+31 %, **inward up-diagonals** (red UR / blue UL) 28 % / 19 %, bottom row under-used ~25 %.
+
+### Sensitivity (150 held-out human maps, injected flaw → detected on its own features)
+parity flips 8 % → **89 %** map-wide · inward diagonals 50 % of ups → **97 %** · hands locked to halves
+→ **91 %** · vocabulary collapse 60 % → **87 %** · doubles +50 % → 98 % (+25 % → only 23 %) · dead
+section 16 bars → 97 % (8 bars 42 %; local never) · **off-grid 30 % of notes → NOT SEEN (4 %, at the
+false-alarm floor)** — map-only grid phase is too style-dependent; only the song can judge it.
+🔴Collisions were under-detected (1 stack → 19 %) because same-colour duplicates were lumped in;
+split into `two_colour_cells` (36 / 5 244 human maps carry one ⇒ HARD rule, not a tail) ⇒ **1 stack → 100 %**.
+(Attribution bug caught on the rerun: `_col` substring-matched `two_colour_cells` and inflated vocab 55 → 85 %; fixed.)
+
+### Songprint — 🔴 pre-registered prediction NOT REPRODUCED
+Predicted before the control: AGENT__1f913 (Kyle: "booming bass… obviously ignored") flags on bass
+accents (ours 0.32 vs human 0.63). **Two humans on one song differ by up to ±0.45 (95 %) on that**, so
+it does not flag; and Hunger_BEFORE (PREFERRED) draws the most yellows. ⇒ *which instrument a map
+answers* is mapper style at map level; songprint stays a READING aid, not a gate.
+
+### First catch on a hand-built map
+So Tired Rock (unplayed by Kyle): local flagged all three choruses — figure `C` ended each hand's
+cycle on an inward up-diagonal (24 % of swings vs human median 0 %). **v2** cuts those 60 notes up
+(`outputs/for_kyle_2026-10-04/`): flagged windows 3 → 0. Map-wide it still sits outside humans on
+deliberate "simple flow" choices (hands never cross centre, 97 % alternation, same-row both-down
+doubles, 10 red shapes) — logged in LOG.md for Kyle's ear, not changed.
